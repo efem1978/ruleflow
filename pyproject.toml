@@ -34,3 +34,13 @@ mcp-rules-assistant = "mcp_rules_assistant.cli:app"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["mcp_rules_assistant*"]
+
+[tool.coverage.run]
+omit = [
+  "**/.mcp/*.py",
+  "mcp_rules_assistant/cli.py",
+  "mcp_rules_assistant/mcp_server.py"
+]
+
+[tool.coverage.report]
+show_missing = true
