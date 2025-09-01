@@ -11,7 +11,9 @@
 - 可选：`make setup` 创建 `.mcp/venv` 并安装工具链
 
 测试 Tests
-- Python：`make test`（禁用外部 PyTest 插件）
+- Python：`make test`（禁用外部 PyTest 插件）或运行：
+  - `pytest -q --maxfail=1 --disable-warnings -W error --strict-markers --cov --cov-report=term-missing --cov-fail-under=95`
+  - 覆盖率缓存清理：`mcp-rules-assistant coverage-clean-cache`
 - VS Code：`make vscode-test`（受限环境可设置 `MCP_VSCODE_TEST_ARGS=""`）
 
 代码规范 Code Style
@@ -20,6 +22,7 @@
 CI 与 Hooks
 - 生成：`mcp-rules-assistant generate-ci`，校验：`mcp-rules-assistant ci-validate`
 - 安装钩子：`mcp-rules-assistant install-hooks`
+ - 覆盖率：CI 按 `.mcp/assistant.yaml` 的 `performance.on_push.coverage.min_module` 设置门槛，默认 0.95（95%）。CI 会上传 `coverage.xml` 至 Codecov 生成徽章（可选配置 `CODECOV_TOKEN`）。
 
 Pre-commit
 - 安装并启用：`pip install pre-commit && pre-commit install && pre-commit install --hook-type commit-msg && pre-commit install --hook-type pre-push`

@@ -19,6 +19,7 @@ MCP 规则与上下文助手 / MCP Rules & Context Assistant
 
 ![CI](https://img.shields.io/github/actions/workflow/status/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool/ci.yml?branch=main&label=CI)
 ![Release](https://img.shields.io/github/v/tag/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool?label=release)
+![Coverage](https://codecov.io/gh/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool/branch/main/graph/badge.svg)
 ![PyPI](https://img.shields.io/pypi/v/mcp-rules-assistant?label=pypi)
 
 快速开始 Quick Start（性能优先）
@@ -38,6 +39,22 @@ MCP 规则与上下文助手 / MCP Rules & Context Assistant
 - docs/RULES_INGEST.md：规则摄取与校验
 - docs/SECURITY_TOOLS.md：安全工具示例（hadolint/semgrep）
  - extensions/vscode/README.md：插件说明
+
+测试与覆盖率 Tests & Coverage
+- 本地运行（严格模式，无警告/跳过，覆盖率门槛 ≥95%）：
+  - 创建环境并安装依赖（任选其一）
+    - `pip install -e . && pip install -U pytest pytest-cov ruff black isort mypy bandit`
+    - 或 `make setup`（使用内置 .mcp/venv）
+  - 运行测试：
+    - `pytest -q --maxfail=1 --disable-warnings -W error --strict-markers --cov --cov-report=term-missing --cov-fail-under=95`
+  - 清理覆盖率缓存：`mcp-rules-assistant coverage-clean-cache`
+- CI 中按项目配置的 `coverage.min_module` 动态设置门槛（默认 95%），并上传 `coverage.xml` 到 Codecov 以生成覆盖率徽章。
+
+启用 Codecov（可选）
+- 公共仓库：缺省无需令牌。Fork 后保留工作流中的上传步骤即可。
+- 私有仓库：在 GitHub 仓库 Settings → Secrets and variables → Actions 新增 `CODECOV_TOKEN`，值为 Codecov 项目令牌。
+- 首次 push 后访问徽章链接确认数据是否入库：
+  - https://codecov.io/gh/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool
 
 性能与约束 Performance & Enforcement
 - 默认 Fast：保存仅格式化+改动文件 lint；提交增量；推送/CI 才跑重型门禁

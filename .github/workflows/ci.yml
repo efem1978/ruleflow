@@ -55,6 +55,15 @@ jobs:
             near.csv
             near.json
             tests-artifacts.tar.gz
+      - name: Upload coverage to Codecov
+        if: secrets.CODECOV_TOKEN != ''
+        uses: codecov/codecov-action@v4
+        with:
+          files: coverage.xml
+          flags: python
+          name: python-${{ matrix.python-version }}
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       - name: Security
         run: |
           bandit -q -ll -x tests -r .
@@ -91,6 +100,15 @@ jobs:
           path: |
             coverage.xml
             pytest-junit.xml
+      - name: Upload coverage to Codecov (prepare)
+        if: secrets.CODECOV_TOKEN != ''
+        uses: codecov/codecov-action@v4
+        with:
+          files: coverage.xml
+          flags: prepare
+          name: python-prepare
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
   vscode:
     runs-on: ubuntu-latest
 
