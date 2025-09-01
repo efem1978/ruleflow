@@ -42,3 +42,10 @@ omit = [
 
 [tool.coverage.report]
 show_missing = true
+
+[tool.ruff]
+target-version = "py311"
+
+[tool.ruff.lint]
+# Ignore multiple-statements-per-line (E702) globally; project uses short, semicolon-separated statements
+ignore = ["E702"]
