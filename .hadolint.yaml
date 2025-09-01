@@ -1,0 +1,6 @@
+ignored:
+  - DL3008
+  - DL3059
+
+overrides:
+  DL3007: warning

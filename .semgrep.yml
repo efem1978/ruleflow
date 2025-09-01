@@ -1,0 +1,12 @@
+rules:
+  - id: py-no-eval
+    message: "Avoid eval() — security risk"
+    languages: [python]
+    severity: ERROR
+    pattern: eval(...)
+
+  - id: py-no-exec
+    message: "Avoid exec() — security risk"
+    languages: [python]
+    severity: ERROR
+    pattern: exec(...)

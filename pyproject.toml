@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mcp-rules-assistant"
+version = "0.2.0"
+description = "MCP rules & context assistant (Python server + VS Code extension skeleton)"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{name = "Your Team"}]
+license = {text = "Proprietary or TBD"}
+keywords = ["mcp", "rules", "coverage", "cli", "vscode"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Topic :: Software Development :: Build Tools",
+]
+urls = {"Homepage" = "https://example.com/mcp-rules-assistant", "Repository" = "https://example.com/mcp-rules-assistant.git"}
+dependencies = [
+  "typer>=0.9",
+  "pydantic>=2.5",
+  "PyYAML>=6.0",
+  "rich>=13.7"
+]
+
+[project.scripts]
+mcp-rules-assistant = "mcp_rules_assistant.cli:app"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["mcp_rules_assistant*"]

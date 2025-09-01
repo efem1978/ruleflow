@@ -1,0 +1,21 @@
+{
+  "name": "mcp-rules-assistant",
+  "image": "mcr.microsoft.com/devcontainers/python:3.11",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "20"
+    }
+  },
+  "postCreateCommand": "pip install -e . && pip install ruff black isort mypy bandit pytest pytest-cov pre-commit && npm --prefix extensions/vscode install",
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "python.testing.pytestEnabled": true
+      },
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance"
+      ]
+    }
+  }
+}

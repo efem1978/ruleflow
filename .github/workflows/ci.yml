@@ -1,0 +1,118 @@
+name: CI
+on:
+  push:
+  pull_request:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.11', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${ matrix.python-version }
+          cache: 'pip'
+      - name: Install tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff black isort mypy bandit pytest pytest-cov
+      - name: Pre-commit (all files)
+        run: |
+          python -m pip install pre-commit
+          pre-commit run --all-files
+      - name: Check Dockerfile existence
+        run: |
+          test -f Dockerfile || (echo 'Dockerfile missing' && exit 1)
+      - name: Dockerfile Lint (hadolint)
+        run: |
+          test -f Dockerfile && docker run --rm -v "$PWD":/work -w /work hadolint/hadolint:latest hadolint  Dockerfile || echo 'skip hadolint'
+      - name: Lint & Type
+        run: |
+          ruff --format=github .
+          black --check .
+          isort --check-only .
+          mypy .
+      - name: Tests + Coverage
+        run: |
+          pytest -q --maxfail=1 --disable-warnings -W error --strict-markers --cov --cov-report=xml:coverage.xml --cov-report=term-missing --cov-fail-under=95 --junitxml=pytest-junit.xml
+      - name: Coverage Near Summary
+        run: |
+          python -m mcp_rules_assistant.cli coverage-near --within 3 --top 10 > near.txt || true
+          python -m mcp_rules_assistant.cli coverage-near --within 3 --top 10 --format csv --output near.csv || true
+          python -m mcp_rules_assistant.cli coverage-near --within 3 --top 10 --format json --output near.json || true
+          tar czf tests-artifacts.tar.gz coverage.xml pytest-junit.xml near.txt near.csv near.json || true
+      - name: Upload coverage & JUnit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-tests-${{ matrix.python-version }}
+          path: |
+            coverage.xml
+            pytest-junit.xml
+            near.txt
+            near.csv
+            near.json
+            tests-artifacts.tar.gz
+      - name: Security
+        run: |
+          bandit -q -ll -x tests -r .
+      - name: SAST (semgrep)
+        run: |
+          python -m pip install semgrep
+          semgrep --error --config p/ci
+
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - name: Prepare env (mcp_rules_assistant env.prepare)
+        run: |
+          python - <<'PY'
+          from mcp_rules_assistant.mcp_server import JsonRpcServer
+          srv = JsonRpcServer()
+          out = srv._call_tool("env.prepare", {"create": True, "install": True})
+          print(out)
+          PY
+      - name: Tests in env (pytest + coverage)
+        run: |
+          . ./.mcp/venv/bin/activate
+          pytest -q --maxfail=1 --disable-warnings -W error --strict-markers --cov --cov-report=xml:coverage.xml --cov-report=term-missing --junitxml=pytest-junit.xml
+      - name: Upload artifacts (env tests)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-tests-prepare
+          path: |
+            coverage.xml
+            pytest-junit.xml
+  vscode:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'extensions/vscode/package-lock.json'
+      - name: Install and compile
+        working-directory: extensions/vscode
+        run: |
+          npm ci || npm install
+          npm run compile
+      - name: VS Code extension tests
+        working-directory: extensions/vscode
+        run: |
+          xvfb-run -a npm test 2>&1 | tee vscode-test.log
+      - name: Upload VS Code test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vscode-tests
+          path: extensions/vscode/vscode-test.log

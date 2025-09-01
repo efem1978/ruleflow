@@ -1,0 +1,44 @@
+{
+  "name": "mcp-rules-assistant",
+  "displayName": "MCP Rules Assistant (Skeleton)",
+  "publisher": "your-team",
+  "version": "0.0.1",
+  "engines": { "vscode": "^1.84.0" },
+  "categories": ["Other"],
+  "activationEvents": [
+    "onCommand:mcpRulesAssistant.openPanel",
+    "onCommand:mcpRulesAssistant.commit",
+    "onCommand:mcpRulesAssistant.push"
+  ],
+  "main": "out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "mcpRulesAssistant.openPanel",
+        "title": "MCP: Open Panel"
+      },
+      {
+        "command": "mcpRulesAssistant.commit",
+        "title": "MCP: Commit (run checks)"
+      },
+      {
+        "command": "mcpRulesAssistant.push",
+        "title": "MCP: Push (run gates)"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "test": "npm run compile && node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.1",
+    "@types/node": "^20.10.0",
+    "@types/vscode": "^1.84.0",
+    "@vscode/test-electron": "^2.3.4",
+    "mocha": "^10.2.0",
+    "typescript": "^5.4.0"
+  }
+}

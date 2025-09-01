@@ -1,0 +1,50 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
+
+
+@dataclass
+class Tool:
+    name: str
+    description: str
+
+
+class ToolRegistry:
+    def __init__(self) -> None:
+        self._tools: Dict[str, Tool] = {}
+
+    def register(self, tool: Tool) -> None:
+        self._tools[tool.name] = tool
+
+    def list(self) -> List[Tool]:
+        return list(self._tools.values())
+
+
+registry = ToolRegistry()
+
+
+def setup_default_tools() -> None:
+    registry.register(Tool("project.detect", "Detect project language/framework/complexity"))
+    registry.register(Tool("project.switch", "Switch or create project context"))
+    registry.register(Tool("memory.toggle_auto", "Enable/disable rolling memory"))
+    registry.register(Tool("memory.snapshot", "Produce last 20 turns and summary"))
+    registry.register(Tool("rules.init", "Select general rules by profile"))
+    registry.register(Tool("rules.ingest", "Ingest project rules from docs"))
+    registry.register(Tool("rules.validate", "Deduplicate and detect conflicts"))
+    registry.register(Tool("rules.enforce", "Set enforcement level"))
+    registry.register(Tool("env.prepare", "Prepare language environment"))
+    registry.register(Tool("fs.apply_patch", "Guarded write with checks"))
+    registry.register(Tool("git.install_hooks", "Install git hooks"))
+    registry.register(Tool("nl.command", "Natural language command dispatcher"))
+    registry.register(Tool("plan.update", "Update project plan markdown"))
+    registry.register(Tool("plan.set", "Set plan fields (status/current/next)"))
+    registry.register(Tool("config.get", "Get project config or section"))
+    registry.register(Tool("config.update", "Update project config 'ci' section"))
+    registry.register(Tool("ci.generate", "Generate CI workflow (GitHub Actions)"))
+    registry.register(Tool("ci.validate", "Validate generated CI workflow content"))
+    registry.register(Tool("ci.autofix", "Auto-fix CI by regenerating missing steps"))
+    registry.register(Tool("coverage.near", "List files near threshold within window"))
+    registry.register(Tool("coverage.report", "Summarize weak/groups/near in one payload"))
+    registry.register(Tool("rules.maxima", "Return coverage upper-bounds (maxima) from compiled rules"))
+    registry.register(Tool("env.diagnose", "Diagnose environment/tools/config presence"))
