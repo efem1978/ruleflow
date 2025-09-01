@@ -11,9 +11,16 @@ import os
 import hashlib
 
 
-def _run(cmd: List[str], cwd: Optional[Path] = None) -> Dict[str, object]:
+def _run(cmd: List[str], cwd: Optional[Path] = None, env: Optional[Dict[str, str]] = None) -> Dict[str, object]:
     try:
-        p = subprocess.run(cmd, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        p = subprocess.run(
+            cmd,
+            cwd=cwd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            env=env,
+        )
         return {"ok": p.returncode == 0, "code": p.returncode, "stdout": p.stdout, "stderr": p.stderr, "cmd": cmd}
     except FileNotFoundError:
         return {"ok": True, "skipped": True, "reason": f"{cmd[0]} not found", "cmd": cmd}
@@ -24,7 +31,8 @@ def run_lint(files: List[Path], cwd: Optional[Path] = None) -> Dict[str, object]
     targets = [str(f) for f in files if f.suffix in {".py"}]
     if not targets:
         return {"ok": True, "skipped": True, "reason": "no python files"}
-    return _run(["ruff", "--quiet", "--format", "github", *targets], cwd)
+    # 兼容新版 Ruff 子命令：使用 `ruff check`，避免旧式顶层参数不兼容
+    return _run(["ruff", "check", "--quiet", *targets], cwd)
 
 
 def run_typecheck(cwd: Optional[Path] = None) -> Dict[str, object]:
@@ -293,7 +301,11 @@ def run_quick_tests(files: List[Path], cwd: Optional[Path] = None) -> Dict[str, 
         *ordered_tests,
         *ordered_nodes,
     ]
-    res = _run(cmd, cwd)
+    # 保证被测工程根目录在 PYTHONPATH 中，避免通过 tests/ 路径运行时 import 失败
+    env = os.environ.copy()
+    root = str(project_root)
+    env["PYTHONPATH"] = (root + (":" + env["PYTHONPATH"] if env.get("PYTHONPATH") else ""))
+    res = _run(cmd, cwd, env=env)
     # 解析失败用例写回缓存（启发式）
     failed_files: Set[str] = set()
     failed_nodes: Set[str] = set()
