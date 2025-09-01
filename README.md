@@ -17,8 +17,8 @@ MCP 规则与上下文助手 / MCP Rules & Context Assistant
 
 状态 Status
 
-![CI](https://img.shields.io/github/actions/workflow/status/your-org/mcp-rules-assistant/ci.yml?label=CI)
-![Release](https://img.shields.io/github/v/tag/your-org/mcp-rules-assistant?label=release)
+![CI](https://img.shields.io/github/actions/workflow/status/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool/ci.yml?branch=main&label=CI)
+![Release](https://img.shields.io/github/v/tag/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool?label=release)
 ![PyPI](https://img.shields.io/pypi/v/mcp-rules-assistant?label=pypi)
 
 快速开始 Quick Start（性能优先）

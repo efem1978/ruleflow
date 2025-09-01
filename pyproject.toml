@@ -38,8 +38,7 @@ include = ["mcp_rules_assistant*"]
 [tool.coverage.run]
 omit = [
   "**/.mcp/*.py",
-  "mcp_rules_assistant/cli.py",
-  "mcp_rules_assistant/mcp_server.py"
+  
 ]
 
 [tool.coverage.report]

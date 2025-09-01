@@ -21,3 +21,12 @@ CI 与 Hooks
 - 生成：`mcp-rules-assistant generate-ci`，校验：`mcp-rules-assistant ci-validate`
 - 安装钩子：`mcp-rules-assistant install-hooks`
 
+Pre-commit
+- 安装并启用：`pip install pre-commit && pre-commit install && pre-commit install --hook-type commit-msg && pre-commit install --hook-type pre-push`
+- 推送时将运行覆盖率门槛与安全检查（见 `.pre-commit-config.yaml`）
+
+GitHub 设置建议
+- Branch protection：保护 `main`，要求 CI 通过（含覆盖率 ≥95%）
+- Secrets（可选）：
+  - `PYPI_API_TOKEN`（用于 `release.yml` 发布 PyPI）
+  - `VSCE_PAT`（用于 VS Code 扩展发布）
