@@ -25,7 +25,8 @@ dependencies = [
   "typer>=0.9",
   "pydantic>=2.5",
   "PyYAML>=6.0",
-  "rich>=13.7"
+  "rich>=13.7",
+  "defusedxml>=0.7.1"
 ]
 
 [project.scripts]

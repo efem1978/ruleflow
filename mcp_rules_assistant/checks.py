@@ -129,7 +129,8 @@ def _discover_tests_by_import(project_root: Path, candidates: List[str]) -> Set[
 
 def _compute_tests_signature(project_root: Path) -> str:
     tests_dir = project_root / "tests"
-    h = hashlib.sha1()
+    # Use SHA-256 for non-security test-set signature to satisfy bandit
+    h = hashlib.sha256()
     if tests_dir.exists():
         for p in sorted(tests_dir.rglob("test_*.py")):
             try:

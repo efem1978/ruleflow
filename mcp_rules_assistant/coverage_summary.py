@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-import xml.etree.ElementTree as ET
+from defusedxml import ElementTree as ET  # type: ignore
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -21,11 +21,11 @@ def _read_classes_with_cache(
         stat = path.stat()
         try:
             data_bytes = path.read_bytes()
-        except Exception:
+        except (OSError, IOError):
             data_bytes = b""
         import hashlib
 
-        sig_hash = hashlib.sha1(data_bytes).hexdigest()
+        sig_hash = hashlib.sha256(data_bytes).hexdigest()
         sig = f"{int(getattr(stat, 'st_mtime_ns', int(stat.st_mtime*1e9)))}-{stat.st_size}-{sig_hash}"
         cpath = _cache_path(project_root)
         cache: Dict[str, object] = {}
