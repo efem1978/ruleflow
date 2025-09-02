@@ -6,7 +6,7 @@ import os
 import subprocess
 import time
 from pathlib import Path
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional, Set, cast
 
 import yaml
 
@@ -267,9 +267,10 @@ def run_quick_tests(files: List[Path], cwd: Optional[Path] = None) -> Dict[str, 
     # 合并上次失败缓存
     last_fail = _read_last_fail(project_root)
     test_paths.update(last_fail["tests"])  # type: ignore[index]
-    nodeids = set(last_fail["nodeids"])  # type: ignore[index]
-    test_counts: Dict[str, int] = dict(last_fail.get("test_counts", {}))  # type: ignore[assignment]
-    node_counts: Dict[str, int] = dict(last_fail.get("node_counts", {}))  # type: ignore[assignment]
+    # keep as Set[str]; _read_last_fail guarantees set for 'nodeids'
+    nodeids = set(last_fail.get("nodeids", set()))  # type: ignore[call-arg]
+    test_counts = cast(Dict[str, int], last_fail.get("test_counts", {}))
+    node_counts = cast(Dict[str, int], last_fail.get("node_counts", {}))
     if not test_paths:
         return {"ok": True, "skipped": True, "reason": "no impacted tests"}
 

@@ -330,13 +330,13 @@ jobs:
       - name: Install tools
         run: |
           python -m pip install --upgrade pip
-          pip install ruff black isort mypy bandit pytest pytest-cov
+          pip install ruff black isort mypy bandit pytest pytest-cov types-PyYAML
 {precommit_ci}{docker_check}{hadolint_step}      - name: Lint & Type (core, blocking)
         run: |
           ruff check --output-format=github mcp_rules_assistant
           black --check mcp_rules_assistant
           isort --check-only mcp_rules_assistant
-          mypy mcp_rules_assistant || true
+          mypy mcp_rules_assistant/config.py mcp_rules_assistant/progress.py mcp_rules_assistant/tools.py mcp_rules_assistant/memory.py
       - name: Tests + Coverage
         env:
           PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
