@@ -49,3 +49,8 @@ target-version = "py311"
 [tool.ruff.lint]
 # Ignore multiple-statements-per-line (E702) globally; project uses short, semicolon-separated statements
 ignore = ["E702"]
+
+[tool.isort]
+profile = "black"
+line_length = 88
+known_first_party = ["mcp_rules_assistant"]

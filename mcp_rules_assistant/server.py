@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import NoReturn
-from .tools import setup_default_tools, registry
+
 from .mcp_server import serve_stdio
 
 

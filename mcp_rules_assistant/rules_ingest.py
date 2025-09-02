@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 import json
-import re
-from dataclasses import dataclass, asdict
-from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Tuple
 import json as _json
-
+import re
+from dataclasses import asdict, dataclass
+from pathlib import Path
+from typing import Any, Dict, Iterable, List, Optional
 
 RAW_PATH = Path(".mcp/rules_raw.json")
 COMPILED_JSON = Path(".mcp/rules_compiled.json")
@@ -65,7 +64,9 @@ def _parse_text_file(path: Path) -> List[RuleItem]:
         if re.match(r"^(?:[-*] |\d+\.|[•·] )", t) or len(t) < 160:
             mapped = _interpret_policy(t)
             for key, val in mapped.items():
-                items.append(RuleItem(key=key, value=val, text=t, source=Source(str(path), i)))
+                items.append(
+                    RuleItem(key=key, value=val, text=t, source=Source(str(path), i))
+                )
     return items
 
 
@@ -80,7 +81,12 @@ def _interpret_policy(text: str) -> Dict[str, Any]:
     lower_kw_1 = r"(>=|≥|不少于|不低于|至少|no\s+less\s+than|not\s+less\s+than|at\s+least|>|大于|高于)"
     lower_kw_2 = r"(?<!不)超过|(?<!not\s)greater\s+than|(?<!no\s)(?<!not\s)more\s+than|(?<!no\s)(?<!not\s)(over|above)"
     has_lower_kw = bool(re.search(lower_kw_1, t) or re.search(lower_kw_2, t))
-    has_upper_kw = bool(re.search(r"(<=|<|≤|不高于|不超过|至多|at\s+most|no\s+more\s+than|not\s+more\s+than|less\s+than|under|below)", t))
+    has_upper_kw = bool(
+        re.search(
+            r"(<=|<|≤|不高于|不超过|至多|at\s+most|no\s+more\s+than|not\s+more\s+than|less\s+than|under|below)",
+            t,
+        )
+    )
 
     perc = _extract_percentage(t)
     if perc is not None:
@@ -92,54 +98,86 @@ def _interpret_policy(text: str) -> Dict[str, Any]:
                 out["coverage.min_module"] = max(0.0, min(1.0, float(perc) / 100.0))
 
     # 解析上限（不作门禁，仅做建议/元信息）：<= / < / 不高于/不超过/至多 / at most / no more than / less than / under / below
-    mmax = re.search(r"(?:<=|<|≤|不高于|不超过|至多|at\s+most|no\s+more\s+than|not\s+more\s+than|less\s+than|under|below)\s*(\d{1,3}(?:\.\d{1,2})?)\s*(?:%|percent)?", t)
+    mmax = re.search(
+        r"(?:<=|<|≤|不高于|不超过|至多|at\s+most|no\s+more\s+than|not\s+more\s+than|less\s+than|under|below)\s*(\d{1,3}(?:\.\d{1,2})?)\s*(?:%|percent)?",
+        t,
+    )
     if mmax:
         try:
             vmax = float(mmax.group(1))
-            key = "coverage.max_core" if ("core" in t or "核心" in t) else "coverage.max_module"
+            key = (
+                "coverage.max_core"
+                if ("core" in t or "核心" in t)
+                else "coverage.max_module"
+            )
             out[key] = max(0.0, min(1.0, vmax / 100.0))
         except Exception:
             pass
     else:
         # 英文词数值：例如 "at most ninety five percent" / "no more than ninety percent"
-        mmaxw = re.search(r"(?:at\s+most|no\s+more\s+than|not\s+more\s+than|less\s+than|under|below)\s+([a-z\s-]+?)\s*percent", t)
+        mmaxw = re.search(
+            r"(?:at\s+most|no\s+more\s+than|not\s+more\s+than|less\s+than|under|below)\s+([a-z\s-]+?)\s*percent",
+            t,
+        )
         if mmaxw:
             valw = _english_words_to_int(mmaxw.group(1))
             if valw is not None:
-                key = "coverage.max_core" if ("core" in t or "核心" in t) else "coverage.max_module"
+                key = (
+                    "coverage.max_core"
+                    if ("core" in t or "核心" in t)
+                    else "coverage.max_module"
+                )
                 out[key] = max(0.0, min(1.0, float(valw) / 100.0))
 
     # 区间 between X and Y（英文）
-    mbt = re.search(r"between\s+(\d{1,3}(?:\.\d{1,2})?)\s*(?:%|percent)?\s+and\s+(\d{1,3}(?:\.\d{1,2})?)\s*(?:%|percent)?", t)
+    mbt = re.search(
+        r"between\s+(\d{1,3}(?:\.\d{1,2})?)\s*(?:%|percent)?\s+and\s+(\d{1,3}(?:\.\d{1,2})?)\s*(?:%|percent)?",
+        t,
+    )
     if mbt:
         try:
-            v1 = float(mbt.group(1)); v2 = float(mbt.group(2))
+            v1 = float(mbt.group(1))
+            v2 = float(mbt.group(2))
             vmin, vmax = min(v1, v2), max(v1, v2)
-            if ("core" in t or "核心" in t):
-                out["coverage.min_core"] = max(0.0, min(1.0, vmin/100.0))
-                out["coverage.max_core"] = max(0.0, min(1.0, vmax/100.0))
+            if "core" in t or "核心" in t:
+                out["coverage.min_core"] = max(0.0, min(1.0, vmin / 100.0))
+                out["coverage.max_core"] = max(0.0, min(1.0, vmax / 100.0))
             else:
-                out["coverage.min_module"] = max(0.0, min(1.0, vmin/100.0))
-                out["coverage.max_module"] = max(0.0, min(1.0, vmax/100.0))
+                out["coverage.min_module"] = max(0.0, min(1.0, vmin / 100.0))
+                out["coverage.max_module"] = max(0.0, min(1.0, vmax / 100.0))
         except Exception:
             pass
     # 区间 介于/在 X 和/到 Y 之间（中文）
-    mbtc = re.search(r"(?:介于|在)\s*(\d{1,3}(?:\.\d{1,2})?)\s*%?\s*(?:和|到)\s*(\d{1,3}(?:\.\d{1,2})?)\s*%?\s*(?:之间)?", t)
+    mbtc = re.search(
+        r"(?:介于|在)\s*(\d{1,3}(?:\.\d{1,2})?)\s*%?\s*(?:和|到)\s*(\d{1,3}(?:\.\d{1,2})?)\s*%?\s*(?:之间)?",
+        t,
+    )
     if mbtc:
         try:
-            v1 = float(mbtc.group(1)); v2 = float(mbtc.group(2))
+            v1 = float(mbtc.group(1))
+            v2 = float(mbtc.group(2))
             vmin, vmax = min(v1, v2), max(v1, v2)
-            if ("core" in t or "核心" in t):
-                out["coverage.min_core"] = max(0.0, min(1.0, vmin/100.0))
-                out["coverage.max_core"] = max(0.0, min(1.0, vmax/100.0))
+            if "core" in t or "核心" in t:
+                out["coverage.min_core"] = max(0.0, min(1.0, vmin / 100.0))
+                out["coverage.max_core"] = max(0.0, min(1.0, vmax / 100.0))
             else:
-                out["coverage.min_module"] = max(0.0, min(1.0, vmin/100.0))
-                out["coverage.max_module"] = max(0.0, min(1.0, vmax/100.0))
+                out["coverage.min_module"] = max(0.0, min(1.0, vmin / 100.0))
+                out["coverage.max_module"] = max(0.0, min(1.0, vmax / 100.0))
         except Exception:
             pass
 
     # 禁止 skip/xfail
-    if any(k in t for k in ["no skip", "禁止 skip", "禁止跳过", "不允许跳过", "xfail", "skip/xfail"]):
+    if any(
+        k in t
+        for k in [
+            "no skip",
+            "禁止 skip",
+            "禁止跳过",
+            "不允许跳过",
+            "xfail",
+            "skip/xfail",
+        ]
+    ):
         out["test.no_skip_xfail"] = True
 
     # 警告视为错误
@@ -153,11 +191,25 @@ def _interpret_policy(text: str) -> Dict[str, Any]:
     # TDD/顺序执行（记录偏好，不做冲突计算）
     if any(k in t for k in ["tdd", "测试先行", "红-绿-重构", "红—绿—重构"]):
         out["dev.tdd"] = True
-    if any(k in t for k in ["按顺序", "不得跳跃", "禁止跳跃", "严格按顺序", "no skipping steps"]):
+    if any(
+        k in t
+        for k in ["按顺序", "不得跳跃", "禁止跳跃", "严格按顺序", "no skipping steps"]
+    ):
         out["process.strict_order"] = True
 
     # 安全与密钥扫描
-    if any(k in t for k in ["secret", "secrets", "密钥", "凭据", "gitleaks", "detect-secrets", "secretlint"]):
+    if any(
+        k in t
+        for k in [
+            "secret",
+            "secrets",
+            "密钥",
+            "凭据",
+            "gitleaks",
+            "detect-secrets",
+            "secretlint",
+        ]
+    ):
         out["security.secrets_scan"] = True
     if any(k in t for k in ["sast", "静态安全", "严格安全扫描", "security strict"]):
         out["security.sast_strict"] = True
@@ -181,7 +233,9 @@ def _interpret_policy(text: str) -> Dict[str, Any]:
         out["ci.required"] = True
     if any(k in t for k in ["conventional commits", "约定式提交", "提交规范"]):
         out["vcs.conventional_commits"] = True
-    if any(k in t for k in ["trunk-based", "主干开发", "gitflow", "git flow", "分支策略"]):
+    if any(
+        k in t for k in ["trunk-based", "主干开发", "gitflow", "git flow", "分支策略"]
+    ):
         # 简化：仅标识存在分支策略约束
         out["vcs.branch_policy"] = True
 
@@ -197,7 +251,10 @@ def _extract_percentage(text: str) -> Optional[float]:
         except Exception:
             return None
     # 不等式+数字（中文/符号）
-    m2 = re.search(r"(>=|≥|不少于|不低于|至少|no\s+less\s+than|not\s+less\s+than|at\s+least)\s*(\d{1,3}(?:\.\d{1,2})?)", text)
+    m2 = re.search(
+        r"(>=|≥|不少于|不低于|至少|no\s+less\s+than|not\s+less\s+than|at\s+least)\s*(\d{1,3}(?:\.\d{1,2})?)",
+        text,
+    )
     if m2:
         try:
             return float(m2.group(2))
@@ -217,9 +274,11 @@ def _extract_percentage(text: str) -> Optional[float]:
         if val is not None:
             return val
     # 不少于/至少 + 中文数字（需语境包含'覆盖率'或'核心'）；也支持口语“九成/十成/九成五”等
-    if ("覆盖率" in text or "core" in text or "核心" in text or "coverage" in text):
+    if "覆盖率" in text or "core" in text or "核心" in text or "coverage" in text:
         # 先处理“成”，包括可选的小数位：九成五 -> 95%
-        m7b = re.search(r"([一二三四五六七八九十两])\s*成\s*([一二三四五六七八九两])", text)
+        m7b = re.search(
+            r"([一二三四五六七八九十两])\s*成\s*([一二三四五六七八九两])", text
+        )
         if m7b:
             a = _chinese_numeral_to_int(m7b.group(1))
             b = _chinese_numeral_to_int(m7b.group(2))
@@ -230,19 +289,26 @@ def _extract_percentage(text: str) -> Optional[float]:
             val = _chinese_numeral_to_int(m7.group(1))
             if val is not None:
                 return min(100, (val * 10 if val <= 10 else val))
-        m5 = re.search(r"(不少于|不低于|至少)\s*([一二三四五六七八九十百零两]{1,6})", text)
+        m5 = re.search(
+            r"(不少于|不低于|至少)\s*([一二三四五六七八九十百零两]{1,6})", text
+        )
         if m5:
             val = _chinese_numeral_to_int(m5.group(2))
             if val is not None:
                 return val
         # 兜底：直接跟随中文数字（如“覆盖率 一百零一”）
-        m5b = re.search(r"(?:覆盖率|core|核心|coverage)\s*([一二三四五六七八九十百零两]{1,6})", text)
+        m5b = re.search(
+            r"(?:覆盖率|core|核心|coverage)\s*([一二三四五六七八九十百零两]{1,6})", text
+        )
         if m5b:
             val = _chinese_numeral_to_int(m5b.group(1))
             if val is not None:
                 return val
     # 英文数字词 + percent：优先匹配含前缀，再匹配通用
-    m6a = re.search(r"(?:no\s+less\s+than|not\s+less\s+than|at\s+least)\s+([a-z\s-]+?)\s*percent", text)
+    m6a = re.search(
+        r"(?:no\s+less\s+than|not\s+less\s+than|at\s+least)\s+([a-z\s-]+?)\s*percent",
+        text,
+    )
     if m6a:
         val = _english_words_to_int(m6a.group(1))
         if val is not None:
@@ -257,7 +323,19 @@ def _extract_percentage(text: str) -> Optional[float]:
 
 
 def _chinese_numeral_to_int(s: str) -> Optional[int]:
-    digits = {"零":0,"一":1,"二":2,"两":2,"三":3,"四":4,"五":5,"六":6,"七":7,"八":8,"九":9}
+    digits = {
+        "零": 0,
+        "一": 1,
+        "二": 2,
+        "两": 2,
+        "三": 3,
+        "四": 4,
+        "五": 5,
+        "六": 6,
+        "七": 7,
+        "八": 8,
+        "九": 9,
+    }
     if s == "一百":
         return 100
     # 处理十、九十、九十五 等
@@ -296,23 +374,49 @@ def _chinese_numeral_to_int(s: str) -> Optional[int]:
 
 
 def _english_words_to_int(s: str) -> Optional[int]:
-    words = s.strip().lower().replace('-', ' ').split()
+    words = s.strip().lower().replace("-", " ").split()
     if not words:
         return None
     mapping = {
-        'zero':0,'one':1,'two':2,'three':3,'four':4,'five':5,'six':6,'seven':7,'eight':8,'nine':9,
-        'ten':10,'eleven':11,'twelve':12,'thirteen':13,'fourteen':14,'fifteen':15,'sixteen':16,'seventeen':17,'eighteen':18,'nineteen':19,
-        'twenty':20,'thirty':30,'forty':40,'fifty':50,'sixty':60,'seventy':70,'eighty':80,'ninety':90,'hundred':100
+        "zero": 0,
+        "one": 1,
+        "two": 2,
+        "three": 3,
+        "four": 4,
+        "five": 5,
+        "six": 6,
+        "seven": 7,
+        "eight": 8,
+        "nine": 9,
+        "ten": 10,
+        "eleven": 11,
+        "twelve": 12,
+        "thirteen": 13,
+        "fourteen": 14,
+        "fifteen": 15,
+        "sixteen": 16,
+        "seventeen": 17,
+        "eighteen": 18,
+        "nineteen": 19,
+        "twenty": 20,
+        "thirty": 30,
+        "forty": 40,
+        "fifty": 50,
+        "sixty": 60,
+        "seventy": 70,
+        "eighty": 80,
+        "ninety": 90,
+        "hundred": 100,
     }
     total = 0
     i = 0
     while i < len(words):
         w = words[i]
-        if w == 'and':
+        if w == "and":
             i += 1
             continue
         if w not in mapping:
-            if w in ('coverage','core'):
+            if w in ("coverage", "core"):
                 i += 1
                 continue
             return None
@@ -347,7 +451,9 @@ def _parse_yaml_json(path: Path) -> List[RuleItem]:
 
     flat = _flatten_kv(data)
     for k, v in flat.items():
-        items.append(RuleItem(key=k, value=v, text=f"{k}: {v}", source=Source(str(path), 1)))
+        items.append(
+            RuleItem(key=k, value=v, text=f"{k}: {v}", source=Source(str(path), 1))
+        )
     return items
 
 
@@ -371,11 +477,11 @@ def ingest(paths: List[str], project_root: Optional[Path] = None) -> Dict[str, A
     pths = [Path(p) if Path(p).is_absolute() else (root / p) for p in paths]
     files = list(_iter_files(pths))
     # 轻量缓存：.mcp/rules_ingest_cache.json 基于 mtime/size
-    cache_path = root / '.mcp/rules_ingest_cache.json'
+    cache_path = root / ".mcp/rules_ingest_cache.json"
     cache: Dict[str, Any] = {}
     if cache_path.exists():
         try:
-            cache = _json.loads(cache_path.read_text(encoding='utf-8'))
+            cache = _json.loads(cache_path.read_text(encoding="utf-8"))
         except Exception:
             cache = {}
     items: List[RuleItem] = []
@@ -385,11 +491,21 @@ def ingest(paths: List[str], project_root: Optional[Path] = None) -> Dict[str, A
             try:
                 st = f.stat()
                 sig = f"{int(getattr(st,'st_mtime_ns', int(st.st_mtime*1e9)))}-{st.st_size}"
-                rec = (cache.get('files') or {}).get(str(f)) if isinstance(cache.get('files', {}), dict) else None
-                if isinstance(rec, dict) and rec.get('sig') == sig and isinstance(rec.get('items'), list):
-                    for it in rec['items']:
+                rec = (
+                    (cache.get("files") or {}).get(str(f))
+                    if isinstance(cache.get("files", {}), dict)
+                    else None
+                )
+                if (
+                    isinstance(rec, dict)
+                    and rec.get("sig") == sig
+                    and isinstance(rec.get("items"), list)
+                ):
+                    for it in rec["items"]:
                         try:
-                            items.append(RuleItem(**{**it, 'source': Source(**it['source'])}))
+                            items.append(
+                                RuleItem(**{**it, "source": Source(**it["source"])})
+                            )
                             use_cache = True
                         except Exception:
                             use_cache = False
@@ -401,11 +517,14 @@ def ingest(paths: List[str], project_root: Optional[Path] = None) -> Dict[str, A
                 items.extend(parsed)
                 # 写缓存
                 try:
-                    cache.setdefault('files', {})
-                    if isinstance(cache['files'], dict):
+                    cache.setdefault("files", {})
+                    if isinstance(cache["files"], dict):
                         st = f.stat()
                         sig = f"{int(getattr(st,'st_mtime_ns', int(st.st_mtime*1e9)))}-{st.st_size}"
-                        cache['files'][str(f)] = {'sig': sig, 'items': [asdict(i) for i in parsed]}
+                        cache["files"][str(f)] = {
+                            "sig": sig,
+                            "items": [asdict(i) for i in parsed],
+                        }
                 except Exception:
                     pass
         elif f.suffix.lower() in _YAML_EXT | _JSON_EXT:
@@ -413,12 +532,16 @@ def ingest(paths: List[str], project_root: Optional[Path] = None) -> Dict[str, A
 
     raw = {"items": [asdict(i) for i in items], "files": [str(f) for f in files]}
     (root / RAW_PATH).parent.mkdir(parents=True, exist_ok=True)
-    (root / RAW_PATH).write_text(json.dumps(raw, ensure_ascii=False, indent=2), encoding="utf-8")
+    (root / RAW_PATH).write_text(
+        json.dumps(raw, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
     # 落盘缓存
     try:
         cache_path.parent.mkdir(parents=True, exist_ok=True)
-        cache['version'] = 1
-        cache_path.write_text(_json.dumps(cache, ensure_ascii=False, indent=2), encoding='utf-8')
+        cache["version"] = 1
+        cache_path.write_text(
+            _json.dumps(cache, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
     except Exception:
         pass
     comp = compile_rules(project_root=root)
@@ -431,7 +554,10 @@ def compile_rules(project_root: Optional[Path] = None) -> Dict[str, Any]:
     if not raw_path.exists():
         return {"ok": False, "message": "no raw rules ingested"}
     raw = json.loads(raw_path.read_text(encoding="utf-8"))
-    items = [RuleItem(**{**it, "source": Source(**it["source"])}) for it in raw.get("items", [])]
+    items = [
+        RuleItem(**{**it, "source": Source(**it["source"])})
+        for it in raw.get("items", [])
+    ]
 
     # 聚合策略：key 去重；选择更严格值；记录冲突来源
     policy: Dict[str, Any] = {}
@@ -443,6 +569,7 @@ def compile_rules(project_root: Optional[Path] = None) -> Dict[str, Any]:
     per_key_delta: Dict[str, float] = {}
     try:
         import yaml  # lazy
+
         cfg_path = root / ".mcp/assistant.yaml"
         if cfg_path.exists():
             y = yaml.safe_load(cfg_path.read_text(encoding="utf-8")) or {}
@@ -454,7 +581,11 @@ def compile_rules(project_root: Optional[Path] = None) -> Dict[str, Any]:
                     except Exception:
                         continue
                 # fallback global
-                conflict_delta = float(cd.get("__default__", conflict_delta)) if "__default__" in cd else conflict_delta
+                conflict_delta = (
+                    float(cd.get("__default__", conflict_delta))
+                    if "__default__" in cd
+                    else conflict_delta
+                )
             else:
                 conflict_delta = max(0.0, min(1.0, float(cd)))
     except Exception:
@@ -507,13 +638,15 @@ def compile_rules(project_root: Optional[Path] = None) -> Dict[str, Any]:
             origins[k] = [it.source]
         else:
             if conflict(k, policy[k], v):
-                conflicts.append({
-                    "key": k,
-                    "keep": stricter(k, policy[k], v),
-                    "old": policy[k],
-                    "new": v,
-                    "sources": [asdict(s) for s in origins[k] + [it.source]],
-                })
+                conflicts.append(
+                    {
+                        "key": k,
+                        "keep": stricter(k, policy[k], v),
+                        "old": policy[k],
+                        "new": v,
+                        "sources": [asdict(s) for s in origins[k] + [it.source]],
+                    }
+                )
                 policy[k] = stricter(k, policy[k], v)
                 origins[k].append(it.source)
             else:
@@ -524,22 +657,29 @@ def compile_rules(project_root: Optional[Path] = None) -> Dict[str, Any]:
     suggestions = _build_suggestions(policy, conflicts)
     # 针对上限添加“监控/提示”建议
     for mk, mv in maxima.items():
-        suggestions.append({
-            "key": mk,
-            "action": "monitor",
-            "value": mv,
-            "note": "文档包含覆盖率上限（仅提示，不作门禁）。",
-            "severity": "info",
-        })
+        suggestions.append(
+            {
+                "key": mk,
+                "action": "monitor",
+                "value": mv,
+                "note": "文档包含覆盖率上限（仅提示，不作门禁）。",
+                "severity": "info",
+            }
+        )
 
     compiled = {
         "policy": policy,
         "origins": {k: [asdict(s) for s in v] for k, v in origins.items()},
         "conflicts": conflicts,
         "suggestions": suggestions,
-        "meta": {"conflict_delta": used_delta or {"default": conflict_delta}, "maxima": maxima},
+        "meta": {
+            "conflict_delta": used_delta or {"default": conflict_delta},
+            "maxima": maxima,
+        },
     }
-    (root / COMPILED_JSON).write_text(json.dumps(compiled, ensure_ascii=False, indent=2), encoding="utf-8")
+    (root / COMPILED_JSON).write_text(
+        json.dumps(compiled, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
     (root / COMPILED_MD).write_text(_to_markdown(compiled), encoding="utf-8")
     (root / SUGGESTIONS_MD).write_text(_to_suggestions_md(compiled), encoding="utf-8")
     return {
@@ -556,18 +696,48 @@ def compile_rules(project_root: Optional[Path] = None) -> Dict[str, Any]:
 def _to_markdown(compiled: Dict[str, Any]) -> str:
     pol: Dict[str, Any] = compiled.get("policy", {})
     confs: List[Dict[str, Any]] = compiled.get("conflicts", [])
-    meta: Dict[str, Any] = compiled.get("meta", {}) if isinstance(compiled.get("meta", {}), dict) else {}
-    maxima: Dict[str, float] = meta.get("maxima", {}) if isinstance(meta.get("maxima", {}), dict) else {}
+    meta: Dict[str, Any] = (
+        compiled.get("meta", {}) if isinstance(compiled.get("meta", {}), dict) else {}
+    )
+    maxima: Dict[str, float] = (
+        meta.get("maxima", {}) if isinstance(meta.get("maxima", {}), dict) else {}
+    )
     lines: List[str] = []
     lines.append("# 项目规则（编译版） / Project Rules (Compiled)\n")
-    lines.append("- coverage.min_module: {}%".format(int(pol.get("coverage.min_module", 0) * 100)))
-    lines.append("- coverage.min_core: {}%".format(int(pol.get("coverage.min_core", 0) * 100)))
-    lines.append("- test.no_skip_xfail: {}".format(bool(pol.get("test.no_skip_xfail", False))))
-    lines.append("- test.warnings_as_errors: {}".format(bool(pol.get("test.warnings_as_errors", False))))
-    lines.append("- test.mutation_required: {}".format(bool(pol.get("test.mutation_required", False))))
-    lines.append("- security.secrets_scan: {}".format(bool(pol.get("security.secrets_scan", False))))
-    lines.append("- security.sast_strict: {}".format(bool(pol.get("security.sast_strict", False))))
-    lines.append("- container.required: {}".format(bool(pol.get("container.required", False))))
+    lines.append(
+        "- coverage.min_module: {}%".format(
+            int(pol.get("coverage.min_module", 0) * 100)
+        )
+    )
+    lines.append(
+        "- coverage.min_core: {}%".format(int(pol.get("coverage.min_core", 0) * 100))
+    )
+    lines.append(
+        "- test.no_skip_xfail: {}".format(bool(pol.get("test.no_skip_xfail", False)))
+    )
+    lines.append(
+        "- test.warnings_as_errors: {}".format(
+            bool(pol.get("test.warnings_as_errors", False))
+        )
+    )
+    lines.append(
+        "- test.mutation_required: {}".format(
+            bool(pol.get("test.mutation_required", False))
+        )
+    )
+    lines.append(
+        "- security.secrets_scan: {}".format(
+            bool(pol.get("security.secrets_scan", False))
+        )
+    )
+    lines.append(
+        "- security.sast_strict: {}".format(
+            bool(pol.get("security.sast_strict", False))
+        )
+    )
+    lines.append(
+        "- container.required: {}".format(bool(pol.get("container.required", False)))
+    )
     if pol.get("container.policy.baseline"):
         lines.append("- container.policy.baseline: true")
     if pol.get("perf.budget_ms"):
@@ -594,72 +764,92 @@ def _to_markdown(compiled: Dict[str, Any]) -> str:
     if confs:
         lines.append("## 冲突 / Conflicts\n")
         for c in confs:
-            lines.append(f"- {c['key']}: old={c['old']} new={c['new']} keep={c['keep']}")
+            lines.append(
+                f"- {c['key']}: old={c['old']} new={c['new']} keep={c['keep']}"
+            )
     return "\n".join(lines) + "\n"
 
 
-def _build_suggestions(policy: Dict[str, Any], conflicts: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def _build_suggestions(
+    policy: Dict[str, Any], conflicts: List[Dict[str, Any]]
+) -> List[Dict[str, Any]]:
     sugg: List[Dict[str, Any]] = []
     for c in conflicts:
-        sugg.append({
-            "key": c["key"],
-            "action": "unify",
-            "keep": c["keep"],
-            "note": "建议统一该规则值到 keep，并在源文档中修订以消除冲突",
-            "severity": "warn",
-        })
+        sugg.append(
+            {
+                "key": c["key"],
+                "action": "unify",
+                "keep": c["keep"],
+                "note": "建议统一该规则值到 keep，并在源文档中修订以消除冲突",
+                "severity": "warn",
+            }
+        )
     # 基础建议：确保门禁与策略一致
     if policy.get("test.no_skip_xfail"):
-        sugg.append({
-            "key": "test.no_skip_xfail",
-            "action": "enforce",
-            "note": "在 pre-push/CI 禁止 skip/xfail（已在 hooks 模板中包含）",
-            "severity": "must",
-        })
+        sugg.append(
+            {
+                "key": "test.no_skip_xfail",
+                "action": "enforce",
+                "note": "在 pre-push/CI 禁止 skip/xfail（已在 hooks 模板中包含）",
+                "severity": "must",
+            }
+        )
     if policy.get("test.warnings_as_errors"):
-        sugg.append({
-            "key": "test.warnings_as_errors",
-            "action": "enforce",
-            "note": "pytest 加 -W error；在 CI 中严格执行",
-            "severity": "must",
-        })
+        sugg.append(
+            {
+                "key": "test.warnings_as_errors",
+                "action": "enforce",
+                "note": "pytest 加 -W error；在 CI 中严格执行",
+                "severity": "must",
+            }
+        )
     if "coverage.min_module" in policy:
-        sugg.append({
-            "key": "coverage.min_module",
-            "action": "enforce",
-            "value": policy["coverage.min_module"],
-            "note": "在 CI/推送阶段设置 --cov-fail-under 对齐该阈值",
-            "severity": "must",
-        })
+        sugg.append(
+            {
+                "key": "coverage.min_module",
+                "action": "enforce",
+                "value": policy["coverage.min_module"],
+                "note": "在 CI/推送阶段设置 --cov-fail-under 对齐该阈值",
+                "severity": "must",
+            }
+        )
     if "coverage.min_core" in policy:
-        sugg.append({
-            "key": "coverage.min_core",
-            "action": "monitor",
-            "value": policy["coverage.min_core"],
-            "note": "对核心模块单独跟踪覆盖率（可在后续扩展实现模块清单）",
-            "severity": "info",
-        })
+        sugg.append(
+            {
+                "key": "coverage.min_core",
+                "action": "monitor",
+                "value": policy["coverage.min_core"],
+                "note": "对核心模块单独跟踪覆盖率（可在后续扩展实现模块清单）",
+                "severity": "info",
+            }
+        )
     if policy.get("security.secrets_scan"):
-        sugg.append({
-            "key": "security.secrets_scan",
-            "action": "enforce",
-            "note": "在 pre-commit/CI 启用 detect-secrets 或等价工具",
-            "severity": "must",
-        })
+        sugg.append(
+            {
+                "key": "security.secrets_scan",
+                "action": "enforce",
+                "note": "在 pre-commit/CI 启用 detect-secrets 或等价工具",
+                "severity": "must",
+            }
+        )
     if policy.get("container.required"):
-        sugg.append({
-            "key": "container.required",
-            "action": "enforce",
-            "note": "确保仓库包含 Dockerfile/devcontainer，并在 CI 中校验存在性",
-            "severity": "must",
-        })
+        sugg.append(
+            {
+                "key": "container.required",
+                "action": "enforce",
+                "note": "确保仓库包含 Dockerfile/devcontainer，并在 CI 中校验存在性",
+                "severity": "must",
+            }
+        )
     if policy.get("ci.required"):
-        sugg.append({
-            "key": "ci.required",
-            "action": "enforce",
-            "note": "生成 CI 工作流并将其设为合并条件",
-            "severity": "must",
-        })
+        sugg.append(
+            {
+                "key": "ci.required",
+                "action": "enforce",
+                "note": "生成 CI 工作流并将其设为合并条件",
+                "severity": "must",
+            }
+        )
     return sugg
 
 
@@ -672,7 +862,9 @@ def _to_suggestions_md(compiled: Dict[str, Any]) -> str:
     else:
         lines.append("## 冲突摘要\n")
         for c in confs:
-            lines.append(f"- {c['key']}: old={c['old']}, new={c['new']}, 建议保留 keep={c['keep']}")
+            lines.append(
+                f"- {c['key']}: old={c['old']}, new={c['new']}, 建议保留 keep={c['keep']}"
+            )
     lines.append("")
     lines.append("## 建议\n")
     for s in compiled.get("suggestions", []):

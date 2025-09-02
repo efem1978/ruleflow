@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import Dict, Optional
 
-
 SYNONYMS: Dict[str, str] = {
     # 记忆
     "开启滚动记忆": "memory.toggle_auto",

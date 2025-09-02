@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, Tuple
 
 
 class Scenario(str, Enum):
@@ -40,7 +39,10 @@ def choose_thresholds(s: Scenario, c: Complexity) -> RuleThresholds:
         return RuleThresholds(0.90, 0.95, False)
     if s in {Scenario.PRO} and c in {Complexity.MEDIUM, Complexity.LARGE}:
         return RuleThresholds(0.92, 0.96, False)
-    if s in {Scenario.ENTERPRISE, Scenario.INSTITUTION} and c in {Complexity.MEDIUM, Complexity.LARGE}:
+    if s in {Scenario.ENTERPRISE, Scenario.INSTITUTION} and c in {
+        Complexity.MEDIUM,
+        Complexity.LARGE,
+    }:
         return RuleThresholds(0.95, 0.97, True)
     # 默认回退
     return RuleThresholds(0.90, 0.95, False)
@@ -52,4 +54,3 @@ def explain_thresholds(th: RuleThresholds) -> str:
         f"min_core={int(th.coverage_min_core*100)}%, "
         f"mutation_required={th.mutation_required}, no_skip={th.strict_no_skip}, no_warnings={th.no_warnings}"
     )
-

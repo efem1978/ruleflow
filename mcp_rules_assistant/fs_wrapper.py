@@ -25,4 +25,3 @@ class FSGuard:
         # TODO: 调用计划/规则检查（占位）
         full.write_text(content, encoding)
         # TODO: 调用增量检查（占位）
-

@@ -3,7 +3,6 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Optional, Tuple
 
-
 PLAN_MD = Path(".mcp/plan.md")
 
 
@@ -44,28 +43,40 @@ def parse_plan(text: str) -> Tuple[str, str, str]:
         line = line.strip()
         if line.startswith("- 状态:") or line.lower().startswith("- status:"):
             status = line.split(":", 1)[1].strip().lower()
-        elif line.startswith("- 当前步骤:") or line.lower().startswith("- current step:"):
+        elif line.startswith("- 当前步骤:") or line.lower().startswith(
+            "- current step:"
+        ):
             current = line.split(":", 1)[1].strip()
         elif line.startswith("- 下一步:") or line.lower().startswith("- next:"):
             nxt = line.split(":", 1)[1].strip()
     return status, current, nxt
 
 
-def update_plan_fields(project_root: Optional[Path] = None, *, status: Optional[str] = None, current: Optional[str] = None, nxt: Optional[str] = None) -> Path:
+def update_plan_fields(
+    project_root: Optional[Path] = None,
+    *,
+    status: Optional[str] = None,
+    current: Optional[str] = None,
+    nxt: Optional[str] = None,
+) -> Path:
     text = read_plan(project_root)
     lines = text.splitlines()
+
     def repl(prefix_cn: str, prefix_en: str, value: Optional[str]) -> None:
         nonlocal lines
         if value is None:
             return
         done = False
         for i, line in enumerate(lines):
-            if line.strip().startswith(prefix_cn) or line.strip().lower().startswith(prefix_en.lower()):
+            if line.strip().startswith(prefix_cn) or line.strip().lower().startswith(
+                prefix_en.lower()
+            ):
                 lines[i] = f"{prefix_cn} {value}"
                 done = True
                 break
         if not done:
             lines.append(f"{prefix_cn} {value}")
+
     if status is not None:
         repl("- 状态:", "- status:", status)
     if current is not None:

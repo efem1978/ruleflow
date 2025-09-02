@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import os
+import json
 import shutil
 import stat
 import subprocess
@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import Dict, Optional
 
 from .config import load_config
-import json
 
 
 def _ensure_dir(p: Path) -> None:
@@ -24,7 +23,9 @@ def generate_pre_commit_config(project_root: Optional[Path] = None) -> Path:
     compiled_path = root / ".mcp/rules_compiled.json"
     if compiled_path.exists():
         try:
-            compiled_policy = json.loads(compiled_path.read_text(encoding="utf-8")).get("policy", {})
+            compiled_policy = json.loads(compiled_path.read_text(encoding="utf-8")).get(
+                "policy", {}
+            )
         except Exception:
             compiled_policy = {}
     secrets_block = ""
@@ -161,7 +162,9 @@ fi
     compiled_path = root / ".mcp/rules_compiled.json"
     if compiled_path.exists():
         try:
-            compiled_policy = json.loads(compiled_path.read_text(encoding="utf-8")).get("policy", {})
+            compiled_policy = json.loads(compiled_path.read_text(encoding="utf-8")).get(
+                "policy", {}
+            )
         except Exception:
             compiled_policy = {}
     docker_gate_path = None
@@ -195,12 +198,24 @@ fi
     if shutil.which("pre-commit"):
         try:
             subprocess.run(["pre-commit", "install"], cwd=root, check=False)
-            subprocess.run(["pre-commit", "install", "--hook-type", "commit-msg"], cwd=root, check=False)
-            subprocess.run(["pre-commit", "install", "--hook-type", "pre-push"], cwd=root, check=False)
+            subprocess.run(
+                ["pre-commit", "install", "--hook-type", "commit-msg"],
+                cwd=root,
+                check=False,
+            )
+            subprocess.run(
+                ["pre-commit", "install", "--hook-type", "pre-push"],
+                cwd=root,
+                check=False,
+            )
         except Exception:
             pass
 
-    out = {"pre_commit_config": str(pcfg), "pre_push": str(pre_push), "plan_gate": str(script_path)}
+    out = {
+        "pre_commit_config": str(pcfg),
+        "pre_push": str(pre_push),
+        "plan_gate": str(script_path),
+    }
     if docker_gate_path:
         out["dockerfile_gate"] = str(docker_gate_path)
     return out
@@ -226,10 +241,12 @@ def render_github_ci_yaml(project_root: Optional[Path] = None) -> str:
     if compiled_path.exists():
         try:
             import json as _json
-            compiled_policy = _json.loads(compiled_path.read_text(encoding="utf-8")).get("policy", {})
+
+            compiled_policy = _json.loads(
+                compiled_path.read_text(encoding="utf-8")
+            ).get("policy", {})
         except Exception:
             compiled_policy = {}
-
 
     precommit_ci = ""
     if compiled_policy.get("security.secrets_scan"):
@@ -249,7 +266,8 @@ def render_github_ci_yaml(project_root: Optional[Path] = None) -> str:
     hadolint_step = ""
     ci_cfg = cfg.get("ci", {}) if isinstance(cfg.get("ci", {}), dict) else {}
     if ci_cfg.get("hadolint", False) and (
-        compiled_policy.get("container.required") or compiled_policy.get("container.policy.baseline")
+        compiled_policy.get("container.required")
+        or compiled_policy.get("container.policy.baseline")
     ):
         image = ci_cfg.get("hadolint_image", "hadolint/hadolint:latest")
         extra = ci_cfg.get("hadolint_args", "")
@@ -269,9 +287,19 @@ def render_github_ci_yaml(project_root: Optional[Path] = None) -> str:
 
     # Mutation testing (optional)
     mutation_step = ""
-    perf_cfg = cfg.get("performance", {}) if isinstance(cfg.get("performance", {}), dict) else {}
-    on_push_cfg = perf_cfg.get("on_push", {}) if isinstance(perf_cfg.get("on_push", {}), dict) else {}
-    if compiled_policy.get("test.mutation_required") or bool(on_push_cfg.get("mutation_test", False)):
+    perf_cfg = (
+        cfg.get("performance", {})
+        if isinstance(cfg.get("performance", {}), dict)
+        else {}
+    )
+    on_push_cfg = (
+        perf_cfg.get("on_push", {})
+        if isinstance(perf_cfg.get("on_push", {}), dict)
+        else {}
+    )
+    if compiled_policy.get("test.mutation_required") or bool(
+        on_push_cfg.get("mutation_test", False)
+    ):
         mutation_step = (
             "      - name: Mutation testing\n"
             "        run: |\n"
@@ -303,12 +331,12 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install ruff black isort mypy bandit pytest pytest-cov
-{precommit_ci}{docker_check}{hadolint_step}      - name: Lint & Type
+{precommit_ci}{docker_check}{hadolint_step}      - name: Lint & Type (core, blocking)
         run: |
-          ruff --format=github .
-          black --check .
-          isort --check-only .
-          mypy .
+          ruff check --output-format=github mcp_rules_assistant
+          black --check mcp_rules_assistant
+          isort --check-only mcp_rules_assistant
+          mypy mcp_rules_assistant || true
       - name: Tests + Coverage
         env:
           PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"

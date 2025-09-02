@@ -31,12 +31,12 @@ jobs:
       - name: Dockerfile Lint (hadolint)
         run: |
           test -f Dockerfile && docker run --rm -v "$PWD":/work -w /work hadolint/hadolint:latest hadolint  Dockerfile || echo 'skip hadolint'
-      - name: Lint & Type (non-blocking)
+      - name: Lint & Type (core, blocking)
         run: |
-          ruff --format=github . || true
-          black --check . || true
-          isort --check-only . || true
-          mypy . || true
+          ruff check --output-format=github mcp_rules_assistant
+          black --check mcp_rules_assistant
+          isort --check-only mcp_rules_assistant
+          mypy mcp_rules_assistant || true
       - name: Tests + Coverage
         env:
           PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"

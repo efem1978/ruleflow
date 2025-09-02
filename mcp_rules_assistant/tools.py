@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Dict, List
 
 
 @dataclass
@@ -25,7 +25,9 @@ registry = ToolRegistry()
 
 
 def setup_default_tools() -> None:
-    registry.register(Tool("project.detect", "Detect project language/framework/complexity"))
+    registry.register(
+        Tool("project.detect", "Detect project language/framework/complexity")
+    )
     registry.register(Tool("project.switch", "Switch or create project context"))
     registry.register(Tool("memory.toggle_auto", "Enable/disable rolling memory"))
     registry.register(Tool("memory.snapshot", "Produce last 20 turns and summary"))
@@ -45,6 +47,14 @@ def setup_default_tools() -> None:
     registry.register(Tool("ci.validate", "Validate generated CI workflow content"))
     registry.register(Tool("ci.autofix", "Auto-fix CI by regenerating missing steps"))
     registry.register(Tool("coverage.near", "List files near threshold within window"))
-    registry.register(Tool("coverage.report", "Summarize weak/groups/near in one payload"))
-    registry.register(Tool("rules.maxima", "Return coverage upper-bounds (maxima) from compiled rules"))
-    registry.register(Tool("env.diagnose", "Diagnose environment/tools/config presence"))
+    registry.register(
+        Tool("coverage.report", "Summarize weak/groups/near in one payload")
+    )
+    registry.register(
+        Tool(
+            "rules.maxima", "Return coverage upper-bounds (maxima) from compiled rules"
+        )
+    )
+    registry.register(
+        Tool("env.diagnose", "Diagnose environment/tools/config presence")
+    )

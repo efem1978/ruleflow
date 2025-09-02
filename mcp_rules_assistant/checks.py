@@ -1,17 +1,19 @@
 from __future__ import annotations
 
+import hashlib
 import json
-import shutil
+import os
 import subprocess
+import time
 from pathlib import Path
 from typing import Dict, List, Optional, Set
-import time
+
 import yaml
-import os
-import hashlib
 
 
-def _run(cmd: List[str], cwd: Optional[Path] = None, env: Optional[Dict[str, str]] = None) -> Dict[str, object]:
+def _run(
+    cmd: List[str], cwd: Optional[Path] = None, env: Optional[Dict[str, str]] = None
+) -> Dict[str, object]:
     try:
         p = subprocess.run(
             cmd,
@@ -21,9 +23,20 @@ def _run(cmd: List[str], cwd: Optional[Path] = None, env: Optional[Dict[str, str
             text=True,
             env=env,
         )
-        return {"ok": p.returncode == 0, "code": p.returncode, "stdout": p.stdout, "stderr": p.stderr, "cmd": cmd}
+        return {
+            "ok": p.returncode == 0,
+            "code": p.returncode,
+            "stdout": p.stdout,
+            "stderr": p.stderr,
+            "cmd": cmd,
+        }
     except FileNotFoundError:
-        return {"ok": True, "skipped": True, "reason": f"{cmd[0]} not found", "cmd": cmd}
+        return {
+            "ok": True,
+            "skipped": True,
+            "reason": f"{cmd[0]} not found",
+            "cmd": cmd,
+        }
 
 
 def run_lint(files: List[Path], cwd: Optional[Path] = None) -> Dict[str, object]:
@@ -61,7 +74,14 @@ def _read_last_fail(project_root: Path) -> Dict[str, Set[str] | Dict[str, int]]:
         return {"tests": set(), "nodeids": set(), "test_counts": {}, "node_counts": {}}
 
 
-def _write_last_fail(project_root: Path, tests: Set[str], nodeids: Set[str], test_counts: Dict[str, int], node_counts: Dict[str, int], events: Optional[List[Dict[str, str]]] = None) -> None:
+def _write_last_fail(
+    project_root: Path,
+    tests: Set[str],
+    nodeids: Set[str],
+    test_counts: Dict[str, int],
+    node_counts: Dict[str, int],
+    events: Optional[List[Dict[str, str]]] = None,
+) -> None:
     path = project_root / LAST_FAIL_FILE
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
@@ -126,7 +146,9 @@ def _write_index_meta(project_root: Path, sig: str) -> None:
     meta_path = project_root / TEST_INDEX_META
     meta_path.parent.mkdir(parents=True, exist_ok=True)
     try:
-        meta_path.write_text(json.dumps({"sig": sig}, ensure_ascii=False, indent=2), encoding="utf-8")
+        meta_path.write_text(
+            json.dumps({"sig": sig}, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
     except Exception:
         pass
 
@@ -171,7 +193,9 @@ def build_test_index(project_root: Path) -> Dict[str, List[str]]:
         index[k] = sorted(set(v))
     # 写入缓存
     (project_root / TEST_INDEX_FILE).parent.mkdir(parents=True, exist_ok=True)
-    (project_root / TEST_INDEX_FILE).write_text(json.dumps(index, ensure_ascii=False, indent=2), encoding="utf-8")
+    (project_root / TEST_INDEX_FILE).write_text(
+        json.dumps(index, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
     _write_index_meta(project_root, _compute_tests_signature(project_root))
     return index
 
@@ -210,7 +234,11 @@ def run_quick_tests(files: List[Path], cwd: Optional[Path] = None) -> Dict[str, 
     for f in files:
         name = f.name
         # 1) 改动就是测试
-        if name.startswith("test_") or f.parent.name == "tests" or name.endswith("_test.py"):
+        if (
+            name.startswith("test_")
+            or f.parent.name == "tests"
+            or name.endswith("_test.py")
+        ):
             test_paths.add(str(f))
             continue
         # 2) 推导匹配的测试
@@ -225,7 +253,9 @@ def run_quick_tests(files: List[Path], cwd: Optional[Path] = None) -> Dict[str, 
                 if p.exists():
                     test_paths.add(str(p))
             # 导入关系匹配
-            imps = _module_import_candidates(project_root, (project_root / f).resolve() if not f.is_absolute() else f)
+            imps = _module_import_candidates(
+                project_root, (project_root / f).resolve() if not f.is_absolute() else f
+            )
             # 1) 使用索引命中
             for mod in imps:
                 if mod in index:
@@ -241,13 +271,26 @@ def run_quick_tests(files: List[Path], cwd: Optional[Path] = None) -> Dict[str, 
     node_counts: Dict[str, int] = dict(last_fail.get("node_counts", {}))  # type: ignore[assignment]
     if not test_paths:
         return {"ok": True, "skipped": True, "reason": "no impacted tests"}
+
     # 优先级排序：按历史失败次数降序，未知为0
     # 基于失败次数与近期失败的加权排序（近3天+2，近7天+1）
-    def sort_by_count(items: List[str], counts: Dict[str, int], recent_bonus: Dict[str, int]) -> List[str]:
-        return sorted(items, key=lambda x: (counts.get(x, 0) + recent_bonus.get(x, 0)), reverse=True)
+    def sort_by_count(
+        items: List[str], counts: Dict[str, int], recent_bonus: Dict[str, int]
+    ) -> List[str]:
+        return sorted(
+            items,
+            key=lambda x: (counts.get(x, 0) + recent_bonus.get(x, 0)),
+            reverse=True,
+        )
 
     # 读取配置：失败加权策略
-    decay_cfg = {"high_days": 3, "high_bonus": 2, "mid_days": 7, "mid_bonus": 1, "history_limit": 400}
+    decay_cfg = {
+        "high_days": 3,
+        "high_bonus": 2,
+        "mid_days": 7,
+        "mid_bonus": 1,
+        "history_limit": 400,
+    }
     try:
         cfg_path = project_root / ".mcp/assistant.yaml"
         if cfg_path.exists():
@@ -278,14 +321,20 @@ def run_quick_tests(files: List[Path], cwd: Optional[Path] = None) -> Dict[str, 
         age = now - ts
         if age <= float(decay_cfg["high_days"]) * 24 * 3600:
             if f:
-                bonus_tests[f] = max(bonus_tests.get(f, 0), int(decay_cfg["high_bonus"]))
+                bonus_tests[f] = max(
+                    bonus_tests.get(f, 0), int(decay_cfg["high_bonus"])
+                )
             if nid:
-                bonus_nodes[nid] = max(bonus_nodes.get(nid, 0), int(decay_cfg["high_bonus"]))
+                bonus_nodes[nid] = max(
+                    bonus_nodes.get(nid, 0), int(decay_cfg["high_bonus"])
+                )
         elif age <= float(decay_cfg["mid_days"]) * 24 * 3600:
             if f:
                 bonus_tests[f] = max(bonus_tests.get(f, 0), int(decay_cfg["mid_bonus"]))
             if nid:
-                bonus_nodes[nid] = max(bonus_nodes.get(nid, 0), int(decay_cfg["mid_bonus"]))
+                bonus_nodes[nid] = max(
+                    bonus_nodes.get(nid, 0), int(decay_cfg["mid_bonus"])
+                )
 
     ordered_tests = sort_by_count(sorted(test_paths), test_counts, bonus_tests)
     ordered_nodes = sort_by_count(sorted(nodeids), node_counts, bonus_nodes)
@@ -304,13 +353,17 @@ def run_quick_tests(files: List[Path], cwd: Optional[Path] = None) -> Dict[str, 
     # 保证被测工程根目录在 PYTHONPATH 中，避免通过 tests/ 路径运行时 import 失败
     env = os.environ.copy()
     root = str(project_root)
-    env["PYTHONPATH"] = (root + (":" + env["PYTHONPATH"] if env.get("PYTHONPATH") else ""))
+    env["PYTHONPATH"] = root + (
+        ":" + env["PYTHONPATH"] if env.get("PYTHONPATH") else ""
+    )
     res = _run(cmd, cwd, env=env)
     # 解析失败用例写回缓存（启发式）
     failed_files: Set[str] = set()
     failed_nodes: Set[str] = set()
     out = (res.get("stdout") or "") + "\n" + (res.get("stderr") or "")
-    new_events: List[Dict[str, str]] = events[-int(decay_cfg["history_limit"]) :]  # 控制历史长度
+    new_events: List[Dict[str, str]] = events[
+        -int(decay_cfg["history_limit"]) :
+    ]  # 控制历史长度
     for line in out.splitlines():
         line = line.strip()
         # 形如: FAILED tests/test_x.py::TestClass::test_y - AssertionError
@@ -324,11 +377,19 @@ def run_quick_tests(files: List[Path], cwd: Optional[Path] = None) -> Dict[str, 
             test_counts[fpath] = test_counts.get(fpath, 0) + 1
             node_counts[node] = node_counts.get(node, 0) + 1
             new_events.append({"nodeid": node, "file": fpath, "ts": str(now)})
-    _write_last_fail(project_root, failed_files, failed_nodes, test_counts, node_counts, new_events)
+    _write_last_fail(
+        project_root, failed_files, failed_nodes, test_counts, node_counts, new_events
+    )
     return res
 
 
-def run_checks(files: List[Path], cwd: Optional[Path] = None, do_lint: bool = True, do_type: bool = False, do_quick_tests: bool = True) -> Dict[str, object]:
+def run_checks(
+    files: List[Path],
+    cwd: Optional[Path] = None,
+    do_lint: bool = True,
+    do_type: bool = False,
+    do_quick_tests: bool = True,
+) -> Dict[str, object]:
     results: Dict[str, object] = {"ok": True, "steps": []}
     if do_lint:
         r = run_lint(files, cwd)

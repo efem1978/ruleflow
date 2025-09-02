@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, asdict
+import json
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-import json
-
 
 DEFAULT_MEMORY_FILE = Path(".mcp/memory.json")
 
@@ -26,9 +25,13 @@ class MemoryManager:
     def _ensure_file(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         if not self.path.exists():
-            self.path.write_text(json.dumps({"turns": [], "summary": ""}, ensure_ascii=False), "utf-8")
+            self.path.write_text(
+                json.dumps({"turns": [], "summary": ""}, ensure_ascii=False), "utf-8"
+            )
 
-    def append_turn(self, role: str, content: str, meta: Optional[Dict[str, Any]] = None) -> None:
+    def append_turn(
+        self, role: str, content: str, meta: Optional[Dict[str, Any]] = None
+    ) -> None:
         data = self._read()
         data["turns"].append(asdict(Turn(role=role, content=content, meta=meta or {})))
         data["turns"] = data["turns"][-self.window :]
@@ -48,7 +51,21 @@ class MemoryManager:
                 important.append(f"Q: {text[:160]}")
             else:
                 # 粗略提取：包含“计划/下一步/总结/进度/规则”关键词
-                if any(k in text for k in ["计划", "下一步", "总结", "进度", "规则", "plan", "next", "summary", "progress", "rule"]):
+                if any(
+                    k in text
+                    for k in [
+                        "计划",
+                        "下一步",
+                        "总结",
+                        "进度",
+                        "规则",
+                        "plan",
+                        "next",
+                        "summary",
+                        "progress",
+                        "rule",
+                    ]
+                ):
                     important.append(f"A: {text[:200]}")
         return "\n".join(important[-40:])
 
@@ -57,4 +74,3 @@ class MemoryManager:
 
     def _write(self, data: Dict[str, Any]) -> None:
         self.path.write_text(json.dumps(data, ensure_ascii=False, indent=2), "utf-8")
-

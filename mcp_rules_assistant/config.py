@@ -7,7 +7,6 @@ from typing import Any, Dict, Optional
 
 import yaml
 
-
 DEFAULT_PROJECT_CONFIG_PATH = Path(".mcp/assistant.yaml")
 DEFAULT_GLOBAL_CONFIG_PATH = Path.home() / ".mcp/assistant.yaml"
 
@@ -117,9 +116,7 @@ def default_config_dict() -> Dict[str, Any]:
                 "history_limit": 400,
             }
         },
-        "ci": {
-            "hadolint": False
-        },
+        "ci": {"hadolint": False},
     }
 
 
