@@ -267,8 +267,7 @@ def run_quick_tests(files: List[Path], cwd: Optional[Path] = None) -> Dict[str, 
     # 合并上次失败缓存
     last_fail = _read_last_fail(project_root)
     test_paths.update(last_fail["tests"])  # type: ignore[index]
-    # keep as Set[str]; _read_last_fail guarantees set for 'nodeids'
-    nodeids = set(last_fail.get("nodeids", set()))  # type: ignore[call-arg]
+    nodeids = set(cast(Set[str], last_fail.get("nodeids", set())))
     test_counts = cast(Dict[str, int], last_fail.get("test_counts", {}))
     node_counts = cast(Dict[str, int], last_fail.get("node_counts", {}))
     if not test_paths:
@@ -305,7 +304,7 @@ def run_quick_tests(files: List[Path], cwd: Optional[Path] = None) -> Dict[str, 
         pass
 
     # 读取事件并构造近期加权
-    events = []
+    events: List[Dict[str, str]] = []
     try:
         raw = json.loads((project_root / LAST_FAIL_FILE).read_text(encoding="utf-8"))
         events = raw.get("events", []) or []
@@ -317,22 +316,24 @@ def run_quick_tests(files: List[Path], cwd: Optional[Path] = None) -> Dict[str, 
     for ev in events:
         ts = float(ev.get("ts", 0))
         nid = ev.get("nodeid") or ""
-        f = ev.get("file") or ""
+        file_str = ev.get("file") or ""
         if not ts:
             continue
         age = now - ts
         if age <= float(decay_cfg["high_days"]) * 24 * 3600:
-            if f:
-                bonus_tests[f] = max(
-                    bonus_tests.get(f, 0), int(decay_cfg["high_bonus"])
+            if file_str:
+                bonus_tests[file_str] = max(
+                    bonus_tests.get(file_str, 0), int(decay_cfg["high_bonus"])
                 )
             if nid:
                 bonus_nodes[nid] = max(
                     bonus_nodes.get(nid, 0), int(decay_cfg["high_bonus"])
                 )
         elif age <= float(decay_cfg["mid_days"]) * 24 * 3600:
-            if f:
-                bonus_tests[f] = max(bonus_tests.get(f, 0), int(decay_cfg["mid_bonus"]))
+            if file_str:
+                bonus_tests[file_str] = max(
+                    bonus_tests.get(file_str, 0), int(decay_cfg["mid_bonus"])
+                )
             if nid:
                 bonus_nodes[nid] = max(
                     bonus_nodes.get(nid, 0), int(decay_cfg["mid_bonus"])
@@ -353,8 +354,8 @@ def run_quick_tests(files: List[Path], cwd: Optional[Path] = None) -> Dict[str, 
         *ordered_nodes,
     ]
     # 保证被测工程根目录在 PYTHONPATH 中，避免通过 tests/ 路径运行时 import 失败
-    env = os.environ.copy()
-    root = str(project_root)
+    env: Dict[str, str] = os.environ.copy()
+    root: str = str(project_root)
     env["PYTHONPATH"] = root + (
         ":" + env["PYTHONPATH"] if env.get("PYTHONPATH") else ""
     )
@@ -362,7 +363,7 @@ def run_quick_tests(files: List[Path], cwd: Optional[Path] = None) -> Dict[str, 
     # 解析失败用例写回缓存（启发式）
     failed_files: Set[str] = set()
     failed_nodes: Set[str] = set()
-    out = (res.get("stdout") or "") + "\n" + (res.get("stderr") or "")
+    out = str(res.get("stdout") or "") + "\n" + str(res.get("stderr") or "")
     new_events: List[Dict[str, str]] = events[
         -int(decay_cfg["history_limit"]) :
     ]  # 控制历史长度
@@ -392,17 +393,18 @@ def run_checks(
     do_type: bool = False,
     do_quick_tests: bool = True,
 ) -> Dict[str, object]:
-    results: Dict[str, object] = {"ok": True, "steps": []}
+    steps: List[Dict[str, object]] = []
+    results: Dict[str, object] = {"ok": True, "steps": steps}
     if do_lint:
         r = run_lint(files, cwd)
-        results["steps"].append({"lint": r})
+        steps.append({"lint": r})
         results["ok"] = results["ok"] and bool(r.get("ok", False))
     if do_type:
         r = run_typecheck(cwd)
-        results["steps"].append({"type": r})
+        steps.append({"type": r})
         results["ok"] = results["ok"] and bool(r.get("ok", False))
     if do_quick_tests:
         r = run_quick_tests(files, cwd)
-        results["steps"].append({"tests": r})
+        steps.append({"tests": r})
         results["ok"] = results["ok"] and bool(r.get("ok", False))
     return results

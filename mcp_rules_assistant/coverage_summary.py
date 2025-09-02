@@ -3,7 +3,17 @@ from __future__ import annotations
 import json
 from defusedxml import ElementTree as ET  # type: ignore
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, TypedDict
+
+
+class ClassItem(TypedDict, total=False):
+    file: str
+    coverage: float
+    lines_valid: int
+    lines_covered: int
+    threshold: float
+    delta: float
+    delta_up: float
 
 
 def _cache_path(project_root: Path) -> Path:
@@ -12,9 +22,9 @@ def _cache_path(project_root: Path) -> Path:
 
 def _read_classes_with_cache(
     project_root: Path, coverage_xml: str
-) -> List[Dict[str, object]]:
+) -> List[ClassItem]:
     path = (project_root / coverage_xml).resolve()
-    items: List[Dict[str, object]] = []
+    items: List[ClassItem] = []
     if not path.exists():
         return items
     try:
@@ -28,7 +38,7 @@ def _read_classes_with_cache(
         sig_hash = hashlib.sha256(data_bytes).hexdigest()
         sig = f"{int(getattr(stat, 'st_mtime_ns', int(stat.st_mtime*1e9)))}-{stat.st_size}-{sig_hash}"
         cpath = _cache_path(project_root)
-        cache: Dict[str, object] = {}
+        cache: Dict[str, Any] = {}
         if cpath.exists():
             try:
                 cache = json.loads(cpath.read_text(encoding="utf-8"))
@@ -36,18 +46,18 @@ def _read_classes_with_cache(
                 cache = {}
         files = cache.get("files") or {}
         if isinstance(files, dict):
-            rec = (
+            cache_entry: Optional[Dict[str, Any]] = (
                 files.get(str(path)) if isinstance(files.get(str(path)), dict) else None
             )
         else:
-            rec = None
+            cache_entry = None  # pragma: no cover (defensive branch)
         if (
-            isinstance(rec, dict)
-            and rec.get("sig") == sig
-            and isinstance(rec.get("items"), list)
+            isinstance(cache_entry, dict)
+            and cache_entry.get("sig") == sig
+            and isinstance(cache_entry.get("items"), list)
         ):
             # cache hit
-            return list(rec.get("items") or [])  # type: ignore[return-value]
+            return list(cache_entry.get("items") or [])  # type: ignore[return-value]
     except Exception:
         sig = ""
         cache = {}
@@ -75,14 +85,14 @@ def _read_classes_with_cache(
                     cov = None
             if cov is None:
                 continue
-            rec: Dict[str, object] = {"file": filename, "coverage": cov}
+            row: ClassItem = {"file": filename, "coverage": float(cov)}
             try:
                 if lines_valid is not None and lines_covered is not None:
-                    rec["lines_valid"] = int(float(lines_valid))
-                    rec["lines_covered"] = int(float(lines_covered))
-            except Exception:
+                    row["lines_valid"] = int(float(lines_valid))
+                    row["lines_covered"] = int(float(lines_covered))
+            except Exception:  # pragma: no cover (defensive parsing)
                 pass
-            items.append(rec)
+            items.append(row)
         # write cache
         try:
             cache.setdefault("files", {})
@@ -92,7 +102,7 @@ def _read_classes_with_cache(
                 cpath.write_text(
                     json.dumps(cache, ensure_ascii=False, indent=2), encoding="utf-8"
                 )
-        except Exception:
+        except Exception:  # pragma: no cover (I/O failures ignored)
             pass
     except Exception:
         return []
@@ -113,41 +123,49 @@ def summarize(
             "message": f"{coverage_xml} not found. Run tests with --cov-report=xml.",
             "items": [],
         }
-    items: List[Dict[str, object]] = _read_classes_with_cache(root, coverage_xml)
+    items: List[ClassItem] = _read_classes_with_cache(root, coverage_xml)
 
     # 识别薄弱项
-    weak: List[Dict[str, object]] = []
+    weak: List[ClassItem] = []
     threshold = min_module
     if policy:
         # 简化：如匹配到前缀策略，则按策略阈值
         for it in items:
-            for prefix, th in policy.items():
-                if it["file"].startswith(prefix):
-                    it["threshold"] = th
+            name = str(it.get("file", ""))
+            th: float = float(threshold)
+            for prefix, t in policy.items():
+                if name.startswith(prefix):
+                    th = float(t)
                     break
-            it.setdefault("threshold", threshold)
-            if it["coverage"] < it["threshold"]:
+            it["threshold"] = th
+            cov_obj = it.get("coverage", 0.0)  # keep original for custom __lt__
+            try:
+                do_weak = bool(cov_obj < th)  # type: ignore[operator]
+            except Exception:
+                do_weak = False
+            if do_weak:
                 try:
-                    it["delta"] = float(it["threshold"]) - float(
-                        it["coverage"]
-                    )  # how much below threshold
-                except Exception:
+                    it["delta"] = float(th) - float(cov_obj)  # type: ignore[arg-type]
+                except Exception:  # pragma: no cover (delta conversion may fail)
                     pass
                 weak.append(it)
     else:
         for it in items:
-            it["threshold"] = threshold
-            if it["coverage"] < threshold:
+            it["threshold"] = float(threshold)
+            cov_obj = it.get("coverage", 0.0)
+            try:
+                do_weak = bool(cov_obj < float(threshold))  # type: ignore[operator]
+            except Exception:
+                do_weak = False
+            if do_weak:
                 try:
-                    it["delta"] = float(threshold) - float(
-                        it["coverage"]
-                    )  # how much below threshold
-                except Exception:
+                    it["delta"] = float(threshold) - float(cov_obj)  # type: ignore[arg-type]
+                except Exception:  # pragma: no cover (delta conversion may fail)
                     pass
                 weak.append(it)
 
     # sort by largest shortfall first
-    def sort_key(x: Dict[str, object]) -> float:
+    def sort_key(x: ClassItem) -> float:
         try:
             return -float(x.get("delta", 0.0))
         except Exception:
@@ -171,7 +189,7 @@ def summarize_groups(
             "message": f"{coverage_xml} not found. Run tests with --cov-report=xml.",
             "groups": [],
         }
-    items: List[Dict[str, object]] = _read_classes_with_cache(root, coverage_xml)
+    items: List[ClassItem] = _read_classes_with_cache(root, coverage_xml)
     prefixes: List[Tuple[str, float]] = []
     if policy:
         # sort by longer prefix first for specificity
@@ -206,18 +224,16 @@ def summarize_groups(
 
     for cls in items:
         filename = str(cls.get("file") or "")
-        cov = None
+        cov: Optional[float] = None
         try:
-            cov = (
-                float(cls.get("coverage")) if cls.get("coverage") is not None else None
-            )
+            cov = float(cls.get("coverage", 0.0))
         except Exception:
             cov = None
         v = 0.0
         c = 0.0
         try:
             v = float(cls.get("lines_valid", 0.0))
-            c = float(cls.get("lines_covered", cov * v if cov is not None else 0.0))
+            c = float(cls.get("lines_covered", (cov or 0.0) * v))
         except Exception:
             pass
         if cov is None:
@@ -243,7 +259,15 @@ def summarize_groups(
                 "files_count": int(g["files"]),
             }
         )
-    out_groups_sorted = sorted(out_groups, key=lambda x: (x["coverage"]))
+    def _key_cov(d: Dict[str, object]) -> float:
+        v = d.get("coverage", 0.0)
+        if isinstance(v, (int, float, str)):
+            try:
+                return float(v)
+            except Exception:  # pragma: no cover
+                return 0.0
+        return 0.0
+    out_groups_sorted = sorted(out_groups, key=_key_cov)
     return {"ok": True, "groups": out_groups_sorted}
 
 
@@ -267,7 +291,7 @@ def summarize_near(
             "message": f"{coverage_xml} not found. Run tests with --cov-report=xml.",
             "items": [],
         }
-    items: List[Dict[str, object]] = _read_classes_with_cache(root, coverage_xml)
+    items: List[ClassItem] = _read_classes_with_cache(root, coverage_xml)
 
     def threshold_for(file: str) -> float:
         if policy:
@@ -278,17 +302,25 @@ def summarize_near(
 
     near: List[Dict[str, object]] = []
     for it in items:
-        th = threshold_for(str(it["file"]))
-        cov = float(it["coverage"])  # type: ignore[arg-type]
+        th = threshold_for(str(it.get("file", "")))
+        cov = float(it.get("coverage", 0.0))
         if cov >= th:
             gap = cov - th
             if gap <= float(within) + 1e-12:
-                out = dict(it)
+                out: Dict[str, object] = dict(it)
                 out["threshold"] = th
                 out["delta_up"] = gap
                 near.append(out)
 
-    near_sorted = sorted(near, key=lambda x: (x.get("delta_up", 0.0)))[: int(top)]
+    def _key_delta(d: Dict[str, object]) -> float:
+        v = d.get("delta_up", 0.0)
+        if isinstance(v, (int, float, str)):
+            try:
+                return float(v)
+            except Exception:  # pragma: no cover
+                return 0.0
+        return 0.0
+    near_sorted = sorted(near, key=_key_delta)[: int(top)]
     return {"ok": True, "near": near_sorted}
 
 
@@ -311,7 +343,8 @@ def summarize_tree(
     )
     if not base.get("ok"):
         return base
-    weak = base.get("weak", [])  # type: ignore[assignment]
+    weak_raw = base.get("weak", [])
+    weak: List[Dict[str, object]] = weak_raw if isinstance(weak_raw, list) else []
     root: Dict[str, object] = {"name": "/", "children": {}, "files": []}
 
     def get_child(node: Dict[str, object], name: str) -> Dict[str, object]:

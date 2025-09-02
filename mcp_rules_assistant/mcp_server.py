@@ -46,21 +46,19 @@ class JsonRpcServer:
         req_id = request.get("id")
         method = request.get("method")
         params = request.get("params", {})
+        result: Dict[str, Any] = {}
         try:
             if method == "initialize":
+                caps: Dict[str, Any] = {"tools": True, "resources": True, "prompts": True}
                 result = {
                     "server": "mcp-rules-assistant",
                     "version": "0.1.0",
-                    "capabilities": {
-                        "tools": True,
-                        "resources": True,
-                        "prompts": True,
-                    },
+                    "capabilities": caps,
                 }
             elif method == "ping":
                 result = {"ok": True}
             elif method == "tools/list":
-                tools = [
+                tool_items: List[Dict[str, Any]] = [
                     (
                         asdict(t)
                         if hasattr(t, "__dict__")
@@ -68,68 +66,67 @@ class JsonRpcServer:
                     )
                     for t in registry.list()
                 ]
-                result = {"tools": tools}
+                result = {"tools": tool_items}
             elif method == "tools/call":
                 name = params.get("name")
                 args = params.get("arguments", {})
                 result = self._call_tool(name, args)
             elif method == "resources/list":
-                result = {
-                    "resources": [
-                        {
-                            "uri": f"memory://{self._project_id()}/rollup",
-                            "name": "Last 20 turns & summary",
-                        },
-                        {
-                            "uri": f"rules://project/{self._project_id()}/compiled",
-                            "name": "Compiled project rules",
-                        },
-                        {
-                            "uri": f"rules://project/{self._project_id()}/compiled.json",
-                            "name": "Compiled rules (JSON)",
-                        },
-                        {
-                            "uri": f"rules://project/{self._project_id()}/suggestions",
-                            "name": "Rule conflicts & suggestions",
-                        },
-                        {
-                            "uri": f"rules://project/{self._project_id()}/maxima",
-                            "name": "Coverage upper-bounds (maxima)",
-                        },
-                        {
-                            "uri": f"coverage://project/{self._project_id()}/summary",
-                            "name": "Coverage summary",
-                        },
-                        {
-                            "uri": f"coverage://project/{self._project_id()}/groups",
-                            "name": "Coverage groups",
-                        },
-                        {
-                            "uri": f"coverage://project/{self._project_id()}/tree",
-                            "name": "Coverage tree (weak)",
-                        },
-                        {
-                            "uri": f"coverage://project/{self._project_id()}/near",
-                            "name": "Coverage near threshold",
-                        },
-                        {
-                            "uri": f"coverage://project/{self._project_id()}/report",
-                            "name": "Coverage report (weak/groups/near)",
-                        },
-                        {
-                            "uri": f"progress://{self._project_id()}/plan",
-                            "name": "Project plan",
-                        },
-                        {
-                            "uri": f"config://project/{self._project_id()}/assistant.yaml",
-                            "name": "Project config (YAML)",
-                        },
-                        {
-                            "uri": f"ci://project/{self._project_id()}/workflow",
-                            "name": "CI workflow (YAML)",
-                        },
-                    ]
-                }
+                resources_list: List[Dict[str, str]] = [
+                    {
+                        "uri": f"memory://{self._project_id()}/rollup",
+                        "name": "Last 20 turns & summary",
+                    },
+                    {
+                        "uri": f"rules://project/{self._project_id()}/compiled",
+                        "name": "Compiled project rules",
+                    },
+                    {
+                        "uri": f"rules://project/{self._project_id()}/compiled.json",
+                        "name": "Compiled rules (JSON)",
+                    },
+                    {
+                        "uri": f"rules://project/{self._project_id()}/suggestions",
+                        "name": "Rule conflicts & suggestions",
+                    },
+                    {
+                        "uri": f"rules://project/{self._project_id()}/maxima",
+                        "name": "Coverage upper-bounds (maxima)",
+                    },
+                    {
+                        "uri": f"coverage://project/{self._project_id()}/summary",
+                        "name": "Coverage summary",
+                    },
+                    {
+                        "uri": f"coverage://project/{self._project_id()}/groups",
+                        "name": "Coverage groups",
+                    },
+                    {
+                        "uri": f"coverage://project/{self._project_id()}/tree",
+                        "name": "Coverage tree (weak)",
+                    },
+                    {
+                        "uri": f"coverage://project/{self._project_id()}/near",
+                        "name": "Coverage near threshold",
+                    },
+                    {
+                        "uri": f"coverage://project/{self._project_id()}/report",
+                        "name": "Coverage report (weak/groups/near)",
+                    },
+                    {
+                        "uri": f"progress://{self._project_id()}/plan",
+                        "name": "Project plan",
+                    },
+                    {
+                        "uri": f"config://project/{self._project_id()}/assistant.yaml",
+                        "name": "Project config (YAML)",
+                    },
+                    {
+                        "uri": f"ci://project/{self._project_id()}/workflow",
+                        "name": "CI workflow (YAML)",
+                    },
+                ]
+                result = {"resources": resources_list}
             elif method == "resources/read":
                 uri = params.get("uri", "")
                 if uri.startswith("memory://"):
@@ -675,8 +672,8 @@ class JsonRpcServer:
             self.cfg = load_config(self.project_root)
             return {"ok": True, "ci": ci}
         if name == "ci.generate":
-            out = hooks_mod.generate_github_ci(self.project_root)
-            return {"ok": True, "path": str(out)}
+            ci_path = hooks_mod.generate_github_ci(self.project_root)
+            return {"ok": True, "path": str(ci_path)}
         if name == "ci.validate":
             ci_file = self.project_root / ".github/workflows/ci.yml"
             exists = ci_file.exists()
@@ -729,8 +726,8 @@ class JsonRpcServer:
                 if isinstance(compiled.get("policy", {}), dict)
                 else {}
             )
-            min_module = policy.get("coverage.min_module")
-            min_core = policy.get("coverage.min_core")
+            pol_min_module = policy.get("coverage.min_module")
+            pol_min_core = policy.get("coverage.min_core")
             cfg_path = self.project_root / DEFAULT_PROJECT_CONFIG_PATH
             ensure_project_config(cfg_path)
             try:
@@ -753,11 +750,11 @@ class JsonRpcServer:
                 else {}
             )
             changed = False
-            if isinstance(min_module, (int, float)):
-                cov["min_module"] = float(min_module)
+            if isinstance(pol_min_module, (int, float)):
+                cov["min_module"] = float(pol_min_module)
                 changed = True
-            if isinstance(min_core, (int, float)):
-                cov["min_core"] = float(min_core)
+            if isinstance(pol_min_core, (int, float)):
+                cov["min_core"] = float(pol_min_core)
                 changed = True
             on_push["coverage"] = cov
             perf["on_push"] = on_push

@@ -241,7 +241,8 @@ def coverage() -> None:
     if not res.get("ok"):
         rprint(f"[yellow]{res.get('message', 'coverage.xml 不存在')}[/]")
         raise typer.Exit(1)
-    weak = res.get("weak", [])
+    weak_obj = res.get("weak", [])
+    weak: list[dict] = list(weak_obj) if isinstance(weak_obj, list) else []
     if not weak:
         rprint("[green]覆盖率良好，未发现低于阈值的文件[/]")
         return
@@ -279,7 +280,9 @@ def coverage_groups() -> None:
         rprint(f"[yellow]{res.get('message', 'coverage.xml 不存在')}[/]")
         raise typer.Exit(1)
     rprint("[bold]覆盖率分组摘要（按策略前缀）[/]")
-    for g in res.get("groups", []):
+    groups_obj = res.get("groups", [])
+    groups: list[dict] = list(groups_obj) if isinstance(groups_obj, list) else []
+    for g in groups:
         rprint(
             f" - {g['prefix']}: {g['coverage']*100:.1f}% < {int((g.get('threshold',0))*100)}% — 弱项 {g['weak_count']}/{g['files_count']}"
         )
@@ -306,7 +309,8 @@ def coverage_tree() -> None:
     if not res.get("ok"):
         rprint(f"[yellow]{res.get('message', 'coverage.xml 不存在')}[/]")
         raise typer.Exit(1)
-    tree = res.get("tree") or {}
+    tree_obj = res.get("tree") or {}
+    tree: dict = tree_obj if isinstance(tree_obj, dict) else {}
 
     def walk(node: dict, prefix: str = "") -> None:
         name = node.get("name", "")
@@ -367,7 +371,8 @@ def coverage_near(
     if not res.get("ok"):
         rprint(f"[yellow]{res.get('message', 'coverage.xml 不存在')}[/]")
         raise typer.Exit(1)
-    near = res.get("near", [])
+    near_obj = res.get("near", [])
+    near: list[dict] = list(near_obj) if isinstance(near_obj, list) else []
     if policy_prefix:
         near = [it for it in near if str(it.get("file", "")).startswith(policy_prefix)]
     if not near:
@@ -485,17 +490,25 @@ def coverage_report(
     if json_out:
         import json as _json
 
+        _w_obj = res_sum.get("weak", [])
+        _g_obj = res_grp.get("groups", [])
+        _n_obj = res_near.get("near", [])
+        w_list: list = _w_obj if isinstance(_w_obj, list) else []
+        g_list: list = _g_obj if isinstance(_g_obj, list) else []
+        n_list: list = _n_obj if isinstance(_n_obj, list) else []
         payload = {
-            "weak": res_sum.get("weak", []),
-            "groups": res_grp.get("groups", []),
-            "near": res_near.get("near", []),
+            "weak": w_list,
+            "groups": g_list,
+            "near": n_list,
             "min_module": min_module,
         }
         print(_json.dumps(payload, ensure_ascii=False))
         return
     # text output (compact)
     rprint("[bold]Weak (Top)")
-    for it in res_sum.get("weak", [])[:20]:
+    _obj_w = res_sum.get("weak", [])
+    weak_list: list = _obj_w if isinstance(_obj_w, list) else []
+    for it in weak_list[:20]:
         delta = float(
             it.get(
                 "delta", float(it.get("threshold", 0)) - float(it.get("coverage", 0))
@@ -505,12 +518,16 @@ def coverage_report(
             f" - {it['coverage']*100:.1f}% < {int((it.get('threshold', 0))*100)}% (Δ {delta*100:.1f}%) — {it['file']}"
         )
     rprint("[bold]Groups")
-    for g in res_grp.get("groups", []):
+    _obj_g = res_grp.get("groups", [])
+    grp_list: list = _obj_g if isinstance(_obj_g, list) else []
+    for g in grp_list:
         rprint(
             f" - {g['prefix']}: {g['coverage']*100:.1f}% < {int((g.get('threshold',0))*100)}% — 弱项 {g['weak_count']}/{g['files_count']}"
         )
     rprint("[bold]Near")
-    for it in res_near.get("near", []):
+    _obj_n = res_near.get("near", [])
+    near_list: list = _obj_n if isinstance(_obj_n, list) else []
+    for it in near_list:
         delta_up = float(it.get("delta_up", 0.0))
         rprint(
             f" - {it['coverage']*100:.1f}% ≥ {int((it.get('threshold', 0))*100)}% (距阈值 {delta_up*100:.1f}%) — {it['file']}"
@@ -690,7 +707,7 @@ def ci_set(
     """更新项目配置文件 `.mcp/assistant.yaml` 中的 CI 相关字段。未传的字段保持不变。"""
     ensure_project_config()
     p = DEFAULT_PROJECT_CONFIG_PATH
-    data = {}
+    data: dict = {}
     try:
         data = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
     except Exception:

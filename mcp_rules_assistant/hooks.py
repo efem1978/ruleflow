@@ -331,17 +331,46 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install ruff black isort mypy bandit pytest pytest-cov types-PyYAML
-{precommit_ci}{docker_check}{hadolint_step}      - name: Lint & Type (core, blocking)
+{precommit_ci}{docker_check}{hadolint_step}      - name: Lint (ruff/black/isort)
         run: |
           ruff check --output-format=github mcp_rules_assistant
           black --check mcp_rules_assistant
           isort --check-only mcp_rules_assistant
-          mypy mcp_rules_assistant/config.py mcp_rules_assistant/progress.py mcp_rules_assistant/tools.py mcp_rules_assistant/memory.py
+      - name: Type Check (core, blocking)
+        run: |
+          mypy \
+            mcp_rules_assistant/config.py \
+            mcp_rules_assistant/progress.py \
+            mcp_rules_assistant/tools.py \
+            mcp_rules_assistant/memory.py \
+            mcp_rules_assistant/mcp_server.py \
+            mcp_rules_assistant/cli.py \
+            mcp_rules_assistant/server.py
+      - name: Type Check (rest, non-blocking)
+        run: |
+          mypy mcp_rules_assistant || true
       - name: Tests + Coverage
         env:
           PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
         run: |
           pytest -q -p pytest_cov --maxfail=1 --disable-warnings -W error --strict-markers --cov=mcp_rules_assistant --cov-report=xml:coverage.xml --cov-report=term-missing --cov-fail-under={int(min_module*100)} --junitxml=pytest-junit.xml
+      - name: Coverage Policy Gate (core≥98%, others≥95%)
+        run: |
+          python -m mcp_rules_assistant.cli coverage-report --json > cov.json
+          python - <<'PY'
+          import json, sys
+          data = json.load(open('cov.json'))
+          weak = data.get('weak') or []
+          if weak:
+              print('[mcp] Coverage policy gate failed. Weak files:')
+              for w in weak:
+                  print(' -', w.get('file'), 'cov=', w.get('coverage'), '<', w.get('threshold'))
+              sys.exit(1)
+          print('[mcp] Coverage policy gate passed.')
+          PY
+      - name: Forbid skip/xfail markers (non-tests)
+        run: |
+          if grep -R -n --include='*.py' -E "(^|[^\"'])pytest\\.mark\\.(skip|xfail)" mcp_rules_assistant >/dev/null; then echo "Found actual skip/xfail usage in package code. Disallowed."; exit 1; fi
       - name: Coverage Near Summary
         run: |
           python -m mcp_rules_assistant.cli coverage-near --within 3 --top 10 > near.txt || true
@@ -360,9 +389,9 @@ jobs:
             near.csv
             near.json
             tests-artifacts.tar.gz
-      - name: Security (non-blocking)
+      - name: Security (bandit — high only)
         run: |
-          bandit -q -ll -x tests -r . || true
+          bandit -q -lll -x tests -r .
 {sast_step}{mutation_step}
   prepare:
     runs-on: ubuntu-latest

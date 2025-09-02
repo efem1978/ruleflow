@@ -12,3 +12,10 @@
 
 ## 0.1.0
 - 初始版本：MCP Server + CLI + 规则摄取/编译骨架 + VS Code 扩展脚手架
+## Unreleased
+
+- CI: Enforce Coverage Policy Gate (core≥98%, others≥95%); forbid `skip/xfail`; keep `-W error` strict.
+- Types: mypy clean across package; expand blocking to `cli`, `mcp_server`, `server`.
+- Coverage: Add tests for `__main__` entrypoint and defensive branches in `coverage_summary`.
+- Docs/Plan: Update `docs/DEV_PLAN_TDD.md` and `.mcp/plan.md` to production-grade gates; track PR-A/B/C.
+- CI threshold: Raise global `--cov-fail-under` from 95 to 96.

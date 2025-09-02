@@ -5,6 +5,6 @@ from typing import NoReturn
 from .mcp_server import serve_stdio
 
 
-def start() -> NoReturn:
+def start() -> None:
     """启动 JSON-RPC/stdio MCP 兼容服务（最小骨架）。"""
     serve_stdio()
