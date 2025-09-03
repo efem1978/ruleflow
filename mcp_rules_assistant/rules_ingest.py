@@ -432,7 +432,6 @@ def _english_words_to_int(s: str) -> Optional[int]:
     if total > 100:
         total = 100
     return total
-    return None
 
 
 def _parse_yaml_json(path: Path) -> List[RuleItem]:

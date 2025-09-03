@@ -1,0 +1,38 @@
+performance:
+  mode: fast
+  on_save:
+    format_on_save: true
+    lint_changed_only: true
+    typecheck_incremental: false
+    quick_tests: false
+  on_commit:
+    lint: true
+    typecheck_incremental: true
+    test_impacted: true
+  on_push:
+    test_all: true
+    coverage: {enforce: true, min_module: 0.95, min_core: 0.98}
+    security_scan: true
+    mutation_test: false
+language: python
+bilingual: true
+coverage:
+  policy:
+    "mcp_rules_assistant/config.py": 0.98
+    "mcp_rules_assistant/progress.py": 0.98
+    "mcp_rules_assistant/tools.py": 0.98
+    "mcp_rules_assistant/memory.py": 0.98
+    "mcp_rules_assistant/mcp_server.py": 0.98
+    "mcp_rules_assistant/cli.py": 0.98
+    "mcp_rules_assistant/server.py": 0.98
+  near: {within: 0.03, top: 50}
+tests:
+  quick_fail_decay:
+    high_days: 3
+    high_bonus: 2
+    mid_days: 7
+    mid_bonus: 1
+    history_limit: 400
+ci:
+  hadolint: true
+  semgrep_config: p/ci

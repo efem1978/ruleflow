@@ -49,6 +49,7 @@ class JsonRpcServer:
         result: Dict[str, Any] = {}
         try:
             if method == "initialize":
+                # 声明最小能力集，含 prompts（提供占位端点）
                 caps: Dict[str, Any] = {"tools": True, "resources": True, "prompts": True}
                 result = {
                     "server": "mcp-rules-assistant",
@@ -305,6 +306,13 @@ class JsonRpcServer:
                     result = {"mimeType": "text/yaml", "text": text}
                 else:
                     raise ValueError("Unknown resource uri")
+            elif method == "prompts/list":
+                # 最小占位：当前不提供内置提示，返回空列表
+                result = {"prompts": []}
+            elif method == "prompts/get":
+                # 最小占位：返回不存在
+                name = str(params.get("name", ""))
+                result = {"ok": False, "message": f"prompt '{name}' not found"}
             else:
                 raise ValueError(f"Unknown method: {method}")
             return {"jsonrpc": "2.0", "id": req_id, "result": result}

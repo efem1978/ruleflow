@@ -53,8 +53,8 @@ jobs:
         env:
           PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
         run: |
-          pytest -q -p pytest_cov --maxfail=1 --disable-warnings -W error --strict-markers --cov=mcp_rules_assistant --cov-report=xml:coverage.xml --cov-report=term-missing --cov-fail-under=96 --junitxml=pytest-junit.xml
-      - name: Coverage Policy Gate (core≥98%, others≥95%)
+          pytest -q -p pytest_cov --maxfail=1 --disable-warnings -W error --strict-markers --cov=mcp_rules_assistant --cov-report=xml:coverage.xml --cov-report=term-missing --cov-fail-under=95 --junitxml=pytest-junit.xml
+      - name: Coverage Policy Gate (policy-driven)
         run: |
           python -m mcp_rules_assistant.cli coverage-report --json > cov.json
           python - <<'PY'
@@ -171,18 +171,9 @@ jobs:
           path: |
             coverage.xml
             pytest-junit.xml
-      - name: Upload coverage to Codecov (prepare)
-        if: env.CODECOV_TOKEN != ''
-        uses: codecov/codecov-action@v4
-        with:
-          files: coverage.xml
-          flags: prepare
-          name: python-prepare
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
   vscode:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

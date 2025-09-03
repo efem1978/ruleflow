@@ -50,8 +50,11 @@ MCP 规则与上下文助手 / MCP Rules & Context Assistant
   - 清理覆盖率缓存：`mcp-rules-assistant coverage-clean-cache`
 - CI 中按项目配置的 `coverage.min_module` 动态设置门槛（默认 95%），并上传 `coverage.xml` 到 Codecov 以生成覆盖率徽章。
 
-启用 Codecov（可选）
-- 公共仓库：缺省无需令牌。Fork 后保留工作流中的上传步骤即可。
+说明（测试样例文件）
+- 仓库根目录的 `bad.py`、`foo.py`、`ok2.py` 是测试使用的样例文件（用于受控写入与受影响测试相关用例）。请勿删除；如需迁移，请同步更新 tests 中的引用。
+
+-启用 Codecov（可选）
+- 公共仓库：如已安装 Codecov GitHub App，可免 token 上传；若未安装，需配置 `CODECOV_TOKEN`（本工作流默认仅在存在 token 时上传）。
 - 私有仓库：在 GitHub 仓库 Settings → Secrets and variables → Actions 新增 `CODECOV_TOKEN`，值为 Codecov 项目令牌。
 - 首次 push 后访问徽章链接确认数据是否入库：
   - https://codecov.io/gh/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool

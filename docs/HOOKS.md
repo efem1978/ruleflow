@@ -20,6 +20,10 @@ Git Hooks 与门禁（性能优先）
   - 生成 `coverage.xml`（用于面板“加载覆盖率”与薄弱模块展示）
   - 若规则启用 `security.secrets_scan`：自动在 pre-commit 配置中加入 `detect-secrets`（push 阶段），保存阶段不运行
 
+注意（本地脚本生成时机）
+- `.pre-commit-config.yaml` 中引用的本地脚本（如 `.mcp/plan_gate.py`、`.mcp/dockerfile_gate.py`）由 `mcp-rules-assistant install-hooks` 生成。
+- 请优先执行一次 `install-hooks` 再进行提交/推送；后续计划将这些条目改为“条件生成”，避免首次运行时因缺失脚本而失败。
+
 CI 生成
 - `mcp-rules-assistant generate-ci` 会生成基础工作流；若已存在编译规则：
   - 开启了 `security.secrets_scan`：在 CI 中添加 `pre-commit --all-files` 步骤以扫描密钥

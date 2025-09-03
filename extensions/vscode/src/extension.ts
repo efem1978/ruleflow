@@ -161,31 +161,8 @@ export function activate(context: vscode.ExtensionContext) {
           };
           (document.getElementById('btnCovNear') as HTMLButtonElement).onclick = async () => {
             const last = (window as any).__nearPct || 3;
-            const val = await vscode.window.showInputBox({ title: '近阈值窗口（百分比）', value: String(last), prompt: '单位 %（1–10），例如 3 表示 ≤3%'});
-            if (!val) return;
-            const pct = Math.max(1, Math.min(10, parseFloat(val))) || 3;
-            try {
-              const res = await client.request('tools/call', { name: 'coverage.near', arguments: { within: pct/100.0, top: 50 } });
-              const items = (res && (res as any).near) ? (res as any).near : [];
-              (window as any).__nearPct = pct;
-              (window as any).__near = items;
-              const ulw = document.getElementById('covWeak');
-              if (!ulw) return;
-              ulw.innerHTML = '';
-              (items || []).forEach((w:any) => {
-                const li = document.createElement('li');
-                const a = document.createElement('a');
-                a.href = '#';
-                a.textContent = (w.coverage*100).toFixed(1) + '% ≥ ' + Math.round((w.threshold||0)*100) + '% — ' + w.file + ' （距阈值 +' + ((w.delta_up||0)*100).toFixed(1) + '%）';
-                a.addEventListener('click', (ev)=>{ ev.preventDefault(); vscode.postMessage({ t: 'open', path: w.file, line: 1 }); });
-                li.appendChild(a);
-                ulw.appendChild(li);
-              });
-              const s = '近阈值文件：' + (items.length||0) + ' 个（≤' + pct + '%）';
-              const inf = document.getElementById('info'); if (inf) inf.textContent = '当前视图：近阈值（≤' + pct + '%） — ' + s;
-            } catch (e:any) {
-              vscode.window.showWarningMessage('获取近阈值列表失败：' + String(e));
-            }
+            // 通过扩展侧获取输入与数据
+            vscode.postMessage({ t: 'covNearPrompt', last });
           };
           const memBtn = document.createElement('button');
           memBtn.id = 'btnMemory'; memBtn.textContent = '加载记忆 / Load Memory';
@@ -217,6 +194,26 @@ export function activate(context: vscode.ExtensionContext) {
             if (msg.t === 'info') {
               const inf = document.getElementById('info');
               if (inf) inf.textContent = msg.text || '';
+            }
+            if (msg.t === 'covNearDisplay') {
+              const items = msg.items || [];
+              const pct = msg.pct || 3;
+              (window as any).__nearPct = pct;
+              (window as any).__near = items;
+              const ulw = document.getElementById('covWeak');
+              if (ulw) {
+                ulw.innerHTML = '';
+                (items || []).forEach((w:any) => {
+                  const li = document.createElement('li');
+                  const a = document.createElement('a');
+                  a.href = '#';
+                  a.textContent = (w.coverage*100).toFixed(1) + '% ≥ ' + Math.round((w.threshold||0)*100) + '% — ' + w.file + ' （距阈值 +' + ((w.delta_up||0)*100).toFixed(1) + '%）';
+                  a.addEventListener('click', (ev)=>{ ev.preventDefault(); vscode.postMessage({ t: 'open', path: w.file, line: 1 }); });
+                  li.appendChild(a);
+                  ulw.appendChild(li);
+                });
+              }
+              const inf = document.getElementById('info'); if (inf) inf.textContent = '当前视图：近阈值（≤' + pct + '%） — ' + ((items||[]).length || 0) + ' 个';
             }
             if (msg.t === 'suggestIngest') {
               const bar = document.querySelector('div[style*="margin:8px 0;"]');
@@ -799,6 +796,20 @@ export function activate(context: vscode.ExtensionContext) {
           editor.revealRange(new vscode.Range(pos, pos), vscode.TextEditorRevealType.InCenter);
         } catch (e:any) {
           vscode.window.showErrorMessage('无法打开文件：' + String(e));
+        }
+      }
+      // Webview 请求“近阈值”交互：扩展侧弹出输入框并计算
+      if (msg && msg.t === 'covNearPrompt') {
+        try {
+          const last = Number(msg.last || 3) || 3;
+          const val = await vscode.window.showInputBox({ title: '近阈值窗口（百分比）', value: String(last), prompt: '单位 %（1–10），例如 3 表示 ≤3%' });
+          if (!val) { return; }
+          const pct = Math.max(1, Math.min(10, parseFloat(val))) || 3;
+          const res = await client.request('tools/call', { name: 'coverage.near', arguments: { within: pct/100.0, top: 50 } });
+          const items = (res && (res as any).near) ? (res as any).near : [];
+          panel.webview.postMessage({ t: 'covNearDisplay', items, pct });
+        } catch (e:any) {
+          vscode.window.showWarningMessage('获取近阈值失败：' + String(e));
         }
       }
     });

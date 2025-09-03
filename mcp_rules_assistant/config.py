@@ -116,6 +116,10 @@ def default_config_dict() -> Dict[str, Any]:
                 "history_limit": 400,
             }
         },
+        "execution": {
+            # 写入后执行轻量增量检查（FSGuard），默认关闭；由 MCP fs.apply_patch 的 strict/检查控制
+            "fs_guard_post_checks": False
+        },
         "ci": {"hadolint": False},
     }
 
