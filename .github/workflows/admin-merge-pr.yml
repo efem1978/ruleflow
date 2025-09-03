@@ -11,7 +11,6 @@ on:
         default: 'squash'
         required: false
 
-# 可选：如需让默认 GITHUB_TOKEN 也能写入，可开启下方权限
 permissions:
   contents: write
   pull-requests: write
@@ -22,48 +21,37 @@ jobs:
     steps:
       - name: Resolve review conversations and merge
         uses: actions/github-script@v7
-        env:
-          GH_TOKEN: ${{ secrets.GH_ADMIN_TOKEN }}
         with:
           github-token: ${{ secrets.GH_ADMIN_TOKEN }}
           script: |
-            const prNumber = parseInt(core.getInput('pr_number'));
-            if (Number.isNaN(prNumber)) {
-              core.setFailed('Invalid pr_number'); return;
-            }
-            const method = (core.getInput('method') || 'squash').toLowerCase();
+            const prNumber = Number('${{ inputs.pr_number }}');
+            let methodRaw = '${{ inputs.method }}';
+            const method = (methodRaw && methodRaw.trim()) ? methodRaw.toLowerCase() : 'squash';
             const ALLOW = new Set(['squash','merge','rebase']);
-            if (!ALLOW.has(method)) {
-              core.setFailed(`Invalid merge method: ${method}`); return;
-            }
-            if (!process.env.GH_TOKEN) {
-              core.setFailed('Missing secret: GH_ADMIN_TOKEN'); return;
-            }
+            if (!Number.isFinite(prNumber)) { core.setFailed('Invalid pr_number'); return; }
+            if (!ALLOW.has(method)) { core.setFailed(`Invalid merge method: ${method}`); return; }
 
             const [owner, repo] = (process.env.GITHUB_REPOSITORY || '').split('/');
-            if (!owner || !repo) {
-              core.setFailed('Cannot parse GITHUB_REPOSITORY'); return;
-            }
+            if (!owner || !repo) { core.setFailed('Cannot parse GITHUB_REPOSITORY'); return; }
 
             // 1) Resolve all unresolved review threads (GraphQL)
-            const q = `query($owner:String!, $name:String!, $number:Int!){
+            const query = `query($owner:String!, $name:String!, $number:Int!){
               repository(owner:$owner, name:$name){
                 pullRequest(number:$number){
                   reviewThreads(first:100, isResolved:false){ nodes{ id isResolved } }
                 }
               }
             }`;
-            let unresolved = [];
+            let unresolvedIds = [];
             try {
-              const res = await github.graphql(q, { owner, name: repo, number: prNumber });
-              unresolved = (((res || {}).repository || {}).pullRequest || {}).reviewThreads?.nodes || [];
-              unresolved = unresolved.filter(n => !n.isResolved).map(n => n.id);
+              const r = await github.graphql(query, { owner, name: repo, number: prNumber });
+              unresolvedIds = (r?.repository?.pullRequest?.reviewThreads?.nodes ?? [])
+                .filter(n => !n.isResolved).map(n => n.id);
             } catch (e) {
-              core.warning('Failed to query review threads: ' + String(e));
+              core.warning('Query threads failed: ' + String(e));
             }
-
-            let resolvedCount = 0;
-            for (const id of unresolved) {
+            let resolved = 0;
+            for (const id of unresolvedIds) {
               try {
                 await github.graphql(
                   `mutation($id:ID!){
@@ -71,13 +59,13 @@ jobs:
                   }`,
                   { id }
                 );
-                resolvedCount++;
+                resolved++;
               } catch (e) {
                 core.warning('Resolve failed for thread ' + id + ': ' + String(e));
               }
             }
 
-            // 2) Ensure checks are successful on the PR head
+            // 2) Ensure checks are successful on PR head
             const pr = (await github.rest.pulls.get({ owner, repo, pull_number: prNumber })).data;
             const headSha = pr.head.sha;
             const combined = await github.rest.repos.getCombinedStatusForRef({ owner, repo, ref: headSha });
@@ -85,7 +73,7 @@ jobs:
 
             await core.summary
               .addHeading('Admin Merge PR')
-              .addRaw(`Resolved threads: ${resolvedCount}\n`)
+              .addRaw(`Resolved threads: ${resolved}\n`)
               .addRaw(`Combined status: ${state}\n`)
               .write();
 
@@ -94,7 +82,7 @@ jobs:
               return;
             }
 
-            // 3) Attempt to merge
+            // 3) Merge
             try {
               const res = await github.rest.pulls.merge({
                 owner, repo, pull_number: prNumber, merge_method: method
