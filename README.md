@@ -51,7 +51,7 @@ MCP 规则与上下文助手 / MCP Rules & Context Assistant
 - CI 中按项目配置的 `coverage.min_module` 动态设置门槛（默认 95%），并上传 `coverage.xml` 到 Codecov 以生成覆盖率徽章。
 
 说明（测试样例文件）
-- 仓库根目录的 `bad.py`、`foo.py`、`ok2.py` 是测试使用的样例文件（用于受控写入与受影响测试相关用例）。请勿删除；如需迁移，请同步更新 tests 中的引用。
+- 测试中涉及的示例文件已内置于测试逻辑中创建；仓库根目录不再保留 `bad.py`、`foo.py`、`ok2.py`。
 
 -启用 Codecov（可选）
 - 公共仓库：如已安装 Codecov GitHub App，可免 token 上传；若未安装，需配置 `CODECOV_TOKEN`（本工作流默认仅在存在 token 时上传）。
