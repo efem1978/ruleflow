@@ -68,6 +68,34 @@ jobs:
               sys.exit(1)
           print('[mcp] Coverage policy gate passed.')
           PY
+      - name: Coverage Step Summary
+        if: ${{ always() }}
+        run: |
+          echo '### Coverage Summary' >> $GITHUB_STEP_SUMMARY
+          python - <<'PY' >> $GITHUB_STEP_SUMMARY
+          import json, os
+          p='cov.json'
+          data={}
+          if os.path.exists(p):
+              data=json.load(open(p,'r'))
+          weak=data.get('weak',[])[:5]
+          near=data.get('near',[])[:5]
+          groups=data.get('groups',[])
+          def row(it):
+              return f"- {it.get('file','?')} — {round(float(it.get('coverage',0))*100,1)}% vs {int(float(it.get('threshold',0))*100)}%"
+          print('\n'.join(['**Weak (Top 5)**'] + ([row(x) for x in weak] or ['- None'])))
+          print()
+          print('\n'.join(['**Near (Top 5)**'] + ([row(x) for x in near] or ['- None'])))
+          print()
+          print('**Groups**')
+          if groups:
+              for g in groups:
+                  cov=round(float(g.get('coverage',0))*100,1)
+                  th=int(float(g.get('threshold',0))*100)
+                  print(f"- {g.get('prefix')}: {cov}% (th {th}%), weak {g.get('weak_count')}/{g.get('files_count')}")
+          else:
+              print('- None')
+          PY
       - name: Forbid skip/xfail markers (non-tests)
         run: |
           if grep -R -n --include='*.py' -E "(^|[^\"'])pytest\\.mark\\.(skip|xfail)" mcp_rules_assistant >/dev/null; then echo "Found actual skip/xfail usage in package code. Disallowed."; exit 1; fi
