@@ -20,6 +20,11 @@ repos:
     hooks:
       - id: mypy
         stages: [commit]
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.4.0
+    hooks:
+      - id: detect-secrets
+        stages: [commit, push]
   - repo: local
     hooks:
       - id: plan-gate

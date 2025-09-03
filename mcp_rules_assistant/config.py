@@ -118,7 +118,9 @@ def default_config_dict() -> Dict[str, Any]:
         },
         "execution": {
             # 写入后执行轻量增量检查（FSGuard），默认关闭；由 MCP fs.apply_patch 的 strict/检查控制
-            "fs_guard_post_checks": False
+            "fs_guard_post_checks": False,
+            # 严格模式：当 fs_guard_post_checks 启用且检查失败时，阻断写入
+            "fs_guard_strict": False
         },
         "ci": {"hadolint": False},
     }

@@ -35,6 +35,8 @@
 - 阈值来源：`.mcp/assistant.yaml`（`performance.on_push.coverage.min_module`）与 `coverage.policy`
 - 建议：用生成器覆盖 `.pre-commit-config.yaml` 和 `.github/workflows/ci.yml`，保持与配置对齐
 - 可选写入后检查：在配置中设置 `execution.fs_guard_post_checks: true` 可开启 FSGuard 的写入后轻量检查（lint/type/受影响测试）。严格阻断仍建议通过 fs.apply_patch 的 `strict` 模式与 CI/Hooks 实现。
+ - 严格阻断（FSGuard）：当 `execution.fs_guard_post_checks: true` 且 `execution.fs_guard_strict: true` 时，如果写入后检查失败，将直接抛错阻断写入（与 `fs.apply_patch --strict` 语义一致，便于统一行为）。
+ - 密钥扫描：启用 `security.secrets_scan` 后，pre-commit 将添加 `detect-secrets`（commit/push 阶段），CI 的“Pre-commit (all files)”步骤也会执行该扫描。
 
 ## 规则摄取与编译
 - 摄取：`mcp-rules-assistant ingest-rules README.md docs/`

@@ -26,16 +26,45 @@ class FSGuard:
         full.write_text(content, encoding)
         # 可选：写入后执行轻量增量检查（受配置 execution.fs_guard_post_checks 控制，默认关闭）
         try:
-            exec_cfg = (self.cfg.get("execution", {}) if isinstance(self.cfg.get("execution", {}), dict) else {})
+            exec_cfg = (
+                self.cfg.get("execution", {})
+                if isinstance(self.cfg.get("execution", {}), dict)
+                else {}
+            )
             if bool(exec_cfg.get("fs_guard_post_checks", False)):
                 # 惰性导入，避免基础路径下的开销
                 from . import checks as _checks
 
                 files: List[Path] = [full.resolve()]
-                perf = (self.cfg.get("performance", {}) if isinstance(self.cfg.get("performance", {}), dict) else {})
-                on_commit = (perf.get("on_commit", {}) if isinstance(perf.get("on_commit", {}), dict) else {})
+                perf = (
+                    self.cfg.get("performance", {})
+                    if isinstance(self.cfg.get("performance", {}), dict)
+                    else {}
+                )
+                on_commit = (
+                    perf.get("on_commit", {})
+                    if isinstance(perf.get("on_commit", {}), dict)
+                    else {}
+                )
                 do_type = bool(on_commit.get("typecheck_incremental", True))
-                _checks.run_checks(files, cwd=self.project_root, do_lint=True, do_type=do_type, do_quick_tests=True)
+                res = _checks.run_checks(
+                    files,
+                    cwd=self.project_root,
+                    do_lint=True,
+                    do_type=do_type,
+                    do_quick_tests=True,
+                )
+                if bool(exec_cfg.get("fs_guard_strict", False)) and not bool(
+                    res.get("ok", True)
+                ):
+                    raise ValueError("FSGuard post checks failed under strict mode")
         except Exception:
-            # 安全兜底：不因检查失败影响写入；严格模式由上层 fs.apply_patch --strict 控制
+            # 安全兜底：不因检查失败影响写入；若严格模式开启，则向上抛出
+            ex_cfg = (
+                self.cfg.get("execution", {})
+                if isinstance(self.cfg.get("execution", {}), dict)
+                else {}
+            )
+            if bool(ex_cfg.get("fs_guard_strict", False)):
+                raise
             pass
