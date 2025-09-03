@@ -22,7 +22,7 @@ jobs:
       - name: Resolve review conversations and merge
         uses: actions/github-script@v7
         with:
-          github-token: ${{ secrets.GH_ADMIN_TOKEN }}
+          github-token: ${{ github.token }}
           script: |
             const prNumber = Number('${{ inputs.pr_number }}');
             let methodRaw = '${{ inputs.method }}';
@@ -34,19 +34,21 @@ jobs:
             const [owner, repo] = (process.env.GITHUB_REPOSITORY || '').split('/');
             if (!owner || !repo) { core.setFailed('Cannot parse GITHUB_REPOSITORY'); return; }
 
-            // 1) Resolve all unresolved review threads (GraphQL)
-            const query = `query($owner:String!, $name:String!, $number:Int!){
+            // 1) Query all review threads and resolve unresolved ones (no isResolved arg on connection)
+            const query = `query($owner:String!, $name:String!, $number:Int!, $first:Int!){
               repository(owner:$owner, name:$name){
                 pullRequest(number:$number){
-                  reviewThreads(first:100, isResolved:false){ nodes{ id isResolved } }
+                  reviewThreads(first:$first){
+                    nodes { id isResolved }
+                  }
                 }
               }
             }`;
             let unresolvedIds = [];
             try {
-              const r = await github.graphql(query, { owner, name: repo, number: prNumber });
+              const r = await github.graphql(query, { owner, name: repo, number: prNumber, first: 100 });
               unresolvedIds = (r?.repository?.pullRequest?.reviewThreads?.nodes ?? [])
-                .filter(n => !n.isResolved).map(n => n.id);
+                .filter(t => !t.isResolved).map(t => t.id);
             } catch (e) {
               core.warning('Query threads failed: ' + String(e));
             }
@@ -65,7 +67,7 @@ jobs:
               }
             }
 
-            // 2) Ensure checks are successful on PR head
+            // 2) Ensure combined status on PR head is success
             const pr = (await github.rest.pulls.get({ owner, repo, pull_number: prNumber })).data;
             const headSha = pr.head.sha;
             const combined = await github.rest.repos.getCombinedStatusForRef({ owner, repo, ref: headSha });
@@ -82,7 +84,7 @@ jobs:
               return;
             }
 
-            // 3) Merge
+            // 3) Merge PR
             try {
               const res = await github.rest.pulls.merge({
                 owner, repo, pull_number: prNumber, merge_method: method
