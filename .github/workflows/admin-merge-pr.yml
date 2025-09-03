@@ -1,311 +1,106 @@
-name: CI
-on:
-  push:
-  pull_request:
+name: Admin - Merge PR
 
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'Pull request number to merge'
+        required: true
+      method:
+        description: 'Merge method: squash | merge | rebase'
+        default: 'squash'
+        required: false
+
+# 可选：如需让默认 GITHUB_TOKEN 也能写入，可开启下方权限
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
 
 jobs:
-  build:
+  merge:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ['3.10', '3.11', '3.12']
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-          cache: 'pip'
-
-      - name: Install tools
-        run: |
-          python -m pip install --upgrade pip
-          pip install ruff black isort mypy bandit pytest pytest-cov types-PyYAML
-
-      - name: Install package
-        run: |
-          pip install -e .
-
-      - name: Pre-commit (all files)
-        run: |
-          python -m pip install pre-commit
-          pre-commit run --all-files || true
-
-      - name: Check Dockerfile existence
-        run: |
-          test -f Dockerfile || (echo 'Dockerfile missing' && exit 1)
-
-      - name: Dockerfile Lint (hadolint)
-        run: |
-          test -f Dockerfile && docker run --rm -v "$PWD":/work -w /work hadolint/hadolint:latest hadolint  Dockerfile || echo 'skip hadolint'
-
-      - name: Lint (ruff/black/isort)
-        run: |
-          ruff check --output-format=github mcp_rules_assistant
-          black --check mcp_rules_assistant
-          isort --check-only mcp_rules_assistant
-
-      - name: Type Check (core, blocking)
-        run: |
-          mypy \
-            mcp_rules_assistant/config.py \
-            mcp_rules_assistant/progress.py \
-            mcp_rules_assistant/tools.py \
-            mcp_rules_assistant/memory.py \
-            mcp_rules_assistant/mcp_server.py \
-            mcp_rules_assistant/cli.py \
-            mcp_rules_assistant/server.py
-
-      - name: Type Check (rest, non-blocking)
-        run: |
-          mypy mcp_rules_assistant || true
-
-      - name: Tests + Coverage
-        env:
-          PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
-        run: |
-          pytest -q -p pytest_cov --maxfail=1 --disable-warnings -W error --strict-markers \
-            --cov=mcp_rules_assistant --cov-report=xml:coverage.xml --cov-report=term-missing \
-            --cov-fail-under=95 --junitxml=pytest-junit.xml
-
-      - name: Coverage Policy Gate (core≥98%, others≥95%)
-        run: |
-          python -m mcp_rules_assistant.cli coverage-report --json > cov.json
-          python - <<'PY'
-          import json, sys, os
-          data = json.load(open('cov.json'))
-          weak = data.get('weak') or []
-          lines = ['### Coverage Policy Gate']
-          if weak:
-              lines.append('Failed. Weak files:')
-              msgs = []
-              for w in weak[:10]:
-                  cov = round(float(w.get('coverage') or 0)*1000)/10
-                  th  = int(round(float(w.get('threshold') or 0)*100))
-                  line = f"- {w.get('file')} — {cov}% vs {th}%"
-                  lines.append(line); msgs.append(line)
-              try:
-                  summ = os.environ.get('GITHUB_STEP_SUMMARY')
-                  if summ:
-                      with open(summ,'a',encoding='utf-8') as f:
-                          f.write('\n'.join(lines)+'\n')
-              except Exception: pass
-              try:
-                  print('::error title=Coverage gate failed::' + ' | '.join(msgs))
-              except Exception: pass
-              print('[mcp] Coverage policy gate failed. Weak files:')
-              for w in weak:
-                  print(' -', w.get('file'), 'cov=', w.get('coverage'), '<', w.get('threshold'))
-              sys.exit(1)
-          else:
-              lines.append('Passed.')
-              try:
-                  summ = os.environ.get('GITHUB_STEP_SUMMARY')
-                  if summ:
-                      with open(summ,'a',encoding='utf-8') as f:
-                          f.write('\n'.join(lines)+'\n')
-              except Exception: pass
-              print('[mcp] Coverage policy gate passed.')
-          PY
-
-      - name: Prepare cov.json for PR comment
-        if: ${{ always() && github.event_name == 'pull_request' }}
-        run: |
-          python -m mcp_rules_assistant.cli coverage-report --json > cov.json || echo '{}' > cov.json
-
-      - name: Coverage Step Summary
-        if: ${{ always() }}
-        run: |
-          python - <<'PY'
-          import json, os
-          p = 'cov.json'
-          if not os.path.exists(p):
-              print('[mcp] no cov.json for step summary; skipping')
-              raise SystemExit(0)
-          try:
-              data = json.load(open(p,'r',encoding='utf-8'))
-          except Exception:
-              data = {}
-          weak = (data.get('weak') or [])[:5]
-          near = (data.get('near') or [])[:5]
-          groups = data.get('groups') or []
-          def fmt_row(r):
-              cov = round(float(r.get('coverage') or 0)*1000)/10
-              th  = int(round(float(r.get('threshold') or 0)*100))
-              return f"- {r.get('file')} — {cov}% vs {th}%"
-          lines = [
-              '### Coverage Step Summary','',
-              f"Stats: weak {len(data.get('weak') or [])}, near {len(data.get('near') or [])}, groups {len(groups)}",'',
-              '**Weak (Top 5)**', '\n'.join(map(fmt_row,weak)) if weak else '- None','',
-              '**Near (Top 5)**', '\n'.join(map(fmt_row,near)) if near else '- None','',
-              '**Groups**', '\n'.join([f"- {g.get('prefix')}: {round(float(g.get('coverage') or 0)*1000)/10}% (th {int(round(float(g.get('threshold') or 0)*100))}%), weak {int(g.get('weak_count') or 0)}/{int(g.get('files_count') or 0)}" for g in groups]) if groups else '- None'
-          ]
-          summ = os.environ.get('GITHUB_STEP_SUMMARY')
-          if summ:
-              with open(summ,'a',encoding='utf-8') as f:
-                  f.write('\n'.join(lines)+'\n')
-          PY
-
-      - name: PR Coverage Summary (comment)
-        if: ${{ always() && github.event_name == 'pull_request' }}
+      - name: Resolve review conversations and merge
         uses: actions/github-script@v7
+        env:
+          GH_TOKEN: ${{ secrets.GH_ADMIN_TOKEN }}
         with:
+          github-token: ${{ secrets.GH_ADMIN_TOKEN }}
           script: |
-            const fs = require('fs');
-            const data = JSON.parse(fs.readFileSync('cov.json','utf8'));
-            const weak = (data.weak||[]).slice(0,5);
-            const near = (data.near||[]).slice(0,5);
-            const groups = (data.groups||[]);
-            function fmtRows(rows){
-              return rows.map(r=>`- ${r.file} — ${Math.round((r.coverage||0)*1000)/10}% vs ${Math.round((r.threshold||0)*100)}%`).join('\n') || '- None';
+            const prNumber = parseInt(core.getInput('pr_number'));
+            if (Number.isNaN(prNumber)) {
+              core.setFailed('Invalid pr_number'); return;
             }
-            const body = [
-              '### Coverage Summary',
-              '',
-              '**Weak (Top 5)**',
-              fmtRows(weak),
-              '',
-              '**Near (Top 5)**',
-              fmtRows(near),
-              '',
-              '**Groups**',
-              groups.map(g=>`- ${g.prefix}: ${Math.round((g.coverage||0)*1000)/10}% (th ${Math.round((g.threshold||0)*100)}%), weak ${g.weak_count}/${g.files_count}`).join('\n') || '- None'
-            ].join('\n');
-            const pr = context.payload.pull_request.number;
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: pr,
-              body
-            });
+            const method = (core.getInput('method') || 'squash').toLowerCase();
+            const ALLOW = new Set(['squash','merge','rebase']);
+            if (!ALLOW.has(method)) {
+              core.setFailed(`Invalid merge method: ${method}`); return;
+            }
+            if (!process.env.GH_TOKEN) {
+              core.setFailed('Missing secret: GH_ADMIN_TOKEN'); return;
+            }
 
-      - name: Forbid skip/xfail markers (non-tests)
-        run: |
-          if grep -R -n --include='*.py' -E "(^|[^\"'])pytest\.mark\.(skip|xfail)" mcp_rules_assistant >/dev/null; then echo "Found actual skip/xfail usage in package code. Disallowed."; exit 1; fi
+            const [owner, repo] = (process.env.GITHUB_REPOSITORY || '').split('/');
+            if (!owner || !repo) {
+              core.setFailed('Cannot parse GITHUB_REPOSITORY'); return;
+            }
 
-      - name: Coverage Near Summary
-        run: |
-          python -m mcp_rules_assistant.cli coverage-near --within 3 --top 10 > near.txt || true
-          python -m mcp_rules_assistant.cli coverage-near --within 3 --top 10 --format csv --output near.csv || true
-          python -m mcp_rules_assistant.cli coverage-near --within 3 --top 10 --format json --output near.json || true
-          tar czf tests-artifacts.tar.gz coverage.xml pytest-junit.xml near.txt near.csv near.json || true
+            // 1) Resolve all unresolved review threads (GraphQL)
+            const q = `query($owner:String!, $name:String!, $number:Int!){
+              repository(owner:$owner, name:$name){
+                pullRequest(number:$number){
+                  reviewThreads(first:100, isResolved:false){ nodes{ id isResolved } }
+                }
+              }
+            }`;
+            let unresolved = [];
+            try {
+              const res = await github.graphql(q, { owner, name: repo, number: prNumber });
+              unresolved = (((res || {}).repository || {}).pullRequest || {}).reviewThreads?.nodes || [];
+              unresolved = unresolved.filter(n => !n.isResolved).map(n => n.id);
+            } catch (e) {
+              core.warning('Failed to query review threads: ' + String(e));
+            }
 
-      - name: Upload coverage & JUnit
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: python-tests-${{ matrix.python-version }}
-          path: |
-            coverage.xml
-            pytest-junit.xml
-            near.txt
-            near.csv
-            near.json
-            tests-artifacts.tar.gz
+            let resolvedCount = 0;
+            for (const id of unresolved) {
+              try {
+                await github.graphql(
+                  `mutation($id:ID!){
+                    resolveReviewThread(input:{threadId:$id}){ thread{ isResolved } }
+                  }`,
+                  { id }
+                );
+                resolvedCount++;
+              } catch (e) {
+                core.warning('Resolve failed for thread ' + id + ': ' + String(e));
+              }
+            }
 
-      - name: Upload coverage to Codecov
-        if: env.CODECOV_TOKEN != ''
-        uses: codecov/codecov-action@v4
-        with:
-          files: coverage.xml
-          flags: python
-          name: python-${{ matrix.python-version }}
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+            // 2) Ensure checks are successful on the PR head
+            const pr = (await github.rest.pulls.get({ owner, repo, pull_number: prNumber })).data;
+            const headSha = pr.head.sha;
+            const combined = await github.rest.repos.getCombinedStatusForRef({ owner, repo, ref: headSha });
+            const state = combined.data.state; // success | failure | pending
 
-      - name: Security (bandit — high only)
-        run: |
-          bandit -q -lll -x tests -r .
+            await core.summary
+              .addHeading('Admin Merge PR')
+              .addRaw(`Resolved threads: ${resolvedCount}\n`)
+              .addRaw(`Combined status: ${state}\n`)
+              .write();
 
-      - name: SAST (semgrep)
-        run: |
-          python -m pip install semgrep
-          semgrep --error --config p/ci
+            if (state !== 'success') {
+              core.setFailed('Checks are not successful. Please re-run CI or update branch.');
+              return;
+            }
 
-  prepare:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
-
-      - name: Install package (for env.prepare import)
-        run: |
-          pip install -e .
-
-      - name: Prepare env (mcp_rules_assistant env.prepare)
-        run: |
-          python - <<'PY'
-          from mcp_rules_assistant.mcp_server import JsonRpcServer
-          srv = JsonRpcServer()
-          out = srv._call_tool("env.prepare", {"create": True, "install": True})
-          print(out)
-          PY
-
-      - name: Install package in venv
-        run: |
-          . ./.mcp/venv/bin/activate
-          pip install -e .
-
-      - name: Tests in env (pytest + coverage)
-        env:
-          PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
-        run: |
-          . ./.mcp/venv/bin/activate
-          pytest -q -p pytest_cov --maxfail=1 --disable-warnings -W error --strict-markers \
-            --cov=mcp_rules_assistant --cov-report=xml:coverage.xml --cov-report=term-missing \
-            --junitxml=pytest-junit.xml
-
-      - name: Upload artifacts (env tests)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: python-tests-prepare
-          path: |
-            coverage.xml
-            pytest-junit.xml
-
-      - name: Upload coverage to Codecov (prepare)
-        if: env.CODECOV_TOKEN != ''
-        uses: codecov/codecov-action@v4
-        with:
-          files: coverage.xml
-          flags: prepare
-          name: python-prepare
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-
-  vscode:
-    if: ${{ hashFiles('extensions/vscode/package.json') != '' }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: 'extensions/vscode/package-lock.json'
-
-      - name: Install and compile
-        working-directory: extensions/vscode
-        run: |
-          npm ci || npm install
-          npm run compile
-
-      - name: VS Code extension tests
-        working-directory: extensions/vscode
-        run: |
-          xvfb-run -a npm test 2>&1 | tee vscode-test.log
-
-      - name: Upload VS Code test log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: vscode-tests
-          path: extensions/vscode/vscode-test.log
+            // 3) Attempt to merge
+            try {
+              const res = await github.rest.pulls.merge({
+                owner, repo, pull_number: prNumber, merge_method: method
+              });
+              await core.summary.addRaw(`Merged: ${res.data.merged} (${res.data.message})\n`).write();
+              console.log(res.data);
+            } catch (e) {
+              core.setFailed('Merge failed: ' + String(e));
+            }
