@@ -302,7 +302,22 @@ def main(argv: Optional[list[str]] = None) -> None:
 
     root = Path.cwd().resolve()
     dash = _ensure_dashboard_dir(root, rebuild=True)
-    _write_index_html(dash, embed_status={"timestamp": time.time()})
+    # 预先计算一次完整状态，避免首次加载空白
+    try:
+        initial_tests = _run_impacted_or_full(root, cycle_idx=0, full_every=1)
+    except Exception:
+        initial_tests = {"ok": False, "code": 1, "stdout": "", "stderr": "", "mode": "full"}
+    try:
+        initial_status = compute_status(root)
+    except Exception:
+        initial_status = {"plan": {}, "coverage": {}, "progress": {}, "tasks": {}}
+    initial_status["timestamp"] = time.time()
+    initial_status["tests"] = initial_tests
+    # 写入三份（index 内嵌 / status.json / status.js）
+    _write_index_html(dash, embed_status=initial_status)
+    txt0 = json.dumps(initial_status, ensure_ascii=False)
+    (dash / "status.json").write_text(txt0, encoding="utf-8")
+    (dash / "status.js").write_text("window.__status = " + txt0 + ";", encoding="utf-8")
 
     httpd: Optional[socketserver.TCPServer] = None
     if args.serve:
