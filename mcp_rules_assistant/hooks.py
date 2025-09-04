@@ -77,6 +77,11 @@ repos:
         entry: python .mcp/plan_gate.py commit-msg
         language: system
         stages: [commit-msg]
+      - id: tdd-gate
+        name: tdd gate (commit)
+        entry: python .mcp/tdd_gate.py
+        language: system
+        stages: [commit]
       - id: branch-name-gate
         name: branch naming gate (commit)
         entry: python .mcp/branch_name_gate.py
@@ -185,6 +190,39 @@ fi
     )
     branch_script.chmod(branch_script.stat().st_mode | stat.S_IEXEC)
 
+    # TDD 校验脚本 .mcp/tdd_gate.py（commit 阶段）
+    tdd_script = root / ".mcp/tdd_gate.py"
+    tdd_script.write_text(
+        (
+            """#!/usr/bin/env python3
+import os, subprocess, sys
+# 跳过条件
+if os.environ.get('MCP_TDD_IGNORE') in ('1','true','True'):
+    sys.exit(0)
+try:
+    # 仅检查已暂存内容
+    out = subprocess.check_output(['git','diff','--cached','--name-only'], text=True)
+except Exception:
+    sys.exit(0)
+changed = [x.strip() for x in out.splitlines() if x.strip()]
+if not changed:
+    sys.exit(0)
+py_changed = [p for p in changed if p.endswith('.py')]
+if not py_changed:
+    sys.exit(0)
+src_changed = [p for p in py_changed if not p.startswith('tests/')]
+tests_changed = [p for p in py_changed if p.startswith('tests/')]
+# 若改动了源码但未改动 tests/，阻断提交（TDD）
+if src_changed and not tests_changed:
+    print('[mcp] TDD gate: 源码有改动，但本次提交未包含 tests/ 变更。请先补充/更新测试。')
+    sys.exit(1)
+sys.exit(0)
+"""
+        ),
+        encoding="utf-8",
+    )
+    tdd_script.chmod(tdd_script.stat().st_mode | stat.S_IEXEC)
+
     # 按编译规则写入 Dockerfile 基线检查（如启用）
     compiled_policy = {}
     compiled_path = root / ".mcp/rules_compiled.json"
@@ -278,6 +316,8 @@ fi
         out["commit_template"] = str(gitmsg)
     if branch_script.exists():
         out["branch_gate"] = str(branch_script)
+    if tdd_script.exists():
+        out["tdd_gate"] = str(tdd_script)
     return out
 
 
