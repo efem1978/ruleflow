@@ -301,8 +301,8 @@ def main(argv: Optional[list[str]] = None) -> None:
     args = ap.parse_args(argv)
 
     root = Path.cwd().resolve()
-    dash = _ensure_dashboard_dir(root)
-    _write_index_html(dash)
+    dash = _ensure_dashboard_dir(root, rebuild=True)
+    _write_index_html(dash, embed_status={"timestamp": time.time()})
 
     httpd: Optional[socketserver.TCPServer] = None
     if args.serve:
@@ -330,9 +330,11 @@ def main(argv: Optional[list[str]] = None) -> None:
             status.update(compute_status(root))
         except Exception as e:
             status["error"] = f"status compute failed: {e}"
-        (dash / "status.json").write_text(json.dumps(status, ensure_ascii=False), encoding="utf-8")
-        # 作为 file:// 直接打开时的回退（不依赖 fetch）
-        (dash / "status.js").write_text("window.__status = " + json.dumps(status, ensure_ascii=False) + ";", encoding="utf-8")
+        txt = json.dumps(status, ensure_ascii=False)
+        (dash / "status.json").write_text(txt, encoding="utf-8")
+        # file:// 回退与首屏渲染：同步写入 status.js，并嵌入到 index.html
+        (dash / "status.js").write_text("window.__status = " + txt + ";", encoding="utf-8")
+        _write_index_html(dash, embed_status=status)
 
         # 可选：定时自动提交（需计划处于 in_progress 且 current 存在）
         if auto_commit and (time.time() - last_commit_ts) >= commit_interval and bool(tests.get("ok")):
