@@ -116,7 +116,8 @@ def _write_index_html(dashboard_dir: Path) -> None:
         "<div class=card><h3>Progress</h3><div>Overall: <b><span id=ovp>—</span>%</b></div>"\
         "<div class=bar><span id=ovbar style='width:0%'></span></div>"\
         "<div>Coverage: <span id=cvp>—</span>% (<span id=cvok>0</span>/<span id=cvtotal>0</span>)</div>"\
-        "<div>Plan: <span id=plp>—</span>% (<span id=pld>0</span> done, <span id=plpnd>0</span> pending)</div></div>"\
+        "<div>Plan (Doc): <span id=plp>—</span>% (<span id=pld>0</span> done, <span id=plpnd>0</span> pending)</div>"\
+        "<div>Prod: <span id=prp>—</span>%</div></div>"\
         "<div class=card><h3>Plan</h3><div id=plan></div></div>"\
         "<div class=card><h3>Tests</h3><pre id=tests class=mono></pre></div>"\
         "<div class=card><h3>Coverage Weak</h3><ul id=weak></ul></div>"\
@@ -141,6 +142,7 @@ def _write_index_html(dashboard_dir: Path) -> None:
         "document.getElementById('cvtotal').textContent=(cov.count||0);"\
         "const pc=prog.counts||{}; const plp=prog.plan==null?'—':(prog.plan*100).toFixed(0);"\
         "document.getElementById('plp').textContent=plp; document.getElementById('pld').textContent=(pc.plan_done||0); document.getElementById('plpnd').textContent=(pc.plan_pending||0);"\
+        "document.getElementById('prp').textContent=((prog.prod||0)*100).toFixed(0);"\
         "const pend=(s.tasks&&s.tasks.pending)||[]; document.getElementById('pending').innerHTML=pend.map(x=>'<li>'+x+'</li>').join(''); } load(); setInterval(load, 5000);</script>"\
         "</body></html>"
     )
@@ -212,6 +214,19 @@ def compute_status(project_root: Path) -> Dict[str, object]:
     if done_count + pending_count > 0:
         plan_progress = done_count / float(done_count + pending_count)
 
+    # 生产级就绪度（粗略）：关键工件存在性 + 覆盖率 Gate
+    prod_checks = {
+        "coverage_gate": len(weak) == 0,
+        "precommit_config": (project_root / ".pre-commit-config.yaml").exists(),
+        "pre_push_hook": (project_root / ".git/hooks/pre-push").exists(),
+        "plan_gate": (project_root / ".mcp/plan_gate.py").exists(),
+        "branch_gate": (project_root / ".mcp/branch_name_gate.py").exists(),
+        "ci_workflow": (project_root / ".github/workflows/ci.yml").exists(),
+        "dockerfile": (project_root / "Dockerfile").exists(),
+        "devcontainer": (project_root / ".devcontainer/devcontainer.json").exists(),
+    }
+    prod_progress = sum(1 for v in prod_checks.values() if v) / float(len(prod_checks)) if prod_checks else 0.0
+
     # 总进度：覆盖率权重 60%，计划权重 40%（若无计划数据则仅用覆盖率）
     overall = cov_progress
     if plan_progress is not None:
@@ -230,12 +245,15 @@ def compute_status(project_root: Path) -> Dict[str, object]:
             "overall": overall,
             "coverage": cov_progress,
             "plan": plan_progress if plan_progress is not None else None,
+            "doc": plan_progress if plan_progress is not None else None,
+            "prod": prod_progress,
             "counts": {
                 "coverage_total": total_files,
                 "coverage_weak": len(weak),
                 "plan_done": done_count,
                 "plan_pending": pending_count,
             },
+            "prod_checks": prod_checks,
         },
         "tasks": {
             "pending": pending_tasks[:20],
