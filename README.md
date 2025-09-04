@@ -53,10 +53,12 @@ MCP 规则与上下文助手 / MCP Rules & Context Assistant
 说明（测试样例文件）
 - 测试中涉及的示例文件已内置于测试逻辑中创建；仓库根目录不再保留 `bad.py`、`foo.py`、`ok2.py`。
 
--启用 Codecov（可选）
-- 公共仓库：如已安装 Codecov GitHub App，可免 token 上传；若未安装，需配置 `CODECOV_TOKEN`（本工作流默认仅在存在 token 时上传）。
-- 私有仓库：在 GitHub 仓库 Settings → Secrets and variables → Actions 新增 `CODECOV_TOKEN`，值为 Codecov 项目令牌。
-- 首次 push 后访问徽章链接确认数据是否入库：
+ - Codecov 上传
+   - CI 已配置条件上传步骤：
+     - 公共仓库：如安装了 Codecov GitHub App，可在无 token 情况下上传（推荐）。
+     - 私有仓库：在 GitHub → Settings → Secrets and variables → Actions 配置 `CODECOV_TOKEN`。
+     - 上传失败不阻断 CI（`fail_ci_if_error: false`），但建议按需修复以保障徽章与历史数据。
+   - 首次 push 后可访问徽章链接确认数据是否入库：
   - https://codecov.io/gh/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool
 
 性能与约束 Performance & Enforcement
@@ -72,6 +74,7 @@ Hooks & CI（最小闭环）
 - 自动增强：若已摄取规则包含 `security.secrets_scan`/`container.required` 等，将自动加入 detect-secrets（push 阶段）与 Dockerfile 检查等步骤（CI），不影响保存性能
  - 可配置：`ci.hadolint: true`（容器存在时在 CI 中运行 hadolint）；`ci.semgrep_config: auto|自定义规则集`，`ci.hadolint_image/ci.hadolint_args` 可调
  - 近阈值摘要：CI 在 Python 测试后打印 `coverage-near --within 3 --top 10` 结果，用于在 PR 中快速识别“接近阈值”的文件并优先补测
+ - 首次使用建议：执行一次 `mcp-rules-assistant install-hooks`，该命令会写入本地脚本（如 `.mcp/plan_gate.py`）并尝试执行 `pre-commit install`（含 commit-msg、pre-push）。若未安装 pre-commit，请先运行 `pip install pre-commit`。
 
 规则摄取（项目级）
 - CLI：`mcp-rules-assistant ingest-rules <文件或目录>` → 写入 `.mcp/rules_compiled.*`（含冲突报告）

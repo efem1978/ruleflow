@@ -21,6 +21,7 @@ extensions/vscode/node_modules/
 coverage.xml
 .coverage
 htmlcov/
+cov.json
 
 # VS Code test artifacts
 extensions/vscode/.vscode-test/

@@ -82,16 +82,16 @@
 
 ## 任务清单（面向近期）
 - [ ] 统一门槛来源与生成物（生成器覆盖 hooks/CI；取值自配置）
-- [ ] 版本号对齐（pyproject vs __init__）
-- [ ] FSGuard 写入后置挂钩（checks.run_checks，按性能档）
-- [ ] 覆盖率“核心≥98%”操作指南与 coverage.policy 示例
-- [ ] CI 安全步骤条件化（hadolint/semgrep）
-- [ ] 清理小问题（死代码/注释更新；样例文件用途说明或迁移 fixtures）
-- [ ] 覆盖率与 near 报告稳定性回归；mypy 告警压降
- - [ ] VS Code Webview 行为修复：近阈值按钮通过 postMessage → 扩展侧调用 MCP，再回传结果（移除 webview 中对 vscode.window/client 的直接调用）
- - [ ] MCP initialize.capabilities 中 prompts 对齐：移除声明或添加最小 prompts 端点占位
- - [ ] Codecov 上传策略与 README 对齐：公共仓库默认上传（无需 token）、私有仓库使用 CODECOV_TOKEN 条件化
- - [ ] pre-commit 中本地脚本（.mcp/plan_gate.py/.mcp/dockerfile_gate.py）条件生成或在第一次运行前引导执行 install-hooks，避免缺文件失败
- - [ ] 依赖精简：若未使用 pydantic 则移除依赖
+- [x] 版本号对齐（pyproject vs __init__）
+- [x] FSGuard 写入后置挂钩（checks.run_checks，按性能档）
+- [x] 覆盖率“核心≥98%”操作指南与 coverage.policy 示例
+- [x] CI 安全步骤条件化（hadolint/semgrep）
+- [ ] 清理小问题（样例文件迁移至 tests/fixtures；README 标注生成型工件；移除/忽略多余样例文件如 cov.json/cjson.json）
+- [ ] 覆盖率 near 报告稳定性回归；mypy 告警压降（非核心）
+ - [x] VS Code Webview 行为修复：近阈值按钮通过 postMessage → 扩展侧调用 MCP，再回传结果
+ - [x] MCP initialize.capabilities 中 prompts 对齐：补齐 prompts/list 与 prompts/get 最小占位端点
+ - [ ] Codecov 上传策略与 README 对齐：公共仓库默认上传（无需 token）/私有仓库用 CODECOV_TOKEN 条件化
+ - [ ] pre-commit 本地脚本（.mcp/plan_gate.py/.mcp/dockerfile_gate.py）首次运行前引导 install-hooks 或条件生成，避免缺文件失败
+ - [x] 依赖精简：移除未使用依赖（已无 pydantic）
 
 > 注：详见 `docs/DEV_PLAN_TDD.md` 的 “近期待办”。本指南将随计划推进而更新。

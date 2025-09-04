@@ -67,31 +67,19 @@ Phase E — 集成与 CLI
 已完成（对齐项）
  - 用生成器覆盖 .pre-commit-config.yaml 与 .github/workflows/ci.yml，阈值取自 .mcp/assistant.yaml；detect-secrets 改为 push 阶段；CI 条件化步骤生效。
  - 覆盖率策略改为与 coverage.xml 一致的 basename 前缀，核心≥98% 实际受控。
+ - FSGuard 写入后置挂钩：支持 execution.fs_guard_post_checks 与 fs_guard_strict（严格模式失败阻断）。
+ - VS Code Webview 近阈值交互修复：采用 postMessage → 扩展侧调用 MCP，再回传结果。
+ - MCP prompts 能力对齐：实现 prompts/list 与 prompts/get 最小占位端点。
+ - 依赖精简：已无 pydantic。
+ - 版本号对齐：pyproject.toml 与 mcp_rules_assistant/__init__.py 已一致（0.2.2）。
 
 1) 统一门槛来源与生成物（高优先级，持续）
-   - 持续校验生成物与配置一致性；修正文档与实现的描述差异（env.prepare 非占位）。
-2) 版本对齐与小修复
-   - 统一版本号：pyproject.toml vs mcp_rules_assistant/__init__.py。
-   - rules_ingest._english_words_to_int 移除不可达 return；注释矫正。
-3) FSGuard 增强（可选）
-   - 写入后置挂钩可调用 checks.run_checks（按性能模式/strict 控制），失败时在 strict 下阻断。
-4) 新增 AI_DEVELOPER_GUIDE.md（文档缺口）
-   - 面向贡献者：架构综述、开发规范、性能模式、规则摄取/门禁路径、测试与覆盖率策略、CI/CD 与发布流程、VS Code 面板调试。
-5) 覆盖率“核心≥98%”可操作化
-   - 提供 coverage.policy 示例与“核心模块”清单写法；在 README/USAGE 中链接说明。
-6) CI 安全步骤条件化
-   - hadolint/semgrep 由编译规则或 ci-set 开关决定（默认不强制）。
-7) 清理与结构
-   - 评估将根部样例文件（bad.py/foo.py/ok2.py）迁移至 tests/fixtures 并在 README 标注用途。
-8) 验证与指标
-   - 本地/CI 跑覆盖率并生成 near 报告，确保核心≥98%、其余≥95%；mypy 告警持续压降（核心阻断，其余非阻断）。
-9) VS Code 面板交互修复（高优先级）
-   - Webview 中“仅看近阈值/Show Near”不应直接调用 vscode.window/client（Webview 无权访问）；改为 postMessage（带窗口参数），在扩展侧调用 MCP，再回传结果渲染。
-10) MCP 能力声明对齐
-   - initialize.capabilities 声明了 prompts:true，但当前未提供 prompts/list 或相关端点；修正为不声明或补齐最小占位。
-11) Codecov 行为对齐
-   - README 声明“公共仓库无需令牌”，而 CI 仅在 CODECOV_TOKEN 存在时上传；需调整为公共仓库分支不要求 token（或在文档中调整表述）。
-12) pre-commit 本地脚本生成时机
-   - 现有 .pre-commit-config.yaml 引用 .mcp/plan_gate.py 与 .mcp/dockerfile_gate.py；需保证 install-hooks 生成后再触发相关阶段，或将其改为条件生成，避免首次运行缺文件失败。
-13) 依赖精简
-   - pyproject.toml 中 pydantic 未被使用（仓库代码无引用）；考虑移除以缩小依赖面。
+   - 持续校验生成物与配置一致性；文档与实现保持同频（已将 env.prepare 更新为“可创建 venv 并可选安装工具”）。
+2) 清理与结构
+   - 将根部样例/临时工件迁移或忽略：bad.py/ok2.py（测试运行产生）不入库；将 cov.json/cjson.json 移除并加入 .gitignore；README 标注为生成型工件。
+3) 覆盖率与类型
+   - 保持核心≥98%、其余≥95%；跟踪 near 报告稳定性；压降非核心 mypy 告警。
+4) Codecov 行为对齐
+   - CI 增加 codecov 上传（公共仓库免 token；私有使用 CODECOV_TOKEN）。
+5) pre-commit 本地脚本生成时机
+   - install-hooks 首次引导并写入 .mcp/plan_gate.py 与（按规则）.mcp/dockerfile_gate.py；或在生成器中按需条件生成。

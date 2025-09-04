@@ -19,7 +19,7 @@ MCP 协议骨架（JSON-RPC/stdio）
 - rules.init { scenario, complexity, devMode } → 返回门槛说明（最低模块≥90% 等）
 - rules.ingest { paths[] } → 摄取文档，生成 `.mcp/rules_compiled.*` 与建议
 - rules.validate → 基于已摄取原始数据重新编译与校验
-- env.prepare → 占位返回（未来创建虚拟环境等）
+- env.prepare → 创建 `.mcp/venv` 并可选安装工具链（ruff/black/isort/mypy/bandit/pytest/pytest-cov/pre-commit）。支持 dry-run 返回计划。
 - fs.apply_patch { files: [{path, content}], runChecks, strict, dryRun, maxFiles } → 包裹式写入（可启用轻量严格检查）；dryRun 仅返回将写入的文件清单，不落盘；maxFiles 超限拒绝
 - git.install_hooks → 占位返回（后续生成 hooks）
 - nl.command { text } → 自然语言解析占位

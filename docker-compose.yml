@@ -1,0 +1,21 @@
+version: '3.9'
+services:
+  dev-agent:
+    build: .
+    working_dir: /work
+    volumes:
+      - .:/work
+    environment:
+      - PYTEST_DISABLE_PLUGIN_AUTOLOAD=1
+      # 可选：启用自动提交与推送
+      # - DEV_AGENT_AUTOCOMMIT=1
+      # - DEV_AGENT_AUTOPUSH=1
+      # - DEV_AGENT_COMMIT_INTERVAL=600
+    command: >
+      bash -lc "
+        python -m pip install --upgrade pip && \
+        pip install -e . && pip install -U pytest pytest-cov ruff black isort mypy bandit && \
+        python -m mcp_rules_assistant.dev_agent --serve 0.0.0.0:8080 --interval 60
+      "
+    ports:
+      - "8080:8080"

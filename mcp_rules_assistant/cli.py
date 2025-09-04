@@ -71,7 +71,9 @@ def install_hooks() -> None:
     rprint("[green]✔ Hooks installed[/]")
     for k, v in out.items():
         rprint(f" - {k}: {v}")
-    rprint("若未安装 pre-commit，请运行: pip install pre-commit")
+    rprint("若未安装 pre-commit，请先运行: pip install pre-commit")
+    rprint("首次使用建议：已尝试自动执行 pre-commit install（含 commit-msg 与 pre-push）。")
+    rprint("提交门禁说明：需确保 .mcp/plan.md 处于 in_progress，且提交消息包含 [step:当前步骤]。")
 
 
 @app.command("generate-ci")

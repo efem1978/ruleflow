@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import sys
 import json
 import os
 import subprocess
@@ -342,7 +343,10 @@ def run_quick_tests(files: List[Path], cwd: Optional[Path] = None) -> Dict[str, 
     ordered_tests = sort_by_count(sorted(test_paths), test_counts, bonus_tests)
     ordered_nodes = sort_by_count(sorted(nodeids), node_counts, bonus_nodes)
 
+    py = sys.executable or "python3"
     cmd = [
+        py,
+        "-m",
         "pytest",
         "-q",
         "--maxfail=1",
