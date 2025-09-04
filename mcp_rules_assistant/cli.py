@@ -74,6 +74,8 @@ def install_hooks() -> None:
     rprint("若未安装 pre-commit，请先运行: pip install pre-commit")
     rprint("首次使用建议：已尝试自动执行 pre-commit install（含 commit-msg 与 pre-push）。")
     rprint("提交门禁说明：需确保 .mcp/plan.md 处于 in_progress，且提交消息包含 [step:当前步骤]。")
+    rprint("分支规范建议：feature 用 feat/*，修复用 fix/*，杂项用 chore/*（或遵循团队规范）。")
+    rprint("本地打标签（可选）：完成里程碑可执行 git tag vX.Y.Z；如需发布包参见 docs/RELEASE.md。")
 
 
 @app.command("generate-ci")

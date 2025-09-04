@@ -7,15 +7,18 @@ services:
       - .:/work
     environment:
       - PYTEST_DISABLE_PLUGIN_AUTOLOAD=1
-      # 可选：启用自动提交与推送
-      # - DEV_AGENT_AUTOCOMMIT=1
+      # 自动提交启用（仍不推送）
+      - DEV_AGENT_AUTOCOMMIT=1
+      - DEV_AGENT_COMMIT_INTERVAL=180
+      # 每日里程碑自动 tag（仅本地，不推送）
+      - DEV_AGENT_AUTOTAG=1
+      # 如需自动推送，请显式开启：
       # - DEV_AGENT_AUTOPUSH=1
-      # - DEV_AGENT_COMMIT_INTERVAL=600
     command: >
       bash -lc "
         python -m pip install --upgrade pip && \
         pip install -e . && pip install -U pytest pytest-cov ruff black isort mypy bandit && \
-        python -m mcp_rules_assistant.dev_agent --serve 0.0.0.0:8080 --interval 60
+        python -m mcp_rules_assistant.dev_agent --serve 0.0.0.0:${DEV_AGENT_PORT:-9000} --interval 60
       "
     ports:
-      - "8080:8080"
+      - "${DEV_AGENT_PORT:-9000}:${DEV_AGENT_PORT:-9000}"

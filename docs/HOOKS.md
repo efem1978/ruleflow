@@ -13,6 +13,8 @@ Git Hooks 与门禁（性能优先）
 - commit-msg（提交信息门禁）：
   - 计划状态机：要求 `.mcp/plan.md` 处于 `in_progress` 且存在“当前步骤”
   - 提交信息需包含标记 `[step:当前步骤]`，否则阻断
+- 分支命名（提交阶段）：默认要求分支名匹配 `main|master|develop|dev|feat/*|fix/*|chore/*|docs/*|test/*|refactor/*|release/*|hotfix/*`；
+  - 可用环境变量覆盖：`MCP_BRANCH_REGEX`；或通过 `MCP_BRANCH_IGNORE=1` 临时跳过
 - pre-push（推送阶段，经 pre-commit 触发）：
   - pytest + 覆盖率（最低模块≥90%，取自 `.mcp/assistant.yaml`）
   - 禁止 skip/xfail（git grep 扫描）

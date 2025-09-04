@@ -22,6 +22,8 @@ coverage.xml
 .coverage
 htmlcov/
 cov.json
+/bad.py
+/ok2.py
 
 # VS Code test artifacts
 extensions/vscode/.vscode-test/

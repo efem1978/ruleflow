@@ -8,7 +8,8 @@
 - 前置：已安装 Docker 与 Docker Compose。
 - 启动：`docker compose up --build dev-agent`
   - 首次会安装依赖与工具链，并启动一个本地看板服务。
-  - 打开浏览器访问 `http://localhost:8080` 查看看板。
+- 打开浏览器访问 `http://localhost:9000` 查看看板（默认端口 9000）。
+  - 如需改端口：在启动命令前导出 `DEV_AGENT_PORT=9501`（举例），则映射为 `http://localhost:9501`。
 
 看板内容
 - 计划 Plan：读取 `.mcp/plan.md` 并展示 Status/Current/Next。
@@ -29,8 +30,12 @@
 - 通过环境变量启用无人值守的定时版本控制：
   - `DEV_AGENT_AUTOCOMMIT=1`：定时自动执行 `git add -A && git commit`（当 `.mcp/plan.md` 处于 `in_progress` 且存在“当前步骤”时，提交消息自动包含 `[step:当前步骤]` 以通过本地提交门禁）。
   - `DEV_AGENT_AUTOPUSH=1`：在自动提交后执行 `git push`。
-  - `DEV_AGENT_COMMIT_INTERVAL=600`：自动提交的间隔（秒），默认 600。
+  - `DEV_AGENT_COMMIT_INTERVAL=180`：自动提交的间隔（秒），默认 180。
 - 在 `docker-compose.yml` 中可按需将上述变量加入 `environment` 数组以启用。
+
+自动里程碑 Tag（可选）
+- `DEV_AGENT_AUTOTAG=1`：每日在“全量测试通过且覆盖率 Gate 通过”后自动创建本地标签 `v<版本>-devYYYYMMDD`（不推送）。
+- 便于形成稳定里程碑快照，后续如需对外发布可人工选择推送标签。
 
 无人值守开发建议
 - 配合 Git hooks 与 CI：提交/推送仍由 hooks 与 CI 执行门禁；容器侧看板用于连续反馈。

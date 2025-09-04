@@ -77,6 +77,11 @@ repos:
         entry: python .mcp/plan_gate.py commit-msg
         language: system
         stages: [commit-msg]
+      - id: branch-name-gate
+        name: branch naming gate (commit)
+        entry: python .mcp/branch_name_gate.py
+        language: system
+        stages: [commit]
 {docker_local_hook}      - id: pytest-with-coverage
         name: pytest with coverage (push)
         entry: sh -c 'pytest -q --maxfail=1 --disable-warnings -W error --strict-markers --cov --cov-report=xml:coverage.xml --cov-report=term-missing --cov-fail-under={int(min_module*100)}'
@@ -157,6 +162,29 @@ fi
     )
     script_path.chmod(script_path.stat().st_mode | stat.S_IEXEC)
 
+    # 分支命名校验脚本 .mcp/branch_name_gate.py（commit 阶段）
+    branch_script = root / ".mcp/branch_name_gate.py"
+    branch_script.write_text(
+        (
+            "#!/usr/bin/env python3\n"
+            "import os, re, subprocess, sys\n"
+            "if os.environ.get('MCP_BRANCH_IGNORE') in ('1','true','True'):\n"
+            "    sys.exit(0)\n"
+            "try:\n"
+            "    name = subprocess.check_output(['git','symbolic-ref','--quiet','--short','HEAD'], text=True).strip()\n"
+            "except Exception:\n"
+            "    # detached HEAD 或非 git 环境下不阻断\n"
+            "    sys.exit(0)\n"
+            "pat = os.environ.get('MCP_BRANCH_REGEX', r'^(main|master|develop|dev|feat/|fix/|chore/|docs/|test/|refactor/|release/|hotfix/)')\n"
+            "if not re.match(pat, name):\n"
+            "    print(f'[mcp] branch name \"{name}\" does not match pattern: {pat}')\n"
+            "    sys.exit(1)\n"
+            "sys.exit(0)\n"
+        ),
+        encoding="utf-8",
+    )
+    branch_script.chmod(branch_script.stat().st_mode | stat.S_IEXEC)
+
     # 按编译规则写入 Dockerfile 基线检查（如启用）
     compiled_policy = {}
     compiled_path = root / ".mcp/rules_compiled.json"
@@ -211,6 +239,32 @@ fi
         except Exception:
             pass
 
+    # 提交信息模板：提示包含 [step:当前步骤] 以通过 commit-msg Gate
+    try:
+        git_dir = root / ".git"
+        if git_dir.exists():
+            tmpl = git_dir / ".gitmessage"
+            tmpl.write_text(
+                (
+                    "# Commit message template\n"
+                    "# 请包含计划步骤标记以通过 Gate，例如：[step:实现 MCP 协议骨架]\n"
+                    "# 第一行：简要说明改动\n"
+                    "# 空一行\n"
+                    "# 细节：列出关键点、影响面、测试、回滚计划\n"
+                ),
+                encoding="utf-8",
+            )
+            try:
+                subprocess.run(
+                    ["git", "config", "commit.template", str(tmpl)],
+                    cwd=root,
+                    check=False,
+                )
+            except Exception:
+                pass
+    except Exception:
+        pass
+
     out = {
         "pre_commit_config": str(pcfg),
         "pre_push": str(pre_push),
@@ -218,6 +272,12 @@ fi
     }
     if docker_gate_path:
         out["dockerfile_gate"] = str(docker_gate_path)
+    # 若设置了 commit.template，也一并返回
+    gitmsg = root / ".git" / ".gitmessage"
+    if gitmsg.exists():
+        out["commit_template"] = str(gitmsg)
+    if branch_script.exists():
+        out["branch_gate"] = str(branch_script)
     return out
 
 

@@ -13,6 +13,7 @@ from typing import Dict, Optional
 
 from .coverage_summary import summarize, summarize_groups, summarize_near
 from . import checks
+from . import __version__ as PKG_VERSION
 from .progress import parse_plan, read_plan
 
 
@@ -105,13 +106,20 @@ def _write_index_html(dashboard_dir: Path) -> None:
         "border-radius:8px;padding:12px;margin:8px 0} code{background:#f6f8fa;"\
         "padding:2px 4px;border-radius:4px} .grid{display:grid;grid-template-columns:"\
         "repeat(auto-fill,minmax(320px,1fr));gap:12px} .mono{font-family:ui-monospace,Menlo,Consolas}"\
+        ".bar{height:10px;background:#eee;border-radius:5px;overflow:hidden}"\
+        ".bar>span{display:block;height:10px;background:#4caf50}"\
         "</style></head><body><h2>🚀 MCP Dev Dashboard</h2>"\
         "<div id=ts class=mono></div><div class=grid>"\
+        "<div class=card><h3>Progress</h3><div>Overall: <b><span id=ovp>—</span>%</b></div>"\
+        "<div class=bar><span id=ovbar style='width:0%'></span></div>"\
+        "<div>Coverage: <span id=cvp>—</span>% (<span id=cvok>0</span>/<span id=cvtotal>0</span>)</div>"\
+        "<div>Plan: <span id=plp>—</span>% (<span id=pld>0</span> done, <span id=plpnd>0</span> pending)</div></div>"\
         "<div class=card><h3>Plan</h3><div id=plan></div></div>"\
         "<div class=card><h3>Tests</h3><pre id=tests class=mono></pre></div>"\
         "<div class=card><h3>Coverage Weak</h3><ul id=weak></ul></div>"\
         "<div class=card><h3>Coverage Near</h3><ul id=near></ul></div>"\
         "<div class=card><h3>Groups</h3><ul id=groups></ul></div>"\
+        "<div class=card><h3>Next Tasks</h3><ol id=pending></ol></div>"\
         "</div><script>async function load(){const r=await fetch('status.json?'+Date.now());"\
         "const s=await r.json(); document.getElementById('ts').textContent="\
         "new Date(s.timestamp*1000).toLocaleString(); const p=s.plan||{};"\
@@ -122,7 +130,15 @@ def _write_index_html(dashboard_dir: Path) -> None:
         "'\n'+(t.stdout||'').slice(-1000); const w=s.coverage&&s.coverage.weak||[];"\
         "document.getElementById('weak').innerHTML=w.slice(0,20).map(x=>'<li>'+(x.coverage*100).toFixed(1)+'% &lt; '+Math.round((x.threshold||0)*100)+'% — '+x.file+'</li>').join('');"\
         "const n=s.coverage&&s.coverage.near||[]; document.getElementById('near').innerHTML=n.slice(0,20).map(x=>'<li>'+(x.coverage*100).toFixed(1)+'% ≥ '+Math.round((x.threshold||0)*100)+'% — '+x.file+'（Δ+'+((x.delta_up||0)*100).toFixed(1)+'%）</li>').join('');"\
-        "const g=s.coverage&&s.coverage.groups||[]; document.getElementById('groups').innerHTML=g.map(x=>'<li>'+x.prefix+': '+(x.coverage*100).toFixed(1)+'% &lt; '+Math.round((x.threshold||0)*100)+'% — 弱项 '+x.weak_count+'/'+x.files_count+'</li>').join(''); } load(); setInterval(load, 5000);</script>"\
+        "const g=s.coverage&&s.coverage.groups||[]; document.getElementById('groups').innerHTML=g.map(x=>'<li>'+x.prefix+': '+(x.coverage*100).toFixed(1)+'% &lt; '+Math.round((x.threshold||0)*100)+'% — 弱项 '+x.weak_count+'/'+x.files_count+'</li>').join('');"\
+        "const prog=s.progress||{}; const cov=s.coverage||{}; const overall=((prog.overall||0)*100).toFixed(0);"\
+        "document.getElementById('ovp').textContent=overall; document.getElementById('ovbar').style.width=overall+'%';"\
+        "document.getElementById('cvp').textContent=((cov.progress||0)*100).toFixed(0);"\
+        "document.getElementById('cvok').textContent=(cov.count||0)-( (cov.weak||[]).length ||0 );"\
+        "document.getElementById('cvtotal').textContent=(cov.count||0);"\
+        "const pc=prog.counts||{}; const plp=prog.plan==null?'—':(prog.plan*100).toFixed(0);"\
+        "document.getElementById('plp').textContent=plp; document.getElementById('pld').textContent=(pc.plan_done||0); document.getElementById('plpnd').textContent=(pc.plan_pending||0);"\
+        "const pend=(s.tasks&&s.tasks.pending)||[]; document.getElementById('pending').innerHTML=pend.map(x=>'<li>'+x+'</li>').join(''); } load(); setInterval(load, 5000);</script>"\
         "</body></html>"
     )
     (dashboard_dir / "index.html").write_text(index, encoding="utf-8")
@@ -144,9 +160,59 @@ def compute_status(project_root: Path) -> Dict[str, object]:
     weak = cov_summary.get("weak", []) if isinstance(cov_summary, dict) else []
     groups = cov_groups.get("groups", []) if isinstance(cov_groups, dict) else []
     near = cov_near.get("near", []) if isinstance(cov_near, dict) else []
-    min_module = (
-        float(cov_summary.get("min_module", 0.9)) if isinstance(cov_summary, dict) else 0.9
-    )
+    total_files = int(cov_summary.get("count", 0)) if isinstance(cov_summary, dict) else 0
+    min_module = 0.9
+    try:
+        # summarize() 不含 min_module；此处仅保留字段占位
+        min_module = float(min_module)
+    except Exception:
+        pass
+
+    # 计算覆盖率进度：满足阈值的文件比例（若无数据则为 0）
+    cov_progress = 0.0
+    if total_files > 0:
+        cov_progress = max(0.0, min(1.0, (total_files - len(weak)) / float(total_files)))
+
+    # 解析计划中的任务（支持 markdown checkbox）
+    pending_tasks: list[str] = []
+    done_count = 0
+    pending_count = 0
+    try:
+        lines = plan_text.splitlines()
+        for ln in lines:
+            s = ln.strip()
+            if s.startswith(('- [x] ', '- [X] ')):
+                done_count += 1
+            elif s.startswith('- [ ] '):
+                pending_count += 1
+                pending_tasks.append(s[6:].strip())
+        # 若未使用 checkbox，尝试从“待办/Next/下一步/待办聚焦”后收集一级列表项
+        if done_count + pending_count == 0:
+            capture = False
+            for ln in lines:
+                raw = ln.rstrip()
+                low = raw.lower()
+                if any(k in low for k in ['待办', 'next actions', '下一步']):
+                    capture = True
+                    continue
+                if capture:
+                    if raw.strip().startswith('- '):
+                        item = raw.strip()[2:].strip()
+                        if item:
+                            pending_tasks.append(item)
+                    elif raw.strip() == '' or raw.startswith('#'):
+                        break
+    except Exception:
+        pass
+
+    plan_progress = None
+    if done_count + pending_count > 0:
+        plan_progress = done_count / float(done_count + pending_count)
+
+    # 总进度：覆盖率权重 60%，计划权重 40%（若无计划数据则仅用覆盖率）
+    overall = cov_progress
+    if plan_progress is not None:
+        overall = 0.6 * cov_progress + 0.4 * float(plan_progress)
     return {
         "plan": plan_obj,
         "coverage": {
@@ -154,6 +220,22 @@ def compute_status(project_root: Path) -> Dict[str, object]:
             "groups": groups,
             "near": near,
             "min_module": min_module,
+            "count": total_files,
+            "progress": cov_progress,
+        },
+        "progress": {
+            "overall": overall,
+            "coverage": cov_progress,
+            "plan": plan_progress if plan_progress is not None else None,
+            "counts": {
+                "coverage_total": total_files,
+                "coverage_weak": len(weak),
+                "plan_done": done_count,
+                "plan_pending": pending_count,
+            },
+        },
+        "tasks": {
+            "pending": pending_tasks[:20],
         },
     }
 
@@ -193,6 +275,8 @@ def main(argv: Optional[list[str]] = None) -> None:
     auto_push = os.environ.get("DEV_AGENT_AUTOPUSH", "0") in ("1", "true", "True")
     commit_interval = int(os.environ.get("DEV_AGENT_COMMIT_INTERVAL", "600"))
     last_commit_ts = 0.0
+    auto_tag = os.environ.get("DEV_AGENT_AUTOTAG", "0") in ("1", "true", "True")
+    last_tag_date = ""
 
     cycle = 0
     while True:
@@ -223,6 +307,23 @@ def main(argv: Optional[list[str]] = None) -> None:
                         if auto_push:
                             subprocess.run(["git", "push"], cwd=str(root), check=False)
                         last_commit_ts = time.time()
+            except Exception:
+                pass
+
+        # 可选：每日里程碑自动 tag（仅在全量测试通过且覆盖率 Gate 通过时；不推送）
+        if auto_tag and tests.get("ok") and tests.get("mode") == "full":
+            try:
+                cov = status.get("coverage", {}) or {}
+                weak = cov.get("weak", []) or []
+                if not weak:
+                    today = time.strftime("%Y%m%d", time.localtime())
+                    if today != last_tag_date:
+                        tag = f"v{PKG_VERSION}-dev{today}"
+                        # 若 tag 不存在则创建
+                        p = subprocess.run(["git", "tag", "-l", tag], cwd=str(root), text=True, stdout=subprocess.PIPE)
+                        if tag not in (p.stdout or ""):
+                            subprocess.run(["git", "tag", "-a", tag, "-m", f"auto dev milestone {today}"], cwd=str(root), check=False)
+                            last_tag_date = today
             except Exception:
                 pass
 

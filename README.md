@@ -140,6 +140,7 @@ mcp-rules-assistant diagnose --json > diagnose.json
 - VS Code 扩展测试：`make vscode-test`（若受限可先 `export MCP_VSCODE_TEST_ARGS=""`）
 - 规则摄取：`make ingest`
 - 覆盖率摘要：`make coverage`
+ - 本地 CI 一键执行：`make local-ci-run`（聚合 lint/type/tests/coverage‑gate，与 CI 门禁一致）
 
 许可证与商业化
 - 预留本地授权/离线激活能力接口（见 docs/ARCHITECTURE.md）。
