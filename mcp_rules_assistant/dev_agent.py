@@ -180,6 +180,7 @@ def compute_status(project_root: Path) -> Dict[str, object]:
 
     # 解析计划中的任务（支持 markdown checkbox）
     pending_tasks: list[str] = []
+    done_tasks: list[str] = []
     done_count = 0
     pending_count = 0
     try:
@@ -188,6 +189,7 @@ def compute_status(project_root: Path) -> Dict[str, object]:
             s = ln.strip()
             if s.startswith(('- [x] ', '- [X] ')):
                 done_count += 1
+                done_tasks.append(s[6:].strip())
             elif s.startswith('- [ ] '):
                 pending_count += 1
                 pending_tasks.append(s[6:].strip())
@@ -257,6 +259,7 @@ def compute_status(project_root: Path) -> Dict[str, object]:
         },
         "tasks": {
             "pending": pending_tasks[:20],
+            "done": done_tasks[:20],
         },
     }
 
