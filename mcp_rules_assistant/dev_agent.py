@@ -124,7 +124,7 @@ def _write_index_html(dashboard_dir: Path) -> None:
         "<div class=card><h3>Coverage Near</h3><ul id=near></ul></div>"\
         "<div class=card><h3>Groups</h3><ul id=groups></ul></div>"\
         "<div class=card><h3>Next Tasks</h3><ol id=pending></ol></div>"\
-        "</div><script>async function load(){const r=await fetch('status.json?'+Date.now());"\
+        "</div><script>async function load(){try{const r=await fetch('/status.json?'+Date.now());"\
         "const s=await r.json(); document.getElementById('ts').textContent="\
         "new Date(s.timestamp*1000).toLocaleString(); const p=s.plan||{};"\
         "document.getElementById('plan').innerHTML = '<div>Status: <b>'+(p.status||'')+"\
@@ -143,7 +143,7 @@ def _write_index_html(dashboard_dir: Path) -> None:
         "const pc=prog.counts||{}; const plp=prog.plan==null?'—':(prog.plan*100).toFixed(0);"\
         "document.getElementById('plp').textContent=plp; document.getElementById('pld').textContent=(pc.plan_done||0); document.getElementById('plpnd').textContent=(pc.plan_pending||0);"\
         "document.getElementById('prp').textContent=((prog.prod||0)*100).toFixed(0);"\
-        "const pend=(s.tasks&&s.tasks.pending)||[]; document.getElementById('pending').innerHTML=pend.map(x=>'<li>'+x+'</li>').join(''); } load(); setInterval(load, 5000);</script>"\
+        "const pend=(s.tasks&&s.tasks.pending)||[]; document.getElementById('pending').innerHTML=pend.map(x=>'<li>'+x+'</li>').join('');}catch(e){console.error(e);document.getElementById('tests').textContent='[dashboard] load error: '+e;}} load(); setInterval(load, 5000);</script>"\
         "</body></html>"
     )
     (dashboard_dir / "index.html").write_text(index, encoding="utf-8")
