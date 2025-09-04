@@ -12,7 +12,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: ${ matrix.python-version }
+          python-version: ${{ matrix.python-version }}
           cache: 'pip'
       - name: Install tools
         run: |
@@ -108,7 +108,7 @@ jobs:
             pytest-junit.xml
   vscode:
     runs-on: ubuntu-latest
-    if: ${{{{ hashFiles('extensions/vscode/package.json') != '' }}}}
+    if: ${{ hashFiles('extensions/vscode/package.json') != '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
