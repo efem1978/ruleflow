@@ -212,6 +212,9 @@ def compute_status(project_root: Path) -> Dict[str, object]:
                             pending_tasks.append(item)
                     elif raw.strip() == '' or raw.startswith('#'):
                         break
+            if pending_tasks:
+                pending_count = len(pending_tasks)
+                done_count = 0
     except Exception:
         pass
 
