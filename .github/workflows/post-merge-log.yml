@@ -1,0 +1,47 @@
+name: Post-merge Log
+on:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  log-and-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Append unattended log entry
+        run: |
+          ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          mkdir -p .mcp
+          if [ -f .mcp/unattended_issues.json ]; then
+            python - <<'PY'
+import json, os, time
+path='.mcp/unattended_issues.json'
+arr=[]
+try:
+  arr=json.loads(open(path,'r',encoding='utf-8').read())
+except Exception:
+  arr=[]
+arr.append({
+  'phase':'Phase 7',
+  'step':'post-merge-log',
+  'severity':'info',
+  'message':'PR merged & cleanup done',
+  'ts': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+})
+open(path,'w',encoding='utf-8').write(json.dumps(arr,ensure_ascii=False,indent=2))
+PY
+          else
+            echo "[{}]" > .mcp/unattended_issues.json
+          fi
+      - name: Create post-merge log PR
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: post-merge-log/${{ github.sha }}
+          commit-message: "chore(unattended): PR merged & cleanup done"
+          title: "chore(unattended): PR merged & cleanup done"
+          body: "Automated post-merge log entry appended to .mcp/unattended_issues.json"
+          labels: automated
