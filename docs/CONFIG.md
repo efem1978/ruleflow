@@ -43,6 +43,11 @@ ci:
   vscode_required: false      # VS Code 扩展测试是否必跑（true 则不再使用 if: hashFiles 条件）
 ```
 
+说明（coverage.policy 键的写法）
+- 建议使用与 coverage.xml 中 <class filename="..."> 一致的“文件名前缀”。
+- 在本项目中，coverage 源路径为包根（mcp_rules_assistant）且 filename 为“basename”（如 `cli.py`、`mcp_server.py`）。
+- 因此，设置核心模块策略时建议写成：`cli.py: 0.98`、`mcp_server.py: 0.98` 等，以确保命中。
+
 命令 Commands（中英 + 模糊）
 - 开启滚动记忆 / enable rolling memory / 记忆开 / auto-memo on
 - 查看计划 / show plan

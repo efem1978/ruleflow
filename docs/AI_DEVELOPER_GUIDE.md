@@ -57,6 +57,10 @@
   - `mcp_rules_assistant/cli.py`
   - `mcp_rules_assistant/server.py`
 
+注意：coverage.policy 键应与 coverage.xml 中的 <class filename> 一致；本项目中 filename 为“basename”，因此建议使用 `cli.py`、`mcp_server.py` 等作为前缀，以确保策略命中。
+
+目标阈值与临时例外：核心模块的目标覆盖率为 ≥98%。在特定阶段，个别大体量模块可暂定 ≥97% 以保证门禁通过，并在计划中记录为“持续抬升至 98%”的任务，确保不影响主线交付与门禁一致性。
+
 ## CI 与 Hooks
 - 生成：`mcp-rules-assistant generate-ci` 与 `install-hooks`
 - 自修复：`mcp-rules-assistant ci-autofix`

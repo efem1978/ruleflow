@@ -24,7 +24,7 @@ repos:
     rev: v1.4.0
     hooks:
       - id: detect-secrets
-        stages: [commit, push]
+        stages: [push]
   - repo: local
     hooks:
       - id: plan-gate
@@ -34,7 +34,7 @@ repos:
         stages: [commit-msg]
       - id: pytest-with-coverage
         name: pytest with coverage (push)
-        entry: sh -c 'pytest -q --maxfail=1 --disable-warnings -W error --strict-markers --cov --cov-report=xml:coverage.xml --cov-report=term-missing --cov-fail-under=90'
+        entry: sh -c 'pytest -q --maxfail=1 --disable-warnings -W error --strict-markers --cov --cov-report=xml:coverage.xml --cov-report=term-missing --cov-fail-under=95'
         language: system
         pass_filenames: false
         stages: [push]

@@ -12,15 +12,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: ${ matrix.python-version }
           cache: 'pip'
       - name: Install tools
         run: |
           python -m pip install --upgrade pip
           pip install ruff black isort mypy bandit pytest pytest-cov types-PyYAML
-      - name: Install package
-        run: |
-          pip install -e .
       - name: Pre-commit (all files)
         run: |
           python -m pip install pre-commit
@@ -38,14 +35,7 @@ jobs:
           isort --check-only mcp_rules_assistant
       - name: Type Check (core, blocking)
         run: |
-          mypy \
-            mcp_rules_assistant/config.py \
-            mcp_rules_assistant/progress.py \
-            mcp_rules_assistant/tools.py \
-            mcp_rules_assistant/memory.py \
-            mcp_rules_assistant/mcp_server.py \
-            mcp_rules_assistant/cli.py \
-            mcp_rules_assistant/server.py
+          mypy             mcp_rules_assistant/config.py             mcp_rules_assistant/progress.py             mcp_rules_assistant/tools.py             mcp_rules_assistant/memory.py             mcp_rules_assistant/mcp_server.py             mcp_rules_assistant/cli.py             mcp_rules_assistant/server.py
       - name: Type Check (rest, non-blocking)
         run: |
           mypy mcp_rules_assistant || true
@@ -54,7 +44,7 @@ jobs:
           PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
         run: |
           pytest -q -p pytest_cov --maxfail=1 --disable-warnings -W error --strict-markers --cov=mcp_rules_assistant --cov-report=xml:coverage.xml --cov-report=term-missing --cov-fail-under=95 --junitxml=pytest-junit.xml
-      - name: Coverage Policy Gate (policy-driven)
+      - name: Coverage Policy Gate (core≥98%, others≥95%)
         run: |
           python -m mcp_rules_assistant.cli coverage-report --json > cov.json
           python - <<'PY'
@@ -68,37 +58,9 @@ jobs:
               sys.exit(1)
           print('[mcp] Coverage policy gate passed.')
           PY
-      - name: Coverage Step Summary
-        if: ${{ always() }}
-        run: |
-          echo '### Coverage Summary' >> $GITHUB_STEP_SUMMARY
-          python - <<'PY' >> $GITHUB_STEP_SUMMARY
-          import json, os
-          p='cov.json'
-          data={}
-          if os.path.exists(p):
-              data=json.load(open(p,'r'))
-          weak=data.get('weak',[])[:5]
-          near=data.get('near',[])[:5]
-          groups=data.get('groups',[])
-          def row(it):
-              return f"- {it.get('file','?')} — {round(float(it.get('coverage',0))*100,1)}% vs {int(float(it.get('threshold',0))*100)}%"
-          print('\n'.join(['**Weak (Top 5)**'] + ([row(x) for x in weak] or ['- None'])))
-          print()
-          print('\n'.join(['**Near (Top 5)**'] + ([row(x) for x in near] or ['- None'])))
-          print()
-          print('**Groups**')
-          if groups:
-              for g in groups:
-                  cov=round(float(g.get('coverage',0))*100,1)
-                  th=int(float(g.get('threshold',0))*100)
-                  print(f"- {g.get('prefix')}: {cov}% (th {th}%), weak {g.get('weak_count')}/{g.get('files_count')}")
-          else:
-              print('- None')
-          PY
       - name: Forbid skip/xfail markers (non-tests)
         run: |
-          if grep -R -n --include='*.py' -E "(^|[^\"'])pytest\\.mark\\.(skip|xfail)" mcp_rules_assistant >/dev/null; then echo "Found actual skip/xfail usage in package code. Disallowed."; exit 1; fi
+          if grep -R -n --include='*.py' -E "(^|[^"'])pytest\.mark\.(skip|xfail)" mcp_rules_assistant >/dev/null; then echo "Found actual skip/xfail usage in package code. Disallowed."; exit 1; fi
       - name: Coverage Near Summary
         run: |
           python -m mcp_rules_assistant.cli coverage-near --within 3 --top 10 > near.txt || true
@@ -117,15 +79,6 @@ jobs:
             near.csv
             near.json
             tests-artifacts.tar.gz
-      - name: Upload coverage to Codecov
-        if: env.CODECOV_TOKEN != ''
-        uses: codecov/codecov-action@v4
-        with:
-          files: coverage.xml
-          flags: python
-          name: python-${{ matrix.python-version }}
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       - name: Security (bandit — high only)
         run: |
           bandit -q -lll -x tests -r .
@@ -142,9 +95,6 @@ jobs:
         with:
           python-version: '3.11'
           cache: 'pip'
-      - name: Install package (for env.prepare import)
-        run: |
-          pip install -e .
       - name: Prepare env (mcp_rules_assistant env.prepare)
         run: |
           python - <<'PY'
@@ -153,10 +103,6 @@ jobs:
           out = srv._call_tool("env.prepare", {"create": True, "install": True})
           print(out)
           PY
-      - name: Install package in venv
-        run: |
-          . ./.mcp/venv/bin/activate
-          pip install -e .
       - name: Tests in env (pytest + coverage)
         env:
           PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
@@ -171,9 +117,9 @@ jobs:
           path: |
             coverage.xml
             pytest-junit.xml
-
   vscode:
     runs-on: ubuntu-latest
+    if: ${{{{ hashFiles('extensions/vscode/package.json') != '' }}}}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -189,7 +135,7 @@ jobs:
       - name: VS Code extension tests
         working-directory: extensions/vscode
         run: |
-          xvfb-run -a npm test 2>&1 | tee vscode-test.log
+          MCP_VSCODE_TEST_ARGS="" xvfb-run -a npm test 2>&1 | tee vscode-test.log
       - name: Upload VS Code test log
         if: always()
         uses: actions/upload-artifact@v4

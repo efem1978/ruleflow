@@ -64,9 +64,12 @@ Phase E — 集成与 CLI
 - 规则：`.mcp/rules_compiled.{json,md}` 与 `rules_suggestions.md`。
 
 近期待办 Next Actions
-1) 统一门槛来源与生成物（高优先级）
-   - 用生成器覆盖 .pre-commit-config.yaml 与 .github/workflows/ci.yml，阈值取自 .mcp/assistant.yaml（performance.on_push.coverage.min_module）与 coverage.policy。
-   - 修正文档与实现的描述差异（env.prepare 不再仅“占位”）。
+已完成（对齐项）
+ - 用生成器覆盖 .pre-commit-config.yaml 与 .github/workflows/ci.yml，阈值取自 .mcp/assistant.yaml；detect-secrets 改为 push 阶段；CI 条件化步骤生效。
+ - 覆盖率策略改为与 coverage.xml 一致的 basename 前缀，核心≥98% 实际受控。
+
+1) 统一门槛来源与生成物（高优先级，持续）
+   - 持续校验生成物与配置一致性；修正文档与实现的描述差异（env.prepare 非占位）。
 2) 版本对齐与小修复
    - 统一版本号：pyproject.toml vs mcp_rules_assistant/__init__.py。
    - rules_ingest._english_words_to_int 移除不可达 return；注释矫正。

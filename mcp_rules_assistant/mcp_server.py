@@ -218,10 +218,11 @@ class JsonRpcServer:
                             "text": json.dumps(summary, ensure_ascii=False),
                         }
                     elif uri.endswith("/near"):
-                        # 默认窗口与 Top 可由配置覆盖（coverage.near）
+                        # 默认窗口与 Top 可由配置覆盖（coverage.near），动态读取当前配置以支持热更新
+                        cfg_now2 = load_config(self.project_root)
                         near_cfg = (
-                            (self.cfg.get("coverage", {}) or {}).get("near", {})
-                            if isinstance(self.cfg.get("coverage", {}), dict)
+                            (cfg_now2.get("coverage", {}) or {}).get("near", {})
+                            if isinstance(cfg_now2.get("coverage", {}), dict)
                             else {}
                         )
                         within = float((near_cfg or {}).get("within", 0.03))
@@ -238,9 +239,10 @@ class JsonRpcServer:
                             "text": json.dumps(summary, ensure_ascii=False),
                         }
                     elif uri.endswith("/report"):
+                        cfg_now2 = load_config(self.project_root)
                         near_cfg = (
-                            (self.cfg.get("coverage", {}) or {}).get("near", {})
-                            if isinstance(self.cfg.get("coverage", {}), dict)
+                            (cfg_now2.get("coverage", {}) or {}).get("near", {})
+                            if isinstance(cfg_now2.get("coverage", {}), dict)
                             else {}
                         )
                         within = float((near_cfg or {}).get("within", 0.03))

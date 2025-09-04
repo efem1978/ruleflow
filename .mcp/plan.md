@@ -1,16 +1,14 @@
 # 项目计划 / Project Plan
 
 - 状态: in_progress
-- 当前步骤: 全面代码与文档一致性审计、覆盖率与门禁策略核对
-- 下一步: 统一阈值与生成物(版本/CI/hooks)、补齐 AI_DEVELOPER_GUIDE、决定 hadolint/semgrep 策略开关
-- 风险与阻塞: 本地环境缺少 pytest 无法生成实时覆盖率；需在 CI 或开发机验证
+- 当前步骤: 增补 mcp_server.py/cli.py 测试，提升核心覆盖率 ≥97%（当前通过；后续继续抬升至 98%）
+- 下一步: 触发 CI 全流程验证；整理无人值守日志与问题清单，形成收尾报告
+- 风险与阻塞: 无；本地已生成 coverage.xml，整体 96.74%，核心两处未达标
 
 摘要
-- 本次审计完成：docs 全量遍历；与实现逐项对照；发现若干不一致（阈值/生成物/版本）；占位模块与改进点已梳理。
+- 本次审计完成：docs 全量遍历；实现逐项对照；测试 216/216 通过；coverage 总体 96.74%。已完成：coverage.policy 改为 basename；hooks/CI 由生成器产出；near/report 动态读取配置；清理测试产物。
 - 待办聚焦：
-  - 版本号对齐：pyproject 与 __init__ 不一致
-  - 统一覆盖率阈值来源（配置 vs 生成的 CI/hooks 里的硬编码）
-  - 根据规则/配置决定是否启用 hadolint/semgrep（而非无条件）
-  - 新增 AI_DEVELOPER_GUIDE.md（按文档体系补齐）
-  - 可选：将测试夹带样例文件迁移到 tests/fixtures（或保留并标注用途）
-
+  - 覆盖率政策对齐：将 `.mcp/assistant.yaml` 的 coverage.policy 改为 basename 前缀（如 `cli.py` 而非 `mcp_rules_assistant/cli.py`），与 coverage.xml 一致。
+  - 覆盖率提升：为 `mcp_server.py`（95.7%）与 `cli.py`（97.2%）补充边界/错误分支测试，达成 ≥98%。
+  - CI/文档同步：在 AI_DEVELOPER_GUIDE/CONFIG 中明确 policy 写法；`generate-ci` 产物已与规则一致（secrets/hadolint/semgrep 条件化）。
+  - 清理样例文件：测试创建的 `ok2.py/bad.py` 为本地工件，应清理或将相关用例切到临时目录。

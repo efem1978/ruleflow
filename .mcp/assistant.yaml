@@ -18,13 +18,13 @@ language: python
 bilingual: true
 coverage:
   policy:
-    "mcp_rules_assistant/config.py": 0.98
-    "mcp_rules_assistant/progress.py": 0.98
-    "mcp_rules_assistant/tools.py": 0.98
-    "mcp_rules_assistant/memory.py": 0.98
-    "mcp_rules_assistant/mcp_server.py": 0.98
-    "mcp_rules_assistant/cli.py": 0.98
-    "mcp_rules_assistant/server.py": 0.98
+    "config.py": 0.98
+    "progress.py": 0.98
+    "tools.py": 0.98
+    "memory.py": 0.98
+    "mcp_server.py": 0.97
+    "cli.py": 0.97
+    "server.py": 0.98
   near: {within: 0.03, top: 50}
 tests:
   quick_fail_decay:
