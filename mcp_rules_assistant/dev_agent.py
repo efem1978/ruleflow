@@ -9,6 +9,7 @@ import subprocess
 import threading
 import time
 from pathlib import Path
+import shutil
 from typing import Dict, Optional
 
 from .coverage_summary import summarize, summarize_groups, summarize_near
@@ -96,13 +97,18 @@ def _run_impacted_or_full(project_root: Path, cycle_idx: int, full_every: int = 
     return out
 
 
-def _ensure_dashboard_dir(root: Path) -> Path:
+def _ensure_dashboard_dir(root: Path, rebuild: bool = False) -> Path:
     d = root / ".mcp" / "dashboard"
+    if rebuild and d.exists():
+        try:
+            shutil.rmtree(d)
+        except Exception:
+            pass
     d.mkdir(parents=True, exist_ok=True)
     return d
 
 
-def _write_index_html(dashboard_dir: Path) -> None:
+def _write_index_html(dashboard_dir: Path, embed_status: Optional[Dict[str, object]] = None) -> None:
     index = (
         "<!doctype html><html><head><meta charset=\"utf-8\"><title>MCP Dev Board"\
         "</title><style>body{font-family:system-ui,Arial,sans-serif;padding:16px}"\
@@ -125,7 +131,11 @@ def _write_index_html(dashboard_dir: Path) -> None:
         "<div class=card><h3>Coverage Near</h3><ul id=near></ul></div>"\
         "<div class=card><h3>Groups</h3><ul id=groups></ul></div>"\
         "<div class=card><h3>Next Tasks</h3><ol id=pending></ol></div>"\
-        "</div><script src='status.js'></script><script>async function load(){try{const r=await fetch('/status.json?'+Date.now());"\
+        "</div>"\
+        + ("<script>window.__status = "
+           + json.dumps(embed_status, ensure_ascii=False)
+           + ";</script>" if embed_status else "") \
+        + "<script>async function load(){try{const r=await fetch('/status.json?'+Date.now());"\
         "const s=await r.json(); document.getElementById('ts').textContent="\
         "new Date(s.timestamp*1000).toLocaleString(); const p=s.plan||{};"\
         "document.getElementById('plan').innerHTML = '<div>Status: <b>'+(p.status||'')+"\
