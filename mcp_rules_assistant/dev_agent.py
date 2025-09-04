@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Dict, Optional
 
 from .coverage_summary import summarize, summarize_groups, summarize_near
+from .config import load_config
 from . import checks
 from . import __version__ as PKG_VERSION
 from .progress import parse_plan, read_plan
@@ -124,7 +125,7 @@ def _write_index_html(dashboard_dir: Path) -> None:
         "<div class=card><h3>Coverage Near</h3><ul id=near></ul></div>"\
         "<div class=card><h3>Groups</h3><ul id=groups></ul></div>"\
         "<div class=card><h3>Next Tasks</h3><ol id=pending></ol></div>"\
-        "</div><script>async function load(){try{const r=await fetch('/status.json?'+Date.now());"\
+        "</div><script src='status.js'></script><script>async function load(){try{const r=await fetch('/status.json?'+Date.now());"\
         "const s=await r.json(); document.getElementById('ts').textContent="\
         "new Date(s.timestamp*1000).toLocaleString(); const p=s.plan||{};"\
         "document.getElementById('plan').innerHTML = '<div>Status: <b>'+(p.status||'')+"\
@@ -143,7 +144,7 @@ def _write_index_html(dashboard_dir: Path) -> None:
         "const pc=prog.counts||{}; const plp=prog.plan==null?'—':(prog.plan*100).toFixed(0);"\
         "document.getElementById('plp').textContent=plp; document.getElementById('pld').textContent=(pc.plan_done||0); document.getElementById('plpnd').textContent=(pc.plan_pending||0);"\
         "document.getElementById('prp').textContent=((prog.prod||0)*100).toFixed(0);"\
-        "const pend=(s.tasks&&s.tasks.pending)||[]; document.getElementById('pending').innerHTML=pend.map(x=>'<li>'+x+'</li>').join('');}catch(e){console.error(e);document.getElementById('tests').textContent='[dashboard] load error: '+e;}} load(); setInterval(load, 5000);</script>"\
+        "const pend=(s.tasks&&s.tasks.pending)||[]; document.getElementById('pending').innerHTML=pend.map(x=>'<li>'+x+'</li>').join('');}catch(e){console.warn('[dashboard] fetch /status.json failed, trying embedded'); try{const s=window.__status; if(s){document.getElementById('ts').textContent=new Date(s.timestamp*1000).toLocaleString(); const p=s.plan||{};document.getElementById('plan').innerHTML = '<div>Status: <b>'+(p.status||'')+'</b></div><div>Current: <b>'+(p.current||'')+'</b></div><div>Next: '+(p.next||'')+'</div>'; const t=s.tests||{};document.getElementById('tests').textContent=(t.ok?'✔':'✘')+' code='+(t.code||'')+'\n'+((t.stdout||'').slice(-1000)||''); const w=(s.coverage&&s.coverage.weak)||[];document.getElementById('weak').innerHTML=w.slice(0,20).map(x=>'<li>'+(x.coverage*100).toFixed(1)+'% &lt; '+Math.round((x.threshold||0)*100)+'% — '+x.file+'</li>').join(''); const n=(s.coverage&&s.coverage.near)||[]; document.getElementById('near').innerHTML=n.slice(0,20).map(x=>'<li>'+(x.coverage*100).toFixed(1)+'% ≥ '+Math.round((x.threshold||0)*100)+'% — '+x.file+'（Δ+'+((x.delta_up||0)*100).toFixed(1)+'%）</li>').join(''); const g=(s.coverage&&s.coverage.groups)||[]; document.getElementById('groups').innerHTML=g.map(x=>'<li>'+x.prefix+': '+(x.coverage*100).toFixed(1)+'% &lt; '+Math.round((x.threshold||0)*100)+'% — 弱项 '+x.weak_count+'/'+x.files_count+'</li>').join(''); const prog=s.progress||{}; const cov=s.coverage||{}; const overall=((prog.overall||0)*100).toFixed(0); document.getElementById('ovp').textContent=overall; document.getElementById('ovbar').style.width=overall+'%'; document.getElementById('cvp').textContent=((cov.progress||0)*100).toFixed(0); document.getElementById('cvok').textContent=(cov.count||0)-(((cov.weak||[]).length)||0); document.getElementById('cvtotal').textContent=(cov.count||0); const pc=prog.counts||{}; const plp=prog.plan==null?'—':(prog.plan*100).toFixed(0); document.getElementById('plp').textContent=plp; document.getElementById('pld').textContent=(pc.plan_done||0); document.getElementById('plpnd').textContent=(pc.plan_pending||0); document.getElementById('prp').textContent=((prog.prod||0)*100).toFixed(0); const pend=(s.tasks&&s.tasks.pending)||[]; document.getElementById('pending').innerHTML=pend.map(x=>'<li>'+x+'</li>').join('');} else {document.getElementById('tests').textContent='[dashboard] status unavailable';}}catch(e2){console.error(e2); document.getElementById('tests').textContent='[dashboard] load error: '+e2;}}} load(); setInterval(load, 5000);</script>"\
         "</body></html>"
     )
     (dashboard_dir / "index.html").write_text(index, encoding="utf-8")
@@ -158,20 +159,22 @@ def compute_status(project_root: Path) -> Dict[str, object]:
     except Exception:
         plan_obj = {"status": "", "current": "", "next": ""}
 
-    # coverage summaries (require coverage.xml)
-    cov_summary = summarize(project_root=project_root)
-    cov_groups = summarize_groups(project_root=project_root)
-    cov_near = summarize_near(project_root=project_root)
+    # coverage summaries (require coverage.xml) — honor project config thresholds
+    try:
+        cfg = load_config(project_root)
+    except Exception:
+        cfg = {}
+    perf = cfg.get("performance", {}) if isinstance(cfg.get("performance", {}), dict) else {}
+    min_module = float(((perf.get("on_push", {}) or {}).get("coverage", {}) or {}).get("min_module", 0.9))
+    policy = (cfg.get("coverage", {}) or {}).get("policy", None) if isinstance(cfg.get("coverage", {}), dict) else None
+    cov_summary = summarize(project_root=project_root, policy=policy, min_module=min_module)
+    cov_groups = summarize_groups(project_root=project_root, policy=policy, min_module=min_module)
+    cov_near = summarize_near(project_root=project_root, policy=policy, min_module=min_module)
     weak = cov_summary.get("weak", []) if isinstance(cov_summary, dict) else []
     groups = cov_groups.get("groups", []) if isinstance(cov_groups, dict) else []
     near = cov_near.get("near", []) if isinstance(cov_near, dict) else []
     total_files = int(cov_summary.get("count", 0)) if isinstance(cov_summary, dict) else 0
-    min_module = 0.9
-    try:
-        # summarize() 不含 min_module；此处仅保留字段占位
-        min_module = float(min_module)
-    except Exception:
-        pass
+    # min_module 已按配置读取
 
     # 计算覆盖率进度：满足阈值的文件比例（若无数据则为 0）
     cov_progress = 0.0
@@ -315,9 +318,11 @@ def main(argv: Optional[list[str]] = None) -> None:
         except Exception as e:
             status["error"] = f"status compute failed: {e}"
         (dash / "status.json").write_text(json.dumps(status, ensure_ascii=False), encoding="utf-8")
+        # 作为 file:// 直接打开时的回退（不依赖 fetch）
+        (dash / "status.js").write_text("window.__status = " + json.dumps(status, ensure_ascii=False) + ";", encoding="utf-8")
 
         # 可选：定时自动提交（需计划处于 in_progress 且 current 存在）
-        if auto_commit and (time.time() - last_commit_ts) >= commit_interval:
+        if auto_commit and (time.time() - last_commit_ts) >= commit_interval and bool(tests.get("ok")):
             try:
                 plan_text = read_plan(root)
                 st, cur, _ = parse_plan(plan_text)
