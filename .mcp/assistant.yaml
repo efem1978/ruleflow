@@ -22,8 +22,8 @@ coverage:
     "progress.py": 0.98
     "tools.py": 0.98
     "memory.py": 0.98
-    "mcp_server.py": 0.97
-    "cli.py": 0.97
+    "mcp_server.py": 0.98
+    "cli.py": 0.98
     "server.py": 0.98
   near: {within: 0.03, top: 50}
 tests:
