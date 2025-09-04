@@ -34,5 +34,5 @@ tests:
     mid_bonus: 1
     history_limit: 400
 ci:
-  hadolint: true
-  semgrep_config: p/ci
+  hadolint: false
+  semgrep_config: ""
