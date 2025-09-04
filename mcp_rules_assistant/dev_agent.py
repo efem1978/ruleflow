@@ -20,7 +20,10 @@ from .progress import parse_plan, read_plan
 def _run_tests_with_coverage(project_root: Path) -> Dict[str, object]:
     env = os.environ.copy()
     env.setdefault("PYTEST_DISABLE_PLUGIN_AUTOLOAD", "1")
+    py = os.environ.get("PYTHON_BIN") or "python3"
     cmd = [
+        py,
+        "-m",
         "pytest",
         "-q",
         "-p",
@@ -51,7 +54,7 @@ def _run_tests_with_coverage(project_root: Path) -> Dict[str, object]:
             "cmd": cmd,
         }
     except FileNotFoundError:
-        return {"ok": False, "code": 127, "error": "pytest not found"}
+        return {"ok": False, "code": 127, "error": "python/pytest not found"}
 
 
 def _git_changed_files(project_root: Path) -> list[Path]:
