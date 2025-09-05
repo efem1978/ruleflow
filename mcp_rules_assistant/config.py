@@ -122,7 +122,7 @@ def default_config_dict() -> Dict[str, Any]:
             # 严格模式：当 fs_guard_post_checks 启用且检查失败时，阻断写入
             "fs_guard_strict": False
         },
-        "ci": {"hadolint": False},
+        "ci": {"hadolint": False, "vscode_required": True},
     }
 
 

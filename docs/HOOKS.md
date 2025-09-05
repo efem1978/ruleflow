@@ -36,6 +36,10 @@ CI 生成
   - 生成工件：`coverage.xml`、`pytest-junit.xml`、`near.txt/near.csv/near.json`，并打包为 `tests-artifacts.tar.gz` 上传，便于 PR 审阅与归档
   - 新增（可选）：`prepare` 作业将调用 `env.prepare` 创建 `.mcp/venv` 并在 venv 中跑 pytest+覆盖率，便于隔离环境验证
 
+VS Code 无头测试（必跑项）
+- 在 `.mcp/assistant.yaml` 设置 `ci.vscode_required: true` 时，生成的 CI 将总是包含 `vscode` 作业（Node 20 + xvfb 无头运行 `npm test`），作为必跑项；
+- 未开启时，生成器会在 `extensions/vscode/package.json` 存在时自动包含该作业（可选项）。
+
 CI
 - 生成 GitHub Actions：`mcp-rules-assistant generate-ci`
 - 工作流路径：`.github/workflows/ci.yml`

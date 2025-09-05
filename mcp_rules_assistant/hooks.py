@@ -542,6 +542,14 @@ jobs:
         working-directory: extensions/vscode
         run: |
           MCP_VSCODE_TEST_ARGS="" xvfb-run -a npm test 2>&1 | tee vscode-test.log
+      - name: Upload VS Code coverage to Codecov (conditional)
+        if: always()
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: extensions/vscode/coverage/lcov.info
+          flags: vscode
+          fail_ci_if_error: false
       - name: Upload VS Code test log
         if: always()
         uses: actions/upload-artifact@v4

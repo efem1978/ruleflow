@@ -11,7 +11,7 @@ TDD 开发计划 / TDD Development Plan
   - 核心模块（示例：config/progress/tools/memory/mcp_server/cli/server）≥98%（由 coverage.policy 约束并在 CI 按政策阻断）。
   - 其余模块 ≥95%。
 
-分阶段执行 Phased Plan
+分阶段执行 Phased Plan（逐层推进）
 Phase A — 基线与修复（Red → Green → Refactor）
 - 写“红”用例：config.get/update、rules.enforce。
 - 实现修复：
@@ -46,6 +46,25 @@ Phase E — 集成与 CLI
 - CLI（Typer）烟雾测试：init / ingest-rules / coverage / coverage-groups。
 - MCP 集成：tools/call rules.ingest/validate、fs.apply_patch(strict) 正常与拒绝路径、resources/read 各类 URI。
 
+逐层检查清单 Layered Checklists（可作为执行清单）
+- 单元层（config/progress/tools/memory/coverage_summary）
+  - [ ] 为公开函数补齐失败用例（边界/异常/类型）
+  - [ ] 通过后重构（去重/提取），保证对外行为不变
+  - [ ] 覆盖率：核心≥98%，其余≥95%
+- 组件层（checks/hooks/fs_wrapper）
+  - [ ] 工具缺失降级（ruff/mypy/pytest 缺失 → skipped）
+  - [ ] 最近失败优先的受影响测试策略
+  - [ ] 生成的 CI/Hooks 与配置一致性快照
+- 集成层（cli/dev_agent）
+  - [ ] CLI 烟雾与参数校验
+  - [ ] dev_agent 单循环：写入 status.json/history/fail_counters
+  - [ ] 冻结/解冻阈值与逻辑路径覆盖
+- 接口层（mcp_server）
+  - [ ] initialize/capabilities & 基础 tools/resources 的错误路径
+  - [ ] fs.apply_patch(strict) 拒绝路径
+- 扩展层（VS Code）
+  - [ ] 无头测试 & 近阈值/覆盖率交互回归
+
 验收准则 Definition of Done
 - 覆盖率：总体 ≥95%；核心模块 ≥98%；其余 ≥95%；`coverage-report` 的 `weak` 为空。
 - 钩子/CI：
@@ -63,7 +82,7 @@ Phase E — 集成与 CLI
 - 覆盖率：`coverage.xml` 与 CLI 输出（薄弱项/分组）。
 - 规则：`.mcp/rules_compiled.{json,md}` 与 `rules_suggestions.md`。
 
-近期待办 Next Actions
+近期待办 Next Actions（与根目录 DEVELOPMENT.md 同步）
 已完成（对齐项）
  - 用生成器覆盖 .pre-commit-config.yaml 与 .github/workflows/ci.yml，阈值取自 .mcp/assistant.yaml；detect-secrets 改为 push 阶段；CI 条件化步骤生效。
  - 覆盖率策略改为与 coverage.xml 一致的 basename 前缀，核心≥98% 实际受控。

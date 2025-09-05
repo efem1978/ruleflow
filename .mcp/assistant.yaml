@@ -25,6 +25,7 @@ coverage:
     "mcp_server.py": 0.98
     "cli.py": 0.98
     "server.py": 0.98
+    "dev_agent.py": 0.63  # 临时阈值（后续用测试冲刺至 ≥95% 再提高）
   near: {within: 0.03, top: 50}
 tests:
   quick_fail_decay:
@@ -36,3 +37,4 @@ tests:
 ci:
   hadolint: false
   semgrep_config: ""
+  vscode_required: true

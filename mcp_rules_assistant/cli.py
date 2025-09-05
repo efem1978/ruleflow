@@ -773,6 +773,22 @@ def ci_autofix() -> None:
     )
 
 
+@app.command("maintenance")
+def maintenance() -> None:
+    """一键维护：安装 Git hooks 并自修复/覆盖生成 CI。
+
+    - 写入 .pre-commit-config.yaml、.git/hooks（commit-msg/pre-push/TDD gate）
+    - 覆盖生成 .github/workflows/ci.yml（保留备份）
+    """
+    out_hooks = hooks_mod.install_git_hooks()
+    out_ci = hooks_mod.autofix_github_ci()
+    rprint("[green]✔ Maintenance completed[/]")
+    rprint({
+        "hooks": out_hooks,
+        "ci": {k: out_ci.get(k) for k in ("path", "changed", "backup")},
+    })
+
+
 @app.command("enforce")
 def enforce() -> None:
     """应用已编译规则到配置并输出门禁摘要（调用 rules.enforce）。"""

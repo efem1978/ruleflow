@@ -23,3 +23,10 @@
 - 钩子未执行
   - 处理：`pip install pre-commit && pre-commit install && pre-commit install --hook-type commit-msg --hook-type pre-push`
 
+- Docker Desktop 中看不到 dev-agent 容器
+  - 现象：Docker Desktop 无容器，但命令行 `docker ps` 可见
+  - 原因：Docker context 切换到了非 Desktop（如 `desktop-linux`/remote/Colima）或容器未启动
+  - 处理：
+    - `docker context ls` 查看并切换到期望的 context；
+    - 在项目根执行 `docker compose up -d dev-agent`；
+    - 再次打开 Docker Desktop 查看容器列表。

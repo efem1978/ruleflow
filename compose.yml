@@ -1,0 +1,20 @@
+services:
+  dev-agent:
+    build: .
+    working_dir: /work
+    volumes:
+      - .:/work
+    environment:
+      - PYTEST_DISABLE_PLUGIN_AUTOLOAD=1
+      - PYTHONUNBUFFERED=1
+      - PYTHONPATH=/work
+      # 自动提交默认禁用（安全）；如需启用置为 1
+      - DEV_AGENT_AUTOCOMMIT=0
+      - DEV_AGENT_COMMIT_INTERVAL=180
+      # 每日里程碑自动 tag 默认禁用（本地，不推送）
+      - DEV_AGENT_AUTOTAG=0
+      # 失败绕过后允许自动提交开关，默认禁用
+      - DEV_AGENT_BYPASS_COMMIT=0
+      # 自动推送默认禁用；如需启用置为 1
+      - DEV_AGENT_AUTOPUSH=0
+    command: python -m mcp_rules_assistant.dev_agent --interval 60

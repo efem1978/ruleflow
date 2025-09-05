@@ -489,7 +489,13 @@ def ingest(paths: List[str], project_root: Optional[Path] = None) -> Dict[str, A
             use_cache = False
             try:
                 st = f.stat()
-                sig = f"{int(getattr(st,'st_mtime_ns', int(st.st_mtime*1e9)))}-{st.st_size}"
+                try:
+                    data_bytes = f.read_bytes()
+                except Exception:
+                    data_bytes = b""
+                import hashlib
+                sig_hash = hashlib.sha256(data_bytes).hexdigest()
+                sig = f"{int(getattr(st,'st_mtime_ns', int(st.st_mtime*1e9)))}-{st.st_size}-{sig_hash}"
                 rec = (
                     (cache.get("files") or {}).get(str(f))
                     if isinstance(cache.get("files", {}), dict)
@@ -519,7 +525,13 @@ def ingest(paths: List[str], project_root: Optional[Path] = None) -> Dict[str, A
                     cache.setdefault("files", {})
                     if isinstance(cache["files"], dict):
                         st = f.stat()
-                        sig = f"{int(getattr(st,'st_mtime_ns', int(st.st_mtime*1e9)))}-{st.st_size}"
+                        try:
+                            data_bytes = f.read_bytes()
+                        except Exception:
+                            data_bytes = b""
+                        import hashlib
+                        sig_hash = hashlib.sha256(data_bytes).hexdigest()
+                        sig = f"{int(getattr(st,'st_mtime_ns', int(st.st_mtime*1e9)))}-{st.st_size}-{sig_hash}"
                         cache["files"][str(f)] = {
                             "sig": sig,
                             "items": [asdict(i) for i in parsed],

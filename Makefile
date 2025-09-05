@@ -1,7 +1,7 @@
 PYTHON ?= python3
 NPM ?= npm
 
-.PHONY: setup test lint type format ci vscode-test ingest coverage package release-check clean-dist help local-ci-run
+.PHONY: setup test lint type format ci vscode-test ingest coverage package release-check clean-dist help local-ci-run hooks ci-autofix
 
 help:
 	@echo "Targets: setup test lint type format ci vscode-test ingest coverage"
@@ -48,17 +48,15 @@ local-ci-run:
 	PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q -p pytest_cov --maxfail=1 --disable-warnings -W error --strict-markers --cov=mcp_rules_assistant --cov-report=xml:coverage.xml --cov-report=term-missing --junitxml=pytest-junit.xml
 	@echo "[local-ci] Coverage Policy Gate"
 	$(PYTHON) -m mcp_rules_assistant.cli coverage-report --json > cov.json
-	$(PYTHON) - <<'PY'
-import json, sys
-data = json.load(open('cov.json'))
-weak = data.get('weak') or []
-if weak:
-    print('[mcp] Coverage policy gate failed. Weak files:')
-    for w in weak:
-        print(' -', w.get('file'), 'cov=', w.get('coverage'), '<', w.get('threshold'))
-    sys.exit(1)
-print('[mcp] Coverage policy gate passed.')
-PY
+	$(PYTHON) -c "import json,sys; d=json.load(open('cov.json')); w=d.get('weak') or []; print('[mcp] Coverage policy gate failed. Weak files:') or [print(' -',x.get('file'),'cov=',x.get('coverage'),'<',x.get('threshold')) for x in w] or sys.exit(1) if w else print('[mcp] Coverage policy gate passed.')"
+
+hooks:
+	$(PYTHON) -m mcp_rules_assistant.cli install-hooks
+
+ci-autofix:
+	$(PYTHON) -m mcp_rules_assistant.cli ci-autofix
+
+# 已移除前端看板相关目标（dashboard-*）
 
 vscode-test:
 	$(NPM) --prefix extensions/vscode run compile

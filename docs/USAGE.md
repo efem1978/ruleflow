@@ -24,7 +24,6 @@
 5) 诊断
 - mcp-rules-assistant diagnose --json > diagnose.json
 
-6) VS Code 面板
+6) VS Code 面板（与容器前端无关）
 - F5 启动扩展开发主机 → "MCP: Open Panel"
-- 受限环境：export MCP_VSCODE_TEST_ARGS="" && npm --prefix extensions/vscode test
-
+- 受限环境：`export MCP_VSCODE_TEST_ARGS="" && npm --prefix extensions/vscode test`

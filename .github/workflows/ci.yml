@@ -114,7 +114,6 @@ jobs:
             pytest-junit.xml
   vscode:
     runs-on: ubuntu-latest
-    if: ${{ hashFiles('extensions/vscode/package.json') != '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

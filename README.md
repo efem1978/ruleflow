@@ -29,7 +29,8 @@ MCP 规则与上下文助手 / MCP Rules & Context Assistant
 - 启动占位服务：`mcp-rules-assistant start`（MCP Server 骨架，后续扩展）
 - 环境准备（可选）：`mcp-rules-assistant prepare-env --install`（或 `--dry-run` 查看计划）
 
-文档 Docs
+文档 Docs（入口：`DEVELOPMENT.md`）
+- DEVELOPMENT：`DEVELOPMENT.md`（开发入口 / TDD 计划 / AI 约束 / 文档索引）
 - docs/ARCHITECTURE.md：架构与模块
 - docs/PERFORMANCE.md：性能模式与触发点（默认 Fast）
 - docs/CONFIG.md：配置与双语命令触发

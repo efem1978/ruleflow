@@ -40,7 +40,7 @@ ci:
   hadolint_image: "hadolint/hadolint:latest"  # 运行用的容器镜像
   hadolint_args: ""          # 额外参数（可留空）
   semgrep_config: "auto"     # SAST 配置（规则集），如：p/ci, p/security-audit 等
-  vscode_required: false      # VS Code 扩展测试是否必跑（true 则不再使用 if: hashFiles 条件）
+  vscode_required: true       # VS Code 扩展测试是否必跑（默认 true；true 时不再使用 if: hashFiles 条件）
 ```
 
 说明（coverage.policy 键的写法）
