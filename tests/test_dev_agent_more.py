@@ -79,8 +79,8 @@ def test_plan_fallback_next_section(monkeypatch: pytest.MonkeyPatch, tmp_path: P
 
 def test_main_autocommit_and_tag(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     # 将工作目录切到临时项目
-    import os as _os, subprocess as sp
-    _os.chdir(tmp_path)
+    import subprocess as sp
+    monkeypatch.chdir(tmp_path)
     dash = tmp_path / ".mcp" / "dashboard"; dash.mkdir(parents=True, exist_ok=True)
     monkeypatch.setattr(dev_agent, "_ensure_dashboard_dir", lambda root, rebuild=False: dash)
     # 环境：开启自动提交/推送/打标签，快速间隔

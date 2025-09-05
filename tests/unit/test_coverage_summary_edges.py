@@ -4,45 +4,48 @@ from pathlib import Path
 
 from mcp_rules_assistant.coverage_summary import (
     summarize,
-    summarize_tree,
+    summarize_groups,
     summarize_near,
+    summarize_tree,
 )
 
 
-def test_missing_coverage_xml_returns_message(tmp_path: Path) -> None:
-    res = summarize(project_root=tmp_path)
-    assert res.get("ok") is False
-    assert "coverage.xml" in str(res.get("message", ""))
-
-
-def test_summarize_tree_structure(tmp_path: Path) -> None:
-    cov = (
-        "<?xml version='1.0'?><coverage><packages><package><classes>"
-        "<class filename='a/b/c.py' line-rate='0.80' lines-valid='10' lines-covered='8'/>"
-        "<class filename='a/b/d.py' line-rate='0.70' lines-valid='10' lines-covered='7'/>"
-        "</classes></package></packages></coverage>"
+def _xml(classes: list[str]) -> str:
+    return (
+        "<coverage>\n<packages><package><classes>\n" + "\n".join(classes) + "\n" +
+        "</classes></package></packages>\n</coverage>\n"
     )
-    (tmp_path / "coverage.xml").write_text(cov, encoding="utf-8")
-    # threshold 0.9 -> 两个都弱项，目录树应包含 a/b 层级
-    tree = summarize_tree(project_root=tmp_path, min_module=0.9)
-    assert tree["ok"] is True
-    t = tree.get("tree", {})
-    assert isinstance(t, dict) and t.get("children")
 
 
-def test_near_window_and_top_limit(tmp_path: Path) -> None:
-    lines = [
-        "<?xml version='1.0'?><coverage><packages><package><classes>",
-    ]
-    # produce files just above threshold within 3%
-    for i in range(10):
-        cov = 0.9 + (i + 1) / 100.0 * 0.02  # 0.902..0.918
-        lines.append(
-            f"<class filename='m/x{i}.py' line-rate='{cov:.3f}' lines-valid='100' lines-covered='{int(100*cov)}'/>"
-        )
-    lines.append("</classes></package></packages></coverage>")
-    (tmp_path / "coverage.xml").write_text("".join(lines), encoding="utf-8")
-    out = summarize_near(project_root=tmp_path, min_module=0.90, within=0.03, top=5)
-    near = out.get("near", [])
-    assert out["ok"] is True and len(near) == 5
+def test_summarize_no_policy_path(tmp_path: Path) -> None:
+    # one file below default threshold → weak
+    c = '<class filename="pkg/a.py" line-rate="0.89" lines-valid="100" lines-covered="89"/>'
+    (tmp_path / 'coverage.xml').write_text(_xml([c]), encoding='utf-8')
+    out = summarize(project_root=tmp_path, policy=None, min_module=0.90)
+    assert out.get('ok') is True and out.get('weak')
+    w = out.get('weak')[0]
+    assert w.get('file') == 'pkg/a.py' and abs(float(w.get('threshold')) - 0.90) < 1e-6
+
+
+def test_summarize_missing_xml_and_groups_missing(tmp_path: Path) -> None:
+    out = summarize(project_root=tmp_path)
+    assert out.get('ok') is False and 'not found' in str(out.get('message',''))
+    out2 = summarize_groups(project_root=tmp_path)
+    assert out2.get('ok') is False and 'not found' in str(out2.get('message',''))
+
+
+def test_summarize_near_within_and_top(tmp_path: Path) -> None:
+    c1 = '<class filename="a.py" line-rate="0.952" lines-valid="100" lines-covered="95"/>'
+    c2 = '<class filename="b.py" line-rate="0.991" lines-valid="100" lines-covered="99"/>'
+    (tmp_path / 'coverage.xml').write_text(_xml([c1, c2]), encoding='utf-8')
+    out = summarize_near(project_root=tmp_path, policy=None, min_module=0.95, within=0.05, top=1)
+    assert out.get('ok') is True
+    near = out.get('near') or []
+    # only top=1 should be returned, and both are >= threshold
+    assert len(near) == 1 and near[0].get('file') in {'a.py','b.py'}
+
+
+def test_summarize_tree_base_not_ok(tmp_path: Path) -> None:
+    out = summarize_tree(project_root=tmp_path)
+    assert out.get('ok') is False and 'not found' in str(out.get('message',''))
 

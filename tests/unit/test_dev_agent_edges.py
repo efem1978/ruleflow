@@ -54,8 +54,7 @@ def test_compute_status_exceptions_and_next_break(monkeypatch: pytest.MonkeyPatc
 
 def test_main_initial_exceptions_and_history_invalid(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     # 工作目录切换 + dashboard 目录
-    import os as _os
-    _os.chdir(tmp_path)
+    monkeypatch.chdir(tmp_path)
     dash = tmp_path / ".mcp" / "dashboard"; dash.mkdir(parents=True, exist_ok=True)
     monkeypatch.setattr(dev_agent, "_ensure_dashboard_dir", lambda root, rebuild=False: dash)
     # 初始阶段：_run_impacted_or_full & compute_status 抛出异常，覆盖 except 路径
@@ -91,8 +90,8 @@ def test_main_initial_exceptions_and_history_invalid(monkeypatch: pytest.MonkeyP
 
 def test_main_loop_excepts_and_counters_and_commits(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     # set cwd and dashboard
-    import os as _os, subprocess as sp
-    _os.chdir(tmp_path)
+    import subprocess as sp
+    monkeypatch.chdir(tmp_path)
     dash = tmp_path / ".mcp" / "dashboard"; dash.mkdir(parents=True, exist_ok=True)
     monkeypatch.setattr(dev_agent, "_ensure_dashboard_dir", lambda root, rebuild=False: dash)
     # one loop only
@@ -131,8 +130,7 @@ def test_main_loop_excepts_and_counters_and_commits(monkeypatch: pytest.MonkeyPa
 
 
 def test_bypass_signature_count_increment(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    import os as _os
-    _os.chdir(tmp_path)
+    monkeypatch.chdir(tmp_path)
     dash = tmp_path / ".mcp" / "dashboard"; dash.mkdir(parents=True, exist_ok=True)
     monkeypatch.setattr(dev_agent, "_ensure_dashboard_dir", lambda root, rebuild=False: dash)
     # two cycles to increment same failure signature; threshold high so not active
