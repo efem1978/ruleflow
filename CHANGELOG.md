@@ -1,5 +1,27 @@
 # Changelog
 
+## v0.2.3+dev — 2025-09-06
+
+Highlights
+- Production-grade gates met and stabilized: core ≥98%, others ≥95%, weak=0
+- coverage_summary at 100% coverage（守护分支通过定向 stub 覆盖）
+- checks 与 hooks 100% 覆盖；rules_ingest 97% 覆盖
+
+Changes
+- Fix(preflight): 精确匹配 `status.js`，避免误伤 `status.json`；当 pytest 不可用时自动退化到轻量 anchors 校验
+- Tests(rules_ingest):
+  - 缓存回填失败与 read_bytes 异常（签名/写缓存阶段）
+  - YAML/JSON 分支解析与 YAML 嵌套扁平化（coverage.min_module/coverage.min_core）
+  - per-key conflict_delta（coverage.min_module=0.01）与布尔冲突合并
+  - 空文档回退（空 YAML/JSON 不产生有效策略键）
+- Tests(coverage_summary): 排序 key 的异常回退（sort_key/_key_cov/_key_delta）
+- Docs: DEVELOPMENT.md 同步当前覆盖率与完成项
+- Chore: 忽略 `.coverage*` 并清理误入库覆盖率文件
+
+Notes
+- 全部工作仅本地容器内开发，本地提交，未推远端
+- dev_agent 本地烟雾写入 `.mcp/dashboard/status.json`（tests.ok=true，coverage weak=0）
+
 ## 0.2.0
 - 规则摄取增强：小数百分比、中文“成”、上限/区间、否定与比较短语、英文词数上限
 - 建议分级（must/warn/info）与导出（rules-suggestions）

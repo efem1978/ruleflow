@@ -1,7 +1,7 @@
 PYTHON ?= python3
 NPM ?= npm
 
-.PHONY: setup test lint type format ci vscode-test ingest coverage package release-check clean-dist help local-ci-run hooks hooks-sh ci-autofix preflight nightly-local maintenance-all
+.PHONY: setup test lint type format ci vscode-test ingest coverage package release-check clean-dist help local-ci-run hooks hooks-sh ci-autofix preflight nightly-local maintenance-all verify
 
 help:
 	@echo "Targets: setup test lint type format ci vscode-test ingest coverage"
@@ -70,6 +70,9 @@ nightly-local:
 
 maintenance-all:
 	sh scripts/maintenance-all.sh
+
+verify:
+	sh scripts/verify-all.sh
 
 # 已移除前端看板相关目标（dashboard-*）
 
