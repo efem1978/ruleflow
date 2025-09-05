@@ -53,6 +53,9 @@ local-ci-run:
 hooks:
 	$(PYTHON) -m mcp_rules_assistant.cli install-hooks
 
+hooks-sh:
+	sh scripts/install-hooks.sh
+
 ci-autofix:
 	$(PYTHON) -m mcp_rules_assistant.cli ci-autofix
 

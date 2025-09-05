@@ -99,6 +99,12 @@ repos:
         language: system
         pass_filenames: false
         stages: [push]
+      - id: docs-anchors
+        name: docs anchors snapshot (push)
+        entry: sh -c 'PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/docs/test_docs_anchors.py'
+        language: system
+        pass_filenames: false
+        stages: [push]
   - repo: https://github.com/PyCQA/bandit
     rev: 1.7.7
     hooks:

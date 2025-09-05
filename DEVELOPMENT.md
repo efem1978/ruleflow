@@ -34,6 +34,7 @@
     - `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q -p pytest_cov --maxfail=1 --disable-warnings -W error --strict-markers --cov --cov-report=xml:coverage.xml`
 - 本地一键 CI：`make local-ci-run`
 - 安装 Git hooks（commit-msg / pre-push）：`make hooks` 或 `python -m mcp_rules_assistant.cli install-hooks`
+  - 无 Python 环境的回退：`make hooks-sh`（安装最小 commit-msg 与 pre-push）
 - 一键维护（安装 hooks + 自修复 CI）：`python -m mcp_rules_assistant.cli maintenance`
 - 容器开发（无前端 UI）：
   - 启动：`docker compose up -d dev-agent`
