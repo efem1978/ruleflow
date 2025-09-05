@@ -1,0 +1,63 @@
+name: Nightly
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+jobs:
+  nightly:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - name: Install tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff black isort mypy bandit pytest pytest-cov types-PyYAML
+      - name: Docs Snapshot Gate
+        run: |
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/docs/test_docs_anchors.py
+      - name: Tests + Coverage
+        env:
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
+        run: |
+          pytest -q -p pytest_cov --maxfail=1 --disable-warnings -W error --strict-markers \
+            --cov=mcp_rules_assistant --cov-report=xml:coverage.xml --cov-report=term-missing --junitxml=pytest-junit.xml
+      - name: Preflight
+        run: |
+          sh scripts/preflight.sh
+      - name: Upload coverage & JUnit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-python
+          path: |
+            coverage.xml
+            pytest-junit.xml
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'extensions/vscode/package-lock.json'
+      - name: Install and compile (VS Code)
+        working-directory: extensions/vscode
+        run: |
+          npm ci || npm install
+          npm run compile
+      - name: VS Code extension tests
+        working-directory: extensions/vscode
+        run: |
+          MCP_VSCODE_TEST_ARGS="" xvfb-run -a npm test 2>&1 | tee vscode-test.log
+      - name: VS Code coverage threshold (warn)
+        run: |
+          sh scripts/check-lcov.sh extensions/vscode/coverage/lcov.info 30
+      - name: Upload VS Code artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-vscode
+          path: |
+            extensions/vscode/coverage/lcov.info
+            extensions/vscode/vscode-test.log

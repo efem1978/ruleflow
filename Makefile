@@ -62,6 +62,12 @@ ci-autofix:
 preflight:
 	sh scripts/preflight.sh
 
+nightly-local:
+	$(MAKE) preflight
+	$(MAKE) local-ci-run
+	$(NPM) --prefix extensions/vscode run compile || true
+	MCP_VSCODE_TEST_ARGS="" xvfb-run -a $(NPM) --prefix extensions/vscode test || true
+
 # 已移除前端看板相关目标（dashboard-*）
 
 vscode-test:
