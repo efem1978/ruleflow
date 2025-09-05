@@ -89,6 +89,9 @@ def test_main_autocommit_and_tag(monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     monkeypatch.setenv("DEV_AGENT_AUTOTAG", "1")
     monkeypatch.setenv("DEV_AGENT_COMMIT_INTERVAL", "1")
     monkeypatch.setenv("DEV_AGENT_MAX_CYCLES", "1")
+    # 准备计划为 in_progress 且有当前步骤，以满足 auto-commit 门禁
+    p = tmp_path / '.mcp/plan.md'; p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text('- 状态: in_progress\n- 当前步骤: Step1\n- 下一步: N\n', encoding='utf-8')
     # 测试输出：通过 + full；状态：weak 空
     monkeypatch.setattr(dev_agent, "_run_impacted_or_full", lambda *a, **k: {"ok": True, "code": 0, "stdout": "ok", "stderr": "", "mode": "full"})
     fake_cov = {"plan": {"status": "in_progress", "current": "Step1", "next": "N"}, "coverage": {"weak": [], "groups": [], "near": [], "min_module": 0.95, "count": 1, "progress": 1.0}, "progress": {"overall": 1.0, "coverage": 1.0, "plan": 1.0, "doc": 1.0, "prod": 1.0, "counts": {"coverage_total": 1, "coverage_weak": 0, "plan_done": 1, "plan_pending": 0}}, "tasks": {"pending": [], "done": []}}

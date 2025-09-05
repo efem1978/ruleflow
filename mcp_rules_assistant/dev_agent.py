@@ -308,8 +308,6 @@ def main(argv: Optional[list[str]] = None) -> None:
 
         def _run_quick_status(cmd: list[str], need: str) -> str:
             try:
-                if need and not shutil.which(need):
-                    return "skipped"
                 p = subprocess.run(cmd, cwd=str(root), text=True)
                 return "ok" if p.returncode == 0 else "fail"
             except Exception:
@@ -495,4 +493,3 @@ def main(argv: Optional[list[str]] = None) -> None:
 
 if __name__ == "__main__":
     main()
-

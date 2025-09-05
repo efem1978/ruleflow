@@ -31,9 +31,15 @@ def test_docker_dev_no_ui_and_has_status_files() -> None:
     text = read(p)
     assert ".mcp/dashboard/status.json" in text
     # ensure no stale UI hints
+    # 精确禁止旧版前端静态资源/服务端口，不误伤 status.json
     banned = ["localhost:9000", "--serve", "index.html", "status.js"]
     for b in banned:
-        assert b not in text, f"banned pattern in DOCKER_DEV.md: {b}"
+        if b == "status.js":
+            assert re.search(r"(^|[^a-zA-Z0-9_])status\.js([^a-zA-Z0-9_]|$)", text) is None, (
+                f"banned pattern in DOCKER_DEV.md: {b}"
+            )
+        else:
+            assert b not in text, f"banned pattern in DOCKER_DEV.md: {b}"
     # compose naming
     assert "compose.yml" in text
     assert "docker-compose.yml" not in text
@@ -61,5 +67,9 @@ def test_repo_docs_no_stale_compose_or_dashboard_patterns() -> None:
     for d in docs:
         t = read(d)
         for b in banned:
-            assert b not in t, f"banned pattern in {d}: {b}"
-
+            if b == "status.js":
+                assert re.search(r"(^|[^a-zA-Z0-9_])status\.js([^a-zA-Z0-9_]|$)", t) is None, (
+                    f"banned pattern in {d}: {b}"
+                )
+            else:
+                assert b not in t, f"banned pattern in {d}: {b}"

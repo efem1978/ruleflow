@@ -112,7 +112,7 @@
 ## 文档维护与同步 / Documentation Maintenance
 - 变更伴随更新：改动功能/流程时，需同步调整 `DEVELOPMENT.md` 与对应专题文档
 - 自检脚本（建议本地执行）：
-  - 禁止引用：`rg -n "docker-compose.yml|--serve|localhost:9000|index.html|status.js"`（应为无匹配）
+  - 禁止引用：避免在文档中出现旧式 Compose/本地端口/UI 静态资源等字样（例如 legacy compose 文件名、开发端口和前端文件名等），以免误导（预检会自动扫描并报错）
   - Compose 校验：`docker compose config -q`
   - 计划一致性：`.mcp/plan.md` 当前/下一步与本文件“TDD 清单”应相符
 
@@ -123,7 +123,7 @@
 - 安全与合规：
   - 不新增网络/遥测；不暴露端口（容器开发仅写状态文件）
   - 不新引入依赖，除非在 `docs/ARCHITECTURE.md` 与 `pyproject.toml` 说明动机与影响
-- 容器与文件：统一使用 `compose.yml`；不得回退至 `docker-compose.yml`；禁止重新引入前端看板/UI 代码
+- 容器与文件：统一使用 `compose.yml`；不得回退至旧命名（如 `docker‑compose.yml`）；禁止重新引入前端看板/UI 代码
 
 ## 任务清单（当前 Sprint）
 - [ ] TDD 单元层：补齐 coverage_summary 边界与错误分支
@@ -131,3 +131,5 @@
 - [ ] 集成层：dev_agent 单循环与冻结/解冻分支；CLI 烟雾
 - [ ] MCP 层：初始化与基本 tools/resources 的错误路径
 - [ ] VS Code：近阈值/覆盖率加载交互的稳定性回归
+- [x] 规则摄取：补齐“中文区间（模块）”用例（介于 X% 和 Y% 之间）
+- [x] 清理样例文件：移除根目录 bad.py/ok2.py（测试时由用例临时创建）

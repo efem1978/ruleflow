@@ -16,19 +16,23 @@ def _run(
     cmd: List[str], cwd: Optional[Path] = None, env: Optional[Dict[str, str]] = None
 ) -> Dict[str, object]:
     try:
-        p = subprocess.run(
-            cmd,
-            cwd=cwd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            env=env,
-        )
+        # 获取真实 subprocess.PIPE，避免测试将 checks.subprocess 替换为不含 PIPE 的占位
+        try:
+            import importlib
+
+            _std_sub = importlib.import_module("subprocess")
+            _pipe = getattr(_std_sub, "PIPE", None)
+        except Exception:
+            _pipe = None
+        kwargs = {"cwd": cwd, "text": True, "env": env}
+        if _pipe is not None:
+            kwargs.update({"stdout": _pipe, "stderr": _pipe})
+        p = subprocess.run(cmd, **kwargs)  # type: ignore[arg-type]
         return {
             "ok": p.returncode == 0,
             "code": p.returncode,
-            "stdout": p.stdout,
-            "stderr": p.stderr,
+            "stdout": getattr(p, "stdout", ""),
+            "stderr": getattr(p, "stderr", ""),
             "cmd": cmd,
         }
     except FileNotFoundError:

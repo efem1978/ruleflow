@@ -235,7 +235,12 @@ def summarize_groups(
             v = float(cls.get("lines_valid", 0.0))
             c = float(cls.get("lines_covered", (cov or 0.0) * v))
         except Exception:
-            pass
+            v = 0.0
+            c = 0.0
+        # Fallback: when class entry lacks lines_valid/lines_covered, approximate by weighting 1 file
+        if v <= 0.0 and cov is not None:
+            v = 1.0
+            c = cov * v
         if cov is None:
             continue
         gname = pick_prefix(filename)
