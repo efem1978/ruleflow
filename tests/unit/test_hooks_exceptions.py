@@ -19,18 +19,15 @@ def test_install_hooks_precommit_run_raises(monkeypatch, tmp_path: Path) -> None
 
 def test_install_hooks_commit_template_outer_and_inner_except(monkeypatch, tmp_path: Path) -> None:
     (tmp_path / '.git').mkdir(parents=True, exist_ok=True)
-    # outer except: write_text raises
-    def bad_write(self, *a, **k):  # noqa: ANN001
-        raise OSError('nope')
-    from pathlib import Path as P
-    gitmsg = tmp_path / '.git/.gitmessage'
-    def write_text_proxy(path, text, encoding='utf-8'):
-        if path == gitmsg:
+    # outer except: hooks.Path.write_text raises for commit template
+    gitmsg = tmp_path / '.git' / '.gitmessage'
+    real_write = hooks.Path.write_text  # type: ignore[attr-defined]
+    def bad_write(self, *a, **k):  # type: ignore[override]
+        if self == gitmsg:
             raise OSError('nope')
-        return Path.write_text(path, text, encoding=encoding)
-    # monkeypatch Path.write_text globally is risky; instead, patch hooks.Path to proxy
-    monkeypatch.setattr(hooks, 'Path', Path)
-    # inner except: git config raises
+        return real_write(self, *a, **k)
+    monkeypatch.setattr(hooks.Path, 'write_text', bad_write)  # type: ignore[attr-defined]
+    # inner except: git config raises（即便 outer except 命中，保持健壮性）
     def bad_run(*a, **k):
         raise RuntimeError('git cfg bad')
     monkeypatch.setattr('mcp_rules_assistant.hooks.subprocess.run', bad_run)
@@ -38,4 +35,3 @@ def test_install_hooks_commit_template_outer_and_inner_except(monkeypatch, tmp_p
     out = hooks.install_git_hooks(tmp_path)
     # even if exceptions occur, function should return minimal dict
     assert out.get('pre_commit_config') and out.get('pre_push')
-
