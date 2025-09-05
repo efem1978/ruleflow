@@ -1,7 +1,7 @@
 PYTHON ?= python3
 NPM ?= npm
 
-.PHONY: setup test lint type format ci vscode-test ingest coverage package release-check clean-dist help local-ci-run hooks hooks-sh ci-autofix preflight
+.PHONY: setup test lint type format ci vscode-test ingest coverage package release-check clean-dist help local-ci-run hooks hooks-sh ci-autofix preflight nightly-local maintenance-all
 
 help:
 	@echo "Targets: setup test lint type format ci vscode-test ingest coverage"
@@ -67,6 +67,9 @@ nightly-local:
 	$(MAKE) local-ci-run
 	$(NPM) --prefix extensions/vscode run compile || true
 	MCP_VSCODE_TEST_ARGS="" xvfb-run -a $(NPM) --prefix extensions/vscode test || true
+
+maintenance-all:
+	sh scripts/maintenance-all.sh
 
 # 已移除前端看板相关目标（dashboard-*）
 

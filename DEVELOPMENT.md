@@ -37,8 +37,9 @@
   - 无 Python 环境的回退：`make hooks-sh`（安装最小 commit-msg 与 pre-push）
 - 一键维护（安装 hooks + 自修复 CI）：`python -m mcp_rules_assistant.cli maintenance`
 - 预检（无人值守快照自检）：`make preflight`（扫描禁用模式 / 验证 compose.yml / 跑文档锚点测试）
- - Nightly（本地模拟）：`make nightly-local`（预检 + Python 测试 + VS Code 无头测试）
-   - 云端每日：`.github/workflows/nightly.yml`（UTC 03:00 触发，可手动 `workflow_dispatch`）
+- Nightly（本地模拟）：`make nightly-local`（预检 + Python 测试 + VS Code 无头测试）
+  - 云端每日：`.github/workflows/nightly.yml`（UTC 03:00 触发，可手动 `workflow_dispatch`）
+ - 一键全套维护：`make maintenance-all`（安装 hooks + 预检 + 本地 CI 跑通）
 - 容器开发（无前端 UI）：
   - 启动：`docker compose up -d dev-agent`
   - 状态：`.mcp/dashboard/status.json`（最近一次）、`history.json`（≤50 条）、`fail_counters.json`

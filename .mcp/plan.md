@@ -20,8 +20,8 @@
 - [x] 集成层：`dev_agent.py` 单循环写入与冻结/解冻分支覆盖（含自动提交/推送/打标签开关分支）
 - [x] 接口层：`mcp_server.py` initialize/capabilities 及基础 tools/resources 错误路径
 - [x] 扩展层：VS Code 近阈值/覆盖率加载交互回归（无头用例已覆盖关键处理与生成覆盖率 lcov）
-- [ ] 安装并启用 Git hooks：`make hooks` 或 `mcp-rules-assistant install-hooks`（含 commit-msg/pre-push）
-- [ ] Codecov 徽章与上传策略核对（公共/私有仓库）
+- [x] 安装并启用 Git hooks：`make hooks` 或 `mcp-rules-assistant install-hooks`（含 commit-msg/pre-push）
+- [x] Codecov 徽章与上传策略核对（公共/私有仓库）；CI 默认上传，私有仓库以 `CODECOV_TOKEN` 条件化；VS Code lcov 覆盖率预警（非阻断）
  - [x] VS Code 无头测试纳入 CI 必跑项；默认开启 `ci.vscode_required`
  - [x] 文档快照门禁：关键锚点/禁用陈旧模式/README 与 AI 指南的入口一致性
 
