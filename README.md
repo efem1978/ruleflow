@@ -28,6 +28,8 @@ MCP 规则与上下文助手 / MCP Rules & Context Assistant
 - 查看性能模式：`mcp-rules-assistant explain-performance`
 - 启动占位服务：`mcp-rules-assistant start`（MCP Server 骨架，后续扩展）
 - 环境准备（可选）：`mcp-rules-assistant prepare-env --install`（或 `--dry-run` 查看计划）
+ - 一键维护：`python -m mcp_rules_assistant.cli maintenance`（安装 hooks + 自修复 CI）
+ - 预检（无人值守快照）：`make preflight`
 
 文档 Docs（入口：`DEVELOPMENT.md`）
 - DEVELOPMENT：`DEVELOPMENT.md`（开发入口 / TDD 计划 / AI 约束 / 文档索引）

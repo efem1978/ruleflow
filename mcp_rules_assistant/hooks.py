@@ -442,6 +442,12 @@ jobs:
           ruff check --output-format=github mcp_rules_assistant
           black --check mcp_rules_assistant
           isort --check-only mcp_rules_assistant
+      - name: Docs Snapshot Gate (preflight subset)
+        run: |
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/docs/test_docs_anchors.py
+      - name: Preflight
+        run: |
+          sh scripts/preflight.sh
       - name: Type Check (core, blocking)
         run: |
           mypy \
