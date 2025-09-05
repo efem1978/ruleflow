@@ -79,8 +79,29 @@ def test_run_quick_tests_config_yaml_error(monkeypatch, tmp_path: Path) -> None:
             raise OSError('yml error')
         return real_read(self, *a, **k)
 
+    # ensure yaml path exists so code hits read_text then raises
+    (tmp_path / '.mcp').mkdir(parents=True, exist_ok=True)
+    (tmp_path / '.mcp/assistant.yaml').write_text('performance: {}\n', encoding='utf-8')
     monkeypatch.setattr(pathlib.Path, 'read_text', bad_read)
     # avoid invoking real pytest
+    monkeypatch.setattr(checks, '_run', lambda *a, **k: {"ok": True, "code": 0, "stdout": '', "stderr": ''})
+    out = checks.run_quick_tests([src], cwd=tmp_path)
+    assert out.get('ok') is True
+
+
+def test_run_quick_tests_events_missing_ts(monkeypatch, tmp_path: Path) -> None:
+    # Prepare files
+    src = tmp_path / 'm/mod.py'; src.parent.mkdir(parents=True, exist_ok=True)
+    src.write_text('x=1\n', encoding='utf-8')
+    t = tmp_path / 'tests/test_mod.py'; t.parent.mkdir(parents=True, exist_ok=True)
+    t.write_text('def test_ok():\n assert True\n', encoding='utf-8')
+    # write last_failed with missing ts event to hit 'continue' branch
+    (tmp_path / '.mcp').mkdir(parents=True, exist_ok=True)
+    (tmp_path / '.mcp/last_failed_tests.json').write_text(
+        '{"events":[{"nodeid":"x::y","file":"tests/test_mod.py","ts":"0"}], "tests": [], "nodeids": []}',
+        encoding='utf-8'
+    )
+    # avoid real pytest
     monkeypatch.setattr(checks, '_run', lambda *a, **k: {"ok": True, "code": 0, "stdout": '', "stderr": ''})
     out = checks.run_quick_tests([src], cwd=tmp_path)
     assert out.get('ok') is True
