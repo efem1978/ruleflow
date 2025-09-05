@@ -20,6 +20,7 @@ extensions/vscode/node_modules/
 .DS_Store
 coverage.xml
 .coverage
+.coverage*
 htmlcov/
 cov.json
 /bad.py
