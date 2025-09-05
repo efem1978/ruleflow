@@ -49,3 +49,36 @@ def test_summarize_tree_base_not_ok(tmp_path: Path) -> None:
     out = summarize_tree(project_root=tmp_path)
     assert out.get('ok') is False and 'not found' in str(out.get('message',''))
 
+
+def test_summarize_with_bad_coverage_policy(monkeypatch, tmp_path: Path) -> None:
+    # stub classes to include non-numeric coverage → comparison raises, hits except path (144-145)
+    import mcp_rules_assistant.coverage_summary as cs
+    (tmp_path / 'coverage.xml').write_text('<coverage/>', encoding='utf-8')
+    monkeypatch.setattr(cs, '_read_classes_with_cache', lambda root, xml: [
+        {"file": "x.py", "coverage": "bad"},
+    ])
+    out = summarize(project_root=tmp_path, policy={"x": 0.9}, min_module=0.9)
+    assert out.get('ok') is True and out.get('count') == 1
+
+
+def test_summarize_with_bad_coverage_no_policy(monkeypatch, tmp_path: Path) -> None:
+    # no policy path, non-numeric coverage triggers except (158-159)
+    import mcp_rules_assistant.coverage_summary as cs
+    (tmp_path / 'coverage.xml').write_text('<coverage/>', encoding='utf-8')
+    monkeypatch.setattr(cs, '_read_classes_with_cache', lambda root, xml: [
+        {"file": "y.py", "coverage": {"oops": 1}},
+    ])
+    out = summarize(project_root=tmp_path, policy=None, min_module=0.9)
+    assert out.get('ok') is True and out.get('count') == 1
+
+
+def test_summarize_groups_bad_line_counts(monkeypatch, tmp_path: Path) -> None:
+    # bad lines_valid/covered → triggers except (237-239) and fallback to file weight
+    import mcp_rules_assistant.coverage_summary as cs
+    (tmp_path / 'coverage.xml').write_text('<coverage/>', encoding='utf-8')
+    monkeypatch.setattr(cs, '_read_classes_with_cache', lambda root, xml: [
+        {"file": "a.py", "coverage": 0.80, "lines_valid": "bad", "lines_covered": "bad"},
+        {"file": "b.py", "coverage": 0.99, "lines_valid": None, "lines_covered": None},
+    ])
+    out = summarize_groups(project_root=tmp_path, policy=None, min_module=0.9)
+    assert out.get('ok') is True and out.get('groups')
