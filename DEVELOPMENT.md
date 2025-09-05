@@ -36,6 +36,7 @@
 - 安装 Git hooks（commit-msg / pre-push）：`make hooks` 或 `python -m mcp_rules_assistant.cli install-hooks`
   - 无 Python 环境的回退：`make hooks-sh`（安装最小 commit-msg 与 pre-push）
 - 一键维护（安装 hooks + 自修复 CI）：`python -m mcp_rules_assistant.cli maintenance`
+ - 预检（无人值守快照自检）：`make preflight`（扫描禁用模式 / 验证 compose.yml / 跑文档锚点测试）
 - 容器开发（无前端 UI）：
   - 启动：`docker compose up -d dev-agent`
   - 状态：`.mcp/dashboard/status.json`（最近一次）、`history.json`（≤50 条）、`fail_counters.json`

@@ -1,7 +1,7 @@
 PYTHON ?= python3
 NPM ?= npm
 
-.PHONY: setup test lint type format ci vscode-test ingest coverage package release-check clean-dist help local-ci-run hooks ci-autofix
+.PHONY: setup test lint type format ci vscode-test ingest coverage package release-check clean-dist help local-ci-run hooks hooks-sh ci-autofix preflight
 
 help:
 	@echo "Targets: setup test lint type format ci vscode-test ingest coverage"
@@ -58,6 +58,9 @@ hooks-sh:
 
 ci-autofix:
 	$(PYTHON) -m mcp_rules_assistant.cli ci-autofix
+
+preflight:
+	sh scripts/preflight.sh
 
 # 已移除前端看板相关目标（dashboard-*）
 
