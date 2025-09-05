@@ -554,6 +554,9 @@ jobs:
         working-directory: extensions/vscode
         run: |
           MCP_VSCODE_TEST_ARGS="" xvfb-run -a npm test 2>&1 | tee vscode-test.log
+      - name: VS Code coverage threshold (warn)
+        run: |
+          sh scripts/check-lcov.sh extensions/vscode/coverage/lcov.info 30
       - name: Upload VS Code coverage to Codecov (conditional)
         if: always()
         uses: codecov/codecov-action@v4

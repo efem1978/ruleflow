@@ -20,3 +20,5 @@ def test_render_ci_yaml_includes_vscode_job_when_required(tmp_path: Path) -> Non
     assert "Coverage Policy Gate" in yml and "pytest -q" in yml
     # ensure VS Code coverage upload step present
     assert "coverage/lcov.info" in yml
+    # ensure preflight steps present
+    assert "Docs Snapshot Gate" in yml and "Preflight" in yml
