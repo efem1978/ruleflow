@@ -126,11 +126,11 @@
 - 容器与文件：统一使用 `compose.yml`；不得回退至旧命名（如 `docker‑compose.yml`）；禁止重新引入前端看板/UI 代码
 
 ## 任务清单（当前 Sprint）
-- [ ] TDD 单元层：补齐 coverage_summary 边界与错误分支
-- [ ] 组件层：checks 降级/失败缓存用例、hooks 一致性快照
-- [ ] 集成层：dev_agent 单循环与冻结/解冻分支；CLI 烟雾
-- [x] 集成层：dev_agent 覆盖率补测至 ≥95%，并上调策略阈值至 0.95
-- [ ] MCP 层：初始化与基本 tools/resources 的错误路径
-- [ ] VS Code：近阈值/覆盖率加载交互的稳定性回归
+- [x] TDD 单元层：补齐 coverage_summary 边界与错误分支（现 98% 覆盖）
+- [x] 组件层：checks 降级/失败缓存用例（现 100%）与 hooks 一致性快照（现 100%）
+- [x] 集成层：dev_agent 单循环与冻结/解冻分支；CLI 烟雾（dev_agent 97%）
+- [ ] MCP 层：初始化与基本 tools/resources 的错误路径（待择机补齐）
+- [ ] VS Code：近阈值/覆盖率加载交互的稳定性回归（待择机补齐）
 - [x] 规则摄取：补齐“中文区间（模块）”用例（介于 X% 和 Y% 之间）
+- [x] 规则摄取：per-key conflict_delta 与缓存边界（现 97% 覆盖）
 - [x] 清理样例文件：移除根目录 bad.py/ok2.py（测试时由用例临时创建）
