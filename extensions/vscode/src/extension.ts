@@ -102,6 +102,8 @@ export function activate(context: vscode.ExtensionContext) {
           <button id="btnCovNearInline">显示近阈值</button>
           <button id="btnIdeScaffold">生成 IDE 脚手架</button>
           <button id="btnCompliance">生成合规承诺</button>
+          <button id="btnOpenCompliance">打开合规承诺</button>
+          <button id="btnOpenIdeDir">打开 IDE 目录</button>
         </div>
         <div id="nlExamplesBox" style="display:none; margin:4px 0 10px 0;">
           <span style="opacity:.8">快速范例：</span>
@@ -202,6 +204,8 @@ export function activate(context: vscode.ExtensionContext) {
           document.getElementById('btnCovTree').onclick = () => vscode.postMessage({ t: 'coverageTree' });
           (document.getElementById('btnIdeScaffold') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'ideScaffold' });
           (document.getElementById('btnCompliance') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'compliance' });
+          (document.getElementById('btnOpenCompliance') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'openCompliance' });
+          (document.getElementById('btnOpenIdeDir') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'openIdeDir' });
           (document.getElementById('btnPrepareEnvInstall') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'prepareEnvInstall' });
           (document.getElementById('btnShowWeak') as HTMLButtonElement).onclick = () => {
             const all = (window as any).__weakAll || [];
@@ -938,6 +942,26 @@ export function activate(context: vscode.ExtensionContext) {
         } else if (msg.t === 'compliance') {
           const out = await client.request('tools/call', { name: 'compliance.commitment', arguments: { write: true } });
           vscode.window.showInformationMessage('已生成合规承诺: ' + (out.path || '.mcp/compliance.md'));
+        } else if (msg.t === 'openCompliance') {
+          try {
+            // ensure file exists, then open
+            const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath; if (!ws) return;
+            const p = vscode.Uri.file(ws + '/.mcp/compliance.md');
+            try { await vscode.workspace.fs.stat(p); }
+            catch { await client.request('tools/call', { name: 'compliance.commitment', arguments: { write: true } }); }
+            const doc = await vscode.workspace.openTextDocument(p);
+            await vscode.window.showTextDocument(doc, { preview: false });
+          } catch (e:any) {
+            vscode.window.showWarningMessage('无法打开合规承诺：' + String(e));
+          }
+        } else if (msg.t === 'openIdeDir') {
+          try {
+            const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath; if (!ws) return;
+            const p = vscode.Uri.file(ws + '/.mcp/ide');
+            await vscode.commands.executeCommand('revealFileInOS', p);
+          } catch (e:any) {
+            vscode.window.showWarningMessage('无法打开 IDE 目录：' + String(e));
+          }
         } else if (msg.t === 'insertSamples') {
           const semgrep = `rules:\n  - id: py-no-eval\n    message: \"Avoid eval() — security risk\"\n    languages: [python]\n    severity: ERROR\n    pattern: eval(...)\n\n  - id: py-no-exec\n    message: \"Avoid exec() — security risk\"\n    languages: [python]\n    severity: ERROR\n    pattern: exec(...)\n`;
           const hadolint = `ignored:\n  - DL3008\n  - DL3059\n\noverrides:\n  DL3007: warning\n`;
