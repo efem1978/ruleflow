@@ -390,6 +390,8 @@ class JsonRpcServer:
             return self._tool_git_install_hooks()
         if name == "nl.command":
             return self._tool_nl_command(args)
+        if name == "license.activate":
+            return self._tool_license_activate(args)
         if name == "plan.update":
             return self._tool_plan_update(args)
         if name == "plan.set":
@@ -619,6 +621,17 @@ class JsonRpcServer:
             "ok": True,
             "suggestions": {"next_steps": next_steps, "handoff_plan": handoff_plan},
         }
+
+    def _tool_license_activate(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        """Copy provided license JSON file to ~/.mcp/license.json (best-effort)."""
+        src = Path(str(args.get("path", "")).strip()).expanduser().resolve()
+        if not src.exists():
+            raise ValueError("license file not found")
+        dst = Path.home() / ".mcp" / "license.json"
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(str(src), str(dst))
+        # refresh config not needed; diagnose reads from disk
+        return {"ok": True, "path": str(dst)}
 
     # ---- rules tool helpers ----
     def _tool_rules_ingest(self, args: Dict[str, Any]) -> Dict[str, Any]:

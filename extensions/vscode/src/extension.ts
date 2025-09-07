@@ -81,8 +81,10 @@ export function activate(context: vscode.ExtensionContext) {
         <h2>MCP 规则与上下文助手</h2>
         <p>已连接到 Python MCP Server（最小协议）。默认快速内环：保存轻、推送重。</p>
         <div id="ticker" style="height:22px; overflow:hidden; background:#f6f6f6; border:1px solid #ddd; padding:2px 6px; margin:6px 0;"><span id="tickerText" style="display:inline-block; white-space:nowrap;"></span></div>
-        <div id="lic" style="padding:4px 6px; border:1px solid #ddd; background:#fafafa; margin:6px 0;">
+        <div id="lic" style="padding:4px 6px; border:1px solid #ddd; background:#fafafa; margin:6px 0; display:flex; align-items:center; gap:8px;">
           <b>License:</b> <span id="licText">(loading)</span>
+          <button id="btnLicVerify">Verify</button>
+          <button id="btnLicActivate">Activate…</button>
         </div>
         <div id="info" style="margin:6px 0; color:#d33;"></div>
         <div style="margin:8px 0;">
@@ -240,6 +242,10 @@ export function activate(context: vscode.ExtensionContext) {
           (document.querySelectorAll('#nlExamplesBox button') as any).forEach((b:any)=>{
             b.addEventListener('click', ()=>{ const t=b.getAttribute('data-nl')||''; (document.getElementById('nlInput') as HTMLInputElement).value=t; runNL(); });
           });
+          const btnLicV = document.getElementById('btnLicVerify') as HTMLButtonElement | null;
+          const btnLicA = document.getElementById('btnLicActivate') as HTMLButtonElement | null;
+          if (btnLicV) btnLicV.onclick = () => vscode.postMessage({ t: 'licenseVerify' });
+          if (btnLicA) btnLicA.onclick = () => vscode.postMessage({ t: 'licenseActivate' });
           const btnClr = document.getElementById('nlClear') as HTMLButtonElement;
           if (btnClr) btnClr.onclick = () => { vscode.postMessage({ t: 'nlClearHistory' }); };
           vscode.postMessage({ t: 'nlFetchHistory' });
@@ -982,6 +988,28 @@ export function activate(context: vscode.ExtensionContext) {
           const h = context.globalState.get<string[]>('ruleflow.nl.history') || [];
           panel.webview.postMessage({ t: 'nlHistory', items: h });
         } catch {}
+      }
+      if (msg && msg.t === 'licenseVerify') {
+        try {
+          const diag = await client.request('tools/call', { name: 'env.diagnose', arguments: {} });
+          panel.webview.postMessage({ t: 'license', license: (diag && (diag as any).license) || {} });
+          panel.webview.postMessage({ t: 'info', text: 'License 已校验' });
+        } catch (e:any) {
+          vscode.window.showWarningMessage('License 校验失败：' + String(e));
+        }
+      }
+      if (msg && msg.t === 'licenseActivate') {
+        try {
+          const files = await vscode.window.showOpenDialog({ title: '选择 License JSON 文件', canSelectMany: false, filters: { 'JSON': ['json'], 'All Files': ['*'] } });
+          if (!files || !files.length) return;
+          const p = files[0].fsPath;
+          await client.request('tools/call', { name: 'license.activate', arguments: { path: p } });
+          const diag = await client.request('tools/call', { name: 'env.diagnose', arguments: {} });
+          panel.webview.postMessage({ t: 'license', license: (diag && (diag as any).license) || {} });
+          panel.webview.postMessage({ t: 'info', text: 'License 已激活' });
+        } catch (e:any) {
+          vscode.window.showWarningMessage('License 激活失败：' + String(e));
+        }
       }
     });
   });
