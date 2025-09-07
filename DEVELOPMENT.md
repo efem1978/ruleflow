@@ -85,8 +85,8 @@
   - [ ] 覆盖规则摄取/覆盖率加载/近阈值/CI 配置保存
 
 完成标准（DoD）
-- 覆盖率 Gate 通过：核心≥98%，其余≥95%，`coverage-report` 无 weak
-- 钩子/CI 生成并可用；commit-msg/branch/pre-push 门禁生效
+- 覆盖率 Gate 通过（已达成）：核心≥98%，其余≥95%，`coverage-report` 弱项清零
+- 钩子/CI 生成并可用；commit-msg/branch/pre-push 门禁生效（pre-commit stages 已迁移）
 - 所有测试无警告/跳过（CI 强制 `-W error` + `--strict-markers`）
 
 ## 提交与门禁 / Commits & Gates
@@ -131,8 +131,8 @@
 - [x] TDD 单元层：补齐 coverage_summary 边界与错误分支（现 98% 覆盖）
 - [x] 组件层：checks 降级/失败缓存用例（现 100%）与 hooks 一致性快照（现 100%）
 - [x] 集成层：dev_agent 单循环与冻结/解冻分支；CLI 烟雾（dev_agent 97%）
-- [ ] MCP 层：初始化与基本 tools/resources 的错误路径（待择机补齐）
-- [ ] VS Code：近阈值/覆盖率加载交互的稳定性回归（待择机补齐）
+- [x] MCP 层：初始化与基本 tools/resources 的错误路径（已补齐严格/错误路径与 fs.apply_patch 拒绝/限制）
+- [ ] VS Code：近阈值/覆盖率加载交互的稳定性回归（待择机）
 - [x] 规则摄取：补齐“中文区间（模块）”用例（介于 X% 和 Y% 之间）
 - [x] 规则摄取：per-key conflict_delta 与缓存边界（现 97% 覆盖）
 - [x] 清理样例文件：移除根目录 bad.py/ok2.py（测试时由用例临时创建）

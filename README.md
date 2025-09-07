@@ -26,6 +26,9 @@ RuleFlow: Open PanelMCP 规则与上下文助手 / MCP Rules & Context Assistant
 ![Coverage](https://codecov.io/gh/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool/branch/main/graph/badge.svg)
 ![PyPI](https://img.shields.io/pypi/v/mcp-rules-assistant?label=pypi)
 
+覆盖率门禁 Coverage Gate
+- 本地与容器环境均通过覆盖率门禁：核心≥98%，其余≥95%，coverage-report 弱项清零（weak 列表为空）。
+
 许可与试用 License & Trial
 - 本产品为商业授权（全部功能付费，含 7 天试用）；详见 `docs/PRICING.md`
 - 激活：`mcp-rules-assistant license-status` 查看状态；`mcp-rules-assistant license-activate --file <path>` 将许可文件复制到 `~/.mcp/license.json`
