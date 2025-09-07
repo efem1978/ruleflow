@@ -53,8 +53,10 @@ def _coverage_snapshot(project_root: Optional[Path] = None) -> Dict[str, Any]:
         if isinstance(cfg.get("coverage", {}), dict)
         else None
     )
-    res_w = cov.summarize(project_root=root, policy=policy, min_module=min_module)
-    res_g = cov.summarize_groups(
+    res_w: Dict[str, Any] = cov.summarize(
+        project_root=root, policy=policy, min_module=min_module
+    )
+    res_g: Dict[str, Any] = cov.summarize_groups(
         project_root=root, policy=policy, min_module=min_module
     )
     near_cfg = (
@@ -67,14 +69,14 @@ def _coverage_snapshot(project_root: Optional[Path] = None) -> Dict[str, Any]:
     res_n = cov.summarize_near(
         project_root=root, policy=policy, min_module=min_module, within=within, top=top
     )
-    weak = res_w.get("weak", []) if isinstance(res_w.get("weak"), list) else []
-    groups = res_g.get("groups", []) if isinstance(res_g.get("groups"), list) else []
-    near = res_n.get("near", []) if isinstance(res_n.get("near"), list) else []
-    count = (
-        int(res_w.get("count", 0))
-        if isinstance(res_w.get("count"), (int, float))
-        else 0
-    )
+    weak_obj = res_w.get("weak", [])
+    weak: List[Dict[str, Any]] = weak_obj if isinstance(weak_obj, list) else []
+    groups_obj = res_g.get("groups", [])
+    groups: List[Dict[str, Any]] = groups_obj if isinstance(groups_obj, list) else []
+    near_obj = res_n.get("near", [])
+    near: List[Dict[str, Any]] = near_obj if isinstance(near_obj, list) else []
+    cnt_obj = res_w.get("count", 0)
+    count = int(cnt_obj) if isinstance(cnt_obj, (int, float)) else 0
     cov_progress = 0.0
     try:
         if count:

@@ -23,8 +23,27 @@ def test_run_uses_instance_ensure_dir(monkeypatch, tmp_path: Path) -> None:
         "compute_status",
         lambda *a, **k: {
             "plan": {"status": "in_progress", "current": "x", "next": "y"},
-            "coverage": {"weak": [], "groups": [], "near": [], "min_module": 0.9, "count": 1, "progress": 1.0},
-            "progress": {"overall": 1.0, "coverage": 1.0, "plan": 1.0, "doc": 1.0, "prod": 1.0, "counts": {"coverage_total": 1, "coverage_weak": 0, "plan_done": 1, "plan_pending": 0}},
+            "coverage": {
+                "weak": [],
+                "groups": [],
+                "near": [],
+                "min_module": 0.9,
+                "count": 1,
+                "progress": 1.0,
+            },
+            "progress": {
+                "overall": 1.0,
+                "coverage": 1.0,
+                "plan": 1.0,
+                "doc": 1.0,
+                "prod": 1.0,
+                "counts": {
+                    "coverage_total": 1,
+                    "coverage_weak": 0,
+                    "plan_done": 1,
+                    "plan_pending": 0,
+                },
+            },
             "tasks": {"pending": [], "done": []},
         },
     )
@@ -51,8 +70,27 @@ def test_run_fallback_module_level(monkeypatch, tmp_path: Path) -> None:
         "compute_status",
         lambda *a, **k: {
             "plan": {"status": "in_progress", "current": "x", "next": "y"},
-            "coverage": {"weak": [], "groups": [], "near": [], "min_module": 0.9, "count": 1, "progress": 1.0},
-            "progress": {"overall": 1.0, "coverage": 1.0, "plan": 1.0, "doc": 1.0, "prod": 1.0, "counts": {"coverage_total": 1, "coverage_weak": 0, "plan_done": 1, "plan_pending": 0}},
+            "coverage": {
+                "weak": [],
+                "groups": [],
+                "near": [],
+                "min_module": 0.9,
+                "count": 1,
+                "progress": 1.0,
+            },
+            "progress": {
+                "overall": 1.0,
+                "coverage": 1.0,
+                "plan": 1.0,
+                "doc": 1.0,
+                "prod": 1.0,
+                "counts": {
+                    "coverage_total": 1,
+                    "coverage_weak": 0,
+                    "plan_done": 1,
+                    "plan_pending": 0,
+                },
+            },
             "tasks": {"pending": [], "done": []},
         },
     )
@@ -66,8 +104,10 @@ def test_run_last_resort_fallback(monkeypatch, tmp_path: Path) -> None:
     # 确保实例 __dict__ 没有覆盖（默认如此）
     if "_ensure_dashboard_dir" in getattr(agent, "__dict__", {}):
         delattr(agent, "_ensure_dashboard_dir")
+
     def bad_ensure(root, rebuild=False):  # type: ignore[no-untyped-def]
         raise RuntimeError("boom")
+
     monkeypatch.setattr(dev_agent, "_ensure_dashboard_dir", bad_ensure)
     monkeypatch.setenv("DEV_AGENT_MAX_CYCLES", "1")
     monkeypatch.setattr(
@@ -78,8 +118,27 @@ def test_run_last_resort_fallback(monkeypatch, tmp_path: Path) -> None:
         "compute_status",
         lambda *a, **k: {
             "plan": {"status": "in_progress", "current": "x", "next": "y"},
-            "coverage": {"weak": [], "groups": [], "near": [], "min_module": 0.9, "count": 1, "progress": 1.0},
-            "progress": {"overall": 1.0, "coverage": 1.0, "plan": 1.0, "doc": 1.0, "prod": 1.0, "counts": {"coverage_total": 1, "coverage_weak": 0, "plan_done": 1, "plan_pending": 0}},
+            "coverage": {
+                "weak": [],
+                "groups": [],
+                "near": [],
+                "min_module": 0.9,
+                "count": 1,
+                "progress": 1.0,
+            },
+            "progress": {
+                "overall": 1.0,
+                "coverage": 1.0,
+                "plan": 1.0,
+                "doc": 1.0,
+                "prod": 1.0,
+                "counts": {
+                    "coverage_total": 1,
+                    "coverage_weak": 0,
+                    "plan_done": 1,
+                    "plan_pending": 0,
+                },
+            },
             "tasks": {"pending": [], "done": []},
         },
     )

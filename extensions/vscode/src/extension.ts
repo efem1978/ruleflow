@@ -92,6 +92,7 @@ export function activate(context: vscode.ExtensionContext) {
           <button id="nlSend">执行</button>
           <button id="nlExamples">范例</button>
           <button id="nlClear">清空历史</button>
+          <button id="btnStatusUpdate">刷新状态</button>
         </div>
         <div id="nlExamplesBox" style="display:none; margin:4px 0 10px 0;">
           <span style="opacity:.8">快速范例：</span>
@@ -176,6 +177,7 @@ export function activate(context: vscode.ExtensionContext) {
         <script>
           const vscode = acquireVsCodeApi();
           document.getElementById('btnLoad').onclick = () => vscode.postMessage({ t: 'loadRules' });
+          document.getElementById('btnStatusUpdate').onclick = () => vscode.postMessage({ t: 'statusUpdate' });
           document.getElementById('btnIngest').onclick = () => vscode.postMessage({ t: 'ingestRules' });
           document.getElementById('btnValidate').onclick = () => vscode.postMessage({ t: 'validateRules' });
           document.getElementById('btnHooks').onclick = () => vscode.postMessage({ t: 'installHooks' });
@@ -582,6 +584,26 @@ export function activate(context: vscode.ExtensionContext) {
 
     panel.webview.onDidReceiveMessage(async (msg) => {
       try {
+        if (msg.t === 'statusUpdate') {
+          const pyBin = process.env.MCP_PYTHON_BIN && process.env.MCP_PYTHON_BIN.trim()
+            ? process.env.MCP_PYTHON_BIN.trim()
+            : (process.platform === 'win32' ? 'python' : 'python3');
+          const cwd = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
+          const { execFile } = require('child_process');
+          execFile(pyBin, ['-m', 'mcp_rules_assistant.cli', 'status-update', '--json'], { cwd }, (err: any, stdout: string, stderr: string) => {
+            if (err) {
+              vscode.window.showErrorMessage('状态刷新失败：' + String(err));
+              return;
+            }
+            try {
+              const data = JSON.parse(stdout || '{}');
+              panel.webview.postMessage({ t: 'info', text: '状态已刷新。弱项：' + (((data.coverage||{}).weak||[]).length || 0) });
+            } catch (e) {
+              vscode.window.showInformationMessage('状态已刷新');
+            }
+          });
+          return;
+        }
         if (msg.t === 'loadRules') {
           const resList = await client.request('resources/list', {});
           const compiledUri = (resList.resources || []).find((r: any) => String(r.uri || '').endsWith('/compiled'))?.uri;

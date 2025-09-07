@@ -23,6 +23,9 @@ repos:
   rev: v1.10.0
   hooks:
   - id: mypy
+    additional_dependencies:
+    - types-PyYAML
+    files: ^mcp_rules_assistant/
     stages:
     - pre-commit
 - repo: https://github.com/Yelp/detect-secrets
@@ -35,25 +38,25 @@ repos:
   hooks:
   - id: plan-gate
     name: plan state & commit message gate (commit-msg)
-    entry: python .mcp/plan_gate.py commit-msg
+    entry: python3 .mcp/plan_gate.py commit-msg
     language: system
     stages:
     - commit-msg
   - id: tdd-gate
     name: tdd gate (commit)
-    entry: python .mcp/tdd_gate.py
+    entry: python3 .mcp/tdd_gate.py
     language: system
     stages:
     - pre-commit
   - id: branch-name-gate
     name: branch naming gate (commit)
-    entry: python .mcp/branch_name_gate.py
+    entry: python3 .mcp/branch_name_gate.py
     language: system
     stages:
     - pre-commit
   - id: dockerfile-baseline
     name: dockerfile baseline (push)
-    entry: python .mcp/dockerfile_gate.py
+    entry: python3 .mcp/dockerfile_gate.py
     language: system
     pass_filenames: false
     stages:

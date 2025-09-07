@@ -37,8 +37,27 @@ def test_run_writes_cmd_events(monkeypatch, tmp_path: Path) -> None:
         "compute_status",
         lambda *a, **k: {
             "plan": {"status": "in_progress", "current": "x", "next": "y"},
-            "coverage": {"weak": [], "groups": [], "near": [], "min_module": 0.9, "count": 1, "progress": 1.0},
-            "progress": {"overall": 1.0, "coverage": 1.0, "plan": 1.0, "doc": 1.0, "prod": 1.0, "counts": {"coverage_total": 1, "coverage_weak": 0, "plan_done": 1, "plan_pending": 0}},
+            "coverage": {
+                "weak": [],
+                "groups": [],
+                "near": [],
+                "min_module": 0.9,
+                "count": 1,
+                "progress": 1.0,
+            },
+            "progress": {
+                "overall": 1.0,
+                "coverage": 1.0,
+                "plan": 1.0,
+                "doc": 1.0,
+                "prod": 1.0,
+                "counts": {
+                    "coverage_total": 1,
+                    "coverage_weak": 0,
+                    "plan_done": 1,
+                    "plan_pending": 0,
+                },
+            },
             "tasks": {"pending": [], "done": []},
         },
     )
@@ -47,4 +66,3 @@ def test_run_writes_cmd_events(monkeypatch, tmp_path: Path) -> None:
     # append once more to exercise jsonl append branch
     agent.run(interval=1, max_cycles=1)
     assert (dash / "cmd_events.jsonl").exists()
-
