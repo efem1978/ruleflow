@@ -700,6 +700,13 @@ class JsonRpcServer:
             "hadolint": shutil.which("hadolint") or "",
             "docker": shutil.which("docker") or "",
         }
+        # 许可（演示校验）：存在性 + 占位签名/有效期检查
+        try:
+            from .license_utils import verify_license as _verify_license
+
+            lic = _verify_license()
+        except Exception:
+            lic = {"ok": False, "activated": False}
         return {
             "ok": True,
             "python_version": platform.python_version(),
@@ -709,6 +716,7 @@ class JsonRpcServer:
             "coverage": {"exists": coverage_exists},
             "rules": {"compiled_exists": compiled_exists},
             "maxima": maxima,
+            "license": lic,
         }
 
     def _res_read_progress(self) -> Dict[str, Any]:

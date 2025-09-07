@@ -44,7 +44,6 @@ class MemoryManager:
         data = self._read()
         data["turns"].append(asdict(Turn(role=role, content=content, meta=meta or {})))
         data["turns"] = data["turns"][-self.window :]
-        data["turns"] = data["turns"][-self.window :]
         data["summary"] = self._summarize(data["turns"], data.get("summary", ""))
         data = self._compress_if_needed(data)
         self._write(data)

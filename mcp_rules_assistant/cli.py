@@ -27,6 +27,7 @@ from .coverage_summary import summarize_near as cov_near
 from .coverage_summary import summarize_tree as cov_tree
 from .mcp_server import JsonRpcServer
 from .progress import ensure_plan, read_plan, update_plan_fields, write_plan
+from .license_utils import verify_license
 
 app = typer.Typer(add_completion=False, help="MCP Rules & Context Assistant CLI")
 
@@ -63,6 +64,13 @@ def license_activate(
     dst.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(str(src), str(dst))
     rprint({"ok": True, "activated": True, "path": str(dst)})
+
+
+@app.command("license-verify")
+def license_verify() -> None:
+    """校验许可文件（演示版：有效期与签名一致性）。"""
+    res = verify_license()
+    rprint(res)
 
 
 @app.command("print-config")

@@ -27,7 +27,8 @@ jobs:
           test -f Dockerfile || (echo 'Dockerfile missing' && exit 1)
       - name: Dockerfile Lint (hadolint)
         run: |
-          test -f Dockerfile && docker run --rm -v "$PWD":/work -w /work hadolint/hadolint:latest hadolint  Dockerfile || echo 'skip hadolint'
+          # 使用固定版本以提升可重复性
+          test -f Dockerfile && docker run --rm -v "$PWD":/work -w /work hadolint/hadolint:v2.12.0 hadolint  Dockerfile || echo 'skip hadolint'
       - name: Lint (ruff/black/isort)
         run: |
           ruff check --output-format=github mcp_rules_assistant
