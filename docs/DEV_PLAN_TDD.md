@@ -95,10 +95,16 @@ Phase E — 集成与 CLI
 1) 统一门槛来源与生成物（高优先级，持续）
    - 持续校验生成物与配置一致性；文档与实现保持同频（已将 env.prepare 更新为“可创建 venv 并可选安装工具”）。
 2) 清理与结构
-   - 将根部样例/临时工件迁移或忽略：bad.py/ok2.py（测试运行产生）不入库；将 cov.json/cjson.json 移除并加入 .gitignore；README 标注为生成型工件。
+   - 将根部样例/临时工件迁移或忽略（已清理 bad.py/ok2.py）：将 cov.json/cjson.json 移除并加入 .gitignore；README 标注为生成型工件。
 3) 覆盖率与类型
    - 保持核心≥98%、其余≥95%；跟踪 near 报告稳定性；压降非核心 mypy 告警。
 4) Codecov 行为对齐
    - CI 增加 codecov 上传（公共仓库免 token；私有使用 CODECOV_TOKEN）。
 5) pre-commit 本地脚本生成时机
    - install-hooks 首次引导并写入 .mcp/plan_gate.py 与（按规则）.mcp/dockerfile_gate.py；或在生成器中按需条件生成。
+6) 覆盖率差距收敛（新增）
+   - memory.py：补齐 append_turn/snapshot/add_link/_compress_if_needed 的正反例与阈值路径（目标 ≥98%）。
+   - mcp_server.py：tools/resources 错误与边界路径全覆盖；fs.apply_patch(strict) 拒绝分支；初始化异常路径（目标 ≥98%）。
+   - fs_wrapper.py：错误处理分支、权限边界与写入后检查路径（目标 ≥95%）。
+   - license_utils.py：hs256/rs256 的有效/过期/签名错误/无公钥等组合用例（目标 ≥90%）。
+   - 修正 coverage.policy 匹配：文件专属阈值优先级 > 目录前缀 > min_module（为 CLI coverage-report 增加单测）。

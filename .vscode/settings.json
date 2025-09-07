@@ -1,12 +1,10 @@
 {
   "copilot.mcp.tools": {
     "ruleflow": {
-      "command": [
-        "python",
-        "-m",
-        "mcp_rules_assistant.cli",
-        "start"
-      ]
+      "command": "python3",
+      "args": ["-m", "mcp_rules_assistant.cli", "start"],
+      "cwd": "${workspaceFolder}",
+      "env": { "PYTHONUNBUFFERED": "1" }
     }
   }
 }

@@ -108,6 +108,37 @@ def _read_classes_with_cache(project_root: Path, coverage_xml: str) -> List[Clas
     return items
 
 
+def _threshold_for_file(
+    file: str, policy: Optional[Dict[str, float]], default: float
+) -> float:
+    """Decide threshold with priority: suffix match > prefix match > default.
+
+    - Suffix means file.endswith(key) so a basename entry like "cli.py" wins.
+    - Prefix means file.startswith(key) so a directory entry like "pkg/" applies.
+    - For multiple matches of the same type, choose the longest key (most specific).
+    """
+    try:
+        dflt = float(default)
+    except Exception:
+        dflt = 0.9
+    if not policy or not isinstance(policy, dict):
+        return dflt
+    # Normalize and collect
+    try:
+        items: List[Tuple[str, float]] = [(str(k), float(v)) for k, v in policy.items()]
+    except Exception:
+        return dflt
+    suffix = [(k, v) for k, v in items if file.endswith(k)]
+    if suffix:
+        k, v = max(suffix, key=lambda kv: len(kv[0]))
+        return float(v)
+    prefix = [(k, v) for k, v in items if file.startswith(k)]
+    if prefix:
+        k, v = max(prefix, key=lambda kv: len(kv[0]))
+        return float(v)
+    return dflt
+
+
 def summarize(
     project_root: Optional[Path] = None,
     coverage_xml: str = "coverage.xml",
@@ -126,42 +157,22 @@ def summarize(
 
     # 识别薄弱项
     weak: List[ClassItem] = []
-    threshold = min_module
-    if policy:
-        # 简化：如匹配到前缀或后缀（basename）策略，则按策略阈值
-        for it in items:
-            name = str(it.get("file", ""))
-            th: float = float(threshold)
-            for prefix, t in policy.items():
-                if name.startswith(prefix) or name.endswith(prefix):
-                    th = float(t)
-                    break
-            it["threshold"] = th
-            cov_obj = it.get("coverage", 0.0)  # keep original for custom __lt__
+    threshold = float(min_module)
+    for it in items:
+        name = str(it.get("file", ""))
+        th: float = _threshold_for_file(name, policy, threshold)
+        it["threshold"] = th
+        cov_obj = it.get("coverage", 0.0)  # keep original for custom __lt__
+        try:
+            do_weak = bool(cov_obj < th)  # type: ignore[operator]
+        except Exception:
+            do_weak = False
+        if do_weak:
             try:
-                do_weak = bool(cov_obj < th)  # type: ignore[operator]
-            except Exception:
-                do_weak = False
-            if do_weak:
-                try:
-                    it["delta"] = float(th) - float(cov_obj)  # type: ignore[arg-type]
-                except Exception:  # pragma: no cover (delta conversion may fail)
-                    pass
-                weak.append(it)
-    else:
-        for it in items:
-            it["threshold"] = float(threshold)
-            cov_obj = it.get("coverage", 0.0)
-            try:
-                do_weak = bool(cov_obj < float(threshold))  # type: ignore[operator]
-            except Exception:
-                do_weak = False
-            if do_weak:
-                try:
-                    it["delta"] = float(threshold) - float(cov_obj)  # type: ignore[arg-type]
-                except Exception:  # pragma: no cover (delta conversion may fail)
-                    pass
-                weak.append(it)
+                it["delta"] = float(th) - float(cov_obj)  # type: ignore[arg-type]
+            except Exception:  # pragma: no cover (delta conversion may fail)
+                pass
+            weak.append(it)
 
     # sort by largest shortfall first
     def sort_key(x: ClassItem) -> float:
@@ -301,11 +312,7 @@ def summarize_near(
     items: List[ClassItem] = _read_classes_with_cache(root, coverage_xml)
 
     def threshold_for(file: str) -> float:
-        if policy:
-            for p, th in policy.items():
-                if file.startswith(p) or file.endswith(p):
-                    return float(th)
-        return float(min_module)
+        return _threshold_for_file(file, policy, float(min_module))
 
     near: List[Dict[str, object]] = []
     for it in items:

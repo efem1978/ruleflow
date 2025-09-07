@@ -112,7 +112,7 @@
 ## 文档维护与同步 / Documentation Maintenance
 - 变更伴随更新：改动功能/流程时，需同步调整 `DEVELOPMENT.md` 与对应专题文档
 - 许可激活：`mcp-rules-assistant license-status` 查看本地状态；`mcp-rules-assistant license-activate --file <path>` 将许可文件复制到 `~/.mcp/license.json`
-- 参考：若需一次性查看当前版本全面审查结论，见根目录 `FULL_PROJECT_REVIEW.md`
+- 参考：版本全面审查结论请参考近期审计输出；历史 `FULL_PROJECT_REVIEW.md` 已移除，后续按需在 PR 中附带审计纪要
 - 自检脚本（建议本地执行）：
   - 禁止引用：避免在文档中出现旧式 Compose/本地端口/UI 静态资源等字样（例如 legacy compose 文件名、开发端口和前端文件名等），以免误导（预检会自动扫描并报错）
   - Compose 校验：`docker compose config -q`
@@ -128,14 +128,24 @@
 - 容器与文件：统一使用 `compose.yml`；不得回退至旧命名（如 `docker‑compose.yml`）；禁止重新引入前端看板/UI 代码
 
 ## 任务清单（当前 Sprint）
-- [x] TDD 单元层：补齐 coverage_summary 边界与错误分支（现 98% 覆盖）
-- [x] 组件层：checks 降级/失败缓存用例（现 100%）与 hooks 一致性快照（现 100%）
-- [x] 集成层：dev_agent 单循环与冻结/解冻分支；CLI 烟雾（dev_agent 97%）
-- [x] MCP 层：初始化与基本 tools/resources 的错误路径（已补齐严格/错误路径与 fs.apply_patch 拒绝/限制）
+- [x] TDD 单元层：补齐 coverage_summary 边界与错误分支（现 ~98% 覆盖）
+- [x] 组件层：checks 降级/失败缓存用例（现 100%）与 hooks 一致性快照（现 ~100%）
+- [x] 集成层：dev_agent 单循环与冻结/解冻分支；CLI 烟雾（dev_agent ~96%）
+- [ ] MCP 层：mcp_server 覆盖率提升至 ≥98%（当前 ~85%）
 - [ ] VS Code：近阈值/覆盖率加载交互的稳定性回归（待择机）
 - [x] 规则摄取：补齐“中文区间（模块）”用例（介于 X% 和 Y% 之间）
-- [x] 规则摄取：per-key conflict_delta 与缓存边界（现 97% 覆盖）
-- [x] 清理样例文件：移除根目录 bad.py/ok2.py（测试时由用例临时创建）
+- [x] 规则摄取：per-key conflict_delta 与缓存边界（现 ~97% 覆盖）
+- [ ] 单元层补齐：memory.py 覆盖率提升至 ≥98%（当前 ~62%）
+- [ ] 单元层补齐：fs_wrapper.py 覆盖与错误分支（当前 ~82%）
+- [ ] 许可：license_utils 覆盖率 ≥90%（当前 ~38%），补齐 hs256/rs256 正反例
+- [ ] 覆盖率策略：修正 coverage.policy 的按文件覆盖优先于 min_module 的应用（license_utils.py 等应命中专属阈值）
+- [ ] 清理样例/临时工件：确保 cov.json 等生成物未入库（.gitignore 已覆盖）
+
+## 审计快照（当前） / Audit Snapshot (Current)
+- 覆盖率（coverage.xml 总体）: 92.24%
+- 低于策略阈值的模块（示例）：license_utils.py（~38%）、memory.py（~62%）、fs_wrapper.py（~82%）、mcp_server.py（~85%）
+- 策略阈值（.mcp/assistant.yaml）：min_module=0.96，核心文件（config/progress/tools/memory/mcp_server/cli/server）≥0.98；dev_agent ≥0.95；license_utils ≥0.90
+- 发现的问题：部分文件未按 coverage.policy 的专属阈值匹配，落入 min_module 计算；需修正阈值匹配逻辑并补齐测试
 ## 统一子进程封装 / Unified Process Runner
 
 - 模块：`mcp_rules_assistant/process.py` 提供 `run_cmd` 统一封装。
