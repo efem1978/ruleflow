@@ -95,6 +95,8 @@ repos:
     hooks:
       - id: mypy
         stages: [commit]
+        files: mcp_rules_assistant/
+        additional_dependencies: [types-PyYAML]
 {secrets_block}  - repo: local
     hooks:
       - id: plan-gate

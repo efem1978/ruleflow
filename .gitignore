@@ -7,6 +7,8 @@ venv/
 dist/
 build/
 *.egg-info/
+.mypy_cache/
+.ruff_cache/
 
 # VS Code extension build
 extensions/vscode/out/
@@ -26,8 +28,13 @@ cov.json
 /bad.py
 /ok2.py
 
+# Test reports (do not commit)
+pytest-junit.xml
+
 # VS Code test artifacts
 extensions/vscode/.vscode-test/
+extensions/vscode/coverage/
+extensions/vscode/*.vsix
 
 # pytest cache
 .pytest_cache/
