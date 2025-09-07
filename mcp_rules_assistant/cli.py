@@ -25,9 +25,9 @@ from .coverage_summary import summarize as cov_summary
 from .coverage_summary import summarize_groups as cov_groups
 from .coverage_summary import summarize_near as cov_near
 from .coverage_summary import summarize_tree as cov_tree
+from .license_utils import generate_license, verify_license
 from .mcp_server import JsonRpcServer
 from .progress import ensure_plan, read_plan, update_plan_fields, write_plan
-from .license_utils import verify_license, generate_license
 
 app = typer.Typer(add_completion=False, help="MCP Rules & Context Assistant CLI")
 
@@ -79,7 +79,9 @@ def license_generate(
     expires: str = typer.Option(..., "--expires", help="到期日 YYYY-MM-DD"),
     machine: str = typer.Option("", "--machine", help="机器指纹（可留空）"),
     alg: str = typer.Option("hs256", "--alg", help="hs256 或 rs256"),
-    private_key: Optional[str] = typer.Option(None, "--private-key", help="rs256 私钥 PEM 路径"),
+    private_key: Optional[str] = typer.Option(
+        None, "--private-key", help="rs256 私钥 PEM 路径"
+    ),
     out: Optional[str] = typer.Option(None, "--out", help="输出路径（默认打印）"),
 ) -> None:
     """离线生成 license（演示版）：支持 hs256/rs256。
@@ -98,7 +100,11 @@ def license_generate(
             raise typer.Exit(2)
         pk_bytes = p.read_bytes()
     lic = generate_license(
-        issued_to=issued_to, expires=expires, machine=machine, alg=alg, private_key_pem=pk_bytes
+        issued_to=issued_to,
+        expires=expires,
+        machine=machine,
+        alg=alg,
+        private_key_pem=pk_bytes,
     )
     text = _json.dumps(lic, ensure_ascii=False, indent=2)
     if out:
@@ -143,7 +149,9 @@ def precommit_migrate_stages() -> None:
                             h["stages"] = new_st
                             changed = True
     if changed:
-        cfg.write_text(yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding="utf-8")
+        cfg.write_text(
+            yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding="utf-8"
+        )
     rprint({"ok": True, "changed": changed, "path": str(cfg)})
 
 

@@ -13,4 +13,3 @@ def test_memory_append_and_snapshot(tmp_path: Path) -> None:
     snap = mm.snapshot()
     assert len(snap.get("turns", [])) == 3
     assert "计划" in (snap.get("summary") or "")
-

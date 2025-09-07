@@ -31,4 +31,3 @@ def test_sast_devcontainer_perf_and_vcs_flags(tmp_path: Path) -> None:
     assert pol.get("vcs.conventional_commits") is True
     assert pol.get("vcs.branch_policy") is True
     assert int(pol.get("perf.budget_ms") or 0) == 200
-

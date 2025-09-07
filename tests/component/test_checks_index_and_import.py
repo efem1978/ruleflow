@@ -37,4 +37,3 @@ def test_run_lint_skips_on_non_python_files(tmp_path: Path) -> None:
     f.write_text("hello", encoding="utf-8")
     res = checks.run_lint([f], cwd=tmp_path)
     assert res.get("skipped") is True
-

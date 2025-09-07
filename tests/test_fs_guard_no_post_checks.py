@@ -15,4 +15,3 @@ def test_fs_guard_without_post_checks(tmp_path: Path) -> None:
     rel = Path("hello.py")
     guard.write_text(rel, "x=1\n")
     assert (tmp_path / rel).exists()
-

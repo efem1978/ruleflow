@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+
 from typer.testing import CliRunner
 
 from mcp_rules_assistant.cli import app
@@ -9,7 +10,18 @@ from mcp_rules_assistant.cli import app
 def test_cli_plan_set_updates_file(tmp_path: Path) -> None:
     runner = CliRunner()
     with runner.isolated_filesystem(temp_dir=tmp_path):
-        r = runner.invoke(app, ["plan-set", "--status", "in_progress", "--current", "实现X", "--next-step", "Y"])
+        r = runner.invoke(
+            app,
+            [
+                "plan-set",
+                "--status",
+                "in_progress",
+                "--current",
+                "实现X",
+                "--next-step",
+                "Y",
+            ],
+        )
         assert r.exit_code == 0
         text = Path(".mcp/plan.md").read_text(encoding="utf-8")
         assert "- 状态:" in text and "in_progress" in text

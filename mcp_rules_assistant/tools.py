@@ -61,4 +61,9 @@ def setup_default_tools() -> None:
     registry.register(
         Tool("env.diagnose", "Diagnose environment/tools/config presence")
     )
-    registry.register(Tool("license.activate", "Activate license by copying JSON to ~/.mcp/license.json"))
+    registry.register(
+        Tool(
+            "license.activate",
+            "Activate license by copying JSON to ~/.mcp/license.json",
+        )
+    )

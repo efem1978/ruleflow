@@ -5,7 +5,13 @@ from pathlib import Path
 import mcp_rules_assistant.coverage_summary as cs
 
 
-def _write_min_cov_xml(p: Path, *, line_rate: str | None = "1.0", lv: str | None = None, lc: str | None = None) -> None:
+def _write_min_cov_xml(
+    p: Path,
+    *,
+    line_rate: str | None = "1.0",
+    lv: str | None = None,
+    lc: str | None = None,
+) -> None:
     # Create a minimal Cobertura-like coverage file with one class entry
     attrs = []
     if line_rate is not None:
@@ -33,7 +39,7 @@ def test_cache_files_shape_is_list_is_ignored(tmp_path: Path) -> None:
     # Pre-create a cache file where "files" is not a dict to hit the else branch
     cache = tmp_path / ".mcp/coverage_cache.json"
     cache.parent.mkdir(parents=True, exist_ok=True)
-    cache.write_text("{""files"": []}", encoding="utf-8")
+    cache.write_text("{" "files" ": []}", encoding="utf-8")
     cov = tmp_path / "coverage.xml"
     _write_min_cov_xml(cov)
     r = cs.summarize(project_root=tmp_path)

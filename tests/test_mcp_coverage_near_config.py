@@ -14,8 +14,8 @@ def _write_cov_xml(path: Path) -> None:
     text = (
         "<coverage>\n"
         "  <packages><package><classes>\n"
-        "    <class filename=\"weak.py\" line-rate=\"0.905\"/>\n"
-        "    <class filename=\"far.py\" line-rate=\"0.80\"/>\n"
+        '    <class filename="weak.py" line-rate="0.905"/>\n'
+        '    <class filename="far.py" line-rate="0.80"/>\n'
         "  </classes></package></packages>\n"
         "</coverage>\n"
     )
@@ -31,13 +31,17 @@ def test_resources_near_uses_config_window_and_top(tmp_path: Path) -> None:
     cfg.parent.mkdir(parents=True, exist_ok=True)
     cfg.write_text(
         (
-            "performance:\n  on_push:\n    coverage: {min_module: 0.90}\n" \
+            "performance:\n  on_push:\n    coverage: {min_module: 0.90}\n"
             "coverage:\n  near: {within: 0.05, top: 1}\n"
         ),
         encoding="utf-8",
     )
     rlist = srv.handle(_req("resources/list"))
-    near_uri = next(u.get("uri") for u in rlist.get("result", {}).get("resources", []) if str(u.get("uri")).endswith("/near"))
+    near_uri = next(
+        u.get("uri")
+        for u in rlist.get("result", {}).get("resources", [])
+        if str(u.get("uri")).endswith("/near")
+    )
     r = srv.handle(_req("resources/read", {"uri": near_uri}))
     data = json.loads(r.get("result", {}).get("text") or "{}")
     assert data.get("ok") is True

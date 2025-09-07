@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from mcp_rules_assistant.tools import registry, setup_default_tools, Tool
+from mcp_rules_assistant.tools import Tool, registry, setup_default_tools
 
 
 def test_register_and_list_tools(monkeypatch) -> None:
@@ -11,4 +11,3 @@ def test_register_and_list_tools(monkeypatch) -> None:
     # register custom
     registry.register(Tool("custom.tool", "x"))
     assert any(t.name == "custom.tool" for t in registry.list())
-

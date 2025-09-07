@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from pathlib import Path
+
 import yaml
 
-from mcp_rules_assistant.mcp_server import JsonRpcServer
 from mcp_rules_assistant.config import ensure_project_config
+from mcp_rules_assistant.mcp_server import JsonRpcServer
 
 
 def test_rules_enforce_syncs_ci_and_returns_enforced(tmp_path: Path) -> None:
@@ -30,11 +31,16 @@ def test_rules_enforce_syncs_ci_and_returns_enforced(tmp_path: Path) -> None:
     assert "secrets_scan" in enforced
     assert "sast_strict" in enforced
     assert "container_required" in enforced and "container_baseline" in enforced
-    assert any(str(s).startswith("ci.hadolint=") for s in enforced) or "ci.hadolint=true" in enforced
+    assert (
+        any(str(s).startswith("ci.hadolint=") for s in enforced)
+        or "ci.hadolint=true" in enforced
+    )
     assert any(str(s).startswith("ci.semgrep_config=") for s in enforced)
     # config updated accordingly
-    y = yaml.safe_load((tmp_path / ".mcp/assistant.yaml").read_text(encoding="utf-8")) or {}
-    ci = (y.get("ci") or {})
+    y = (
+        yaml.safe_load((tmp_path / ".mcp/assistant.yaml").read_text(encoding="utf-8"))
+        or {}
+    )
+    ci = y.get("ci") or {}
     assert ci.get("hadolint") is True
     assert (ci.get("semgrep_config") or "") != ""
-

@@ -10,9 +10,14 @@ def _req(method: str, params: dict | None = None, id: int = 1) -> dict:
 
 
 def test_ci_workflow_resource_missing_and_present(tmp_path: Path) -> None:
-    srv = JsonRpcServer(); srv.project_root = tmp_path
+    srv = JsonRpcServer()
+    srv.project_root = tmp_path
     rlist = srv.handle(_req("resources/list"))
-    ci_uri = next(r["uri"] for r in rlist["result"]["resources"] if str(r["uri"]).startswith("ci://"))
+    ci_uri = next(
+        r["uri"]
+        for r in rlist["result"]["resources"]
+        if str(r["uri"]).startswith("ci://")
+    )
     missing = srv.handle(_req("resources/read", {"uri": ci_uri}))
     assert missing.get("result", {}).get("mimeType") == "text/yaml"
     assert (missing.get("result", {}).get("text") or "") == ""
@@ -26,17 +31,23 @@ def test_ci_workflow_resource_missing_and_present(tmp_path: Path) -> None:
 
 
 def test_config_resource_missing_and_present(tmp_path: Path) -> None:
-    srv = JsonRpcServer(); srv.project_root = tmp_path
+    srv = JsonRpcServer()
+    srv.project_root = tmp_path
     rlist = srv.handle(_req("resources/list"))
-    cfg_uri = next(r["uri"] for r in rlist["result"]["resources"] if str(r["uri"]).startswith("config://"))
+    cfg_uri = next(
+        r["uri"]
+        for r in rlist["result"]["resources"]
+        if str(r["uri"]).startswith("config://")
+    )
     missing = srv.handle(_req("resources/read", {"uri": cfg_uri}))
     assert missing.get("result", {}).get("mimeType") == "text/yaml"
     assert (missing.get("result", {}).get("text") or "") == ""
     # create config and read again
     cfg = tmp_path / ".mcp/assistant.yaml"
     cfg.parent.mkdir(parents=True, exist_ok=True)
-    cfg.write_text("performance:\n  on_push:\n    coverage: {min_module: 0.90}\n", encoding="utf-8")
+    cfg.write_text(
+        "performance:\n  on_push:\n    coverage: {min_module: 0.90}\n", encoding="utf-8"
+    )
     present = srv.handle(_req("resources/read", {"uri": cfg_uri}))
     assert present.get("result", {}).get("mimeType") == "text/yaml"
     assert "coverage:" in (present.get("result", {}).get("text") or "")
-

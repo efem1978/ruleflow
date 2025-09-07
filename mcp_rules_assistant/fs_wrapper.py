@@ -37,12 +37,16 @@ class FSGuard:
             prefixes = exec_cfg.get("allowed_write_prefixes")
             if isinstance(prefixes, list) and prefixes:
                 rel = str(dest.relative_to(root_res)).replace("\\", "/")
-                okp = any(str(prefix) and rel.startswith(str(prefix)) for prefix in prefixes)
+                okp = any(
+                    str(prefix) and rel.startswith(str(prefix)) for prefix in prefixes
+                )
                 if not okp:
                     raise ValueError("FSGuard: 路径不在允许前缀清单内")
             exts = exec_cfg.get("allowed_write_extensions")
             if isinstance(exts, list) and exts:
-                if dest.suffix.lower() not in [str(e).lower() for e in exts if isinstance(e, str)]:
+                if dest.suffix.lower() not in [
+                    str(e).lower() for e in exts if isinstance(e, str)
+                ]:
                     raise ValueError("FSGuard: 扩展名不在允许清单内")
         except Exception:
             # 如启用严格模式，向上抛出；否则仅作提示性保护
@@ -57,12 +61,12 @@ class FSGuard:
         full.write_text(content, encoding)
         # 可选：写入后执行轻量增量检查（受配置 execution.fs_guard_post_checks 控制，默认关闭）
         try:
-            exec_cfg: Dict[str, Any] = (
+            exec_cfg_post: Dict[str, Any] = (
                 self.cfg.get("execution", {})
                 if isinstance(self.cfg.get("execution", {}), dict)
                 else {}
             )
-            if bool(exec_cfg.get("fs_guard_post_checks", False)):
+            if bool(exec_cfg_post.get("fs_guard_post_checks", False)):
                 # 惰性导入，避免基础路径下的开销
                 from . import checks as _checks
 
@@ -85,7 +89,7 @@ class FSGuard:
                     do_type=do_type,
                     do_quick_tests=True,
                 )
-                if bool(exec_cfg.get("fs_guard_strict", False)) and not bool(
+                if bool(exec_cfg_post.get("fs_guard_strict", False)) and not bool(
                     res.get("ok", True)
                 ):
                     raise ValueError("FSGuard post checks failed under strict mode")

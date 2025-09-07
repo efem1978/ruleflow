@@ -39,4 +39,3 @@ def test_compile_rules_per_key_conflict_delta(tmp_path: Path) -> None:
     used = meta.get("conflict_delta", {}) or {}
     # per-key threshold should be recorded
     assert float(used.get("coverage.min_module")) == 0.01
-

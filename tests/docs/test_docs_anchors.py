@@ -3,7 +3,6 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -35,9 +34,9 @@ def test_docker_dev_no_ui_and_has_status_files() -> None:
     banned = ["localhost:9000", "--serve", "index.html", "status.js"]
     for b in banned:
         if b == "status.js":
-            assert re.search(r"(^|[^a-zA-Z0-9_])status\.js([^a-zA-Z0-9_]|$)", text) is None, (
-                f"banned pattern in DOCKER_DEV.md: {b}"
-            )
+            assert (
+                re.search(r"(^|[^a-zA-Z0-9_])status\.js([^a-zA-Z0-9_]|$)", text) is None
+            ), f"banned pattern in DOCKER_DEV.md: {b}"
         else:
             assert b not in text, f"banned pattern in DOCKER_DEV.md: {b}"
     # compose naming
@@ -63,13 +62,20 @@ def test_hooks_mentions_vscode_required() -> None:
 def test_repo_docs_no_stale_compose_or_dashboard_patterns() -> None:
     # scan key docs for banned patterns
     docs = [ROOT / "DEVELOPMENT.md", *(ROOT / "docs").glob("*.md"), ROOT / "README.md"]
-    banned = ["docker-compose.yml", "--serve", "localhost:9000", "status.js", "index.html"]
+    banned = [
+        "docker-compose.yml",
+        "--serve",
+        "localhost:9000",
+        "status.js",
+        "index.html",
+    ]
     for d in docs:
         t = read(d)
         for b in banned:
             if b == "status.js":
-                assert re.search(r"(^|[^a-zA-Z0-9_])status\.js([^a-zA-Z0-9_]|$)", t) is None, (
-                    f"banned pattern in {d}: {b}"
-                )
+                assert (
+                    re.search(r"(^|[^a-zA-Z0-9_])status\.js([^a-zA-Z0-9_]|$)", t)
+                    is None
+                ), f"banned pattern in {d}: {b}"
             else:
                 assert b not in t, f"banned pattern in {d}: {b}"

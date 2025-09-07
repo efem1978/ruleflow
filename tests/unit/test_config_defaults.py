@@ -5,8 +5,8 @@ from pathlib import Path
 from mcp_rules_assistant.config import (
     default_config_dict,
     ensure_project_config,
-    load_config,
     human_summary,
+    load_config,
 )
 
 
@@ -26,7 +26,8 @@ def test_ensure_and_load_defaults(tmp_path: Path) -> None:
 
 def test_human_summary_contains_key_sections(tmp_path: Path) -> None:
     (tmp_path / ".mcp").mkdir(parents=True, exist_ok=True)
-    (tmp_path / ".mcp/assistant.yaml").write_text("""
+    (tmp_path / ".mcp/assistant.yaml").write_text(
+        """
 performance:
   mode: fast
   on_save:
@@ -43,9 +44,10 @@ performance:
     coverage: { enforce: true, min_module: 0.95, min_core: 0.98 }
     security_scan: true
     mutation_test: false
-""", encoding="utf-8")
+""",
+        encoding="utf-8",
+    )
     cfg = load_config(project_path=tmp_path)
     s = human_summary(cfg)
     assert "Mode:" in s and "On Save:" in s and "On Push:" in s
     assert "min_module=0.95" in s
-

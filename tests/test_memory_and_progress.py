@@ -3,7 +3,13 @@ from __future__ import annotations
 from pathlib import Path
 
 from mcp_rules_assistant.memory import MemoryManager
-from mcp_rules_assistant.progress import ensure_plan, read_plan, write_plan, parse_plan, update_plan_fields
+from mcp_rules_assistant.progress import (
+    ensure_plan,
+    parse_plan,
+    read_plan,
+    update_plan_fields,
+    write_plan,
+)
 
 
 def test_memory_manager_window_and_summary(tmp_path: Path) -> None:

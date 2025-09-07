@@ -12,7 +12,7 @@ WORKDIR /work
 COPY --chown=appuser:appuser . /work
 RUN python -m pip install --upgrade --user pip && \
     python -m pip install --user -e . && \
-    python -m pip install --user -U pytest pytest-cov ruff black isort mypy bandit
+    python -m pip install --user -U pytest pytest-cov ruff black isort mypy bandit cryptography
 
 RUN python --version || true
 ENV PATH="/home/appuser/.local/bin:${PATH}"

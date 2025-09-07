@@ -16,6 +16,7 @@ def test_fs_guard_post_checks_handles_errors(tmp_path: Path) -> None:
 
     orig = checks.run_checks
     try:
+
         def boom(*a, **k):  # type: ignore[no-redef]
             raise RuntimeError("boom")
 

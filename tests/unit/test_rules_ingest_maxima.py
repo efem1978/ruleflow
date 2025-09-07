@@ -27,7 +27,7 @@ def test_maxima_aggregates_and_keeps_stricter(tmp_path: Path) -> None:
     (tmp_path / ".mcp/rules_raw.json").write_text(json.dumps(raw), encoding="utf-8")
     out = ri.compile_rules(project_root=tmp_path)
     assert out.get("ok", True) is not False
-    meta = (out.get("meta") or {})
+    meta = out.get("meta") or {}
     maxima = meta.get("maxima") or {}
     assert float(maxima.get("coverage.max_module")) == 0.97
 

@@ -411,6 +411,9 @@ def render_github_ci_yaml(project_root: Optional[Path] = None) -> str:
 
     require_vscode = bool((cfg.get("ci", {}) or {}).get("vscode_required", False))
 
+    lic_required = bool((cfg.get("license", {}) or {}).get("required", False))
+    crypto_line = "          pip install cryptography\n" if lic_required else ""
+
     yml = f"""
 name: CI
 on:
@@ -431,7 +434,7 @@ jobs:
       - name: Install tools
         run: |
           python -m pip install --upgrade pip
-          pip install ruff black isort mypy bandit pytest pytest-cov types-PyYAML
+{crypto_line}          pip install ruff black isort mypy bandit pytest pytest-cov types-PyYAML
 {precommit_ci}{docker_check}{hadolint_step}      - name: Lint (ruff/black/isort)
         run: |
           ruff check --output-format=github mcp_rules_assistant

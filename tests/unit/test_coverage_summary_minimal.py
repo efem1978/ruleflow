@@ -8,7 +8,6 @@ from mcp_rules_assistant.coverage_summary import (
     summarize_near,
 )
 
-
 MINIMAL_COV = """
 <?xml version='1.0' encoding='UTF-8'?>
 <coverage version="7.0" timestamp="0" branch-rate="0" line-rate="1.0">
@@ -44,4 +43,3 @@ def test_summaries_with_minimal_xml(tmp_path: Path) -> None:
     near = summarize_near(project_root=tmp_path, policy={"mcp_rules_assistant/": 0.98})
     files = [it.get("file") for it in near.get("near", [])]
     assert "mcp_rules_assistant/core.py" in files
-

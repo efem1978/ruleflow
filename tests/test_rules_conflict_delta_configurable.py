@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+
 import yaml
 
 from mcp_rules_assistant import rules_ingest as ri
@@ -12,7 +13,9 @@ def test_conflict_delta_from_config(tmp_path: Path) -> None:
     cfg = tmp_path / ".mcp/assistant.yaml"
     cfg.parent.mkdir(parents=True, exist_ok=True)
     y = {"rules": {"conflict_delta": 0.03}}
-    cfg.write_text(yaml.safe_dump(y, sort_keys=False, allow_unicode=True), encoding="utf-8")
+    cfg.write_text(
+        yaml.safe_dump(y, sort_keys=False, allow_unicode=True), encoding="utf-8"
+    )
 
     a = tmp_path / "a.md"
     b = tmp_path / "b.md"
@@ -22,4 +25,3 @@ def test_conflict_delta_from_config(tmp_path: Path) -> None:
     compiled = res.get("compiled") or {}
     conflicts = compiled.get("conflicts") or []
     assert any(c.get("key") == "coverage.min_module" for c in conflicts)
-

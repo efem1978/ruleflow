@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from pathlib import Path
 import os
+from pathlib import Path
 
 from mcp_rules_assistant.mcp_server import JsonRpcServer
 

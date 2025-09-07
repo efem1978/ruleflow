@@ -59,4 +59,3 @@ def test_apply_patch_max_files_rejects(tmp_path: Path) -> None:
                 },
             )
         assert "maxFiles" in str(e.value)
-

@@ -9,12 +9,16 @@ def test_fs_guard_strict_blocks_on_failed_checks(tmp_path: Path) -> None:
     # 启用 post checks + strict，并用打补丁的 run_checks 返回失败，以触发阻断
     cfg = tmp_path / ".mcp/assistant.yaml"
     cfg.parent.mkdir(parents=True, exist_ok=True)
-    cfg.write_text("execution:\n  fs_guard_post_checks: true\n  fs_guard_strict: true\n", encoding="utf-8")
+    cfg.write_text(
+        "execution:\n  fs_guard_post_checks: true\n  fs_guard_strict: true\n",
+        encoding="utf-8",
+    )
 
     import mcp_rules_assistant.checks as checks
 
     orig = checks.run_checks
     try:
+
         def fail(*a, **k):  # type: ignore[no-redef]
             return {"ok": False}
 

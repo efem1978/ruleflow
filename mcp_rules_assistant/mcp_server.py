@@ -20,6 +20,7 @@ from . import progress as progress_mod
 from . import rules_ingest as ri
 from .config import DEFAULT_PROJECT_CONFIG_PATH, ensure_project_config, load_config
 from .fs_wrapper import FSGuard, atomic_write_text
+from .license_utils import verify_license as _verify_license
 from .memory import MemoryManager
 from .policy_keys import (
     POLICY_KEY_CONTAINER_BASELINE,
@@ -30,7 +31,6 @@ from .policy_keys import (
 from .process import run_cmd
 from .rules import Complexity, DevMode, Scenario, choose_thresholds, explain_thresholds
 from .tools import registry, setup_default_tools
-from .license_utils import verify_license as _verify_license
 
 # MIME constants
 MIME_JSON = "application/json"
@@ -60,7 +60,11 @@ class JsonRpcServer:
 
     def _license_required(self) -> bool:
         try:
-            lic_cfg = self.cfg.get("license", {}) if isinstance(self.cfg.get("license", {}), dict) else {}
+            lic_cfg = (
+                self.cfg.get("license", {})
+                if isinstance(self.cfg.get("license", {}), dict)
+                else {}
+            )
             return bool(lic_cfg.get("required", False))
         except Exception:
             return False
@@ -320,7 +324,9 @@ class JsonRpcServer:
                         if isinstance(patterns, list) and patterns:
                             for pat in patterns:
                                 if isinstance(pat, str) and pat and pat in content:
-                                    raise ValueError("内容包含受限片段，受控写入被拒绝（strict）")
+                                    raise ValueError(
+                                        "内容包含受限片段，受控写入被拒绝（strict）"
+                                    )
                     except Exception:
                         # 忽略解析错误，但在严格模式下仍保持 skip/xfail 拒绝
                         pass
@@ -347,13 +353,18 @@ class JsonRpcServer:
                     prefixes = ex_cfg.get("allowed_write_prefixes")
                     if isinstance(prefixes, list) and prefixes:
                         rel = str(dest.relative_to(root_res)).replace("\\", "/")
-                        okp = any(str(prefix) and rel.startswith(str(prefix)) for prefix in prefixes)
+                        okp = any(
+                            str(prefix) and rel.startswith(str(prefix))
+                            for prefix in prefixes
+                        )
                         if not okp:
                             raise ValueError("受控写入路径不在允许前缀清单内")
                     exts = ex_cfg.get("allowed_write_extensions")
                     if isinstance(exts, list) and exts:
                         ext = dest.suffix.lower()
-                        if ext not in [str(e).lower() for e in exts if isinstance(e, str)]:
+                        if ext not in [
+                            str(e).lower() for e in exts if isinstance(e, str)
+                        ]:
                             raise ValueError("受控写入文件扩展名不在允许清单内")
                 except Exception as _e:
                     # 严格模式下升级为错误

@@ -4,10 +4,10 @@ from pathlib import Path
 
 from mcp_rules_assistant.progress import (
     ensure_plan,
-    read_plan,
-    write_plan,
     parse_plan,
+    read_plan,
     update_plan_fields,
+    write_plan,
 )
 
 
@@ -25,4 +25,3 @@ def test_ensure_read_write_and_parse(tmp_path: Path) -> None:
     write_plan("- 状态: done\n- 当前步骤: A\n- 下一步: B\n", tmp_path)
     st3, cur3, nxt3 = parse_plan(read_plan(tmp_path))
     assert st3 == "done" and cur3 == "A" and nxt3 == "B"
-

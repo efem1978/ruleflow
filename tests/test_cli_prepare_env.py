@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+
 from typer.testing import CliRunner
 
 from mcp_rules_assistant.cli import app
@@ -14,4 +15,3 @@ def test_cli_prepare_env_dry_run(tmp_path: Path) -> None:
         out = r.stdout or ""
         # Expect dry-run plan text with venv path hint
         assert "dry" in out and ".mcp/venv" in out
-

@@ -27,4 +27,3 @@ def test_ci_validate_has_node_tests_flag(tmp_path: Path) -> None:
     v2 = srv.handle(_req("tools/call", {"name": "ci.validate"}))
     checks2 = v2.get("result", {}).get("checks", {})
     assert checks2.get("has_node_tests") is True
-
