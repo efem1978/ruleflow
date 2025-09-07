@@ -5,11 +5,16 @@ echo "[verify] 1/4 Preflight"
 sh scripts/preflight.sh
 
 echo "[verify] 2/4 Tests + Coverage"
-PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest -q -p pytest_cov --maxfail=1 --disable-warnings -W error --strict-markers --cov=mcp_rules_assistant --cov-report=xml:coverage.xml --cov-report=term-missing
+# Prefer project venv Python if available for consistency
+PY=python3
+if [ -x ".mcp/venv/bin/python" ]; then
+  PY=".mcp/venv/bin/python"
+fi
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 "$PY" -m pytest -q -p pytest_cov --maxfail=1 --disable-warnings -W error --strict-markers --cov=mcp_rules_assistant --cov-report=xml:coverage.xml --cov-report=term-missing
 
 echo "[verify] 3/4 Coverage Gate"
-python3 -m mcp_rules_assistant.cli coverage-report --json > /tmp/coverage_report.json
-python3 - << 'PY'
+"$PY" -m mcp_rules_assistant.cli coverage-report --json > /tmp/coverage_report.json
+"$PY" - << 'PY'
 import json,sys
 D=json.load(open('/tmp/coverage_report.json'))
 weak=D.get('weak') or []
@@ -25,8 +30,8 @@ if weak:
 PY
 
 echo "[verify] 4/4 dev_agent smoke (local)"
-PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 DEV_AGENT_MAX_CYCLES=1 python3 -m mcp_rules_assistant.dev_agent --interval 1 >/dev/null 2>&1 || true
-python3 - << 'PY'
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 DEV_AGENT_MAX_CYCLES=1 "$PY" -m mcp_rules_assistant.dev_agent --interval 1 >/dev/null 2>&1 || true
+"$PY" - << 'PY'
 from pathlib import Path
 import json,sys
 p=Path('.mcp/dashboard/status.json')
@@ -44,4 +49,3 @@ if not ok or weak:
 PY
 
 echo "[verify] OK"
-

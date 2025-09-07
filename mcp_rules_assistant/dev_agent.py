@@ -846,11 +846,22 @@ class DevAgent:
     # removed: internal atomic helper in favor of fs_wrapper.atomic_write_text
 
     def run(self, interval: int, max_cycles: int = 0):
-        # Prefer instance override if present; else use module-level helper (both test styles)
-        if "_ensure_dashboard_dir" in getattr(self, "__dict__", {}):
-            dash = self._ensure_dashboard_dir(rebuild=True)  # type: ignore[misc]
-        else:
-            dash = _ensure_dashboard_dir(self.project_root, rebuild=True)
+        # 兼容测试对模块级 _ensure_dashboard_dir 的 monkeypatch，同时避免 __main__ 顺序问题
+        try:
+            # 若实例级别被 monkeypatch（存在于 __dict__），优先使用实例方法
+            if "_ensure_dashboard_dir" in getattr(self, "__dict__", {}):
+                dash = self._ensure_dashboard_dir(rebuild=True)  # type: ignore[misc]
+            else:
+                import mcp_rules_assistant.dev_agent as _dev_mod
+                _func = getattr(_dev_mod, "_ensure_dashboard_dir", None)
+                if callable(_func):  # 模块级 monkeypatch（测试常用模式）
+                    dash = _func(self.project_root, rebuild=True)  # type: ignore[misc]
+                else:
+                    dash = self._ensure_dashboard_dir(rebuild=True)
+        except Exception:
+            # 最后回退：确保目录存在
+            dash = (self.project_root / ".mcp" / "dashboard")
+            dash.mkdir(parents=True, exist_ok=True)
         self._initialize_run_status(dash, interval)
 
         run_config = self._load_run_config()

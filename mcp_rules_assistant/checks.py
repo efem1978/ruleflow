@@ -239,11 +239,11 @@ def run_quick_tests(files: List[Path], cwd: Optional[Path] = None) -> Dict[str, 
 
     for f in files:
         name = f.name
-        # 1) 改动就是测试
-        if (
+        # 1) 改动就是测试（仅限 Python 测试文件）
+        if f.suffix == ".py" and (
             name.startswith("test_")
-            or f.parent.name == "tests"
             or name.endswith("_test.py")
+            or f.parent.name == "tests"
         ):
             test_paths.add(str(f))
             continue
