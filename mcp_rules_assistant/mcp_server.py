@@ -369,6 +369,9 @@ class JsonRpcServer:
                 if isinstance(self.cfg.get("execution", {}), dict)
                 else {}
             )
+            # 只读模式：阻断任何写入（dry_run 允许查询 would_write 列表）
+            if bool(exec_cfg_eff.get("readonly", False)) and not bool(dry_run):
+                raise ValueError("受控写入被拒绝：只读模式已启用（execution.readonly）")
             if not isinstance(max_files, int):
                 max_files = int(exec_cfg_eff.get("max_files", 100))
             if isinstance(max_files, int) and max_files >= 0 and len(files) > max_files:

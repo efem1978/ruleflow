@@ -460,6 +460,43 @@ def compliance_commitment(
         rprint(res)
 
 
+@app.command("cleanup")
+def cleanup(
+    artifacts: bool = typer.Option(
+        True, "--artifacts/--no-artifacts", help="清理测试与覆盖率工件"
+    ),
+) -> None:
+    """清理常见工件（coverage.xml/.coverage/.pytest_cache/cov*.json 等）。"""
+    removed: list[str] = []
+    import glob
+    from shutil import rmtree
+
+    def rm(p: Path) -> None:
+        try:
+            if p.is_dir():
+                rmtree(p, ignore_errors=True)
+            elif p.exists():
+                p.unlink()
+            removed.append(str(p))
+        except Exception:
+            pass
+
+    if artifacts:
+        for pat in [
+            "coverage.xml",
+            ".coverage",
+            ".coverage*",
+            "cov.json",
+            "cov*.json",
+            "pytest-junit.xml",
+        ]:
+            for f in glob.glob(pat):
+                rm(Path(f))
+        rm(Path(".pytest_cache"))
+        rm(Path("htmlcov"))
+    rprint({"ok": True, "removed": removed})
+
+
 @app.command("coverage")
 def coverage() -> None:
     """读取 coverage.xml 并输出薄弱文件 Top 20（基于配置阈值/模块策略）。"""
