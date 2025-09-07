@@ -13,7 +13,9 @@ def _runner() -> CliRunner:
     return CliRunner()
 
 
-def test_cli_license_activate_missing(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_cli_license_activate_missing(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     # isolate HOME and CWD
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("HOME", str(tmp_path))
@@ -23,7 +25,9 @@ def test_cli_license_activate_missing(monkeypatch: pytest.MonkeyPatch, tmp_path:
     assert "license file not found" in r.stdout
 
 
-def test_cli_license_verify_prints_status(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_cli_license_verify_prints_status(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("HOME", str(tmp_path))
     # no license.json -> activated False
@@ -32,7 +36,9 @@ def test_cli_license_verify_prints_status(monkeypatch: pytest.MonkeyPatch, tmp_p
     assert "activated" in r.stdout
 
 
-def test_cli_license_generate_prints_when_no_out(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_cli_license_generate_prints_when_no_out(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("MCP_LICENSE_SALT", "test-salt")
     r = _runner().invoke(
@@ -69,7 +75,9 @@ def test_cli_license_generate_rs256_requires_key(tmp_path: Path) -> None:
     assert "--private-key required" in r.stdout
 
 
-def test_cli_license_generate_rs256_missing_key(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_cli_license_generate_rs256_missing_key(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     monkeypatch.chdir(tmp_path)
     r = _runner().invoke(
         app,
@@ -89,7 +97,9 @@ def test_cli_license_generate_rs256_missing_key(monkeypatch: pytest.MonkeyPatch,
     assert "private key not found" in r.stdout
 
 
-def test_cli_license_generate_out_file(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_cli_license_generate_out_file(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     monkeypatch.chdir(tmp_path)
     r = _runner().invoke(
         app,
@@ -109,14 +119,18 @@ def test_cli_license_generate_out_file(monkeypatch: pytest.MonkeyPatch, tmp_path
     assert Path("lic.json").exists()
 
 
-def test_cli_precommit_migrate_not_found(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_cli_precommit_migrate_not_found(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     monkeypatch.chdir(tmp_path)
     r = _runner().invoke(app, ["precommit-migrate-stages"])
     assert r.exit_code != 0
     assert ".pre-commit-config.yaml not found" in r.stdout
 
 
-def test_cli_precommit_migrate_parse_error(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_cli_precommit_migrate_parse_error(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     monkeypatch.chdir(tmp_path)
     Path(".pre-commit-config.yaml").write_text(": {", encoding="utf-8")
     r = _runner().invoke(app, ["precommit-migrate-stages"])
@@ -124,7 +138,9 @@ def test_cli_precommit_migrate_parse_error(monkeypatch: pytest.MonkeyPatch, tmp_
     assert "yaml parse error" in r.stdout
 
 
-def test_cli_precommit_migrate_changes(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_cli_precommit_migrate_changes(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     monkeypatch.chdir(tmp_path)
     data = {
         "repos": [
@@ -147,7 +163,9 @@ def test_cli_precommit_migrate_changes(monkeypatch: pytest.MonkeyPatch, tmp_path
     assert "changed" in r.stdout and "True" in r.stdout
 
 
-def test_cli_precommit_migrate_else_branch_kept(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_cli_precommit_migrate_else_branch_kept(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     monkeypatch.chdir(tmp_path)
     data = {"repos": [{"repo": "local", "hooks": [{"id": "x", "stages": ["lint"]}]}]}
     Path(".pre-commit-config.yaml").write_text(
@@ -160,7 +178,9 @@ def test_cli_precommit_migrate_else_branch_kept(monkeypatch: pytest.MonkeyPatch,
     assert "changed" in r.stdout and "False" in r.stdout
 
 
-def test_cli_rules_suggestions_text_else_branch(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_cli_rules_suggestions_text_else_branch(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     # prepare compiled suggestions with one item missing 'value' to trigger the else branch
     monkeypatch.chdir(tmp_path)
     cdir = tmp_path / ".mcp"
@@ -173,7 +193,9 @@ def test_cli_rules_suggestions_text_else_branch(monkeypatch: pytest.MonkeyPatch,
     assert ("[info] a (set)" in r.stdout) or ("  a (set)" in r.stdout)
 
 
-def test_cli_ci_set_yaml_parse_error_then_update(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_cli_ci_set_yaml_parse_error_then_update(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     # invalid YAML -> except branch; still proceed to write ci fields
     monkeypatch.chdir(tmp_path)
     cfg = tmp_path / ".mcp/assistant.yaml"
@@ -184,7 +206,9 @@ def test_cli_ci_set_yaml_parse_error_then_update(monkeypatch: pytest.MonkeyPatch
     assert "CI 配置已更新" in r.stdout
 
 
-def test_cli_coverage_near_set_yaml_parse_error(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_cli_coverage_near_set_yaml_parse_error(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     monkeypatch.chdir(tmp_path)
     cfg = tmp_path / ".mcp/assistant.yaml"
     cfg.parent.mkdir(parents=True, exist_ok=True)

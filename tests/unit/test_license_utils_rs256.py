@@ -6,10 +6,7 @@ from pathlib import Path
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
-from mcp_rules_assistant.license_utils import (
-    generate_license,
-    verify_license,
-)
+from mcp_rules_assistant.license_utils import generate_license, verify_license
 
 
 def _gen_keys():
@@ -40,4 +37,3 @@ def test_generate_and_verify_rs256(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("MCP_LICENSE_PUBKEY", pub.decode("utf-8"))
     res = verify_license(p)
     assert res["ok"] is True and res["signature_ok"] is True and res["date_ok"] is True
-

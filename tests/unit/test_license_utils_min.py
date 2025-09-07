@@ -5,10 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from mcp_rules_assistant.license_utils import (
-    generate_license,
-    verify_license,
-)
+from mcp_rules_assistant.license_utils import generate_license, verify_license
 
 
 def test_verify_missing_file(tmp_path: Path) -> None:
@@ -17,7 +14,16 @@ def test_verify_missing_file(tmp_path: Path) -> None:
     assert res["ok"] is False and res["activated"] is False
 
 
-def test_generate_hs256_and_verify(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_verify_invalid_json(tmp_path: Path) -> None:
+    p = tmp_path / "license.json"
+    p.write_text("{ not: json }", encoding="utf-8")
+    res = verify_license(p)
+    assert res["ok"] is False and res["activated"] is False
+
+
+def test_generate_hs256_and_verify(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     # Use a deterministic salt for reproducibility
     monkeypatch.setenv("MCP_LICENSE_SALT", "test-salt")
     lic = generate_license(
@@ -77,4 +83,3 @@ def test_verify_invalid_expires_formats(tmp_path: Path) -> None:
     assert res["activated"] is True
     assert res["date_ok"] is False
     assert res["ok"] is False
-

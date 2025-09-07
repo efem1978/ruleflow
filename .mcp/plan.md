@@ -1,17 +1,19 @@
-# 项目计划 / Project Plan（内测优先 / 商业化暂缓）
+# 项目计划 / Project Plan（覆盖率冲刺）
 
 - 状态: in_progress
-- 当前步骤: 本地完整部署与试用评估（不对外发布）
-- 下一步: 结构自检与 README 双语完善（两大支柱与引导）
+- 当前步骤: 覆盖率提升与门禁对齐（批次一）
+- 下一步: mcp_server 与 license_utils 覆盖率补齐（批次二）
 - 风险与阻塞: （待补充）
 
 ## 任务清单（可勾选）
 
 - [x] 构建 Python 包（dist/*.whl, *.tar.gz）
 - [x] 构建 VS Code 扩展（extensions/vscode/*.vsix）
-- [ ] 本机安装验证（CLI 正常、面板可打开）
-- [ ]（可选）将仓库设为私有，避免被搜索到
-- [ ] 完成 README 双语引导与截图（两大支柱）
+- [x] 提升 fs_wrapper 至 100%
+- [x] 提升 atomics 至 100%
+- [x] 提升 dev_agent 至 ≥95%
+- [x] 提升 cli 至 ≥98%
+- [x] Docker 内跑通测试（含 RS256）
+- [ ] 提升 mcp_server 至 ≥98%
+- [ ] 提升 license_utils 至 ≥96%
 - [ ] 运行 `make verify`（绿）与结构自检（无冗余/过时）
-- [ ] 保留发布能力但暂不配置 Secrets/不打标签
-- [ ] 商业化准备（稍后）：定价 + MoR 集成 + 许可强校验开关

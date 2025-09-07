@@ -19,4 +19,3 @@ def test_dev_agent_quick_path(monkeypatch, tmp_path: Path) -> None:
 
     res = agent._run_impacted_or_full(cycle_idx=1, full_every=5)
     assert res.get("mode") == "quick" and res.get("ok") is True
-

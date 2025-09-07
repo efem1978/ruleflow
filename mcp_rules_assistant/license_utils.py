@@ -34,9 +34,15 @@ def _verify_rs256(payload: bytes, signature_b64: str) -> bool:
     if not pem:
         return False
     try:
-        from cryptography.hazmat.primitives import hashes  # type: ignore[import-not-found]
-        from cryptography.hazmat.primitives.asymmetric import padding  # type: ignore[import-not-found]
-        from cryptography.hazmat.primitives.serialization import load_pem_public_key  # type: ignore[import-not-found]
+        from cryptography.hazmat.primitives import (
+            hashes,  # type: ignore[import-not-found]
+        )
+        from cryptography.hazmat.primitives.asymmetric import (
+            padding,  # type: ignore[import-not-found]
+        )
+        from cryptography.hazmat.primitives.serialization import (
+            load_pem_public_key,  # type: ignore[import-not-found]
+        )
 
         pub = load_pem_public_key(pem.encode("utf-8"))
         sig = _b64url_decode(signature_b64)
@@ -88,9 +94,15 @@ def verify_license(path: Path = LICENSE_PATH) -> Dict[str, Any]:
 
 def _sign_rs256(payload: bytes, private_key_pem: bytes) -> str:
     try:
-        from cryptography.hazmat.primitives import hashes  # type: ignore[import-not-found]
-        from cryptography.hazmat.primitives.asymmetric import padding  # type: ignore[import-not-found]
-        from cryptography.hazmat.primitives.serialization import load_pem_private_key  # type: ignore[import-not-found]
+        from cryptography.hazmat.primitives import (
+            hashes,  # type: ignore[import-not-found]
+        )
+        from cryptography.hazmat.primitives.asymmetric import (
+            padding,  # type: ignore[import-not-found]
+        )
+        from cryptography.hazmat.primitives.serialization import (
+            load_pem_private_key,  # type: ignore[import-not-found]
+        )
 
         key = load_pem_private_key(private_key_pem, password=None)
         sig = key.sign(payload, padding.PKCS1v15(), hashes.SHA256())
