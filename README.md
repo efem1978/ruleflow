@@ -29,6 +29,10 @@ RuleFlow: Open PanelMCP 规则与上下文助手 / MCP Rules & Context Assistant
 许可与试用 License & Trial
 - 本产品为商业授权（全部功能付费，含 7 天试用）；详见 `docs/PRICING.md`
 - 激活：`mcp-rules-assistant license-status` 查看状态；`mcp-rules-assistant license-activate --file <path>` 将许可文件复制到 `~/.mcp/license.json`
+- 校验：`mcp-rules-assistant license-verify` 查看签名/有效期是否有效（支持 hs256/rs256）
+- 发行（离线）：`mcp-rules-assistant license-generate --issued-to Alice --expires 2026-01-01 --alg hs256 --out lic.json`
+  - hs256：默认使用 `MCP_LICENSE_SALT`（可选）计算签名（演示）
+  - rs256：提供私钥 `--private-key private.pem` 生成；设置 `MCP_LICENSE_PUBKEY` 公钥进行校验
 
 快速开始 Quick Start（性能优先）
 - 安装：`pip install -e .`（开发模式）

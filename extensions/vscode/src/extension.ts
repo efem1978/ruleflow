@@ -81,6 +81,9 @@ export function activate(context: vscode.ExtensionContext) {
         <h2>MCP 规则与上下文助手</h2>
         <p>已连接到 Python MCP Server（最小协议）。默认快速内环：保存轻、推送重。</p>
         <div id="ticker" style="height:22px; overflow:hidden; background:#f6f6f6; border:1px solid #ddd; padding:2px 6px; margin:6px 0;"><span id="tickerText" style="display:inline-block; white-space:nowrap;"></span></div>
+        <div id="lic" style="padding:4px 6px; border:1px solid #ddd; background:#fafafa; margin:6px 0;">
+          <b>License:</b> <span id="licText">(loading)</span>
+        </div>
         <div id="info" style="margin:6px 0; color:#d33;"></div>
         <div style="margin:8px 0;">
           <input id="nlInput" placeholder="自然语言指令：如 摄取规则 README.md, docs/ / 加载覆盖率 / 开启滚动记忆" style="width:65%;" />
@@ -547,6 +550,15 @@ export function activate(context: vscode.ExtensionContext) {
               if (el) el.textContent = msg.exist ? 'CI: 已生成' : 'CI: 未生成';
               if (el) el.style.color = msg.exist ? '#2a2' : '#d33';
             }
+            if (msg.t === 'license') {
+              const L = msg.license || {}; const el = document.getElementById('licText');
+              const ok = !!L.ok; const activated = !!L.activated; const sig = !!L.signature_ok; const dateok = !!L.date_ok; const exp = L.expires || '';
+              let label = 'Missing'; let color = '#d33';
+              if (activated && !ok) { label = 'Invalid'; }
+              if (activated && ok && !dateok) { label = 'Expired'; }
+              if (activated && ok && dateok) { label = 'Valid'; color = '#2a2'; }
+              if (el) { el.textContent = label + (exp ? (' (expires ' + exp + ')') : ''); (el as any).style = 'color:' + color; }
+            }
         });
         </script>
       </body></html>`;
@@ -557,6 +569,7 @@ export function activate(context: vscode.ExtensionContext) {
       const tools = await client.request('tools/list', {});
       const list = (tools.tools || []).map((t: any) => `<li><code>${t.name}</code> — ${t.description}</li>`).join('');
       panel.webview.html = render('', list);
+      try { const diag = await client.request('tools/call', { name: 'env.diagnose', arguments: {} }); panel.webview.postMessage({ t: 'license', license: (diag && (diag as any).license) || {} }); } catch {}
     } catch (e: any) {
       panel.webview.html = `<pre>连接 MCP 失败：${String(e)}</pre>`;
     }

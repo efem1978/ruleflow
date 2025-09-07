@@ -6,7 +6,7 @@ import json
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Tuple, Optional
 
 
 LICENSE_PATH = Path.home() / ".mcp/license.json"
@@ -84,4 +84,62 @@ def verify_license(path: Path = LICENSE_PATH) -> Dict[str, Any]:
         "signature_ok": sig_ok,
         "date_ok": valid_date,
         "alg": alg,
+    }
+
+
+def _sign_rs256(payload: bytes, private_key_pem: bytes) -> str:
+    try:
+        from cryptography.hazmat.primitives import hashes
+        from cryptography.hazmat.primitives.asymmetric import padding
+        from cryptography.hazmat.primitives.serialization import load_pem_private_key
+
+        key = load_pem_private_key(private_key_pem, password=None)
+        sig = key.sign(payload, padding.PKCS1v15(), hashes.SHA256())
+        return base64.urlsafe_b64encode(sig).rstrip(b"=").decode("ascii")
+    except Exception as e:  # pragma: no cover - depends on optional crypto
+        raise RuntimeError(f"rs256 signing failed: {e}")
+
+
+def generate_license(
+    *,
+    issued_to: str,
+    expires: str,
+    machine: str,
+    alg: str = "hs256",
+    private_key_pem: Optional[bytes] = None,
+) -> Dict[str, Any]:
+    """Generate a license dict with signature.
+
+    - alg=hs256 uses SALT-based sha256 hex (demo).
+    - alg=rs256 requires private_key_pem for signing.
+    """
+    issued_to = str(issued_to).strip()
+    machine = str(machine).strip()
+    alg = str(alg or "hs256").lower()
+    # basic field checks
+    if not issued_to:
+        raise ValueError("issued_to required")
+    if not expires:
+        raise ValueError("expires required (YYYY-MM-DD)")
+    # validate date
+    try:
+        datetime.strptime(expires, "%Y-%m-%d")
+    except Exception:
+        raise ValueError("invalid expires format, expected YYYY-MM-DD")
+
+    payload = f"{issued_to}|{expires}|{machine}".encode("utf-8")
+    if alg == "rs256":
+        if not private_key_pem:
+            raise ValueError("private key PEM required for rs256")
+        signature = _sign_rs256(payload, private_key_pem)
+    else:
+        raw = payload + ("|" + _SALT).encode("utf-8")
+        signature = hashlib.sha256(raw).hexdigest()
+        alg = "hs256"
+    return {
+        "issued_to": issued_to,
+        "expires": expires,
+        "machine": machine,
+        "alg": alg,
+        "signature": signature,
     }

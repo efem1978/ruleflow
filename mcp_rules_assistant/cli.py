@@ -27,7 +27,7 @@ from .coverage_summary import summarize_near as cov_near
 from .coverage_summary import summarize_tree as cov_tree
 from .mcp_server import JsonRpcServer
 from .progress import ensure_plan, read_plan, update_plan_fields, write_plan
-from .license_utils import verify_license
+from .license_utils import verify_license, generate_license
 
 app = typer.Typer(add_completion=False, help="MCP Rules & Context Assistant CLI")
 
@@ -71,6 +71,43 @@ def license_verify() -> None:
     """校验许可文件（演示版：有效期与签名一致性）。"""
     res = verify_license()
     rprint(res)
+
+
+@app.command("license-generate")
+def license_generate(
+    issued_to: str = typer.Option(..., "--issued-to", help="被授权人/组织"),
+    expires: str = typer.Option(..., "--expires", help="到期日 YYYY-MM-DD"),
+    machine: str = typer.Option("", "--machine", help="机器指纹（可留空）"),
+    alg: str = typer.Option("hs256", "--alg", help="hs256 或 rs256"),
+    private_key: Optional[str] = typer.Option(None, "--private-key", help="rs256 私钥 PEM 路径"),
+    out: Optional[str] = typer.Option(None, "--out", help="输出路径（默认打印）"),
+) -> None:
+    """离线生成 license（演示版）：支持 hs256/rs256。
+
+    - hs256：使用环境变量 MCP_LICENSE_SALT（可选）计算签名；便于本地试用/演示。
+    - rs256：需要 --private-key 指定 PEM 格式 RSA 私钥；验证通过 MCP_LICENSE_PUBKEY 公钥。
+    """
+    pk_bytes = None
+    if alg.lower() == "rs256":
+        if not private_key:
+            rprint({"ok": False, "message": "--private-key required for rs256"})
+            raise typer.Exit(2)
+        p = Path(private_key).expanduser().resolve()
+        if not p.exists():
+            rprint({"ok": False, "message": f"private key not found: {p}"})
+            raise typer.Exit(2)
+        pk_bytes = p.read_bytes()
+    lic = generate_license(
+        issued_to=issued_to, expires=expires, machine=machine, alg=alg, private_key_pem=pk_bytes
+    )
+    text = _json.dumps(lic, ensure_ascii=False, indent=2)
+    if out:
+        op = Path(out).expanduser().resolve()
+        op.parent.mkdir(parents=True, exist_ok=True)
+        op.write_text(text, encoding="utf-8")
+        rprint({"ok": True, "path": str(op)})
+    else:
+        rprint(text)
 
 
 @app.command("precommit-migrate-stages")
