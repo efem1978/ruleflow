@@ -6,7 +6,7 @@
 - 提交规范：建议约定式提交（feat/fix/docs/test/chore 等）
 
 本地环境 Local Setup
-- Python ≥3.10，Node ≥18
+- Python ≥3.10，Node ≥18（CI 使用 20）
 - `pip install -e .` 安装 CLI
 - 可选：`make setup` 创建 `.mcp/venv` 并安装工具链
 

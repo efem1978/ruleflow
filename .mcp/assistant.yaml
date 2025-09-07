@@ -11,22 +11,27 @@ performance:
     test_impacted: true
   on_push:
     test_all: true
-    coverage: {enforce: true, min_module: 0.95, min_core: 0.98}
+    coverage:
+      enforce: true
+      min_module: 0.96
+      min_core: 1.0
     security_scan: true
     mutation_test: false
 language: python
 bilingual: true
 coverage:
   policy:
-    "config.py": 0.98
-    "progress.py": 0.98
-    "tools.py": 0.98
-    "memory.py": 0.98
-    "mcp_server.py": 0.98
-    "cli.py": 0.98
-    "server.py": 0.98
-    "dev_agent.py": 0.95  # 已补测，提升至生产阈值
-  near: {within: 0.03, top: 50}
+    config.py: 0.98
+    progress.py: 0.98
+    tools.py: 0.98
+    memory.py: 0.98
+    mcp_server.py: 0.98
+    cli.py: 0.98
+    server.py: 0.98
+    dev_agent.py: 0.95
+  near:
+    within: 0.03
+    top: 50
 tests:
   quick_fail_decay:
     high_days: 3
@@ -35,6 +40,11 @@ tests:
     mid_bonus: 1
     history_limit: 400
 ci:
-  hadolint: false
-  semgrep_config: ""
+  hadolint: true
+  semgrep_config: auto
   vscode_required: true
+rules:
+  conflict_delta:
+    __default__: 0.03
+    coverage.min_module: 0.02
+    coverage.min_core: 0.02

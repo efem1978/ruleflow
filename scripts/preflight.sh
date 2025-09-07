@@ -46,4 +46,31 @@ print('[preflight] lightweight anchors OK')
 PY
 fi
 
+echo "[preflight] checking version consistency (pyproject vs __init__)..."
+python3 - <<'PY'
+import re, sys
+from pathlib import Path
+
+p = Path('pyproject.toml').read_text(encoding='utf-8', errors='ignore')
+try:
+    import tomllib  # type: ignore
+    data = tomllib.loads(p)
+    v1 = data.get('project', {}).get('version')
+except Exception:
+    m = re.search(r"(?m)^version\s*=\s*\"([^\"]+)\"", p)
+    v1 = m.group(1) if m else None
+
+q = Path('mcp_rules_assistant/__init__.py').read_text(encoding='utf-8', errors='ignore')
+m2 = re.search(r"__version__\s*=\s*\"([^\"]+)\"", q)
+v2 = m2.group(1) if m2 else None
+
+if not v1 or not v2:
+    print('[preflight] cannot read versions', v1, v2)
+    sys.exit(1)
+if v1 != v2:
+    print(f"[preflight] version mismatch: pyproject={v1} __init__={v2}")
+    sys.exit(1)
+print(f"[preflight] version OK: {v1}")
+PY
+
 echo "[preflight] OK"

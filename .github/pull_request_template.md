@@ -1,16 +1,17 @@
-## 变更摘要 / Summary
+PR Title: <scope>: <summary>
 
-- [ ] 说明本 PR 的目的、范围和风险。
+Summary
+- What does this change do? Keep it concise.
 
-## 检查清单 / Checklist
+Checklist
+- [ ] Tests added/updated to cover changes
+- [ ] `make local-ci-run` passes locally (lint/type/tests/coverage gate)
+- [ ] No skip/xfail introduced (policy forbids in push/CI)
+- [ ] `.mcp/plan.md` is `in_progress` and commit message contains `[step:<current-step>]`
+- [ ] CI workflow unchanged or updated accordingly
 
-- [ ] CI 全部通过（build × Python 版本、prepare）
-- [ ] 覆盖率 ≥ 95%（本地 `pytest -q -W error --cov --cov-fail-under=95`）
-- [ ] patch 覆盖率合理，未出现大面积未测代码
-- [ ] 无 `skip/xfail`，无 `warnings`（CI 强转为 error）
-- [ ] 如涉及 CI/安全策略，更新文档（README/CONTRIBUTING）
+Notes
+- If rules were updated, run:
+  - `python3 -m mcp_rules_assistant.cli ingest-rules README.md docs/`
+  - `python3 -m mcp_rules_assistant.cli enforce && python3 -m mcp_rules_assistant.cli generate-ci`
 
-## 验收说明 / Notes for Reviewers
-
-- 运行指令：`make test` 或 `pytest -q -W error --cov --cov-fail-under=95`
-- 覆盖率报告：CI 会上传至 Codecov（徽章与 PR 检查）

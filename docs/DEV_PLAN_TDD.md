@@ -4,12 +4,12 @@ TDD 开发计划 / TDD Development Plan
 - 目标：以 TDD 模式完善本仓库，确保功能按文档落地；覆盖率达标（核心≥98%，非核心≥95%），测试全绿且无警告/跳过；CI/钩子具备生产级门禁。
 - 范围：Python MCP Server、规则摄取/编译、覆盖率摘要、受控写入检查、Hooks/CI 生成、VS Code 扩展交互的核心路径。
 
-覆盖率策略 Coverage Targets
-- 近期：总覆盖率 85–92%（建立基线并覆盖核心路径）。
-- 达标：
-  - 全局 ≥95%（CI `--cov-fail-under=95`）。
-  - 核心模块（示例：config/progress/tools/memory/mcp_server/cli/server）≥98%（由 coverage.policy 约束并在 CI 按政策阻断）。
-  - 其余模块 ≥95%。
+覆盖率策略 Coverage Targets（目标示例，非门禁；门槛以 `.mcp/assistant.yaml` 为准）
+- 近期：目标区间 85–92%（建立基线并覆盖核心路径，非门禁）。
+- 达标（示例）：
+  - 全局目标 95% 以上（CI 可用 `--cov-fail-under` 控制；以配置为准）。
+  - 核心模块目标更高（如 98% 以上，受 `coverage.policy` 约束并在 CI 按政策阻断）。
+  - 其余模块目标 95% 以上。
 
 分阶段执行 Phased Plan（逐层推进）
 Phase A — 基线与修复（Red → Green → Refactor）
@@ -90,7 +90,7 @@ Phase E — 集成与 CLI
  - VS Code Webview 近阈值交互修复：采用 postMessage → 扩展侧调用 MCP，再回传结果。
  - MCP prompts 能力对齐：实现 prompts/list 与 prompts/get 最小占位端点。
  - 依赖精简：已无 pydantic。
- - 版本号对齐：pyproject.toml 与 mcp_rules_assistant/__init__.py 已一致（0.2.2）。
+ - 版本号对齐：pyproject.toml 与 mcp_rules_assistant/__init__.py 已一致（0.2.3）。
 
 1) 统一门槛来源与生成物（高优先级，持续）
    - 持续校验生成物与配置一致性；文档与实现保持同频（已将 env.prepare 更新为“可创建 venv 并可选安装工具”）。

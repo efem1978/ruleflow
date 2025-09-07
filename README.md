@@ -1,4 +1,4 @@
-MCP 规则与上下文助手 / MCP Rules & Context Assistant
+RuleFlow: Open PanelMCP 规则与上下文助手 / MCP Rules & Context Assistant
 
 以“插件 + MCP Server”模式，提供跨 IDE 的上下文滚动记忆、编程规则强约束、
 包裹式改动门禁与性能优先的开发体验。默认启用“快速内环（Fast Inner Loop）”，
@@ -15,6 +15,10 @@ MCP 规则与上下文助手 / MCP Rules & Context Assistant
 - 性能优先：保存时仅增量与缓存；重型校验集中在 pre-push/CI
 - 自然语言命令（中英双语 + 模糊语义）
 
+两大支柱 / Two Pillars
+- 规则与门禁 Rules Enforcement：规则摄取与冲突检测、覆盖率阈值与分组策略、Git Hooks 与 CI 门禁生成/校验。
+- 上下文记忆 Context Memory：20 轮滚动记忆与计划资源（memory:// / progress://），在多轮协作中保持一致性与衔接。
+
 状态 Status
 
 ![CI](https://img.shields.io/github/actions/workflow/status/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool/ci.yml?branch=main&label=CI)
@@ -22,11 +26,18 @@ MCP 规则与上下文助手 / MCP Rules & Context Assistant
 ![Coverage](https://codecov.io/gh/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool/branch/main/graph/badge.svg)
 ![PyPI](https://img.shields.io/pypi/v/mcp-rules-assistant?label=pypi)
 
+许可与试用 License & Trial
+- 本产品为商业授权（全部功能付费，含 7 天试用）；详见 `docs/PRICING.md`
+- 激活：`mcp-rules-assistant license-status` 查看状态；`mcp-rules-assistant license-activate --file <path>` 将许可文件复制到 `~/.mcp/license.json`
+
 快速开始 Quick Start（性能优先）
 - 安装：`pip install -e .`（开发模式）
 - 初始化：`mcp-rules-assistant init`（生成 `.mcp/assistant.yaml`）
 - 查看性能模式：`mcp-rules-assistant explain-performance`
 - 启动占位服务：`mcp-rules-assistant start`（MCP Server 骨架，后续扩展）
+- VS Code：
+  - 打开“RuleFlow: Open Panel”（或点击状态栏左侧“RuleFlow”）
+  - 自然语言：执行“RuleFlow: Natural Command”，输入“摄取规则 README.md, docs/ / 加载覆盖率 / 开启滚动记忆”等
 - 环境准备（可选）：`mcp-rules-assistant prepare-env --install`（或 `--dry-run` 查看计划）
 - 一键维护：`python -m mcp_rules_assistant.cli maintenance`（安装 hooks + 自修复 CI）
 - 预检（无人值守快照）：`make preflight`
@@ -43,16 +54,22 @@ MCP 规则与上下文助手 / MCP Rules & Context Assistant
 - docs/RULES_INGEST.md：规则摄取与校验
 - docs/SECURITY_TOOLS.md：安全工具示例（hadolint/semgrep）
  - extensions/vscode/README.md：插件说明
+- PRICING：`docs/PRICING.md`（定价与许可、试用政策）
+- 商业化与结算：采用 MoR（Lemon Squeezy / Paddle），USD 计价、自动本地化与税务处理
+- 全量复核报告：`FULL_PROJECT_REVIEW.md`
+- Copilot 集成（可选）：已在 `.vscode/settings.json` 预置 `copilot.mcp.tools.ruleflow`，加载后 Copilot MCP 面板可显示本工具，聊天将按需调用。
+- 详细步骤：`docs/COPILOT_MCP.md`
+ - 自然语言清单：`docs/NATURAL_LANGUAGE.md`
 
 测试与覆盖率 Tests & Coverage
-- 本地运行（严格模式，无警告/跳过，覆盖率门槛 ≥95%）：
+- 本地运行（严格模式，无警告/跳过；覆盖率门槛以 `.mcp/assistant.yaml` 为准）：
   - 创建环境并安装依赖（任选其一）
     - `pip install -e . && pip install -U pytest pytest-cov ruff black isort mypy bandit`
     - 或 `make setup`（使用内置 .mcp/venv）
   - 运行测试：
-    - `pytest -q --maxfail=1 --disable-warnings -W error --strict-markers --cov --cov-report=term-missing --cov-fail-under=95`
+    - `pytest -q --maxfail=1 --disable-warnings -W error --strict-markers --cov --cov-report=term-missing --cov-fail-under=<阈值>`
   - 清理覆盖率缓存：`mcp-rules-assistant coverage-clean-cache`
-- CI 中按项目配置的 `coverage.min_module` 动态设置门槛（默认 95%），并上传 `coverage.xml` 到 Codecov 以生成覆盖率徽章。
+- CI 中按项目配置的 `coverage.min_module` 动态设置门槛（默认值见配置），并上传 `coverage.xml` 到 Codecov 以生成覆盖率徽章。
 
 说明（测试样例文件）
 - 测试中涉及的示例文件已内置于测试逻辑中创建；仓库根目录不再保留 `bad.py`、`foo.py`、`ok2.py`。
@@ -149,3 +166,10 @@ mcp-rules-assistant diagnose --json > diagnose.json
 许可证与商业化
 - 预留本地授权/离线激活能力接口（见 docs/ARCHITECTURE.md）。
 - 默认不开启任何遥测；所有数据本地优先存储。
+
+调试与可观测性 Debug & Observability
+- 统一执行器：所有外部命令通过 `process.run_cmd` 调用（默认超时 300s，支持 retries/backoff）。
+- 事件钩子：`run_cmd(..., on_event=callback)` 可获取 start/end/error 事件（含耗时/返回码）。
+- 即时日志：设置 `MCP_RUN_CMD_LOG=1` 或参数 `log=True` 可在控制台输出 start/end/error 摘要。
+- 周期事件：Dev Agent 将本轮命令事件落盘至 `.mcp/dashboard/cmd_events.json`（最近 200 条）与 `cmd_events.jsonl`（追加）。
+- CI 注释：Bandit 对高严重度或常见规则（B101/B404/B603/B110/B112）自动输出 GitHub Actions 警告注释（文件/行/标题/摘要）。

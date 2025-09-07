@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import hashlib
-import sys
 import json
 import os
 import subprocess
+import sys
 import time
 from pathlib import Path
 from typing import Dict, List, Optional, Set, cast
@@ -123,7 +123,7 @@ def _discover_tests_by_import(project_root: Path, candidates: List[str]) -> Set[
         try:
             txt = p.read_text(encoding="utf-8", errors="ignore")
         except Exception:
-            continue
+            continue  # nosec B112 - skip unreadable test file
         low = txt.lower()
         for mod in candidates:
             if f"import {mod.lower()}" in low or f"from {mod.lower()}" in low:
@@ -144,7 +144,7 @@ def _compute_tests_signature(project_root: Path) -> str:
                 h.update(str(int(st.st_mtime)).encode("utf-8"))
                 h.update(str(st.st_size).encode("utf-8"))
             except Exception:
-                continue
+                continue  # nosec B112 - skip files with stat/read errors
     return h.hexdigest()
 
 
@@ -156,7 +156,7 @@ def _write_index_meta(project_root: Path, sig: str) -> None:
             json.dumps({"sig": sig}, ensure_ascii=False, indent=2), encoding="utf-8"
         )
     except Exception:
-        pass
+        pass  # nosec B110 - cache write errors are non-fatal
 
 
 def _read_index_meta(project_root: Path) -> str:
@@ -181,7 +181,7 @@ def build_test_index(project_root: Path) -> Dict[str, List[str]]:
         try:
             txt = p.read_text(encoding="utf-8", errors="ignore")
         except Exception:
-            continue
+            continue  # nosec B112 - skip unreadable import candidates
         low = txt.lower()
         # 简单抽取 from x.y import ... 或 import x.y
         for line in low.splitlines():
@@ -285,7 +285,7 @@ def run_quick_tests(files: List[Path], cwd: Optional[Path] = None) -> Dict[str, 
     ) -> List[str]:
         return sorted(
             items,
-            key=lambda x: (counts.get(x, 0) + recent_bonus.get(x, 0)),
+            key=lambda x: (recent_bonus.get(x, 0), counts.get(x, 0)),
             reverse=True,
         )
 
@@ -303,10 +303,10 @@ def run_quick_tests(files: List[Path], cwd: Optional[Path] = None) -> Dict[str, 
             y = yaml.safe_load(cfg_path.read_text(encoding="utf-8")) or {}
             d = (y.get("tests", {}) or {}).get("quick_fail_decay", {}) or {}
             for k in decay_cfg.keys():
-                if k in d:
+                if k in d and d[k] is not None:
                     decay_cfg[k] = d[k]
     except Exception:
-        pass
+        pass  # nosec B110 - config read/parsing failure ignored for quick tests
 
     # 读取事件并构造近期加权
     events: List[Dict[str, str]] = []
@@ -346,6 +346,15 @@ def run_quick_tests(files: List[Path], cwd: Optional[Path] = None) -> Dict[str, 
 
     ordered_tests = sort_by_count(sorted(test_paths), test_counts, bonus_tests)
     ordered_nodes = sort_by_count(sorted(nodeids), node_counts, bonus_nodes)
+
+    # 如果有具体的 nodeid，则从 test_paths 中移除对应的文件，避免重复运行
+    if ordered_nodes:
+        node_files = {node.split("::")[0] for node in ordered_nodes}
+        ordered_tests = [
+            t
+            for t in ordered_tests
+            if t not in node_files and Path(t).name not in node_files
+        ]
 
     py = sys.executable or "python3"
     cmd = [

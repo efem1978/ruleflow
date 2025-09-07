@@ -56,10 +56,21 @@ class McpClient {
 const client = new McpClient();
 
 export function activate(context: vscode.ExtensionContext) {
+  vscode.window.showInformationMessage('RuleFlow Extension is now active!');
+  // 在状态栏放一个快捷入口，点击即可打开面板
+  const sb = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
+  sb.text = 'RuleFlow';
+  sb.tooltip = 'Open RuleFlow Panel';
+  sb.command = 'mcpRulesAssistant.openPanel';
+  sb.show();
+  context.subscriptions.push(sb);
+
   const disposable = vscode.commands.registerCommand('mcpRulesAssistant.openPanel', async () => {
+    // 按需启动后端 Python 服务器
+    try { client.start(context); } catch {}
     const panel = vscode.window.createWebviewPanel(
       'mcpRulesAssistant',
-      'MCP Rules Assistant',
+      'RuleFlow: Rules & Memory',
       vscode.ViewColumn.Beside,
       { enableScripts: true }
     );
@@ -69,7 +80,27 @@ export function activate(context: vscode.ExtensionContext) {
       <body style="font-family: -apple-system,Segoe UI,Arial;">
         <h2>MCP 规则与上下文助手</h2>
         <p>已连接到 Python MCP Server（最小协议）。默认快速内环：保存轻、推送重。</p>
+        <div id="ticker" style="height:22px; overflow:hidden; background:#f6f6f6; border:1px solid #ddd; padding:2px 6px; margin:6px 0;"><span id="tickerText" style="display:inline-block; white-space:nowrap;"></span></div>
         <div id="info" style="margin:6px 0; color:#d33;"></div>
+        <div style="margin:8px 0;">
+          <input id="nlInput" placeholder="自然语言指令：如 摄取规则 README.md, docs/ / 加载覆盖率 / 开启滚动记忆" style="width:65%;" />
+          <button id="nlSend">执行</button>
+          <button id="nlExamples">范例</button>
+          <button id="nlClear">清空历史</button>
+        </div>
+        <div id="nlExamplesBox" style="display:none; margin:4px 0 10px 0;">
+          <span style="opacity:.8">快速范例：</span>
+          <button data-nl="摄取规则 README.md, docs/">摄取规则</button>
+          <button data-nl="加载覆盖率">加载覆盖率</button>
+          <button data-nl="仅看近阈值 3">仅看近阈值</button>
+          <button data-nl="开启滚动记忆">开启记忆</button>
+          <button data-nl="生成 CI">生成 CI</button>
+          <button data-nl="校验 CI">校验 CI</button>
+        </div>
+        <div>
+          <h4 style="margin:8px 0 4px;">最近指令</h4>
+          <ul id="nlHistory" style="padding-left:18px;"></ul>
+        </div>
         <div style="margin:8px 0;">
           <button id="btnLoad">载入编译规则 / Load Rules</button>
           <button id="btnIngest">摄取规则 / Ingest</button>
@@ -81,6 +112,7 @@ export function activate(context: vscode.ExtensionContext) {
           <button id="btnCovTree">加载目录树 / Load Weak Tree</button>
           <button id="btnCovNear">仅看近阈值 / Show Near</button>
           <button id="btnPrepareEnvDry">准备环境(预览) / Prepare Env (dry-run)</button>
+          <button id="btnPrepareEnvInstall">准备并安装环境 / Prepare & Install</button>
         </div>
         <div>
           <h3>可用工具（示例）</h3>
@@ -145,6 +177,7 @@ export function activate(context: vscode.ExtensionContext) {
           document.getElementById('btnLoadSugg').onclick = () => vscode.postMessage({ t: 'loadSugg' });
           document.getElementById('btnCoverage').onclick = () => vscode.postMessage({ t: 'coverage' });
           document.getElementById('btnCovTree').onclick = () => vscode.postMessage({ t: 'coverageTree' });
+          (document.getElementById('btnPrepareEnvInstall') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'prepareEnvInstall' });
           (document.getElementById('btnShowWeak') as HTMLButtonElement).onclick = () => {
             const all = (window as any).__weakAll || [];
             const ulw = document.getElementById('covWeak');
@@ -189,6 +222,25 @@ export function activate(context: vscode.ExtensionContext) {
           (document.getElementById('btnCiValidate') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'ciValidate' });
           (document.getElementById('btnInsertRules') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'insertSamples' });
           (document.getElementById('btnPrepareEnvDry') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'prepareEnvDry' });
+          const runNL = () => {
+            const ip = document.getElementById('nlInput') as HTMLInputElement;
+            const txt = (ip && ip.value || '').trim();
+            if (!txt) return;
+            vscode.postMessage({ t: 'nl', text: txt });
+          };
+          (document.getElementById('nlSend') as HTMLButtonElement).onclick = runNL;
+          (document.getElementById('nlInput') as HTMLInputElement).addEventListener('keydown', (ev) => { if (ev.key === 'Enter') runNL(); });
+          (document.getElementById('nlExamples') as HTMLButtonElement).onclick = () => {
+            const box = document.getElementById('nlExamplesBox'); if (!box) return;
+            box.style.display = box.style.display === 'none' ? '' : 'none';
+          };
+          (document.querySelectorAll('#nlExamplesBox button') as any).forEach((b:any)=>{
+            b.addEventListener('click', ()=>{ const t=b.getAttribute('data-nl')||''; (document.getElementById('nlInput') as HTMLInputElement).value=t; runNL(); });
+          });
+          const btnClr = document.getElementById('nlClear') as HTMLButtonElement;
+          if (btnClr) btnClr.onclick = () => { vscode.postMessage({ t: 'nlClearHistory' }); };
+          vscode.postMessage({ t: 'nlFetchHistory' });
+
           window.addEventListener('message', (e) => {
             const msg = e.data || {};
             if (msg.t === 'info') {
@@ -261,7 +313,6 @@ export function activate(context: vscode.ExtensionContext) {
                   if (weakFiles.length) {
                     title.style.color = '#d33';
                     const ulFiles = document.createElement('ul');
-                    (ulFiles as any)._collapsed = false;
                     weakFiles.forEach((w:any) => {
                       const lif = document.createElement('li');
                       const a = document.createElement('a'); a.href = '#'; a.style.color = '#d33';
@@ -778,6 +829,14 @@ export function activate(context: vscode.ExtensionContext) {
           } catch (e:any) {
             vscode.window.showErrorMessage('env.prepare 执行失败：' + String(e));
           }
+        } else if (msg.t === 'prepareEnvInstall') {
+          try {
+            const out = await client.request('tools/call', { name: 'env.prepare', arguments: { create: true, install: true } });
+            const msgInfo = (out && (out as any).ok) ? ('已创建并安装：' + String((out as any).venv || '')) : '执行失败';
+            vscode.window.showInformationMessage('env.prepare: ' + msgInfo);
+          } catch (e:any) {
+            vscode.window.showErrorMessage('env.prepare 执行失败：' + String(e));
+          }
         }
       } catch (e: any) {
         vscode.window.showErrorMessage('操作失败：' + String(e));
@@ -798,6 +857,92 @@ export function activate(context: vscode.ExtensionContext) {
           vscode.window.showErrorMessage('无法打开文件：' + String(e));
         }
       }
+      if (msg && msg.t === 'nl') {
+        try {
+          const text = String(msg.text || '').trim();
+          if (!text) return;
+          const res = await client.request('tools/call', { name: 'nl.command', arguments: { text } });
+          const mapped = (res && (res as any).parsed && (res as any).parsed.tool) || '';
+          // 简易调度：根据映射调用常用工具
+          const lower = text.toLowerCase();
+          const runIngest = async () => {
+            // 粗略提取可能的路径
+            const cand = text.split(/[，,\s]+/).filter(s => /[./]/.test(s));
+            const paths = cand.filter(p => !/摄取|规则|ingest|load|载入|加载/.test(p));
+            const final = paths.length ? paths : (await vscode.window.showInputBox({ title: '输入要摄取的文件或目录（逗号分隔）' }))?.split(',').map(s=>s.trim()).filter(Boolean) || [];
+            if (!final.length) return;
+            await client.request('tools/call', { name: 'rules.ingest', arguments: { paths: final } });
+            panel.webview.postMessage({ t: 'info', text: '规则摄取完成：' + final.join(', ') });
+          };
+          const runCoverage = async () => {
+            const resList = await client.request('resources/list', {});
+            const summaryUri = (resList.resources || []).find((r: any) => String(r.uri || '').endsWith('/summary'))?.uri;
+            if (!summaryUri) { panel.webview.postMessage({ t: 'info', text: '未找到覆盖率资源，请先生成 coverage.xml。' }); return; }
+            const r = await client.request('resources/read', { uri: summaryUri });
+            try { const data = JSON.parse((r as any).text || '{}'); panel.webview.postMessage({ t: 'covWeakAll', items: data.weak || [] }); } catch {}
+          };
+          const runNear = async () => {
+            const pct = 0.03;
+            const r = await client.request('tools/call', { name: 'coverage.near', arguments: { within: pct, top: 50 } });
+            const items = (r && (r as any).near) ? (r as any).near : [];
+            panel.webview.postMessage({ t: 'covNearDisplay', items, pct: 3 });
+          };
+          const runLoadRules = async () => {
+            const resList = await client.request('resources/list', {});
+            const compiledUri = (resList.resources || []).find((r: any) => String(r.uri || '').endsWith('/compiled'))?.uri;
+            const suggUri = (resList.resources || []).find((r: any) => String(r.uri || '').endsWith('/suggestions'))?.uri;
+            if (compiledUri) {
+              const res = await client.request('resources/read', { uri: compiledUri });
+              panel.webview.postMessage({ t: 'rules', md: res.text || '' });
+            }
+            if (suggUri) {
+              const sug = await client.request('resources/read', { uri: suggUri });
+              panel.webview.postMessage({ t: 'sugg', md: sug.text || '' });
+            }
+          };
+          const runToggleMemory = async () => {
+            const on = !/(关闭|disable)/.test(text);
+            await client.request('tools/call', { name: 'memory.toggle_auto', arguments: { on } });
+            panel.webview.postMessage({ t: 'info', text: on ? '已开启滚动记忆' : '已关闭滚动记忆' });
+          };
+          const runMemorySnapshot = async () => {
+            const snap = await client.request('tools/call', { name: 'memory.snapshot', arguments: {} });
+            panel.webview.postMessage({ t: 'memory', text: JSON.stringify(snap || {}, null, 2) });
+          };
+          const runCiGen = async () => { await client.request('tools/call', { name: 'ci.generate', arguments: {} }); panel.webview.postMessage({ t: 'info', text: '已生成 CI' }); };
+          const runCiValidate = async () => { const v = await client.request('tools/call', { name: 'ci.validate', arguments: {} }); panel.webview.postMessage({ t: 'info', text: 'CI 校验完成' }); };
+          const runCiAutofix = async () => { await client.request('tools/call', { name: 'ci.autofix', arguments: {} }); panel.webview.postMessage({ t: 'info', text: 'CI 已自修复' }); };
+          const runInstallHooks = async () => { await client.request('tools/call', { name: 'git.install_hooks', arguments: {} }); panel.webview.postMessage({ t: 'info', text: '钩子安装完成' }); };
+          const runEnforce = async () => { await client.request('tools/call', { name: 'rules.enforce', arguments: {} }); panel.webview.postMessage({ t: 'info', text: '已应用门禁策略到配置' }); };
+          const runPrepareEnv = async () => { const out = await client.request('tools/call', { name: 'env.prepare', arguments: { create: false, install: false } }); vscode.window.showInformationMessage('env.prepare 计划: ' + JSON.stringify(out.plan || out)); };
+
+          if (mapped === 'rules.ingest') await runIngest();
+          else if (mapped === 'coverage.near') await runNear();
+          else if (mapped === 'resources.read') { if (/覆盖率|coverage/.test(lower)) await runCoverage(); else await runLoadRules(); }
+          else if (mapped === 'memory.toggle_auto') await runToggleMemory();
+          else if (mapped === 'memory.snapshot') await runMemorySnapshot();
+          else if (mapped === 'ci.generate') await runCiGen();
+          else if (mapped === 'ci.validate') await runCiValidate();
+          else if (mapped === 'ci.autofix') await runCiAutofix();
+          else if (mapped === 'git.install_hooks') await runInstallHooks();
+          else if (mapped === 'rules.validate') { await client.request('tools/call', { name: 'rules.validate', arguments: {} }); await runLoadRules(); }
+          else if (mapped === 'rules.enforce') await runEnforce();
+          else if (mapped === 'env.prepare') await runPrepareEnv();
+
+          vscode.window.setStatusBarMessage('已执行：' + (mapped || 'nl.command'), 3000);
+          panel.webview.postMessage({ t: 'info', text: '已执行：' + (text || '') });
+          // 请求刷新历史
+          vscode.commands.executeCommand('setContext', 'ruleflow.lastNL', text);
+          panel.webview.postMessage({ t: 'nlRunOk', text });
+          const h = context.globalState.get<string[]>('ruleflow.nl.history') || [];
+          const nh = [text, ...h.filter(x=>x!==text)].slice(0, 10);
+          await context.globalState.update('ruleflow.nl.history', nh);
+          panel.webview.postMessage({ t: 'nlHistory', items: nh });
+        } catch (e:any) {
+          vscode.window.showWarningMessage('自然语言执行失败：' + String(e));
+          panel.webview.postMessage({ t: 'info', text: '自然语言执行失败' });
+        }
+      }
       // Webview 请求“近阈值”交互：扩展侧弹出输入框并计算
       if (msg && msg.t === 'covNearPrompt') {
         try {
@@ -811,6 +956,19 @@ export function activate(context: vscode.ExtensionContext) {
         } catch (e:any) {
           vscode.window.showWarningMessage('获取近阈值失败：' + String(e));
         }
+      }
+      if (msg && msg.t === 'nlClearHistory') {
+        try {
+          await context.globalState.update('ruleflow.nl.history', []);
+          panel.webview.postMessage({ t: 'nlHistory', items: [] });
+          panel.webview.postMessage({ t: 'info', text: '已清空自然语言历史' });
+        } catch {}
+      }
+      if (msg && msg.t === 'nlFetchHistory') {
+        try {
+          const h = context.globalState.get<string[]>('ruleflow.nl.history') || [];
+          panel.webview.postMessage({ t: 'nlHistory', items: h });
+        } catch {}
       }
     });
   });
@@ -848,6 +1006,27 @@ export function activate(context: vscode.ExtensionContext) {
       vscode.window.setStatusBarMessage('推送完成（push gates 通过）', 3000);
     } catch (e: any) {
       vscode.window.showErrorMessage('推送失败：' + String(e));
+    }
+  }));
+
+  // 自然语言命令：在输入框中输入“摄取规则/开启记忆”等短语
+  context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant.nlCommand', async () => {
+    try {
+      client.start(context);
+      const text = await vscode.window.showInputBox({
+        title: 'RuleFlow 自然语言命令',
+        placeHolder: '例如：摄取规则 README.md, docs/ 或 开启滚动记忆'
+      });
+      if (!text) return;
+      const res = await client.request('tools/call', { name: 'nl.command', arguments: { text } });
+      const tool = (res && (res as any).parsed && (res as any).parsed.tool) || 'nl.command';
+      vscode.window.showInformationMessage('已执行：' + tool);
+      // 存历史
+      const h = context.globalState.get<string[]>('ruleflow.nl.history') || [];
+      const nh = [text, ...h.filter(x=>x!==text)].slice(0, 10);
+      await context.globalState.update('ruleflow.nl.history', nh);
+    } catch (e: any) {
+      vscode.window.showErrorMessage('执行自然语言命令失败：' + String(e));
     }
   }));
 }

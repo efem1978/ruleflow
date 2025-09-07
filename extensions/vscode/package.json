@@ -1,29 +1,70 @@
 {
   "name": "mcp-rules-assistant",
-  "displayName": "MCP Rules Assistant (Skeleton)",
-  "publisher": "your-team",
-  "version": "0.0.1",
-  "engines": { "vscode": "^1.84.0" },
-  "categories": ["Other"],
+  "displayName": "RuleFlow: Rules & Memory (MCP)",
+  "publisher": "ruleflow",
+  "version": "0.0.3",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool.git"
+  },
+  "engines": {
+    "vscode": "^1.84.0"
+  },
+  "categories": [
+    "Other"
+  ],
   "activationEvents": [
-    "onCommand:mcpRulesAssistant.openPanel",
-    "onCommand:mcpRulesAssistant.commit",
-    "onCommand:mcpRulesAssistant.push"
+    "*",
+    "onStartupFinished"
   ],
   "main": "out/extension.js",
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": true
+    },
+    "virtualWorkspaces": {
+      "supported": true
+    }
+  },
   "contributes": {
+    "keybindings": [
+      {
+        "command": "mcpRulesAssistant.openPanel",
+        "key": "ctrl+shift+r",
+        "when": "editorTextFocus && !isMac"
+      },
+      {
+        "command": "mcpRulesAssistant.openPanel",
+        "key": "cmd+shift+r",
+        "when": "editorTextFocus && isMac"
+      },
+      {
+        "command": "mcpRulesAssistant.nlCommand",
+        "key": "ctrl+shift+l",
+        "when": "editorTextFocus && !isMac"
+      },
+      {
+        "command": "mcpRulesAssistant.nlCommand",
+        "key": "cmd+shift+l",
+        "when": "editorTextFocus && isMac"
+      }
+    ],
     "commands": [
       {
         "command": "mcpRulesAssistant.openPanel",
-        "title": "MCP: Open Panel"
+        "title": "RuleFlow: Open Panel"
       },
       {
         "command": "mcpRulesAssistant.commit",
-        "title": "MCP: Commit (run checks)"
+        "title": "RuleFlow: Commit (run checks)"
       },
       {
         "command": "mcpRulesAssistant.push",
-        "title": "MCP: Push (run gates)"
+        "title": "RuleFlow: Push (run gates)"
+      },
+      {
+        "command": "mcpRulesAssistant.nlCommand",
+        "title": "RuleFlow: Natural Command"
       }
     ]
   },
@@ -31,15 +72,17 @@
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "test": "npm run compile && c8 --reporter=lcov --reporter=text node ./out/test/runTest.js"
+    "test": "npm run compile && c8 --reporter=lcov --reporter=text node ./out/test/runTest.js",
+    "package": "vsce package --no-dependencies"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.1",
     "@types/node": "^20.10.0",
     "@types/vscode": "^1.84.0",
     "@vscode/test-electron": "^2.3.4",
+    "c8": "^9.1.0",
     "mocha": "^10.2.0",
     "typescript": "^5.4.0",
-    "c8": "^9.1.0"
+    "vsce": "^2.15.0"
   }
 }

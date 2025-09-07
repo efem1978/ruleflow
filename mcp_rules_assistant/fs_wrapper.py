@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional, List
+from typing import Any, Dict, List, Optional
 
+from .atomics import atomic_write_json as _atomic_write_json_impl
+from .atomics import atomic_write_text as _atomic_write_text_impl
 from .config import load_config
 
 
@@ -26,7 +28,7 @@ class FSGuard:
         full.write_text(content, encoding)
         # 可选：写入后执行轻量增量检查（受配置 execution.fs_guard_post_checks 控制，默认关闭）
         try:
-            exec_cfg = (
+            exec_cfg: Dict[str, Any] = (
                 self.cfg.get("execution", {})
                 if isinstance(self.cfg.get("execution", {}), dict)
                 else {}
@@ -36,12 +38,12 @@ class FSGuard:
                 from . import checks as _checks
 
                 files: List[Path] = [full.resolve()]
-                perf = (
+                perf: Dict[str, Any] = (
                     self.cfg.get("performance", {})
                     if isinstance(self.cfg.get("performance", {}), dict)
                     else {}
                 )
-                on_commit = (
+                on_commit: Dict[str, Any] = (
                     perf.get("on_commit", {})
                     if isinstance(perf.get("on_commit", {}), dict)
                     else {}
@@ -60,11 +62,35 @@ class FSGuard:
                     raise ValueError("FSGuard post checks failed under strict mode")
         except Exception:
             # 安全兜底：不因检查失败影响写入；若严格模式开启，则向上抛出
-            ex_cfg = (
+            ex_cfg: Dict[str, Any] = (
                 self.cfg.get("execution", {})
                 if isinstance(self.cfg.get("execution", {}), dict)
                 else {}
             )
             if bool(ex_cfg.get("fs_guard_strict", False)):
                 raise
-            pass
+
+    # ---- Atomic helpers ----
+    def write_text_atomic(
+        self, path: Path, content: str, encoding: str = "utf-8"
+    ) -> None:
+        """原子方式写入文本：委托共用实现，降低重复与风险。"""
+        full = self.project_root / path
+        _atomic_write_text_impl(full, content, encoding=encoding)
+
+    def write_json_atomic(
+        self, path: Path, data: Any, *, indent: int | None = None
+    ) -> None:
+        """原子方式写入 JSON（UTF-8，不转义），indent 可选。"""
+        _atomic_write_json_impl(self.project_root / path, data, indent=indent)
+
+
+# Module-level utility for callers not using FSGuard instance
+def atomic_write_text(path: Path, content: str, encoding: str = "utf-8") -> None:
+    """原子写文本（保持 API 向后兼容，内部委托共用实现）。"""
+    _atomic_write_text_impl(path, content, encoding=encoding)
+
+
+def atomic_write_json(path: Path, data: Any, *, indent: int | None = None) -> None:
+    """原子写 JSON（保持 API 向后兼容，内部委托共用实现）。"""
+    _atomic_write_json_impl(path, data, indent=indent)

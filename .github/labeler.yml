@@ -1,0 +1,17 @@
+type: docs:
+  - changed-files:
+      - any-glob-to-any-file: ["docs/**", "**/*.md"]
+      - all-globs-to-any-file: ["!.github/**"]
+
+area: vscode-ext:
+  - changed-files:
+      - any-glob-to-any-file: ["extensions/vscode/**"]
+
+area: server:
+  - changed-files:
+      - any-glob-to-any-file: ["mcp_rules_assistant/**"]
+
+ci:
+  - changed-files:
+      - any-glob-to-any-file: [".github/workflows/**", "scripts/**", "Makefile"]
+

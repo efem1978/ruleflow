@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import json
-from defusedxml import ElementTree as ET  # type: ignore
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, TypedDict
+
+from defusedxml import ElementTree as ET  # type: ignore
 
 
 class ClassItem(TypedDict, total=False):
@@ -20,9 +21,7 @@ def _cache_path(project_root: Path) -> Path:
     return (project_root / ".mcp/coverage_cache.json").resolve()
 
 
-def _read_classes_with_cache(
-    project_root: Path, coverage_xml: str
-) -> List[ClassItem]:
+def _read_classes_with_cache(project_root: Path, coverage_xml: str) -> List[ClassItem]:
     path = (project_root / coverage_xml).resolve()
     items: List[ClassItem] = []
     if not path.exists():
@@ -264,6 +263,7 @@ def summarize_groups(
                 "files_count": int(g["files"]),
             }
         )
+
     def _key_cov(d: Dict[str, object]) -> float:
         v = d.get("coverage", 0.0)
         if isinstance(v, (int, float, str)):
@@ -272,6 +272,7 @@ def summarize_groups(
             except Exception:  # pragma: no cover
                 return 0.0
         return 0.0
+
     out_groups_sorted = sorted(out_groups, key=_key_cov)
     return {"ok": True, "groups": out_groups_sorted}
 
@@ -325,6 +326,7 @@ def summarize_near(
             except Exception:  # pragma: no cover
                 return 0.0
         return 0.0
+
     near_sorted = sorted(near, key=_key_delta)[: int(top)]
     return {"ok": True, "near": near_sorted}
 
@@ -353,8 +355,12 @@ def summarize_tree(
     root: Dict[str, object] = {"name": "/", "children": {}, "files": []}
 
     def get_child(node: Dict[str, object], name: str) -> Dict[str, object]:
-        children = node.setdefault("children", {})  # type: ignore[assignment]
-        assert isinstance(children, dict)
+        children = node.setdefault(
+            "children", {}
+        )  # may be corrupted by external writes
+        if not isinstance(children, dict):  # defensive: avoid assert in optimized mode
+            children = {}
+            node["children"] = children
         if name not in children:
             children[name] = {"name": name, "children": {}, "files": []}
         return children[name]  # type: ignore[return-value]
@@ -366,7 +372,9 @@ def summarize_tree(
         for i, p in enumerate(parts[:max_depth]):
             node = get_child(node, p)
         # 挂到当前 node 的 files
-        files = node.setdefault("files", [])  # type: ignore[assignment]
-        assert isinstance(files, list)
+        files = node.setdefault("files", [])
+        if not isinstance(files, list):  # defensive: normalize type
+            files = []
+            node["files"] = files
         files.append(w)
     return {"ok": True, "tree": root}

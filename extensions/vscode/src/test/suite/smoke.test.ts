@@ -5,7 +5,7 @@ import * as path from 'path';
 
 suite('VS Code Extension Smoke', () => {
   test('activates and commands registered', async () => {
-    const ext = vscode.extensions.getExtension('your-team.mcp-rules-assistant');
+    const ext = vscode.extensions.getExtension('ruleflow.mcp-rules-assistant');
     assert.ok(ext, 'Extension not found');
     await ext!.activate();
     assert.ok(ext!.isActive, 'Extension not active');
@@ -16,7 +16,7 @@ suite('VS Code Extension Smoke', () => {
   });
 
   test('webview includes coverage tree button in built bundle', async () => {
-    const ext = vscode.extensions.getExtension('your-team.mcp-rules-assistant');
+    const ext = vscode.extensions.getExtension('ruleflow.mcp-rules-assistant');
     assert.ok(ext, 'Extension not found');
     const outJs = path.resolve(ext!.extensionPath, 'out', 'extension.js');
     const js = fs.readFileSync(outJs, 'utf-8');
@@ -24,7 +24,7 @@ suite('VS Code Extension Smoke', () => {
   });
 
   test('bundle contains covTreeData handler', async () => {
-    const ext = vscode.extensions.getExtension('your-team.mcp-rules-assistant');
+    const ext = vscode.extensions.getExtension('ruleflow.mcp-rules-assistant');
     assert.ok(ext, 'Extension not found');
     const outJs = path.resolve(ext!.extensionPath, 'out', 'extension.js');
     const js = fs.readFileSync(outJs, 'utf-8');
@@ -32,7 +32,7 @@ suite('VS Code Extension Smoke', () => {
   });
 
   test('bundle contains covNear handler and button', async () => {
-    const ext = vscode.extensions.getExtension('your-team.mcp-rules-assistant');
+    const ext = vscode.extensions.getExtension('ruleflow.mcp-rules-assistant');
     assert.ok(ext, 'Extension not found');
     const outJs = path.resolve(ext!.extensionPath, 'out', 'extension.js');
     const js = fs.readFileSync(outJs, 'utf-8');
@@ -41,7 +41,7 @@ suite('VS Code Extension Smoke', () => {
   });
 
   test('bundle contains btnShowWeak', async () => {
-    const ext = vscode.extensions.getExtension('your-team.mcp-rules-assistant');
+    const ext = vscode.extensions.getExtension('ruleflow.mcp-rules-assistant');
     assert.ok(ext, 'Extension not found');
     const outJs = path.resolve(ext!.extensionPath, 'out', 'extension.js');
     const js = fs.readFileSync(outJs, 'utf-8');

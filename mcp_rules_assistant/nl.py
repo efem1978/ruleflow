@@ -39,6 +39,10 @@ SYNONYMS: Dict[str, str] = {
     "prepare env": "env.prepare",
     "开启记忆": "memory.toggle_auto",
     "关闭记忆": "memory.toggle_auto",
+    # 新增
+    "追加记忆": "memory.append_turn",
+    "建议下一步": "plan.suggest_next",
+    "项目关联": "project.link",
 }
 
 

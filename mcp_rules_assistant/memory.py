@@ -16,9 +16,15 @@ class Turn:
 
 
 class MemoryManager:
-    def __init__(self, project_root: Optional[Path] = None, window: int = 20) -> None:
+    def __init__(
+        self,
+        project_root: Optional[Path] = None,
+        window: int = 20,
+        max_bytes: int = 64 * 1024,
+    ) -> None:
         self.project_root = project_root or Path.cwd()
         self.window = window
+        self.max_bytes = max(1024, int(max_bytes))
         self.path = self.project_root / DEFAULT_MEMORY_FILE
         self._ensure_file()
 
@@ -26,7 +32,10 @@ class MemoryManager:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         if not self.path.exists():
             self.path.write_text(
-                json.dumps({"turns": [], "summary": ""}, ensure_ascii=False), "utf-8"
+                json.dumps(
+                    {"turns": [], "summary": "", "links": []}, ensure_ascii=False
+                ),
+                "utf-8",
             )
 
     def append_turn(
@@ -35,11 +44,27 @@ class MemoryManager:
         data = self._read()
         data["turns"].append(asdict(Turn(role=role, content=content, meta=meta or {})))
         data["turns"] = data["turns"][-self.window :]
+        data["turns"] = data["turns"][-self.window :]
         data["summary"] = self._summarize(data["turns"], data.get("summary", ""))
+        data = self._compress_if_needed(data)
         self._write(data)
 
     def snapshot(self) -> Dict[str, Any]:
         return self._read()
+
+    def add_link(self, project: str, task: str, note: str = "") -> None:
+        data = self._read()
+        links = data.get("links")
+        if not isinstance(links, list):
+            links = []
+        from time import time as _now
+
+        links.append(
+            {"project": project, "task": task, "note": note, "ts": int(_now())}
+        )
+        links = links[-200:]
+        data["links"] = links
+        self._write(data)
 
     def _summarize(self, turns: List[Dict[str, Any]], prev: str) -> str:
         # 轻量占位：保留用户指令、AI 关键决策与TODO 的简要摘要
@@ -74,3 +99,45 @@ class MemoryManager:
 
     def _write(self, data: Dict[str, Any]) -> None:
         self.path.write_text(json.dumps(data, ensure_ascii=False, indent=2), "utf-8")
+
+    # ---- helpers ----
+    def _compress_if_needed(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Ensure serialized memory does not exceed max_bytes via lossy trimming.
+
+        Strategy (stable/deterministic):
+        - Keep window constraint already applied.
+        - If size > max_bytes, then for older turns first (excluding the last 2),
+          truncate 'content' to <= 120 chars with ellipsis, and drop large meta.
+        - Repeat once; if still too large, drop oldest turns beyond half window (but never below 3).
+        """
+        try:
+            txt = json.dumps(data, ensure_ascii=False)
+            if len(txt.encode("utf-8")) <= self.max_bytes:
+                return data
+            # Trim older turns' content
+            turns = (
+                list(data.get("turns", []))
+                if isinstance(data.get("turns", []), list)
+                else []
+            )
+            n = len(turns)
+            for i in range(max(0, n - 3)):
+                t = turns[i]
+                if not isinstance(t, dict):
+                    continue
+                c = str(t.get("content", ""))
+                if len(c) > 120:
+                    t["content"] = c[:117] + "..."
+                m = t.get("meta")
+                if isinstance(m, dict) and len(json.dumps(m)) > 200:
+                    t["meta"] = {k: v for k, v in list(m.items())[:5]}
+            data["turns"] = turns
+            txt = json.dumps(data, ensure_ascii=False)
+            if len(txt.encode("utf-8")) <= self.max_bytes:
+                return data
+            # As a last resort, drop oldest quarter of turns, keeping >=3
+            keep = max(3, int(len(turns) * 0.75))
+            data["turns"] = turns[-keep:]
+            return data
+        except Exception:
+            return data

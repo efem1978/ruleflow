@@ -40,6 +40,31 @@ def init() -> None:
     )
 
 
+@app.command("license-status")
+def license_status() -> None:
+    """占位：显示简易许可状态（读取 ~/.mcp/license.json 是否存在）。"""
+    lic = (Path.home() / ".mcp" / "license.json").resolve()
+    if lic.exists():
+        rprint({"ok": True, "activated": True, "path": str(lic)})
+    else:
+        rprint({"ok": True, "activated": False})
+
+
+@app.command("license-activate")
+def license_activate(
+    file: str = typer.Option(..., "--file", help="许可文件路径（JSON）")
+) -> None:
+    """占位：激活许可（复制到 ~/.mcp/license.json）。"""
+    src = Path(file).expanduser().resolve()
+    if not src.exists():
+        rprint({"ok": False, "message": f"license file not found: {src}"})
+        raise typer.Exit(1)
+    dst = (Path.home() / ".mcp" / "license.json").resolve()
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(str(src), str(dst))
+    rprint({"ok": True, "activated": True, "path": str(dst)})
+
+
 @app.command("print-config")
 def print_config() -> None:
     cfg = load_config()
@@ -72,10 +97,18 @@ def install_hooks() -> None:
     for k, v in out.items():
         rprint(f" - {k}: {v}")
     rprint("若未安装 pre-commit，请先运行: pip install pre-commit")
-    rprint("首次使用建议：已尝试自动执行 pre-commit install（含 commit-msg 与 pre-push）。")
-    rprint("提交门禁说明：需确保 .mcp/plan.md 处于 in_progress，且提交消息包含 [step:当前步骤]。")
-    rprint("分支规范建议：feature 用 feat/*，修复用 fix/*，杂项用 chore/*（或遵循团队规范）。")
-    rprint("本地打标签（可选）：完成里程碑可执行 git tag vX.Y.Z；如需发布包参见 docs/RELEASE.md。")
+    rprint(
+        "首次使用建议：已尝试自动执行 pre-commit install（含 commit-msg 与 pre-push）。"
+    )
+    rprint(
+        "提交门禁说明：需确保 .mcp/plan.md 处于 in_progress，且提交消息包含 [step:当前步骤]。"
+    )
+    rprint(
+        "分支规范建议：feature 用 feat/*，修复用 fix/*，杂项用 chore/*（或遵循团队规范）。"
+    )
+    rprint(
+        "本地打标签（可选）：完成里程碑可执行 git tag vX.Y.Z；如需发布包参见 docs/RELEASE.md。"
+    )
 
 
 @app.command("generate-ci")
@@ -783,10 +816,12 @@ def maintenance() -> None:
     out_hooks = hooks_mod.install_git_hooks()
     out_ci = hooks_mod.autofix_github_ci()
     rprint("[green]✔ Maintenance completed[/]")
-    rprint({
-        "hooks": out_hooks,
-        "ci": {k: out_ci.get(k) for k in ("path", "changed", "backup")},
-    })
+    rprint(
+        {
+            "hooks": out_hooks,
+            "ci": {k: out_ci.get(k) for k in ("path", "changed", "backup")},
+        }
+    )
 
 
 @app.command("enforce")

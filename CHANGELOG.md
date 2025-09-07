@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.2.4 — 2025-09-06
+
+Highlights
+- 统一子进程封装：新增共享 `process.run_cmd`，`dev_agent`/`hooks`/`mcp_server` 委托使用，默认参数保持测试桩兼容。
+- CLI 许可命令落地：`license-status` / `license-activate` 与 README 对齐，新增单测覆盖。
+- 原子写统一：共用 `atomics.py`，`fs_wrapper`/`config`/`dev_agent` 委托，降低重复与耦合。
+- 审查与文档：新增 `FULL_PROJECT_REVIEW.md`，同步 README/DEVELOPMENT；Ruff 本地排除 tests 保持与 CI 策略一致。
+
+Changes
+- process: 新增 `mcp_rules_assistant/process.py`（test-friendly 的 `run_cmd`）。
+- dev_agent/hooks/mcp_server: `_run_cmd` 委托共享实现；保持原符号供测试 monkeypatch。
+- coverage_summary: 将内部 `assert` 改为显式类型归一，压降 Bandit 噪音（B101）。
+- atomics/dev_agent: 为不可阻断的 try/except/pass 补充解释性注释（`# nosec B110`）。
+- docs: README/DEVELOPMENT 更新许可命令；新增审查报告入口。
+- tests: 新增 `tests/test_cli_license.py` 覆盖许可命令。
+
 ## v0.2.3+dev — 2025-09-06
 
 Highlights

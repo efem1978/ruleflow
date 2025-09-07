@@ -1,4 +1,8 @@
 PYTHON ?= python3
+# Prefer project venv python if present
+ifneq (,$(wildcard .mcp/venv/bin/python))
+  PYTHON := .mcp/venv/bin/python
+endif
 NPM ?= npm
 
 .PHONY: setup test lint type format ci vscode-test ingest coverage package release-check clean-dist help local-ci-run hooks hooks-sh ci-autofix preflight nightly-local maintenance-all verify
@@ -13,16 +17,16 @@ test:
 	PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 $(PYTHON) -m pytest -q
 
 lint:
-	ruff --format=github . || true
-	black --check . || true
-	isort --check-only . || true
+	$(PYTHON) -m ruff --format=github . || true
+	$(PYTHON) -m black --check . || true
+	$(PYTHON) -m isort --check-only . || true
 
 type:
-	mypy . || true
+	$(PYTHON) -m mypy . || true
 
 format:
-	black . || true
-	isort . || true
+	$(PYTHON) -m black . || true
+	$(PYTHON) -m isort . || true
 
 ci:
 	$(PYTHON) -m mcp_rules_assistant.cli generate-ci
@@ -30,11 +34,11 @@ ci:
 
 local-ci-run:
 	@echo "[local-ci] Lint"
-	ruff check --output-format=github mcp_rules_assistant || true
-	black --check mcp_rules_assistant || true
-	isort --check-only mcp_rules_assistant || true
+	$(PYTHON) -m ruff check --output-format=github mcp_rules_assistant || true
+	$(PYTHON) -m black --check mcp_rules_assistant || true
+	$(PYTHON) -m isort --check-only mcp_rules_assistant || true
 	@echo "[local-ci] Type (core blocking)"
-	mypy \
+	$(PYTHON) -m mypy \
 	  mcp_rules_assistant/config.py \
 	  mcp_rules_assistant/progress.py \
 	  mcp_rules_assistant/tools.py \
@@ -43,9 +47,9 @@ local-ci-run:
 	  mcp_rules_assistant/cli.py \
 	  mcp_rules_assistant/server.py
 	@echo "[local-ci] Type (rest non-blocking)"
-	mypy mcp_rules_assistant || true
+	$(PYTHON) -m mypy mcp_rules_assistant || true
 	@echo "[local-ci] Tests + Coverage"
-	PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q -p pytest_cov --maxfail=1 --disable-warnings -W error --strict-markers --cov=mcp_rules_assistant --cov-report=xml:coverage.xml --cov-report=term-missing --junitxml=pytest-junit.xml
+	PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 $(PYTHON) -m pytest -q -p pytest_cov --maxfail=1 --disable-warnings -W error --strict-markers --cov=mcp_rules_assistant --cov-report=xml:coverage.xml --cov-report=term-missing --junitxml=pytest-junit.xml
 	@echo "[local-ci] Coverage Policy Gate"
 	$(PYTHON) -m mcp_rules_assistant.cli coverage-report --json > cov.json
 	$(PYTHON) -c "import json,sys; d=json.load(open('cov.json')); w=d.get('weak') or []; print('[mcp] Coverage policy gate failed. Weak files:') or [print(' -',x.get('file'),'cov=',x.get('coverage'),'<',x.get('threshold')) for x in w] or sys.exit(1) if w else print('[mcp] Coverage policy gate passed.')"

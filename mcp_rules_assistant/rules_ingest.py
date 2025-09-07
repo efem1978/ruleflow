@@ -48,7 +48,7 @@ def _parse_text_file(path: Path) -> List[RuleItem]:
     try:
         lines = path.read_text(encoding="utf-8", errors="ignore").splitlines()
     except Exception:
-        return items
+        return items  # nosec B110 - unreadable file yields no items
     in_code = False
     for i, line in enumerate(lines, 1):
         t = line.strip()
@@ -88,13 +88,28 @@ def _interpret_policy(text: str) -> Dict[str, Any]:
         )
     )
 
+    # 明确的覆盖率上下文（避免仅因出现 % 就误判）
+    # 视为覆盖率语境：出现“覆盖率/coverage/核心/core”任一关键词
+    mentions_cov = (
+        ("coverage" in t) or ("覆盖率" in t) or ("core" in t) or ("核心" in t)
+    )
+    # 近阈值/窗口语境：不要将其当作 min_*（例如 within 3% / 近阈值 3% / coverage-near）
+    near_ctx = bool(
+        re.search(r"within\s+\d+(?:\.\d+)?\s*%", t)
+        or re.search(r"近阈值|距阈值|coverage-near|near\s+threshold|阈值窗口|窗口", t)
+    )
+    # 下限语境提示（保留，可用于后续权重或提示；当前不强制要求）
+    # 已不直接使用，仅预留注释（避免未使用变量告警）
+
     perc = _extract_percentage(t)
-    if perc is not None:
+    # 放宽语义：当明确是覆盖率语境且不存在“仅上限”关键词时，
+    # 将裸百分比默认解释为最低阈值（min），以兼容常见简写“覆盖率 90%”。
+    if perc is not None and mentions_cov and not near_ctx:
         # 若仅出现上限关键词且无下限关键词，则不设置 min（避免误判）
         if not (has_upper_kw and not has_lower_kw):
             if any(k in t for k in ["core", "核心"]):
                 out["coverage.min_core"] = max(0.0, min(1.0, float(perc) / 100.0))
-            elif ("coverage" in t) or ("覆盖率" in t) or ("%" in t):
+            else:
                 out["coverage.min_module"] = max(0.0, min(1.0, float(perc) / 100.0))
 
     # 解析上限（不作门禁，仅做建议/元信息）：<= / < / 不高于/不超过/至多 / at most / no more than / less than / under / below
@@ -112,7 +127,7 @@ def _interpret_policy(text: str) -> Dict[str, Any]:
             )
             out[key] = max(0.0, min(1.0, vmax / 100.0))
         except Exception:
-            pass
+            pass  # nosec B110 - percent parsing failure ignored
     else:
         # 英文词数值：例如 "at most ninety five percent" / "no more than ninety percent"
         mmaxw = re.search(
@@ -134,7 +149,7 @@ def _interpret_policy(text: str) -> Dict[str, Any]:
         r"between\s+(\d{1,3}(?:\.\d{1,2})?)\s*(?:%|percent)?\s+and\s+(\d{1,3}(?:\.\d{1,2})?)\s*(?:%|percent)?",
         t,
     )
-    if mbt:
+    if mbt and mentions_cov and not near_ctx:
         try:
             v1 = float(mbt.group(1))
             v2 = float(mbt.group(2))
@@ -146,13 +161,13 @@ def _interpret_policy(text: str) -> Dict[str, Any]:
                 out["coverage.min_module"] = max(0.0, min(1.0, vmin / 100.0))
                 out["coverage.max_module"] = max(0.0, min(1.0, vmax / 100.0))
         except Exception:
-            pass
+            pass  # nosec B110 - between-range parse failure ignored
     # 区间 介于/在 X 和/到 Y 之间（中文）
     mbtc = re.search(
         r"(?:介于|在)\s*(\d{1,3}(?:\.\d{1,2})?)\s*%?\s*(?:和|到)\s*(\d{1,3}(?:\.\d{1,2})?)\s*%?\s*(?:之间)?",
         t,
     )
-    if mbtc:
+    if mbtc and mentions_cov and not near_ctx:
         try:
             v1 = float(mbtc.group(1))
             v2 = float(mbtc.group(2))
@@ -494,6 +509,7 @@ def ingest(paths: List[str], project_root: Optional[Path] = None) -> Dict[str, A
                 except Exception:
                     data_bytes = b""
                 import hashlib
+
                 sig_hash = hashlib.sha256(data_bytes).hexdigest()
                 sig = f"{int(getattr(st,'st_mtime_ns', int(st.st_mtime*1e9)))}-{st.st_size}-{sig_hash}"
                 rec = (
@@ -530,6 +546,7 @@ def ingest(paths: List[str], project_root: Optional[Path] = None) -> Dict[str, A
                         except Exception:
                             data_bytes = b""
                         import hashlib
+
                         sig_hash = hashlib.sha256(data_bytes).hexdigest()
                         sig = f"{int(getattr(st,'st_mtime_ns', int(st.st_mtime*1e9)))}-{st.st_size}-{sig_hash}"
                         cache["files"][str(f)] = {
@@ -537,7 +554,7 @@ def ingest(paths: List[str], project_root: Optional[Path] = None) -> Dict[str, A
                             "items": [asdict(i) for i in parsed],
                         }
                 except Exception:
-                    pass
+                    pass  # nosec B110 - cache write best-effort
         elif f.suffix.lower() in _YAML_EXT | _JSON_EXT:
             items.extend(_parse_yaml_json(f))
 
@@ -554,7 +571,7 @@ def ingest(paths: List[str], project_root: Optional[Path] = None) -> Dict[str, A
             _json.dumps(cache, ensure_ascii=False, indent=2), encoding="utf-8"
         )
     except Exception:
-        pass
+        pass  # nosec B110 - cache write best-effort
     comp = compile_rules(project_root=root)
     return {"files": len(files), "extracted": len(items), "compiled": comp}
 
@@ -590,7 +607,7 @@ def compile_rules(project_root: Optional[Path] = None) -> Dict[str, Any]:
                     try:
                         per_key_delta[str(k)] = max(0.0, min(1.0, float(v)))
                     except Exception:
-                        continue
+                        continue  # nosec B112 - per-key parse ignored
                 # fallback global
                 conflict_delta = (
                     float(cd.get("__default__", conflict_delta))
@@ -600,7 +617,7 @@ def compile_rules(project_root: Optional[Path] = None) -> Dict[str, Any]:
             else:
                 conflict_delta = max(0.0, min(1.0, float(cd)))
     except Exception:
-        pass
+        pass  # nosec B110 - YAML read/parsing not critical
 
     def stricter(key: str, a: Any, b: Any) -> Any:
         # 对布尔：True 更严格；对数值阈值：较大更严格；否则保留 a
@@ -643,7 +660,7 @@ def compile_rules(project_root: Optional[Path] = None) -> Dict[str, Any]:
                         maxima_origins[k].append(it.source)
                 continue
             except Exception:
-                continue
+                continue  # nosec B112 - invalid maxima, skip
         if k not in policy:
             policy[k] = v
             origins[k] = [it.source]
@@ -770,7 +787,7 @@ def _to_markdown(compiled: Dict[str, Any]) -> str:
                 v = float(maxima[k])
                 lines.append(f"- {k}: {int(v*100)}% (monitor)")
             except Exception:
-                continue
+                continue  # nosec B112 - skip non-numeric maxima
     lines.append("")
     if confs:
         lines.append("## 冲突 / Conflicts\n")

@@ -1,0 +1,15 @@
+.git*
+node_modules
+src
+tsconfig.json
+**/*.map
+**/*.ts
+test
+.github
+docs
+scripts
+Dockerfile
+Makefile
+.mcp
+coverage*
+dist

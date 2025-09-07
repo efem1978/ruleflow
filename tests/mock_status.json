@@ -1,0 +1,10 @@
+{
+    "coverage": {
+        "weak": ["module1", "module2"],
+        "groups": [],
+        "near": [],
+        "min_module": 0.9,
+        "count": 10,
+        "progress": 0.8
+    }
+}

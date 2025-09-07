@@ -9,11 +9,12 @@ VS Code 面板手测指南 / VS Code Manual Test
 
 启动调试（建议）
 - 使用 VS Code 打开仓库根目录
-- 按 F5 启动“扩展开发主机”，侧边栏命令面板搜索并执行：`MCP: Open Panel`
+- 按 F5 启动“扩展开发主机”，命令面板执行：`RuleFlow: Open Panel`（或点击状态栏左侧“RuleFlow”）
+- 自然语言：执行 `RuleFlow: Natural Command`，输入“摄取规则 README.md, docs/ / 加载覆盖率 / 开启滚动记忆”等
 
 基本流程
 1) 打开面板
-2) 点击“摄取规则 / Ingest”，输入示例：`README.md, docs/`
+2) 点击“摄取规则 / Ingest”，输入示例：`README.md, docs/`；或用 `RuleFlow: Natural Command` 输入“摄取规则 README.md, docs/”
 3) 点击“载入编译规则 / Load Rules” 与 “载入建议 / Load Suggestions”，确认展示内容
 4) 点击“加载覆盖率 / Load Coverage”
    - 若项目根存在 `coverage.xml`，面板会展示分组和薄弱文件；否则给出提示
@@ -35,6 +36,22 @@ VS Code 面板手测指南 / VS Code Manual Test
      - 移除默认参数（不传任何启动参数）：`export MCP_VSCODE_TEST_ARGS=""`
      - 或自定义启动参数（逗号分隔）：`export MCP_VSCODE_TEST_ARGS="--disable-extensions"`
    - 再运行：`npm --prefix extensions/vscode test`
+
+Copilot 集成（可选）
+- 工作区 `.vscode/settings.json` 已登记：
+  ```json
+  {
+    "copilot.mcp.tools": {
+      "ruleflow": {
+        "command": "python3",
+        "args": ["-m", "mcp_rules_assistant.cli", "start"],
+        "cwd": "${workspaceFolder}",
+        "env": { "PYTHONUNBUFFERED": "1" }
+      }
+    }
+  }
+  ```
+- 打开 Copilot 的 MCP 面板可见 ruleflow；聊天会按需调用。
 
 问题排查
 - Server 无法启动：设置 `MCP_PYTHON_BIN` 环境变量，例如 `export MCP_PYTHON_BIN=python3`

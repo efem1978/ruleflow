@@ -26,7 +26,7 @@
 - 若同一主题有冲突/重复，以本文件为准；专题文档增加“参考本入口”提示
 
 ## 环境与运行 / Environment & Run
-- 前置：Python ≥3.10、Node ≥18
+- 前置：Python ≥3.10、Node ≥18（CI 使用 20）
 - 本地开发：
   - 安装：`pip install -e .`
   - 工具链（可选）：`mcp-rules-assistant prepare-env --install` 或 `make setup`
@@ -111,6 +111,8 @@
 
 ## 文档维护与同步 / Documentation Maintenance
 - 变更伴随更新：改动功能/流程时，需同步调整 `DEVELOPMENT.md` 与对应专题文档
+- 许可激活：`mcp-rules-assistant license-status` 查看本地状态；`mcp-rules-assistant license-activate --file <path>` 将许可文件复制到 `~/.mcp/license.json`
+- 参考：若需一次性查看当前版本全面审查结论，见根目录 `FULL_PROJECT_REVIEW.md`
 - 自检脚本（建议本地执行）：
   - 禁止引用：避免在文档中出现旧式 Compose/本地端口/UI 静态资源等字样（例如 legacy compose 文件名、开发端口和前端文件名等），以免误导（预检会自动扫描并报错）
   - Compose 校验：`docker compose config -q`
@@ -134,3 +136,13 @@
 - [x] 规则摄取：补齐“中文区间（模块）”用例（介于 X% 和 Y% 之间）
 - [x] 规则摄取：per-key conflict_delta 与缓存边界（现 97% 覆盖）
 - [x] 清理样例文件：移除根目录 bad.py/ok2.py（测试时由用例临时创建）
+## 统一子进程封装 / Unified Process Runner
+
+- 模块：`mcp_rules_assistant/process.py` 提供 `run_cmd` 统一封装。
+- 语义：
+  - 默认超时 `300s`（可通过 `timeout` 覆盖）。
+  - `capture_stdout=True` 时，同时捕获 `stderr`，并对 `stdout/stderr` 进行末尾截断（最大 8000 字符），便于日志与诊断。
+  - 为兼容测试桩：当 `capture_stdout=False` 且未显式传 `env/timeout` 时，仅传递基础参数（`cmd/cwd/check`），不注入 `text/stdout/timeout` 等关键字。
+- 使用约定：
+  - `dev_agent`/`hooks`/`mcp_server` 均已委托 `run_cmd`；后续如需扩展统一日志/重试策略，只需修改该实现。
+  - 测试建议对 `mcp_rules_assistant.process.run_cmd` 进行 monkeypatch（必要时也可对模块 re-export 的 `run_cmd` 打桩）。

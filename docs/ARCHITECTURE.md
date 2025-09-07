@@ -19,3 +19,12 @@
 - 预留本地许可校验点（Server 侧），插件保持薄。
 - 支持离线激活与企业私有部署。
 
+子进程封装 Process Runner
+
+- 统一封装：`mcp_rules_assistant/process.py` 提供 `run_cmd`，各模块（dev_agent/hooks/mcp_server）统一委托，避免散落的 `subprocess.run`。
+- 默认策略：
+  - 默认超时 300 秒（可覆盖）。
+  - `capture_stdout=True` 时，同时捕获 stderr，并对 stdout/stderr 进行末尾截断（最大 8000 字符）。
+  - 兼容测试桩：在不捕获且未传 env/timeout 时，仅传基础参数（cmd/cwd/check）。
+  - 可选重试：`retries/backoff`（默认不重试，仅在抛出异常时重试）。
+  - 测试建议对 `process.run_cmd` 打桩；若需模块级替身，模块会 re‑export `run_cmd` 以便定向替换。

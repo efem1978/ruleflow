@@ -24,6 +24,9 @@
 5) 诊断
 - mcp-rules-assistant diagnose --json > diagnose.json
 
-6) VS Code 面板（与容器前端无关）
-- F5 启动扩展开发主机 → "MCP: Open Panel"
+6) VS Code 使用
+- 面板：命令面板运行 `RuleFlow: Open Panel`（或点击状态栏左侧“RuleFlow”）
+- 面板顶部自然语言：在输入框直接输入“摄取规则 README.md, docs/ / 加载覆盖率 / 开启滚动记忆”等回车执行；支持最近历史与快速范例
+- 命令面板自然语言：`RuleFlow: Natural Command`
+- Copilot 集成（可选）：按 `docs/COPILOT_MCP.md` 使其出现在 Copilot 的 MCP 面板
 - 受限环境：`export MCP_VSCODE_TEST_ARGS="" && npm --prefix extensions/vscode test`

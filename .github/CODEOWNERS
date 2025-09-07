@@ -1,0 +1,8 @@
+# Default code owner for all changes
+* @efem1978
+
+# Areas (override if needed)
+extensions/vscode/ @efem1978
+mcp_rules_assistant/ @efem1978
+docs/ @efem1978
+

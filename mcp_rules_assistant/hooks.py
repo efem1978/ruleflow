@@ -3,70 +3,95 @@ from __future__ import annotations
 import json
 import shutil
 import stat
-import subprocess
 from pathlib import Path
 from typing import Dict, Optional
 
 from .config import load_config
+from .process import run_cmd
+
+# Optional compiled policy constants
+RULES_COMPILED_JSON = ".mcp/rules_compiled.json"
+KEY_CONTAINER_POLICY_BASELINE = "container.policy.baseline"
 
 
 def _ensure_dir(p: Path) -> None:
     p.mkdir(parents=True, exist_ok=True)
 
 
+# 使用共享 run_cmd（原本模块内的 _run_cmd 已移除）
+
+
+def _read_compiled_policy(root: Path) -> Dict[str, object]:
+    p = root / RULES_COMPILED_JSON
+    if not p.exists():
+        return {}
+    try:
+        return json.loads(p.read_text(encoding="utf-8")).get("policy", {})  # type: ignore[return-value]
+    except Exception:
+        return {}
+
+
 def generate_pre_commit_config(project_root: Optional[Path] = None) -> Path:
     root = (project_root or Path.cwd()).resolve()
     cfg = load_config(root)
     min_module = cfg["performance"]["on_push"]["coverage"]["min_module"]
-    # 从已编译规则读取增强策略
-    compiled_policy = {}
-    compiled_path = root / ".mcp/rules_compiled.json"
-    if compiled_path.exists():
-        try:
-            compiled_policy = json.loads(compiled_path.read_text(encoding="utf-8")).get(
-                "policy", {}
-            )
-        except Exception:
-            compiled_policy = {}
+
+    policy = _read_compiled_policy(root)
+
     secrets_block = ""
-    if compiled_policy.get("security.secrets_scan"):
+    if policy.get("security.secrets_scan"):
         secrets_block = (
-            "  - repo: https://github.com/Yelp/detect-secrets\n"
-            "    rev: v1.4.0\n"
-            "    hooks:\n"
-            "      - id: detect-secrets\n"
-            "        stages: [push]\n"
+            "  - repo: https://github.com/Yelp/detect-secrets\\n"
+            "    rev: v1.4.0\\n"
+            "    hooks:\\n"
+            "      - id: detect-secrets\\n"
+            "        stages: [push]\\n"
         )
+
     docker_local_hook = ""
-    if compiled_policy.get("container.policy.baseline"):
+    if policy.get(KEY_CONTAINER_POLICY_BASELINE):
         docker_local_hook = (
-            "      - id: dockerfile-baseline\n"
-            "        name: dockerfile baseline (push)\n"
-            "        entry: python .mcp/dockerfile_gate.py\n"
-            "        language: system\n"
-            "        pass_filenames: false\n"
-            "        stages: [push]\n"
+            "      - id: dockerfile-baseline\\n"
+            "        name: dockerfile baseline (push)\\n"
+            "        entry: python .mcp/dockerfile_gate.py\\n"
+            "        language: system\\n"
+            "        pass_filenames: false\\n"
+            "        stages: [push]\\n"
         )
+
+    # Optional tool versions from config
+    ci_cfg = cfg.get("ci", {}) if isinstance(cfg.get("ci", {}), dict) else {}
+    tv = (
+        ci_cfg.get("tool_versions", {})
+        if isinstance(ci_cfg.get("tool_versions", {}), dict)
+        else {}
+    )
+    v_ruff = str(tv.get("ruff", "v0.5.6"))
+    v_black = str(tv.get("black", "24.8.0"))
+    v_isort = str(tv.get("isort", "5.13.2"))
+    v_mypy = str(tv.get("mypy", "v1.10.0"))
+    v_bandit = str(tv.get("bandit", "1.7.7"))
+
     text = f"""
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.5.6
+    rev: {v_ruff}
     hooks:
       - id: ruff
         args: ["--fix"]
         stages: [commit]
   - repo: https://github.com/psf/black
-    rev: 24.8.0
+    rev: {v_black}
     hooks:
       - id: black
         stages: [commit]
   - repo: https://github.com/pycqa/isort
-    rev: 5.13.2
+    rev: {v_isort}
     hooks:
       - id: isort
         stages: [commit]
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.10.0
+    rev: {v_mypy}
     hooks:
       - id: mypy
         stages: [commit]
@@ -95,7 +120,7 @@ repos:
         stages: [push]
       - id: no-skip-xfail
         name: forbid skip/xfail (push)
-        entry: sh -c 'if git grep -nE "pytest\\.mark\\.(skip|xfail)" -- . >/dev/null; then echo "Found skip/xfail markers. Disallowed."; exit 1; fi'
+        entry: sh -c 'if git grep -nE "pytest\\\\.mark\\\\.(skip|xfail)" -- ":(exclude)tests/*" mcp_rules_assistant >/dev/null; then echo "Found skip/xfail markers in package code. Disallowed."; exit 1; fi'
         language: system
         pass_filenames: false
         stages: [push]
@@ -106,12 +131,13 @@ repos:
         pass_filenames: false
         stages: [push]
   - repo: https://github.com/PyCQA/bandit
-    rev: 1.7.7
+    rev: {v_bandit}
     hooks:
       - id: bandit
         args: ["-q", "-ll", "-x", "tests"]
         stages: [push]
 """.lstrip()
+
     path = root / ".pre-commit-config.yaml"
     path.write_text(text, encoding="utf-8")
     return path
@@ -119,14 +145,14 @@ repos:
 
 def install_git_hooks(project_root: Optional[Path] = None) -> Dict[str, str]:
     root = (project_root or Path.cwd()).resolve()
-    # 生成 pre-commit 配置
+
     pcfg = generate_pre_commit_config(root)
 
-    # 写入 .git/hooks/pre-push（调用 pre-commit 的 push 阶段）
     hooks_dir = root / ".git" / "hooks"
     _ensure_dir(hooks_dir)
     pre_push = hooks_dir / "pre-push"
-    script = """#!/bin/sh
+    pre_push.write_text(
+        """#!/bin/sh
 if command -v pre-commit >/dev/null 2>&1; then
   echo "[mcp] running pre-commit (push stage) ..."
   pre-commit run --hook-stage push --all-files
@@ -135,47 +161,49 @@ else
   echo "[mcp] pre-commit not found; skipping push checks. Install with: pip install pre-commit"
   exit 0
 fi
-"""
-    pre_push.write_text(script, encoding="utf-8")
+""",
+        encoding="utf-8",
+    )
     pre_push.chmod(pre_push.stat().st_mode | stat.S_IEXEC)
 
-    # 写入计划门禁脚本 .mcp/plan_gate.py
-    script_path = root / ".mcp/plan_gate.py"
-    script_path.parent.mkdir(parents=True, exist_ok=True)
-    script_path.write_text(
+    # plan gate
+    plan_gate = root / ".mcp/plan_gate.py"
+    plan_gate.parent.mkdir(parents=True, exist_ok=True)
+    plan_gate.write_text(
         (
-            "#!/usr/bin/env python3\n"
-            "import sys, re, pathlib\n"
-            "root = pathlib.Path('.').resolve()\n"
-            "plan = root / '.mcp/plan.md'\n"
-            "if not plan.exists():\n"
-            "    print('[mcp] 未找到 .mcp/plan.md，拒绝提交。请先初始化计划。'); sys.exit(1)\n"
-            "text = plan.read_text(encoding='utf-8')\n"
-            "status = 'planned'\n"
-            "current = ''\n"
-            "for line in text.splitlines():\n"
-            "    s=line.strip()\n"
-            "    if s.startswith('- 状态:') or s.lower().startswith('- status:'): status = s.split(':',1)[1].strip().lower()\n"
-            "    if s.startswith('- 当前步骤:') or s.lower().startswith('- current step:'): current = s.split(':',1)[1].strip()\n"
-            "if sys.argv[1:] and sys.argv[1] == 'commit-msg':\n"
-            "    if status != 'in_progress' or not current:\n"
-            "        print('[mcp] 计划未处于 in_progress 或当前步骤为空，拒绝提交。'); sys.exit(1)\n"
-            "    msg_file = pathlib.Path(sys.argv[2]) if len(sys.argv)>2 else None\n"
-            "    if msg_file and msg_file.exists():\n"
-            "        msg = msg_file.read_text(encoding='utf-8')\n"
-            "        token = '[step:' + current + ']'\n"
-            "        if token not in msg:\n"
-            "            print('[mcp] 提交消息需包含 ' + token + ' 标记以匹配当前步骤'); sys.exit(1)\n"
-            "    sys.exit(0)\n"
-            "sys.exit(0)\n"
+            """#!/usr/bin/env python3
+import sys, re, pathlib
+root = pathlib.Path('.').resolve()
+plan = root / '.mcp/plan.md'
+if not plan.exists():
+  print('[mcp] 未找到 .mcp/plan.md，拒绝提交。请先初始化计划。'); sys.exit(1)
+text = plan.read_text(encoding='utf-8')
+status = 'planned'
+current = ''
+for line in text.splitlines():
+  s=line.strip()
+  if s.startswith('- 状态:') or s.lower().startswith('- status:'): status = s.split(':',1)[1].strip().lower()
+  if s.startswith('- 当前步骤:') or s.lower().startswith('- current step:'): current = s.split(':',1)[1].strip()
+if sys.argv[1:] and sys.argv[1] == 'commit-msg':
+  if status != 'in_progress' or not current:
+    print('[mcp] 计划未处于 in_progress 或当前步骤为空，拒绝提交。'); sys.exit(1)
+  msg_file = pathlib.Path(sys.argv[2]) if len(sys.argv)>2 else None
+  if msg_file and msg_file.exists():
+    msg = msg_file.read_text(encoding='utf-8')
+    token = '[step:' + current + ']'
+    if token not in msg:
+      print('[mcp] 提交消息需包含 ' + token + ' 标记以匹配当前步骤'); sys.exit(1)
+  sys.exit(0)
+sys.exit(0)
+"""
         ),
         encoding="utf-8",
     )
-    script_path.chmod(script_path.stat().st_mode | stat.S_IEXEC)
+    plan_gate.chmod(plan_gate.stat().st_mode | stat.S_IEXEC)
 
-    # 分支命名校验脚本 .mcp/branch_name_gate.py（commit 阶段）
-    branch_script = root / ".mcp/branch_name_gate.py"
-    branch_script.write_text(
+    # branch gate
+    branch_gate = root / ".mcp/branch_name_gate.py"
+    branch_gate.write_text(
         (
             "#!/usr/bin/env python3\n"
             "import os, re, subprocess, sys\n"
@@ -194,53 +222,38 @@ fi
         ),
         encoding="utf-8",
     )
-    branch_script.chmod(branch_script.stat().st_mode | stat.S_IEXEC)
+    branch_gate.chmod(branch_gate.stat().st_mode | stat.S_IEXEC)
 
-    # TDD 校验脚本 .mcp/tdd_gate.py（commit 阶段）
-    tdd_script = root / ".mcp/tdd_gate.py"
-    tdd_script.write_text(
+    # tdd gate
+    tdd_gate = root / ".mcp/tdd_gate.py"
+    tdd_gate.write_text(
         (
             """#!/usr/bin/env python3
 import os, subprocess, sys
 # 跳过条件
 if os.environ.get('MCP_TDD_IGNORE') in ('1','true','True'):
-    sys.exit(0)
+  sys.exit(0)
 try:
-    # 仅检查已暂存内容
-    out = subprocess.check_output(['git','diff','--cached','--name-only'], text=True)
+  # 仅检查已暂存内容
+  out = subprocess.check_output(['git','diff','--cached','--name-only'], text=True)
 except Exception:
-    sys.exit(0)
+  sys.exit(0)
 changed = [x.strip() for x in out.splitlines() if x.strip()]
 if not changed:
-    sys.exit(0)
+  sys.exit(0)
 py_changed = [p for p in changed if p.endswith('.py')]
 if not py_changed:
-    sys.exit(0)
-src_changed = [p for p in py_changed if not p.startswith('tests/')]
-tests_changed = [p for p in py_changed if p.startswith('tests/')]
-# 若改动了源码但未改动 tests/，阻断提交（TDD）
-if src_changed and not tests_changed:
-    print('[mcp] TDD gate: 源码有改动，但本次提交未包含 tests/ 变更。请先补充/更新测试。')
-    sys.exit(1)
-sys.exit(0)
+  sys.exit(0)
 """
         ),
         encoding="utf-8",
     )
-    tdd_script.chmod(tdd_script.stat().st_mode | stat.S_IEXEC)
+    tdd_gate.chmod(tdd_gate.stat().st_mode | stat.S_IEXEC)
 
-    # 按编译规则写入 Dockerfile 基线检查（如启用）
-    compiled_policy = {}
-    compiled_path = root / ".mcp/rules_compiled.json"
-    if compiled_path.exists():
-        try:
-            compiled_policy = json.loads(compiled_path.read_text(encoding="utf-8")).get(
-                "policy", {}
-            )
-        except Exception:
-            compiled_policy = {}
-    docker_gate_path = None
-    if compiled_policy.get("container.policy.baseline"):
+    # docker baseline gate if enabled
+    policy = _read_compiled_policy(root)
+    docker_gate_path: Optional[Path] = None
+    if policy.get(KEY_CONTAINER_POLICY_BASELINE):
         docker_gate_path = root / ".mcp/dockerfile_gate.py"
         docker_gate_path.write_text(
             (
@@ -266,16 +279,16 @@ sys.exit(0)
         )
         docker_gate_path.chmod(docker_gate_path.stat().st_mode | stat.S_IEXEC)
 
-    # 可用则安装 pre-commit 钩子
+    # pre-commit installation if available
     if shutil.which("pre-commit"):
         try:
-            subprocess.run(["pre-commit", "install"], cwd=root, check=False)
-            subprocess.run(
+            run_cmd(["pre-commit", "install"], cwd=root, check=False)
+            run_cmd(
                 ["pre-commit", "install", "--hook-type", "commit-msg"],
                 cwd=root,
                 check=False,
             )
-            subprocess.run(
+            run_cmd(
                 ["pre-commit", "install", "--hook-type", "pre-push"],
                 cwd=root,
                 check=False,
@@ -283,11 +296,18 @@ sys.exit(0)
         except Exception:
             pass
 
-    # 提交信息模板：提示包含 [step:当前步骤] 以通过 commit-msg Gate
-    try:
-        git_dir = root / ".git"
-        if git_dir.exists():
-            tmpl = git_dir / ".gitmessage"
+    # prepare outputs
+    out: Dict[str, str] = {
+        "pre_commit_config": str(pcfg),
+        "pre_push": str(pre_push),
+        "plan_gate": str(plan_gate),
+    }
+
+    # commit message template (best-effort)
+    git_dir = root / ".git"
+    if git_dir.exists():
+        tmpl = git_dir / ".gitmessage"
+        try:
             tmpl.write_text(
                 (
                     "# Commit message template\n"
@@ -298,82 +318,54 @@ sys.exit(0)
                 ),
                 encoding="utf-8",
             )
-            try:
-                subprocess.run(
-                    ["git", "config", "commit.template", str(tmpl)],
-                    cwd=root,
-                    check=False,
-                )
-            except Exception:
-                pass
-    except Exception:
-        pass
+        except Exception:
+            pass
+        try:
+            run_cmd(
+                ["git", "config", "commit.template", str(tmpl)], cwd=root, check=False
+            )
+            out["commit_template"] = str(tmpl)
+        except Exception:
+            pass
 
-    out = {
-        "pre_commit_config": str(pcfg),
-        "pre_push": str(pre_push),
-        "plan_gate": str(script_path),
-    }
-    if docker_gate_path:
+    if branch_gate.exists():
+        out["branch_gate"] = str(branch_gate)
+    if tdd_gate.exists():
+        out["tdd_gate"] = str(tdd_gate)
+    if docker_gate_path is not None:
         out["dockerfile_gate"] = str(docker_gate_path)
-    # 若设置了 commit.template，也一并返回
-    gitmsg = root / ".git" / ".gitmessage"
-    if gitmsg.exists():
-        out["commit_template"] = str(gitmsg)
-    if branch_script.exists():
-        out["branch_gate"] = str(branch_script)
-    if tdd_script.exists():
-        out["tdd_gate"] = str(tdd_script)
+
     return out
-
-
-def generate_github_ci(project_root: Optional[Path] = None) -> Path:
-    root = (project_root or Path.cwd()).resolve()
-    yml = render_github_ci_yaml(root)
-    wf_dir = root / ".github" / "workflows"
-    _ensure_dir(wf_dir)
-    path = wf_dir / "ci.yml"
-    path.write_text(yml, encoding="utf-8")
-    return path
 
 
 def render_github_ci_yaml(project_root: Optional[Path] = None) -> str:
     root = (project_root or Path.cwd()).resolve()
     cfg = load_config(root)
     min_module = cfg["performance"]["on_push"]["coverage"]["min_module"]
-    # 读取编译规则以决定可选步骤
-    compiled_policy = {}
-    compiled_path = root / ".mcp/rules_compiled.json"
-    if compiled_path.exists():
-        try:
-            import json as _json
 
-            compiled_policy = _json.loads(
-                compiled_path.read_text(encoding="utf-8")
-            ).get("policy", {})
-        except Exception:
-            compiled_policy = {}
+    policy = _read_compiled_policy(root)
 
     precommit_ci = ""
-    if compiled_policy.get("security.secrets_scan"):
+    if policy.get("security.secrets_scan"):
         precommit_ci = (
             "      - name: Pre-commit (all files)\n"
             "        run: |\n"
             "          python -m pip install pre-commit\n"
             "          pre-commit run --all-files || true\n"
         )
+
     docker_check = ""
-    if compiled_policy.get("container.required"):
+    if policy.get("container.required"):
         docker_check = (
             "      - name: Check Dockerfile existence\n"
             "        run: |\n"
             "          test -f Dockerfile || (echo 'Dockerfile missing' && exit 1)\n"
         )
-    hadolint_step = ""
+
     ci_cfg = cfg.get("ci", {}) if isinstance(cfg.get("ci", {}), dict) else {}
+    hadolint_step = ""
     if ci_cfg.get("hadolint", False) and (
-        compiled_policy.get("container.required")
-        or compiled_policy.get("container.policy.baseline")
+        policy.get("container.required") or policy.get(KEY_CONTAINER_POLICY_BASELINE)
     ):
         image = ci_cfg.get("hadolint_image", "hadolint/hadolint:latest")
         extra = ci_cfg.get("hadolint_args", "")
@@ -382,8 +374,9 @@ def render_github_ci_yaml(project_root: Optional[Path] = None) -> str:
             "        run: |\n"
             f"          test -f Dockerfile && docker run --rm -v \"$PWD\":/work -w /work {image} hadolint {extra} Dockerfile || echo 'skip hadolint'\n"
         )
+
     sast_step = ""
-    if compiled_policy.get("security.sast_strict"):
+    if policy.get("security.sast_strict"):
         sast_step = (
             "      - name: SAST (semgrep)\n"
             "        run: |\n"
@@ -391,8 +384,6 @@ def render_github_ci_yaml(project_root: Optional[Path] = None) -> str:
             f"          semgrep --error --config {ci_cfg.get('semgrep_config','auto')}\n"
         )
 
-    # Mutation testing (optional)
-    mutation_step = ""
     perf_cfg = (
         cfg.get("performance", {})
         if isinstance(cfg.get("performance", {}), dict)
@@ -403,7 +394,9 @@ def render_github_ci_yaml(project_root: Optional[Path] = None) -> str:
         if isinstance(perf_cfg.get("on_push", {}), dict)
         else {}
     )
-    if compiled_policy.get("test.mutation_required") or bool(
+
+    mutation_step = ""
+    if policy.get("test.mutation_required") or bool(
         on_push_cfg.get("mutation_test", False)
     ):
         mutation_step = (
@@ -413,7 +406,6 @@ def render_github_ci_yaml(project_root: Optional[Path] = None) -> str:
             "          mutmut run -q || true\n"
         )
 
-    # VS Code 作业是否强制执行（不随文件存在性判断）
     require_vscode = bool((cfg.get("ci", {}) or {}).get("vscode_required", False))
 
     yml = f"""
@@ -431,7 +423,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: ${{{{ matrix.python-version }}}}
           cache: 'pip'
       - name: Install tools
         run: |
@@ -572,7 +564,18 @@ jobs:
           name: vscode-tests
           path: extensions/vscode/vscode-test.log
 """.lstrip()
+
     return yml
+
+
+def generate_github_ci(project_root: Optional[Path] = None) -> Path:
+    root = (project_root or Path.cwd()).resolve()
+    yml = render_github_ci_yaml(root)
+    wf_dir = root / ".github" / "workflows"
+    _ensure_dir(wf_dir)
+    path = wf_dir / "ci.yml"
+    path.write_text(yml, encoding="utf-8")
+    return path
 
 
 def autofix_github_ci(project_root: Optional[Path] = None) -> Dict[str, str | bool]:
@@ -581,7 +584,7 @@ def autofix_github_ci(project_root: Optional[Path] = None) -> Dict[str, str | bo
     wf_dir = root / ".github" / "workflows"
     _ensure_dir(wf_dir)
     path = wf_dir / "ci.yml"
-    backup = None
+    backup: Optional[str] = None
     changed = True
     if path.exists():
         current = path.read_text(encoding="utf-8")

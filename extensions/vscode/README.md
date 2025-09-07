@@ -1,13 +1,19 @@
-VS Code Extension (Skeleton)
+VS Code Extension
 
-This is a minimal VS Code extension to showcase commands and UI hooks
-for the MCP Rules & Context Assistant. It delegates business logic to
-the Python MCP Server.
+This extension provides a thin UI for the MCP Rules & Context Assistant and delegates logic to the local Python MCP Server.
 
 Commands
-- MCP: Open Panel — shows a placeholder webview
+- MCP: Open Panel — open the assistant panel (rules/coverage/CI)
+- MCP: Commit (run checks)
+- MCP: Push (run gates)
 
-Next steps
-- Wire save/commit/test interception to call MCP tools
-- Render memory rollup and plan from resources
+Install
+- Build or download the `.vsix`, then install via VS Code: Extensions → More… → Install from VSIX.
+- Requires Python 3 on PATH (or set env `MCP_PYTHON_BIN`).
 
+License & Trial
+- Commercial license required. 7‑day free trial available.
+- Activate using the CLI: `mcp-rules-assistant` (see repository docs for details).
+
+Notes
+- The server runs over stdio (no local HTTP/ports). Status is written to `.mcp/dashboard/*.json` for tooling/CI.

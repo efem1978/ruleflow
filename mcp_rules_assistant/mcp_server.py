@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import os
+import platform
+import shutil
 import sys
 import uuid
 from dataclasses import asdict
@@ -17,10 +19,24 @@ from . import nl as nl_mod
 from . import progress as progress_mod
 from . import rules_ingest as ri
 from .config import DEFAULT_PROJECT_CONFIG_PATH, ensure_project_config, load_config
-from .fs_wrapper import FSGuard
+from .fs_wrapper import FSGuard, atomic_write_text
 from .memory import MemoryManager
+from .policy_keys import (
+    POLICY_KEY_CONTAINER_BASELINE,
+    POLICY_KEY_CONTAINER_REQUIRED,
+    POLICY_KEY_SECURITY_SAST_STRICT,
+    POLICY_KEY_SECURITY_SECRETS_SCAN,
+)
+from .process import run_cmd
 from .rules import Complexity, DevMode, Scenario, choose_thresholds, explain_thresholds
 from .tools import registry, setup_default_tools
+
+# MIME constants
+MIME_JSON = "application/json"
+MIME_MD = "text/markdown"
+MIME_YAML = "text/yaml"
+
+# Policy key constants centralized in policy_keys
 
 
 def _read_stdin_lines() -> List[str]:
@@ -50,7 +66,11 @@ class JsonRpcServer:
         try:
             if method == "initialize":
                 # 声明最小能力集，含 prompts（提供占位端点）
-                caps: Dict[str, Any] = {"tools": True, "resources": True, "prompts": True}
+                caps: Dict[str, Any] = {
+                    "tools": True,
+                    "resources": True,
+                    "prompts": True,
+                }
                 result = {
                     "server": "mcp-rules-assistant",
                     "version": "0.1.0",
@@ -77,6 +97,10 @@ class JsonRpcServer:
                     {
                         "uri": f"memory://{self._project_id()}/rollup",
                         "name": "Last 20 turns & summary",
+                    },
+                    {
+                        "uri": f"memory://{self._project_id()}/links",
+                        "name": "Cross-project links",
                     },
                     {
                         "uri": f"rules://project/{self._project_id()}/compiled",
@@ -131,181 +155,26 @@ class JsonRpcServer:
             elif method == "resources/read":
                 uri = params.get("uri", "")
                 if uri.startswith("memory://"):
-                    snap = self.mm.snapshot()
-                    result = {
-                        "mimeType": "application/json",
-                        "text": json.dumps(snap, ensure_ascii=False),
-                    }
+                    # Special-case links
+                    if str(uri).endswith("/links"):
+                        snap = self.mm.snapshot()
+                        links = snap.get("links", []) if isinstance(snap, dict) else []
+                        result = {
+                            "mimeType": MIME_JSON,
+                            "text": json.dumps({"links": links}, ensure_ascii=False),
+                        }
+                    else:
+                        result = self._res_read_memory()
                 elif uri.startswith("rules://"):
-                    if uri.endswith("/compiled"):
-                        path = self.project_root / ri.COMPILED_MD
-                        mime = "text/markdown"
-                    elif uri.endswith("/compiled.json"):
-                        path = self.project_root / ri.COMPILED_JSON
-                        mime = "application/json"
-                    elif uri.endswith("/suggestions"):
-                        path = self.project_root / ri.SUGGESTIONS_MD
-                        mime = "text/markdown"
-                    elif uri.endswith("/maxima"):
-                        # read maxima from compiled.json meta
-                        pjson = self.project_root / ri.COMPILED_JSON
-                        if not pjson.exists():
-                            raise ValueError(
-                                "rules resource not found; run rules.ingest first"
-                            )
-                        import json as _json
-
-                        try:
-                            data = _json.loads(pjson.read_text(encoding="utf-8"))
-                        except Exception:
-                            data = {}
-                        maxima = {}
-                        meta = data.get("meta", {}) or {}
-                        if isinstance(meta.get("maxima", {}), dict):
-                            maxima = meta.get("maxima", {})
-                        result = {
-                            "mimeType": "application/json",
-                            "text": _json.dumps({"maxima": maxima}, ensure_ascii=False),
-                        }
-                        return {"jsonrpc": "2.0", "id": req_id, "result": result}
-                    else:
-                        raise ValueError("unknown rules resource")
-                    if not path.exists():
-                        raise ValueError(
-                            "rules resource not found; run rules.ingest first"
-                        )
-                    result = {
-                        "mimeType": mime,
-                        "text": path.read_text(encoding="utf-8"),
-                    }
+                    result = self._res_read_rules(uri)
                 elif uri.startswith("coverage://"):
-                    # 动态读取当前项目配置，避免初始化时的 cwd 影响（测试/多项目场景）
-                    cfg_now = load_config(self.project_root)
-                    perf = (
-                        cfg_now.get("performance", {})
-                        if isinstance(cfg_now.get("performance", {}), dict)
-                        else {}
-                    )
-                    min_module = float(
-                        (perf.get("on_push", {}) or {})
-                        .get("coverage", {})
-                        .get("min_module", 0.9)
-                    )
-                    # 未来可扩展 per-module policy；当前读取 config 中的 coverage.policy 可选字段
-                    policy = (
-                        (cfg_now.get("coverage", {}) or {}).get("policy", None)
-                        if isinstance(cfg_now.get("coverage", {}), dict)
-                        else None
-                    )
-                    if uri.endswith("/groups"):
-                        summary = covsum.summarize_groups(
-                            project_root=self.project_root,
-                            policy=policy,
-                            min_module=min_module,
-                        )
-                        result = {
-                            "mimeType": "application/json",
-                            "text": json.dumps(summary, ensure_ascii=False),
-                        }
-                    elif uri.endswith("/tree"):
-                        summary = covsum.summarize_tree(
-                            project_root=self.project_root,
-                            policy=policy,
-                            min_module=min_module,
-                        )
-                        result = {
-                            "mimeType": "application/json",
-                            "text": json.dumps(summary, ensure_ascii=False),
-                        }
-                    elif uri.endswith("/near"):
-                        # 默认窗口与 Top 可由配置覆盖（coverage.near），动态读取当前配置以支持热更新
-                        cfg_now2 = load_config(self.project_root)
-                        near_cfg = (
-                            (cfg_now2.get("coverage", {}) or {}).get("near", {})
-                            if isinstance(cfg_now2.get("coverage", {}), dict)
-                            else {}
-                        )
-                        within = float((near_cfg or {}).get("within", 0.03))
-                        top = int((near_cfg or {}).get("top", 50))
-                        summary = covsum.summarize_near(
-                            project_root=self.project_root,
-                            policy=policy,
-                            min_module=min_module,
-                            within=within,
-                            top=top,
-                        )
-                        result = {
-                            "mimeType": "application/json",
-                            "text": json.dumps(summary, ensure_ascii=False),
-                        }
-                    elif uri.endswith("/report"):
-                        cfg_now2 = load_config(self.project_root)
-                        near_cfg = (
-                            (cfg_now2.get("coverage", {}) or {}).get("near", {})
-                            if isinstance(cfg_now2.get("coverage", {}), dict)
-                            else {}
-                        )
-                        within = float((near_cfg or {}).get("within", 0.03))
-                        top = int((near_cfg or {}).get("top", 50))
-                        res_sum = covsum.summarize(
-                            project_root=self.project_root,
-                            policy=policy,
-                            min_module=min_module,
-                        )
-                        res_grp = covsum.summarize_groups(
-                            project_root=self.project_root,
-                            policy=policy,
-                            min_module=min_module,
-                        )
-                        res_near = covsum.summarize_near(
-                            project_root=self.project_root,
-                            policy=policy,
-                            min_module=min_module,
-                            within=within,
-                            top=top,
-                        )
-                        payload = {
-                            "ok": bool(
-                                res_sum.get("ok")
-                                and res_grp.get("ok", True)
-                                and res_near.get("ok", True)
-                            ),
-                            "weak": res_sum.get("weak", []),
-                            "groups": res_grp.get("groups", []),
-                            "near": res_near.get("near", []),
-                            "min_module": min_module,
-                        }
-                        result = {
-                            "mimeType": "application/json",
-                            "text": json.dumps(payload, ensure_ascii=False),
-                        }
-                    else:
-                        summary = covsum.summarize(
-                            project_root=self.project_root,
-                            policy=policy,
-                            min_module=min_module,
-                        )
-                        result = {
-                            "mimeType": "application/json",
-                            "text": json.dumps(summary, ensure_ascii=False),
-                        }
+                    result = self._res_read_coverage(uri)
                 elif uri.startswith("progress://"):
-                    text = progress_mod.read_plan(self.project_root)
-                    result = {"mimeType": "text/markdown", "text": text}
+                    result = self._res_read_progress()
                 elif uri.startswith("config://"):
-                    cfg_file = self.project_root / DEFAULT_PROJECT_CONFIG_PATH
-                    text = (
-                        cfg_file.read_text(encoding="utf-8")
-                        if cfg_file.exists()
-                        else ""
-                    )
-                    result = {"mimeType": "text/yaml", "text": text}
+                    result = self._res_read_config()
                 elif uri.startswith("ci://"):
-                    ci_file = self.project_root / ".github/workflows/ci.yml"
-                    text = (
-                        ci_file.read_text(encoding="utf-8") if ci_file.exists() else ""
-                    )
-                    result = {"mimeType": "text/yaml", "text": text}
+                    result = self._res_read_ci()
                 else:
                     raise ValueError("Unknown resource uri")
             elif method == "prompts/list":
@@ -330,6 +199,23 @@ class JsonRpcServer:
         if name == "project.detect":
             return self._tool_project_detect()
         if name == "project.switch":
+            # arguments: { path?: string }
+            new_path = args.get("path")
+            if new_path:
+                p = Path(new_path).expanduser().resolve()
+                self.project_root = p
+                # Rebind per-project helpers
+                self.mm = MemoryManager(self.project_root)
+                self.fs = FSGuard(self.project_root)
+                self.cfg = load_config(self.project_root)
+            return {"ok": True, "root": str(self.project_root)}
+        if name == "project.link":
+            target = str(args.get("project", "")).strip()
+            task = str(args.get("task", "")).strip()
+            note = str(args.get("note", "")).strip()
+            if not target or not task:
+                raise ValueError("project and task required")
+            self.mm.add_link(target, task, note)
             return {"ok": True}
         if name == "memory.toggle_auto":
             on = bool(args.get("on", True))
@@ -337,6 +223,14 @@ class JsonRpcServer:
             return {"ok": True, "auto": on}
         if name == "memory.snapshot":
             return self.mm.snapshot()
+        if name == "memory.append_turn":
+            role = str(args.get("role", "")).strip() or "user"
+            content = str(args.get("content", ""))
+            meta = args.get("meta", {})
+            if not isinstance(meta, dict):
+                meta = {}
+            self.mm.append_turn(role, content, meta)
+            return {"ok": True}
         if name == "rules.init":
             s = Scenario(args.get("scenario", "personal"))
             c = Complexity(args.get("complexity", "small"))
@@ -349,240 +243,21 @@ class JsonRpcServer:
                 "thresholds": explain_thresholds(th),
             }
         if name == "rules.ingest":
-            paths = args.get("paths", [])
-            if not paths:
-                raise ValueError("paths required")
-            res = ri.ingest(paths, project_root=self.project_root)
-            return res
+            return self._tool_rules_ingest(args)
         if name == "rules.validate":
-            res = ri.compile_rules(project_root=self.project_root)
-            return res
+            return self._tool_rules_validate()
         if name == "env.prepare":
-            # 轻量实现：支持 dry-run 规划，或实际创建 venv 并可选安装基础工具
-            import subprocess
-
-            py = str(args.get("python") or sys.executable)
-            create = bool(args.get("create", True))
-            install = bool(args.get("install", False))
-            packages = list(
-                args.get("packages")
-                or [
-                    "ruff",
-                    "black",
-                    "isort",
-                    "mypy",
-                    "bandit",
-                    "pytest",
-                    "pytest-cov",
-                    "pre-commit",
-                ]
-            )
-            venv_dir = self.project_root / ".mcp/venv"
-            plan = {
-                "python": py,
-                "venv": str(venv_dir),
-                "steps": [
-                    f"{py} -m venv {venv_dir}",
-                    f"{str(venv_dir / 'bin' / 'python' if os.name != 'nt' else venv_dir / 'Scripts' / 'python.exe')} -m pip install --upgrade pip",
-                    f"pip install {' '.join(packages)}",
-                ],
-            }
-            if not create and not install:
-                return {"ok": True, "dry": True, "plan": plan}
-            created = False
-            installed = False
-            try:
-                if create:
-                    venv_dir.parent.mkdir(parents=True, exist_ok=True)
-                    subprocess.run(
-                        [py, "-m", "venv", str(venv_dir)],
-                        cwd=self.project_root,
-                        check=False,
-                    )
-                    created = True
-                if install:
-                    py_bin = (
-                        venv_dir
-                        / ("Scripts" if os.name == "nt" else "bin")
-                        / ("python.exe" if os.name == "nt" else "python")
-                    )
-                    # 升级 pip 与安装工具链（尽量不中断）
-                    subprocess.run(
-                        [str(py_bin), "-m", "pip", "install", "--upgrade", "pip"],
-                        cwd=self.project_root,
-                        check=False,
-                    )
-                    if packages:
-                        subprocess.run(
-                            [str(py_bin), "-m", "pip", "install", *packages],
-                            cwd=self.project_root,
-                            check=False,
-                        )
-                    installed = True
-            except Exception as e:
-                return {
-                    "ok": False,
-                    "message": f"env prepare failed: {e}",
-                    "plan": plan,
-                    "venv": str(venv_dir),
-                }
-            return {
-                "ok": True,
-                "created": created,
-                "installed": installed,
-                "venv": str(venv_dir),
-                "plan": plan,
-            }
+            return self._tool_env_prepare(args)
         if name == "env.diagnose":
-            import platform
-            import shutil
-
-            cfg_now = load_config(self.project_root)
-            perf = (
-                cfg_now.get("performance", {})
-                if isinstance(cfg_now.get("performance", {}), dict)
-                else {}
-            )
-            min_module = float(
-                (perf.get("on_push", {}) or {})
-                .get("coverage", {})
-                .get("min_module", 0.9)
-            )
-            coverage_exists = (self.project_root / "coverage.xml").exists()
-            compiled_json = self.project_root / ri.COMPILED_JSON
-            compiled_exists = compiled_json.exists()
-            maxima = {}
-            if compiled_exists:
-                try:
-                    import json as _json
-
-                    data = _json.loads(compiled_json.read_text(encoding="utf-8"))
-                    meta = data.get("meta", {}) or {}
-                    if isinstance(meta.get("maxima", {}), dict):
-                        maxima = meta.get("maxima", {})
-                except Exception:
-                    maxima = {}
-            tools = {
-                "python": sys.executable,
-                "ruff": shutil.which("ruff") or "",
-                "black": shutil.which("black") or "",
-                "isort": shutil.which("isort") or "",
-                "mypy": shutil.which("mypy") or "",
-                "bandit": shutil.which("bandit") or "",
-                "pytest": shutil.which("pytest") or "",
-                "pre-commit": shutil.which("pre-commit") or "",
-                "semgrep": shutil.which("semgrep") or "",
-                "hadolint": shutil.which("hadolint") or "",
-                "docker": shutil.which("docker") or "",
-            }
-            return {
-                "ok": True,
-                "python_version": platform.python_version(),
-                "platform": platform.platform(),
-                "tools": tools,
-                "config": {"min_module": min_module},
-                "coverage": {"exists": coverage_exists},
-                "rules": {"compiled_exists": compiled_exists},
-                "maxima": maxima,
-            }
+            return self._tool_env_diagnose()
+        if name == "plan.suggest_next":
+            return self._tool_plan_suggest_next()
         if name == "coverage.near":
-            cfg_now = load_config(self.project_root)
-            # defaults from config (coverage.near), can be overridden by args
-            near_cfg = (
-                (cfg_now.get("coverage", {}) or {}).get("near", {})
-                if isinstance(cfg_now.get("coverage", {}), dict)
-                else {}
-            )
-            within = float(args.get("within", near_cfg.get("within", 0.03)))
-            top = int(args.get("top", near_cfg.get("top", 50)))
-            perf = (
-                cfg_now.get("performance", {})
-                if isinstance(cfg_now.get("performance", {}), dict)
-                else {}
-            )
-            min_module = float(
-                (perf.get("on_push", {}) or {})
-                .get("coverage", {})
-                .get("min_module", 0.9)
-            )
-            policy = (
-                (cfg_now.get("coverage", {}) or {}).get("policy", None)
-                if isinstance(cfg_now.get("coverage", {}), dict)
-                else None
-            )
-            data = covsum.summarize_near(
-                project_root=self.project_root,
-                policy=policy,
-                min_module=min_module,
-                within=within,
-                top=top,
-            )
-            return data
+            return self._tool_coverage_near(args)
         if name == "coverage.report":
-            cfg_now = load_config(self.project_root)
-            perf = (
-                cfg_now.get("performance", {})
-                if isinstance(cfg_now.get("performance", {}), dict)
-                else {}
-            )
-            min_module = float(
-                (perf.get("on_push", {}) or {})
-                .get("coverage", {})
-                .get("min_module", 0.9)
-            )
-            policy = (
-                (cfg_now.get("coverage", {}) or {}).get("policy", None)
-                if isinstance(cfg_now.get("coverage", {}), dict)
-                else None
-            )
-            near_cfg = (
-                (cfg_now.get("coverage", {}) or {}).get("near", {})
-                if isinstance(cfg_now.get("coverage", {}), dict)
-                else {}
-            )
-            within = float(args.get("within", near_cfg.get("within", 0.03)))
-            top = int(args.get("top", near_cfg.get("top", 50)))
-            res_sum = covsum.summarize(
-                project_root=self.project_root, policy=policy, min_module=min_module
-            )
-            res_grp = covsum.summarize_groups(
-                project_root=self.project_root, policy=policy, min_module=min_module
-            )
-            res_near = covsum.summarize_near(
-                project_root=self.project_root,
-                policy=policy,
-                min_module=min_module,
-                within=within,
-                top=top,
-            )
-            return {
-                "ok": bool(
-                    res_sum.get("ok")
-                    and res_grp.get("ok", True)
-                    and res_near.get("ok", True)
-                ),
-                "weak": res_sum.get("weak", []),
-                "groups": res_grp.get("groups", []),
-                "near": res_near.get("near", []),
-                "min_module": min_module,
-            }
+            return self._tool_coverage_report(args)
         if name == "rules.maxima":
-            pjson = self.project_root / ri.COMPILED_JSON
-            if not pjson.exists():
-                return {"ok": False, "message": "compiled rules not found"}
-            import json as _json
-
-            try:
-                data = _json.loads(pjson.read_text(encoding="utf-8"))
-            except Exception:
-                data = {}
-            meta = data.get("meta", {}) or {}
-            maxima = (
-                meta.get("maxima", {})
-                if isinstance(meta.get("maxima", {}), dict)
-                else {}
-            )
-            return {"ok": True, "maxima": maxima}
+            return self._tool_rules_maxima()
         if name == "fs.apply_patch":
             # args: { files: [{path, content}] }
             files = args.get("files", [])
@@ -630,206 +305,624 @@ class JsonRpcServer:
                 out["would_write"] = [str(p) for p in changed_paths]
             return out
         if name == "git.install_hooks":
-            paths = hooks_mod.install_git_hooks(self.project_root)
-            return {"ok": True, "installed": paths}
+            return self._tool_git_install_hooks()
         if name == "nl.command":
-            text = args.get("text", "")
-            mapped = nl_mod.parse(text)
-            return {"ok": True, "parsed": {"tool": mapped, "text": text}}
+            return self._tool_nl_command(args)
         if name == "plan.update":
-            text = args.get("text", "")
-            if not text:
-                raise ValueError("text required")
-            progress_mod.write_plan(text, self.project_root)
-            return {"ok": True}
+            return self._tool_plan_update(args)
         if name == "plan.set":
-            status = args.get("status")
-            current = args.get("current")
-            nxt = args.get("next")
-            progress_mod.update_plan_fields(
-                self.project_root, status=status, current=current, nxt=nxt
-            )
-            return {"ok": True}
+            return self._tool_plan_set(args)
         if name == "config.get":
-            cfg_path = self.project_root / DEFAULT_PROJECT_CONFIG_PATH
-            ensure_project_config(cfg_path)
-            try:
-                raw = yaml.safe_load(cfg_path.read_text(encoding="utf-8")) or {}
-            except Exception:
-                raw = {}
-            section = args.get("section")
-            return {"ok": True, "config": raw.get(section, raw) if section else raw}
+            return self._tool_config_get(args)
         if name == "config.update":
-            payload = args.get("data", {})
-            if not isinstance(payload, dict):
-                raise ValueError("data must be object")
-            cfg_path = self.project_root / DEFAULT_PROJECT_CONFIG_PATH
-            ensure_project_config(cfg_path)
-            try:
-                data = yaml.safe_load(cfg_path.read_text(encoding="utf-8")) or {}
-            except Exception:
-                data = {}
-            ci = data.get("ci", {}) if isinstance(data.get("ci", {}), dict) else {}
-            for k in ["hadolint", "hadolint_image", "hadolint_args", "semgrep_config"]:
-                if k in payload:
-                    ci[k] = payload[k]
+            return self._tool_config_update(args)
+        if name == "ci.generate":
+            return self._tool_ci_generate()
+        if name == "ci.validate":
+            return self._tool_ci_validate()
+        if name == "ci.autofix":
+            return self._tool_ci_autofix()
+        if name == "rules.enforce":
+            return self._tool_rules_enforce()
+        raise ValueError(f"Unknown tool: {name}")
+
+    # ---- resources/read helpers ----
+    def _res_read_memory(self) -> Dict[str, Any]:
+        """Read in-memory conversation snapshot as JSON resource.
+
+        For uri variants:\n
+        - memory://<id>/rollup → full snapshot (turns/summary/links)
+        - memory://<id>/links → { links: [...] }
+        """
+        # We do not receive uri here directly in current call path; the caller
+        # dispatches by startswith. Keep simple and always return full snapshot.
+        snap = self.mm.snapshot()
+        return {"mimeType": MIME_JSON, "text": json.dumps(snap, ensure_ascii=False)}
+
+    # ---- tool helpers (extracted from _call_tool) ----
+    def _tool_coverage_near(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        """Return coverage.near JSON using config defaults with arg overrides."""
+        # Load defaults for near
+        cfg_now = load_config(self.project_root)
+        near_cfg = (
+            (cfg_now.get("coverage", {}) or {}).get("near", {})
+            if isinstance(cfg_now.get("coverage", {}), dict)
+            else {}
+        )
+        within = float(args.get("within", near_cfg.get("within", 0.03)))
+        top = int(args.get("top", near_cfg.get("top", 50)))
+        min_module, policy = self._coverage_config_basics()
+        return covsum.summarize_near(
+            project_root=self.project_root,
+            policy=policy,
+            min_module=min_module,
+            within=within,
+            top=top,
+        )
+
+    def _tool_coverage_report(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        """Return coverage.report JSON combining weak/groups/near sections."""
+        min_module, policy = self._coverage_config_basics()
+        # near defaults
+        cfg_now = load_config(self.project_root)
+        near_cfg = (
+            (cfg_now.get("coverage", {}) or {}).get("near", {})
+            if isinstance(cfg_now.get("coverage", {}), dict)
+            else {}
+        )
+        within = float(args.get("within", near_cfg.get("within", 0.03)))
+        top = int(args.get("top", near_cfg.get("top", 50)))
+        res_sum = covsum.summarize(
+            project_root=self.project_root, policy=policy, min_module=min_module
+        )
+        res_grp = covsum.summarize_groups(
+            project_root=self.project_root, policy=policy, min_module=min_module
+        )
+        res_near = covsum.summarize_near(
+            project_root=self.project_root,
+            policy=policy,
+            min_module=min_module,
+            within=within,
+            top=top,
+        )
+        return {
+            "ok": bool(
+                res_sum.get("ok")
+                and res_grp.get("ok", True)
+                and res_near.get("ok", True)
+            ),
+            "weak": res_sum.get("weak", []),
+            "groups": res_grp.get("groups", []),
+            "near": res_near.get("near", []),
+            "min_module": min_module,
+        }
+
+    def _tool_rules_maxima(self) -> Dict[str, Any]:
+        """Return maxima from compiled rules JSON if present."""
+        pjson = self.project_root / ri.COMPILED_JSON
+        if not pjson.exists():
+            return {"ok": False, "message": "compiled rules not found"}
+        try:
+            data = json.loads(pjson.read_text(encoding="utf-8"))
+        except Exception:
+            data = {}
+        meta = data.get("meta", {}) or {}
+        maxima = (
+            meta.get("maxima", {}) if isinstance(meta.get("maxima", {}), dict) else {}
+        )
+        return {"ok": True, "maxima": maxima}
+
+    def _tool_git_install_hooks(self) -> Dict[str, Any]:
+        paths = hooks_mod.install_git_hooks(self.project_root)
+        return {"ok": True, "installed": paths}
+
+    def _tool_nl_command(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        text = args.get("text", "")
+        mapped = nl_mod.parse(text)
+        return {"ok": True, "parsed": {"tool": mapped, "text": text}}
+
+    def _tool_plan_update(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        text = args.get("text", "")
+        if not text:
+            raise ValueError("text required")
+        progress_mod.write_plan(text, self.project_root)
+        return {"ok": True}
+
+    def _tool_plan_set(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        status = args.get("status")
+        current = args.get("current")
+        nxt = args.get("next")
+        progress_mod.update_plan_fields(
+            self.project_root, status=status, current=current, nxt=nxt
+        )
+        return {"ok": True}
+
+    def _tool_env_prepare(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        # 轻量实现：支持 dry-run 规划，或实际创建 venv 并可选安装基础工具
+        py = str(args.get("python") or sys.executable)
+        create = bool(args.get("create", True))
+        install = bool(args.get("install", False))
+        packages = list(
+            args.get("packages")
+            or [
+                "ruff",
+                "black",
+                "isort",
+                "mypy",
+                "bandit",
+                "pytest",
+                "pytest-cov",
+                "pre-commit",
+            ]
+        )
+        venv_dir = self.project_root / ".mcp/venv"
+        plan = {
+            "python": py,
+            "venv": str(venv_dir),
+            "steps": [
+                f"{py} -m venv {venv_dir}",
+                f"{str(venv_dir / 'bin' / 'python' if os.name != 'nt' else venv_dir / 'Scripts' / 'python.exe')} -m pip install --upgrade pip",
+                f"pip install {' '.join(packages)}",
+            ],
+        }
+        if not create and not install:
+            return {"ok": True, "dry": True, "plan": plan}
+        created = False
+        installed = False
+        try:
+            if create:
+                venv_dir.parent.mkdir(parents=True, exist_ok=True)
+                run_cmd(
+                    [py, "-m", "venv", str(venv_dir)],
+                    cwd=self.project_root,
+                    check=False,
+                )
+                created = True
+            if install:
+                py_bin = (
+                    venv_dir
+                    / ("Scripts" if os.name == "nt" else "bin")
+                    / ("python.exe" if os.name == "nt" else "python")
+                )
+                # upgrade pip then install selected packages
+                run_cmd(
+                    [str(py_bin), "-m", "pip", "install", "--upgrade", "pip"],
+                    cwd=self.project_root,
+                    check=False,
+                )
+                if packages:
+                    run_cmd(
+                        [str(py_bin), "-m", "pip", "install", *packages],
+                        cwd=self.project_root,
+                        check=False,
+                    )
+                installed = True
+        except Exception as e:
+            return {
+                "ok": False,
+                "message": f"env prepare failed: {e}",
+                "plan": plan,
+                "venv": str(venv_dir),
+            }
+        return {
+            "ok": True,
+            "created": created,
+            "installed": installed,
+            "venv": str(venv_dir),
+            "plan": plan,
+        }
+
+    def _tool_plan_suggest_next(self) -> Dict[str, Any]:
+        """Synthesize next steps based on memory summary and current plan."""
+        snap = self.mm.snapshot()
+        summary = str(snap.get("summary", ""))
+        plan_text = progress_mod.read_plan(self.project_root)
+        status, current, nxt = progress_mod.parse_plan(plan_text)
+        next_steps: List[str] = []
+        # Very light heuristic: prefer explicit '下一步/next' in plan else from summary
+        if nxt:
+            next_steps.append(nxt)
+        else:
+            for key in ("下一步", "next", "后续", "follow-up"):
+                if key in summary:
+                    # take the trailing 60 chars for display context
+                    i = summary.find(key)
+                    frag = summary[i : i + 60]
+                    next_steps.append(frag)
+                    break
+        if not next_steps and current:
+            next_steps.append(f"继续：{current}")
+        handoff_plan = f"状态: {status or 'planned'}\n当前: {current or '-'}\n建议下一步: {next_steps[0] if next_steps else '-'}\n"
+        return {
+            "ok": True,
+            "suggestions": {"next_steps": next_steps, "handoff_plan": handoff_plan},
+        }
+
+    # ---- rules tool helpers ----
+    def _tool_rules_ingest(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        paths = args.get("paths", [])
+        if not paths:
+            raise ValueError("paths required")
+        return ri.ingest(paths, project_root=self.project_root)
+
+    def _tool_rules_validate(self) -> Dict[str, Any]:
+        return ri.compile_rules(project_root=self.project_root)
+
+    def _tool_rules_enforce(self) -> Dict[str, Any]:
+        # 将已编译规则中的阈值/策略回写到项目配置，并返回门禁摘要
+        compiled_path = self.project_root / ri.COMPILED_JSON
+        if not compiled_path.exists():
+            raise ValueError("compiled rules not found; run rules.ingest first")
+        try:
+            compiled = json.loads(compiled_path.read_text(encoding="utf-8"))
+        except Exception as e:
+            raise ValueError(f"invalid compiled rules: {e}")
+        policy = (
+            compiled.get("policy", {})
+            if isinstance(compiled.get("policy", {}), dict)
+            else {}
+        )
+        pol_min_module = policy.get("coverage.min_module")
+        pol_min_core = policy.get("coverage.min_core")
+        cfg_path = self.project_root / DEFAULT_PROJECT_CONFIG_PATH
+        ensure_project_config(cfg_path)
+        try:
+            data = yaml.safe_load(cfg_path.read_text(encoding="utf-8")) or {}
+        except Exception:
+            data = {}
+        perf = (
+            data.get("performance", {})
+            if isinstance(data.get("performance", {}), dict)
+            else {}
+        )
+        on_push = (
+            perf.get("on_push", {}) if isinstance(perf.get("on_push", {}), dict) else {}
+        )
+        cov = (
+            on_push.get("coverage", {})
+            if isinstance(on_push.get("coverage", {}), dict)
+            else {}
+        )
+        changed = False
+        if isinstance(pol_min_module, (int, float)):
+            cov["min_module"] = float(pol_min_module)
+            changed = True
+        if isinstance(pol_min_core, (int, float)):
+            cov["min_core"] = float(pol_min_core)
+            changed = True
+        on_push["coverage"] = cov
+        perf["on_push"] = on_push
+        data["performance"] = perf
+        # 同步 CI 相关策略：容器/安全扫描
+        ci = data.get("ci", {}) if isinstance(data.get("ci", {}), dict) else {}
+        ci_changed = False
+        if bool(
+            policy.get(POLICY_KEY_CONTAINER_REQUIRED)
+            or policy.get(POLICY_KEY_CONTAINER_BASELINE)
+        ) and not bool(ci.get("hadolint", False)):
+            ci["hadolint"] = True
+            ci_changed = True
+        if bool(policy.get(POLICY_KEY_SECURITY_SAST_STRICT)) and not ci.get(
+            "semgrep_config"
+        ):
+            ci["semgrep_config"] = "auto"
+            ci_changed = True
+        needs_hooks = False
+        needs_ci_regen = False
+        if ci_changed:
             data["ci"] = ci
-            cfg_path.parent.mkdir(parents=True, exist_ok=True)
-            cfg_path.write_text(
-                yaml.safe_dump(data, sort_keys=False, allow_unicode=True),
-                encoding="utf-8",
+            changed = True
+            needs_ci_regen = True
+        # hooks 需求：secrets_scan 或 container 基线策略
+        if bool(policy.get(POLICY_KEY_SECURITY_SECRETS_SCAN)) or bool(
+            policy.get(POLICY_KEY_CONTAINER_BASELINE)
+        ):
+            needs_hooks = True
+        # 写回配置
+        if changed:
+            atomic_write_text(
+                cfg_path, yaml.safe_dump(data, sort_keys=False, allow_unicode=True)
             )
             self.cfg = load_config(self.project_root)
-            return {"ok": True, "ci": ci}
-        if name == "ci.generate":
-            ci_path = hooks_mod.generate_github_ci(self.project_root)
-            return {"ok": True, "path": str(ci_path)}
-        if name == "ci.validate":
-            ci_file = self.project_root / ".github/workflows/ci.yml"
-            exists = ci_file.exists()
-            content = ci_file.read_text(encoding="utf-8") if exists else ""
-            checks = {
-                "exists": exists,
-                "has_precommit": "pre-commit run --all-files" in content,
-                "has_hadolint": "hadolint" in content,
-                "has_semgrep": "semgrep --error" in content,
-                "has_tests": "pytest -q" in content,
-                "has_bandit": "bandit -q" in content,
-                "has_mutation": ("mutmut run" in content)
-                or ("Mutation testing" in content),
-                "has_node_tests": ("VS Code extension tests" in content)
-                and ((self.project_root / "extensions/vscode/package.json").exists()),
-                "has_python_matrix": "matrix:\n        python-version" in content
-                or "matrix:\n      python-version" in content,
-                "has_pip_cache": "cache: 'pip'" in content
-                or 'cache: "pip"' in content
-                or "cache: pip" in content,
-                "has_npm_cache": "cache: 'npm'" in content
-                or 'cache: "npm"' in content
-                or "cache: npm" in content,
-                "has_artifacts": "actions/upload-artifact@" in content,
-                "has_junit": "--junitxml=" in content,
-                "has_coverage_near": "coverage-near --within" in content,
-                "has_near_artifact": "near.txt" in content,
-                "has_combined_artifact": (
-                    "coverage.xml" in content
-                    and "pytest-junit.xml" in content
-                    and "near.txt" in content
-                ),
-                "has_combined_artifact_zip": "tests-artifacts.tar.gz" in content,
-            }
-            return {"ok": True, "checks": checks}
-        if name == "ci.autofix":
-            res = hooks_mod.autofix_github_ci(self.project_root)
-            return {"ok": True, **res}
-        if name == "rules.enforce":
-            # 将已编译规则中的阈值/策略回写到项目配置，并返回门禁摘要
-            compiled_path = self.project_root / ri.COMPILED_JSON
-            if not compiled_path.exists():
-                raise ValueError("compiled rules not found; run rules.ingest first")
+        # 生成门禁摘要
+        enforced = []
+        if "min_module" in cov:
+            enforced.append(f"coverage.min_module={cov['min_module']}")
+        if "min_core" in cov:
+            enforced.append(f"coverage.min_core={cov['min_core']}")
+        for k_src, tag in [
+            ("test.no_skip_xfail", "no_skip_xfail"),
+            ("test.warnings_as_errors", "warnings_as_errors"),
+            (POLICY_KEY_SECURITY_SECRETS_SCAN, "secrets_scan"),
+            (POLICY_KEY_SECURITY_SAST_STRICT, "sast_strict"),
+            (POLICY_KEY_CONTAINER_REQUIRED, "container_required"),
+            (POLICY_KEY_CONTAINER_BASELINE, "container_baseline"),
+        ]:
+            if bool(policy.get(k_src)):
+                enforced.append(tag)
+        if ci.get("hadolint"):
+            enforced.append("ci.hadolint=true")
+        if ci.get("semgrep_config"):
+            enforced.append(f"ci.semgrep_config={ci.get('semgrep_config')}")
+        return {
+            "ok": True,
+            "updated": {"coverage": cov, "ci": data.get("ci", {})},
+            "changed": bool(changed),
+            "enforced": enforced,
+            "needs_hooks": needs_hooks,
+            "needs_ci_regen": needs_ci_regen,
+        }
+
+    def _tool_env_diagnose(self) -> Dict[str, Any]:
+        cfg_now = load_config(self.project_root)
+        perf = (
+            cfg_now.get("performance", {})
+            if isinstance(cfg_now.get("performance", {}), dict)
+            else {}
+        )
+        min_module = float(
+            (perf.get("on_push", {}) or {}).get("coverage", {}).get("min_module", 0.9)
+        )
+        coverage_exists = (self.project_root / "coverage.xml").exists()
+        compiled_json = self.project_root / ri.COMPILED_JSON
+        compiled_exists = compiled_json.exists()
+        maxima = {}
+        if compiled_exists:
             try:
-                compiled = json.loads(compiled_path.read_text(encoding="utf-8"))
-            except Exception as e:
-                raise ValueError(f"invalid compiled rules: {e}")
-            policy = (
-                compiled.get("policy", {})
-                if isinstance(compiled.get("policy", {}), dict)
-                else {}
+                data = json.loads(compiled_json.read_text(encoding="utf-8"))
+                meta = data.get("meta", {}) or {}
+                if isinstance(meta.get("maxima", {}), dict):
+                    maxima = meta.get("maxima", {})
+            except Exception:
+                maxima = {}
+        tools = {
+            "python": sys.executable,
+            "ruff": shutil.which("ruff") or "",
+            "black": shutil.which("black") or "",
+            "isort": shutil.which("isort") or "",
+            "mypy": shutil.which("mypy") or "",
+            "bandit": shutil.which("bandit") or "",
+            "pytest": shutil.which("pytest") or "",
+            "pre-commit": shutil.which("pre-commit") or "",
+            "semgrep": shutil.which("semgrep") or "",
+            "hadolint": shutil.which("hadolint") or "",
+            "docker": shutil.which("docker") or "",
+        }
+        return {
+            "ok": True,
+            "python_version": platform.python_version(),
+            "platform": platform.platform(),
+            "tools": tools,
+            "config": {"min_module": min_module},
+            "coverage": {"exists": coverage_exists},
+            "rules": {"compiled_exists": compiled_exists},
+            "maxima": maxima,
+        }
+
+    def _res_read_progress(self) -> Dict[str, Any]:
+        """Read project plan markdown resource."""
+        text = progress_mod.read_plan(self.project_root)
+        return {"mimeType": MIME_MD, "text": text}
+
+    def _res_read_config(self) -> Dict[str, Any]:
+        """Read assistant.yaml as YAML resource (text only)."""
+        cfg_file = self.project_root / DEFAULT_PROJECT_CONFIG_PATH
+        text = cfg_file.read_text(encoding="utf-8") if cfg_file.exists() else ""
+        return {"mimeType": MIME_YAML, "text": text}
+
+    def _res_read_ci(self) -> Dict[str, Any]:
+        """Read GitHub Actions CI workflow YAML if present."""
+        ci_file = self.project_root / ".github/workflows/ci.yml"
+        text = ci_file.read_text(encoding="utf-8") if ci_file.exists() else ""
+        return {"mimeType": MIME_YAML, "text": text}
+
+    # ---- CI tool helpers ----
+    def _tool_ci_generate(self) -> Dict[str, Any]:
+        ci_path = hooks_mod.generate_github_ci(self.project_root)
+        return {"ok": True, "path": str(ci_path)}
+
+    def _tool_ci_validate(self) -> Dict[str, Any]:
+        ci_file = self.project_root / ".github/workflows/ci.yml"
+        exists = ci_file.exists()
+        content = ci_file.read_text(encoding="utf-8") if exists else ""
+        checks = {
+            "exists": exists,
+            "has_precommit": "pre-commit run --all-files" in content,
+            "has_hadolint": "hadolint" in content,
+            "has_semgrep": "semgrep --error" in content,
+            "has_tests": "pytest -q" in content,
+            "has_bandit": "bandit -q" in content,
+            "has_mutation": ("mutmut run" in content)
+            or ("Mutation testing" in content),
+            "has_node_tests": ("VS Code extension tests" in content)
+            and ((self.project_root / "extensions/vscode/package.json").exists()),
+            "has_python_matrix": "matrix:\n        python-version" in content
+            or "matrix:\n      python-version" in content,
+            "has_pip_cache": "cache: 'pip'" in content
+            or 'cache: "pip"' in content
+            or "cache: pip" in content,
+            "has_npm_cache": "cache: 'npm'" in content
+            or 'cache: "npm"' in content
+            or "cache: npm" in content,
+            "has_artifacts": "actions/upload-artifact@" in content,
+            "has_junit": "--junitxml=" in content,
+            "has_coverage_near": "coverage-near --within" in content,
+            "has_near_artifact": "near.txt" in content,
+            "has_combined_artifact": (
+                "coverage.xml" in content
+                and "pytest-junit.xml" in content
+                and "near.txt" in content
+            ),
+            "has_combined_artifact_zip": "tests-artifacts.tar.gz" in content,
+        }
+        return {"ok": True, "checks": checks}
+
+    def _tool_ci_autofix(self) -> Dict[str, Any]:
+        res = hooks_mod.autofix_github_ci(self.project_root)
+        return {"ok": True, **res}
+
+    # ---- config tool helpers ----
+    def _tool_config_get(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        cfg_path = self.project_root / DEFAULT_PROJECT_CONFIG_PATH
+        ensure_project_config(cfg_path)
+        try:
+            raw = yaml.safe_load(cfg_path.read_text(encoding="utf-8")) or {}
+        except Exception:
+            raw = {}
+        section = args.get("section")
+        return {"ok": True, "config": raw.get(section, raw) if section else raw}
+
+    def _tool_config_update(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        payload = args.get("data", {})
+        if not isinstance(payload, dict):
+            raise ValueError("data must be object")
+        cfg_path = self.project_root / DEFAULT_PROJECT_CONFIG_PATH
+        ensure_project_config(cfg_path)
+        try:
+            data = yaml.safe_load(cfg_path.read_text(encoding="utf-8")) or {}
+        except Exception:
+            data = {}
+        ci = data.get("ci", {}) if isinstance(data.get("ci", {}), dict) else {}
+        for k in ["hadolint", "hadolint_image", "hadolint_args", "semgrep_config"]:
+            if k in payload:
+                ci[k] = payload[k]
+        data["ci"] = ci
+        cfg_path.parent.mkdir(parents=True, exist_ok=True)
+        atomic_write_text(
+            cfg_path, yaml.safe_dump(data, sort_keys=False, allow_unicode=True)
+        )
+        self.cfg = load_config(self.project_root)
+        return {"ok": True, "ci": ci}
+
+    def _res_read_coverage(self, uri: str) -> Dict[str, Any]:
+        """Read coverage resources: summary/groups/tree/near/report as JSON."""
+        min_module, policy = self._coverage_config_basics()
+        if uri.endswith("/groups"):
+            summary = covsum.summarize_groups(
+                project_root=self.project_root, policy=policy, min_module=min_module
             )
-            pol_min_module = policy.get("coverage.min_module")
-            pol_min_core = policy.get("coverage.min_core")
-            cfg_path = self.project_root / DEFAULT_PROJECT_CONFIG_PATH
-            ensure_project_config(cfg_path)
+            return {
+                "mimeType": MIME_JSON,
+                "text": json.dumps(summary, ensure_ascii=False),
+            }
+        if uri.endswith("/tree"):
+            summary = covsum.summarize_tree(
+                project_root=self.project_root, policy=policy, min_module=min_module
+            )
+            return {
+                "mimeType": MIME_JSON,
+                "text": json.dumps(summary, ensure_ascii=False),
+            }
+        if uri.endswith("/near"):
+            within, top = self._coverage_near_defaults()
+            summary = covsum.summarize_near(
+                project_root=self.project_root,
+                policy=policy,
+                min_module=min_module,
+                within=within,
+                top=top,
+            )
+            return {
+                "mimeType": MIME_JSON,
+                "text": json.dumps(summary, ensure_ascii=False),
+            }
+        if uri.endswith("/report"):
+            within, top = self._coverage_near_defaults()
+            res_sum = covsum.summarize(
+                project_root=self.project_root, policy=policy, min_module=min_module
+            )
+            res_grp = covsum.summarize_groups(
+                project_root=self.project_root, policy=policy, min_module=min_module
+            )
+            res_near = covsum.summarize_near(
+                project_root=self.project_root,
+                policy=policy,
+                min_module=min_module,
+                within=within,
+                top=top,
+            )
+            payload = {
+                "ok": bool(
+                    res_sum.get("ok")
+                    and res_grp.get("ok", True)
+                    and res_near.get("ok", True)
+                ),
+                "weak": res_sum.get("weak", []),
+                "groups": res_grp.get("groups", []),
+                "near": res_near.get("near", []),
+                "min_module": min_module,
+            }
+            return {
+                "mimeType": MIME_JSON,
+                "text": json.dumps(payload, ensure_ascii=False),
+            }
+        summary = covsum.summarize(
+            project_root=self.project_root, policy=policy, min_module=min_module
+        )
+        return {"mimeType": MIME_JSON, "text": json.dumps(summary, ensure_ascii=False)}
+
+    def _coverage_config_basics(self) -> tuple[float, Any | None]:
+        """Return (min_module, policy) from current config with safe defaults."""
+        cfg_now = load_config(self.project_root)
+        perf = (
+            cfg_now.get("performance", {})
+            if isinstance(cfg_now.get("performance", {}), dict)
+            else {}
+        )
+        min_module = float(
+            (perf.get("on_push", {}) or {}).get("coverage", {}).get("min_module", 0.9)
+        )
+        policy = (
+            (cfg_now.get("coverage", {}) or {}).get("policy", None)
+            if isinstance(cfg_now.get("coverage", {}), dict)
+            else None
+        )
+        return min_module, policy
+
+    def _coverage_near_defaults(self) -> tuple[float, int]:
+        """Return default (within, top) for coverage.near from current config."""
+        cfg_now2 = load_config(self.project_root)
+        near_cfg = (
+            (cfg_now2.get("coverage", {}) or {}).get("near", {})
+            if isinstance(cfg_now2.get("coverage", {}), dict)
+            else {}
+        )
+        within = float((near_cfg or {}).get("within", 0.03))
+        top = int((near_cfg or {}).get("top", 50))
+        return within, top
+
+    def _res_read_rules(self, uri: str) -> Dict[str, Any]:
+        """Read rules resources: compiled(.md/.json), suggestions, maxima."""
+        if uri.endswith("/compiled"):
+            path = self.project_root / ri.COMPILED_MD
+            mime = MIME_MD
+        elif uri.endswith("/compiled.json"):
+            path = self.project_root / ri.COMPILED_JSON
+            mime = MIME_JSON
+        elif uri.endswith("/suggestions"):
+            path = self.project_root / ri.SUGGESTIONS_MD
+            mime = MIME_MD
+        elif uri.endswith("/maxima"):
+            pjson = self.project_root / ri.COMPILED_JSON
+            if not pjson.exists():
+                raise ValueError("rules resource not found; run rules.ingest first")
             try:
-                data = yaml.safe_load(cfg_path.read_text(encoding="utf-8")) or {}
+                data = json.loads(pjson.read_text(encoding="utf-8"))
             except Exception:
                 data = {}
-            perf = (
-                data.get("performance", {})
-                if isinstance(data.get("performance", {}), dict)
-                else {}
-            )
-            on_push = (
-                perf.get("on_push", {})
-                if isinstance(perf.get("on_push", {}), dict)
-                else {}
-            )
-            cov = (
-                on_push.get("coverage", {})
-                if isinstance(on_push.get("coverage", {}), dict)
-                else {}
-            )
-            changed = False
-            if isinstance(pol_min_module, (int, float)):
-                cov["min_module"] = float(pol_min_module)
-                changed = True
-            if isinstance(pol_min_core, (int, float)):
-                cov["min_core"] = float(pol_min_core)
-                changed = True
-            on_push["coverage"] = cov
-            perf["on_push"] = on_push
-            data["performance"] = perf
-            # 同步 CI 相关策略：容器/安全扫描
-            ci = data.get("ci", {}) if isinstance(data.get("ci", {}), dict) else {}
-            ci_changed = False
-            if bool(
-                policy.get("container.required")
-                or policy.get("container.policy.baseline")
-            ) and not bool(ci.get("hadolint", False)):
-                ci["hadolint"] = True
-                ci_changed = True
-            if bool(policy.get("security.sast_strict")) and not ci.get(
-                "semgrep_config"
-            ):
-                ci["semgrep_config"] = "auto"
-                ci_changed = True
-            needs_hooks = False
-            needs_ci_regen = False
-            if ci_changed:
-                data["ci"] = ci
-                changed = True
-                needs_ci_regen = True
-            # hooks 需求：secrets_scan 或 container 基线策略
-            if bool(policy.get("security.secrets_scan")) or bool(
-                policy.get("container.policy.baseline")
-            ):
-                needs_hooks = True
-            # 写回配置
-            if changed:
-                cfg_path.write_text(
-                    yaml.safe_dump(data, sort_keys=False, allow_unicode=True),
-                    encoding="utf-8",
-                )
-                self.cfg = load_config(self.project_root)
-            # 生成门禁摘要
-            enforced = []
-            if "min_module" in cov:
-                enforced.append(f"coverage.min_module={cov['min_module']}")
-            if "min_core" in cov:
-                enforced.append(f"coverage.min_core={cov['min_core']}")
-            for k_src, tag in [
-                ("test.no_skip_xfail", "no_skip_xfail"),
-                ("test.warnings_as_errors", "warnings_as_errors"),
-                ("security.secrets_scan", "secrets_scan"),
-                ("security.sast_strict", "sast_strict"),
-                ("container.required", "container_required"),
-                ("container.policy.baseline", "container_baseline"),
-            ]:
-                if bool(policy.get(k_src)):
-                    enforced.append(tag)
-            if ci.get("hadolint"):
-                enforced.append("ci.hadolint=true")
-            if ci.get("semgrep_config"):
-                enforced.append(f"ci.semgrep_config={ci.get('semgrep_config')}")
+            maxima = {}
+            meta = data.get("meta", {}) or {}
+            if isinstance(meta.get("maxima", {}), dict):
+                maxima = meta.get("maxima", {})
             return {
-                "ok": True,
-                "updated": {"coverage": cov, "ci": data.get("ci", {})},
-                "changed": bool(changed),
-                "enforced": enforced,
-                "needs_hooks": needs_hooks,
-                "needs_ci_regen": needs_ci_regen,
+                "mimeType": MIME_JSON,
+                "text": json.dumps({"maxima": maxima}, ensure_ascii=False),
             }
-        raise ValueError(f"Unknown tool: {name}")
+        else:
+            raise ValueError("unknown rules resource")
+        if not path.exists():
+            raise ValueError("rules resource not found; run rules.ingest first")
+        return {"mimeType": mime, "text": path.read_text(encoding="utf-8")}
 
     def _project_id(self) -> str:
         return uuid.uuid5(uuid.NAMESPACE_URL, str(self.project_root.resolve())).hex[:8]
@@ -871,3 +964,7 @@ def serve_stdio() -> None:
             continue
         response = server.handle(request)
         print(json.dumps(response, ensure_ascii=False), flush=True)
+
+
+# Small subprocess wrapper for consistency with dev_agent/hooks
+# 使用共享 run_cmd（原本模块内的 _run_cmd 已移除）
