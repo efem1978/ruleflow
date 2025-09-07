@@ -128,12 +128,12 @@ def summarize(
     weak: List[ClassItem] = []
     threshold = min_module
     if policy:
-        # 简化：如匹配到前缀策略，则按策略阈值
+        # 简化：如匹配到前缀或后缀（basename）策略，则按策略阈值
         for it in items:
             name = str(it.get("file", ""))
             th: float = float(threshold)
             for prefix, t in policy.items():
-                if name.startswith(prefix):
+                if name.startswith(prefix) or name.endswith(prefix):
                     th = float(t)
                     break
             it["threshold"] = th
@@ -217,7 +217,8 @@ def summarize_groups(
 
     def pick_prefix(file: str) -> str:
         for p, _th in prefixes:
-            if file.startswith(p):
+            # 支持目录前缀与文件名后缀（basename）两种匹配
+            if file.startswith(p) or file.endswith(p):
                 return p
         return "other"
 
@@ -302,7 +303,7 @@ def summarize_near(
     def threshold_for(file: str) -> float:
         if policy:
             for p, th in policy.items():
-                if file.startswith(p):
+                if file.startswith(p) or file.endswith(p):
                     return float(th)
         return float(min_module)
 

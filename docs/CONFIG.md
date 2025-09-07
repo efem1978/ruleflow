@@ -44,9 +44,11 @@ ci:
 ```
 
 说明（coverage.policy 键的写法）
-- 建议使用与 coverage.xml 中 <class filename="..."> 一致的“文件名前缀”。
-- 在本项目中，coverage 源路径为包根（mcp_rules_assistant）且 filename 为“basename”（如 `cli.py`、`mcp_server.py`）。
-- 因此，设置核心模块策略时建议写成：`cli.py: 0.98`、`mcp_server.py: 0.98` 等，以确保命中。
+- 匹配规则：同时支持“前缀匹配（prefix）”与“后缀匹配（basename）”。工具将先尝试前缀匹配，未命中则回退到后缀匹配。
+- 因此，既可以写目录前缀（如 `mcp_rules_assistant/` 或 `src/core/`），也可以直接写文件名（如 `cli.py`、`mcp_server.py`）。
+- 建议做法：
+  - 若要对一类目录生效，使用目录前缀：`mcp_rules_assistant/`: 0.95。
+  - 若要对单个模块设更高门槛，使用文件名后缀：`cli.py: 0.98`、`mcp_server.py: 0.98`。
 
 命令 Commands（中英 + 模糊）
 - 开启滚动记忆 / enable rolling memory / 记忆开 / auto-memo on

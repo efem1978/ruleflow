@@ -276,10 +276,22 @@ class JsonRpcServer:
                         raise ValueError(
                             "检测到 skip/xfail 标记，受控写入被拒绝（strict）。"
                         )
+                # 路径安全：禁止绝对路径与越权（必须在项目根内）
+                if "path" not in f:
+                    raise ValueError("缺少文件路径字段 'path'")
                 p = Path(f["path"])
+                if p.is_absolute():
+                    raise ValueError("禁止写入绝对路径（必须为项目内相对路径）")
+                root_res = self.project_root.resolve()
+                dest = (root_res / p).resolve()
+                try:
+                    # 若越出项目根，将抛出 ValueError
+                    dest.relative_to(root_res)
+                except Exception:
+                    raise ValueError("禁止写入项目根之外的路径（疑似路径穿越）")
                 if not dry_run:
                     self.fs.write_text(p, content)
-                changed_paths.append((self.project_root / p).resolve())
+                changed_paths.append(dest)
             result_checks: Dict[str, Any] = {"ok": True}
             if run_checks and not dry_run:
                 do_type = bool(
