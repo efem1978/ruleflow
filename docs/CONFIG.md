@@ -85,4 +85,19 @@ rules:
   # conflict_delta:
   #   coverage.min_module: 0.05
   #   coverage.min_core: 0.02
+
+execution:
+  # 允许 fs.apply_patch 写入的相对路径前缀白名单；为空表示不限制
+  # 例如：限制只能改动包代码、测试、文档与 .mcp 工件
+  allowed_write_prefixes:
+    - "mcp_rules_assistant/"
+    - "tests/"
+    - "docs/"
+    - ".mcp/"
 ```
+
+维护与兼容建议
+- 预提交阶段命名：pre-commit v4 推荐使用 Git 钩子名作为 stage（如 `pre-commit`/`pre-push`）。
+  - 如需将现有 `.pre-commit-config.yaml` 的 `stages: [commit/push]` 批量迁移，可运行：
+    - `mcp-rules-assistant precommit-migrate-stages`
+- CI 工具版本固定：建议固定 hadolint/semgrep 版本以提升构建可重复性；本仓库生成的 CI 已固定 semgrep（pip 安装）与 hadolint（容器镜像）版本，仍可在 `ci-set` 中覆盖。

@@ -124,6 +124,9 @@ def default_config_dict() -> Dict[str, Any]:
             "fs_guard_post_checks": False,
             # 严格模式：当 fs_guard_post_checks 启用且检查失败时，阻断写入
             "fs_guard_strict": False,
+            # 允许受控写入的相对路径前缀白名单（留空表示不限制）。
+            # 例：["mcp_rules_assistant/", "tests/", "docs/", ".mcp/"]
+            "allowed_write_prefixes": [],
         },
         "ci": {"hadolint": False, "vscode_required": True},
     }

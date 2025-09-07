@@ -289,6 +289,23 @@ class JsonRpcServer:
                     dest.relative_to(root_res)
                 except Exception:
                     raise ValueError("禁止写入项目根之外的路径（疑似路径穿越）")
+                # 路径前缀白名单（可选）
+                try:
+                    ex_cfg: Dict[str, Any] = (
+                        self.cfg.get("execution", {})
+                        if isinstance(self.cfg.get("execution", {}), dict)
+                        else {}
+                    )
+                    prefixes = ex_cfg.get("allowed_write_prefixes")
+                    if isinstance(prefixes, list) and prefixes:
+                        rel = str(dest.relative_to(root_res)).replace("\\", "/")
+                        okp = any(str(prefix) and rel.startswith(str(prefix)) for prefix in prefixes)
+                        if not okp:
+                            raise ValueError("受控写入路径不在允许前缀清单内")
+                except Exception as _e:
+                    # 严格模式下升级为错误
+                    if bool(ex_cfg.get("fs_guard_strict", False)):
+                        raise
                 if not dry_run:
                     self.fs.write_text(p, content)
                 changed_paths.append(dest)

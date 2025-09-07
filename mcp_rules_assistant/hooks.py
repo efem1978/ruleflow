@@ -382,7 +382,8 @@ def render_github_ci_yaml(project_root: Optional[Path] = None) -> str:
         sast_step = (
             "      - name: SAST (semgrep)\n"
             "        run: |\n"
-            "          python -m pip install semgrep\n"
+            "          # 固定 semgrep 版本以提升可重复性\n"
+            "          python -m pip install 'semgrep==1.79.0'\n"
             f"          semgrep --error --config {ci_cfg.get('semgrep_config','auto')}\n"
         )
 

@@ -73,6 +73,43 @@ def license_verify() -> None:
     rprint(res)
 
 
+@app.command("precommit-migrate-stages")
+def precommit_migrate_stages() -> None:
+    """将 .pre-commit-config.yaml 中的 stages 从旧值（commit/push）改为新值（pre-commit/pre-push）。"""
+    cfg = Path(".pre-commit-config.yaml")
+    if not cfg.exists():
+        rprint({"ok": False, "message": ".pre-commit-config.yaml not found"})
+        raise typer.Exit(1)
+    try:
+        data = yaml.safe_load(cfg.read_text(encoding="utf-8")) or {}
+    except Exception as e:
+        rprint({"ok": False, "message": f"yaml parse error: {e}"})
+        raise typer.Exit(1)
+    changed = False
+    repos = data.get("repos") or []
+    if isinstance(repos, list):
+        for repo in repos:
+            hooks = (repo or {}).get("hooks") or []
+            if isinstance(hooks, list):
+                for h in hooks:
+                    st = (h or {}).get("stages")
+                    if isinstance(st, list):
+                        new_st = []
+                        for s in st:
+                            if s == "commit":
+                                new_st.append("pre-commit")
+                            elif s == "push":
+                                new_st.append("pre-push")
+                            else:
+                                new_st.append(s)
+                        if new_st != st:
+                            h["stages"] = new_st
+                            changed = True
+    if changed:
+        cfg.write_text(yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding="utf-8")
+    rprint({"ok": True, "changed": changed, "path": str(cfg)})
+
+
 @app.command("print-config")
 def print_config() -> None:
     cfg = load_config()
