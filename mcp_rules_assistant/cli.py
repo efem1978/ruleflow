@@ -15,6 +15,7 @@ from . import __version__
 from . import hooks as hooks_mod
 from . import rules_ingest as rules_ingest
 from . import server
+from .auto_status import generate_status
 from .config import (
     DEFAULT_PROJECT_CONFIG_PATH,
     ensure_project_config,
@@ -723,6 +724,28 @@ def diagnose(
     rprint("tools:")
     for k, v in tools.items():
         rprint(f" - {k}: {v or 'missing'}")
+
+
+@app.command("status-update")
+def status_update(json_out: bool = typer.Option(True, "--json/--text")) -> None:
+    """Refresh dashboard status (.mcp/dashboard/status.json) from plan/memory/coverage.
+
+    Prints the status in JSON (default) or compact text.
+    """
+    payload = generate_status()
+    if json_out:
+        import json as _json
+
+        print(_json.dumps(payload, ensure_ascii=False))
+        return
+    rprint("[bold]Status[/]")
+    rprint(
+        f"plan: status={payload['plan']['status']} current={payload['plan']['current']} next={payload['plan']['next']}"
+    )
+    cov = payload.get("coverage", {}) or {}
+    rprint(
+        f"coverage: count={cov.get('count',0)} weak={len(cov.get('weak',[]) or [])} progress={cov.get('progress',0):.2f}"
+    )
 
 
 @app.command("rules-suggestions")

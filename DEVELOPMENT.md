@@ -116,7 +116,17 @@
 - 自检脚本（建议本地执行）：
   - 禁止引用：避免在文档中出现旧式 Compose/本地端口/UI 静态资源等字样（例如 legacy compose 文件名、开发端口和前端文件名等），以免误导（预检会自动扫描并报错）
   - Compose 校验：`docker compose config -q`
-  - 计划一致性：`.mcp/plan.md` 当前/下一步与本文件“TDD 清单”应相符
+- 计划一致性：`.mcp/plan.md` 当前/下一步与本文件“TDD 清单”应相符
+
+## 快速衔接 / Quick Handoff
+- 新窗口/新会话快速获悉上下文：
+  - 运行 `mcp-rules-assistant status-update` 刷新 `.mcp/dashboard/status.json` 与 `history.json`。
+  - 阅读：
+    - `.mcp/plan.md`：`状态/当前步骤/下一步` 与任务复选清单（进度 = 勾选比率）。
+    - `.mcp/dashboard/status.json`：综合快照（计划/覆盖率/总体进度/时间戳）。
+    - `.mcp/memory.json`：近 20 轮摘要（`summary`）与最近若干 turn（AI 可直接读取）。
+  - VS Code 面板或 MCP 资源：`progress://.../plan`、`coverage://.../report`、`memory://.../rollup`。
+  - 容器无人值守：`docker compose up -d dev-agent` 将自动每分钟刷新上述状态。
 
 ## AI 协作与约束 / AI Collaboration Constraints
 - 只按计划改动：任何实现改动需同步更新 `.mcp/plan.md` 与相关文档；禁止绕过计划直接重构

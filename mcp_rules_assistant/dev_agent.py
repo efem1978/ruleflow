@@ -162,7 +162,20 @@ class DevAgent:
         *,
         on_event: Optional[Callable[[Dict[str, Any]], None]] = None,
     ) -> Dict[str, object]:
-        # Instance-level implementation to allow event logging and keep test compatibility
+        # If tests monkeypatched module-level helper, delegate to it; otherwise use
+        # instance-level logic so agent-level monkeypatches (_git_changed_files, etc.) work.
+        import sys as _sys
+
+        mod = _sys.modules.get(__name__)
+        func = getattr(mod, "_run_impacted_or_full", None)
+        orig = getattr(mod, "ORIG_RUN_IMPACTED_OR_FULL", None)
+        if callable(func) and orig is not None and func is not orig:
+            return func(
+                self.project_root,
+                cycle_idx=cycle_idx,
+                full_every=full_every,
+                on_event=on_event,
+            )
         try_quick = (cycle_idx % max(1, full_every)) != 0
         changed = self._git_changed_files(on_event=on_event)
         if try_quick and changed:
@@ -853,6 +866,7 @@ class DevAgent:
                 dash = self._ensure_dashboard_dir(rebuild=True)  # type: ignore[misc]
             else:
                 import mcp_rules_assistant.dev_agent as _dev_mod
+
                 _func = getattr(_dev_mod, "_ensure_dashboard_dir", None)
                 if callable(_func):  # 模块级 monkeypatch（测试常用模式）
                     dash = _func(self.project_root, rebuild=True)  # type: ignore[misc]
@@ -860,7 +874,7 @@ class DevAgent:
                     dash = self._ensure_dashboard_dir(rebuild=True)
         except Exception:
             # 最后回退：确保目录存在
-            dash = (self.project_root / ".mcp" / "dashboard")
+            dash = self.project_root / ".mcp" / "dashboard"
             dash.mkdir(parents=True, exist_ok=True)
         self._initialize_run_status(dash, interval)
 
@@ -1056,6 +1070,10 @@ def _run_impacted_or_full(
     out = _run_tests_with_coverage(project_root)
     out["mode"] = "full"
     return out
+
+
+# Keep a reference to the original function for test-detection in instance method
+ORIG_RUN_IMPACTED_OR_FULL = _run_impacted_or_full
 
 
 def run_impacted_or_full(
