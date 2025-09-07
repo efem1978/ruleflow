@@ -103,6 +103,7 @@ def default_config_dict() -> Dict[str, Any]:
         },
         "language": "python",
         "bilingual": True,
+        "license": {"required": False},
         "coverage": {
             # 模块级阈值策略（可选）：键为文件前缀，值为阈值（0~1）
             # 例：{"src/core/": 0.95, "src/": 0.90}

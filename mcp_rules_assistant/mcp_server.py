@@ -30,6 +30,7 @@ from .policy_keys import (
 from .process import run_cmd
 from .rules import Complexity, DevMode, Scenario, choose_thresholds, explain_thresholds
 from .tools import registry, setup_default_tools
+from .license_utils import verify_license as _verify_license
 
 # MIME constants
 MIME_JSON = "application/json"
@@ -56,6 +57,24 @@ class JsonRpcServer:
         self.fs = FSGuard(self.project_root)
         self.settings: Dict[str, Any] = {"memory_auto": False}
         self.cfg = load_config(self.project_root)
+
+    def _license_required(self) -> bool:
+        try:
+            lic_cfg = self.cfg.get("license", {}) if isinstance(self.cfg.get("license", {}), dict) else {}
+            return bool(lic_cfg.get("required", False))
+        except Exception:
+            return False
+
+    def _ensure_license(self) -> None:
+        if not self._license_required():
+            return
+        res = {}
+        try:
+            res = _verify_license()
+        except Exception:
+            res = {"ok": False}
+        if not bool(res.get("ok")):
+            raise ValueError("license required or invalid")
 
     # ---- MCP-like methods ----
     def handle(self, request: Dict[str, Any]) -> Dict[str, Any]:
@@ -196,6 +215,20 @@ class JsonRpcServer:
 
     # ---- Tools implementations (skeleton) ----
     def _call_tool(self, name: str, args: Dict[str, Any]) -> Dict[str, Any]:
+        # 许可门禁：对敏感工具启用软硬门禁（受配置 license.required 控制）
+        gated = {
+            "rules.enforce",
+            "ci.generate",
+            "ci.validate",
+            "ci.autofix",
+            "git.install_hooks",
+        }
+        try:
+            if name in gated:
+                self._ensure_license()
+        except Exception:
+            # 保守：直接抛出以阻断敏感调用
+            raise
         if name == "project.detect":
             return self._tool_project_detect()
         if name == "project.switch":

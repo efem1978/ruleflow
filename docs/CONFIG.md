@@ -93,7 +93,12 @@ execution:
     - "mcp_rules_assistant/"
     - "tests/"
     - "docs/"
-    - ".mcp/"
+  - ".mcp/"
+
+license:
+  # 是否启用许可硬门禁：开启后，部分敏感操作（rules.enforce / ci.generate / ci.validate / ci.autofix / git.install_hooks）
+  # 需通过 license-verify 校验（演示支持 hs256/rs256）。默认 false。
+  required: false
 ```
 
 维护与兼容建议
