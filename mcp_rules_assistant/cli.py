@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json as _json
+import os
 import platform
 import shutil
 import sys
@@ -346,6 +347,117 @@ def rules_explain(
         if keys:
             lines.append("suggestions_keys: " + ", ".join(keys[:20]))
     rprint("\n".join(lines))
+
+
+@app.command("rules-onboard")
+def rules_onboard(
+    scenario: str = typer.Option(
+        "personal", "--scenario", help="personal/pro/enterprise/institution"
+    ),
+    complexity: str = typer.Option("small", "--complexity", help="small/medium/large"),
+    dev_mode: str = typer.Option("tdd", "--dev-mode", help="tdd/bdd/doc/spike"),
+    apply: bool = typer.Option(True, "--apply/--dry-run", help="写入配置或仅预览"),
+) -> None:
+    """规则引导：选择场景/复杂度/模式并应用推荐阈值（min_module、是否启用变异测试）。"""
+    from .rules import Complexity, Scenario, choose_thresholds, explain_thresholds
+
+    try:
+        th = choose_thresholds(Scenario(scenario), Complexity(complexity))
+    except Exception:
+        rprint("[yellow]输入无效，已回退到 personal/small[/]")
+        th = choose_thresholds(Scenario.PERSONAL, Complexity.SMALL)
+    if apply:
+        ensure_project_config()
+        p = DEFAULT_PROJECT_CONFIG_PATH
+        try:
+            data = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
+        except Exception:
+            data = {}
+        perf = (
+            data.get("performance", {})
+            if isinstance(data.get("performance", {}), dict)
+            else {}
+        )
+        on_push = (
+            perf.get("on_push", {}) if isinstance(perf.get("on_push", {}), dict) else {}
+        )
+        cov = (
+            on_push.get("coverage", {})
+            if isinstance(on_push.get("coverage", {}), dict)
+            else {}
+        )
+        cov["min_module"] = float(th.coverage_min_module)
+        on_push["coverage"] = cov
+        on_push["mutation_test"] = bool(th.mutation_required)
+        perf["on_push"] = on_push
+        data["performance"] = perf
+        p.write_text(
+            yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding="utf-8"
+        )
+        rprint(
+            {
+                "ok": True,
+                "scenario": scenario,
+                "complexity": complexity,
+                "devMode": dev_mode,
+                "thresholds": explain_thresholds(th),
+                "applied": True,
+                "path": str(p),
+            }
+        )
+    else:
+        rprint(
+            {
+                "ok": True,
+                "scenario": scenario,
+                "complexity": complexity,
+                "devMode": dev_mode,
+                "thresholds": explain_thresholds(th),
+                "applied": False,
+            }
+        )
+
+
+@app.command("ide-scaffold")
+def ide_scaffold(
+    editor: str = typer.Option(..., "--editor", help="vscode/cursor/jetbrains/neovim")
+) -> None:
+    """生成各 IDE 最小集成脚手架（写入 .mcp/ide/<editor>/）。"""
+    editor_l = editor.strip().lower()
+    if editor_l not in {"vscode", "cursor", "jetbrains", "neovim"}:
+        rprint({"ok": False, "message": "unsupported editor"})
+        raise typer.Exit(1)
+    srv = JsonRpcServer()
+    srv.project_root = Path.cwd()
+    res = srv._call_tool("ide.scaffold", {"editor": editor_l})
+    rprint(res)
+
+
+@app.command("compliance-commitment")
+def compliance_commitment(
+    out: Optional[str] = typer.Option(
+        None, "--out", help="写入到指定路径（默认写入 .mcp/compliance.md）"
+    ),
+    dry: bool = typer.Option(False, "--dry-run", help="仅打印，不写入"),
+) -> None:
+    """输出/写入 AI 合规承诺（中文+英文）。"""
+    srv = JsonRpcServer()
+    srv.project_root = Path.cwd()
+    res = srv._call_tool("compliance.commitment", {"write": not dry})
+    if out:
+        p = Path(out).expanduser().resolve()
+        p.parent.mkdir(parents=True, exist_ok=True)
+        # text is in res["text"]
+        p.write_text(str(res.get("text", "")), encoding="utf-8")
+        rprint({"ok": True, "path": str(p)})
+    else:
+        # 兜底：若未写入成功，CLI 侧直接写入标准路径
+        if not dry:
+            default_p = Path(".mcp/compliance.md")
+            if not default_p.exists():
+                default_p.parent.mkdir(parents=True, exist_ok=True)
+                default_p.write_text(str(res.get("text", "")), encoding="utf-8")
+        rprint(res)
 
 
 @app.command("coverage")
@@ -704,6 +816,45 @@ def diagnose(
         "hadolint": shutil.which("hadolint") or "",
         "docker": shutil.which("docker") or "",
     }
+    # hooks installed status and writable checks
+    hooks_dir = Path(".git/hooks")
+    hooks = {
+        "installed": hooks_dir.exists(),
+        "pre_commit": (hooks_dir / "pre-commit").exists(),
+        "pre_push": (hooks_dir / "pre-push").exists(),
+        "commit_msg": (hooks_dir / "commit-msg").exists(),
+    }
+    writable = {
+        "project_root": os.access(Path.cwd(), os.W_OK),
+        ".mcp": (
+            os.access(Path(".mcp"), os.W_OK)
+            if Path(".mcp").exists()
+            else os.access(Path.cwd(), os.W_OK)
+        ),
+    }
+    ci = {
+        "workflow_exists": Path(".github/workflows/ci.yml").exists(),
+        "dockerfile_exists": Path("Dockerfile").exists(),
+    }
+    # suggestions: simple guidance based on current findings
+    suggestions: list[str] = []
+    if not coverage_exists:
+        suggestions.append(
+            "未找到 coverage.xml：运行 pytest 生成覆盖率，例如 `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q -p pytest_cov --cov --cov-report=xml:coverage.xml`"
+        )
+    if not hooks.get("installed"):
+        suggestions.append(
+            "未安装本地钩子：执行 `mcp-rules-assistant install-hooks` 并按提示启用 pre-commit/pre-push"
+        )
+    if not ci.get("workflow_exists"):
+        suggestions.append(
+            "未找到 CI 工作流：执行 `mcp-rules-assistant generate-ci` 并将变更提交到仓库"
+        )
+    if not writable.get("project_root") or not writable.get(".mcp"):
+        suggestions.append(
+            "当前目录或 .mcp 目录不可写：检查文件权限或以具备写权限的用户运行"
+        )
+
     payload = {
         "python_version": platform.python_version(),
         "platform": platform.platform(),
@@ -712,6 +863,10 @@ def diagnose(
         "coverage": {"exists": coverage_exists},
         "rules": {"compiled_exists": compiled_exists},
         "maxima": maxima,
+        "hooks": hooks,
+        "writable": writable,
+        "ci": ci,
+        "suggestions": suggestions,
     }
     if json_out:
         print(_json.dumps(payload, ensure_ascii=False))
@@ -724,6 +879,10 @@ def diagnose(
     rprint("tools:")
     for k, v in tools.items():
         rprint(f" - {k}: {v or 'missing'}")
+    if suggestions:
+        rprint("[bold]Suggestions[/]")
+        for s in suggestions:
+            rprint(f" - {s}")
 
 
 @app.command("status-update")
@@ -746,6 +905,58 @@ def status_update(json_out: bool = typer.Option(True, "--json/--text")) -> None:
     rprint(
         f"coverage: count={cov.get('count',0)} weak={len(cov.get('weak',[]) or [])} progress={cov.get('progress',0):.2f}"
     )
+
+
+def _scan_plan_tasks(text: str) -> tuple[list[str], list[str]]:
+    pending: list[str] = []
+    done: list[str] = []
+    in_code = False
+    for raw in text.splitlines():
+        s = raw.rstrip()
+        st = s.strip()
+        if st.startswith("```"):
+            in_code = not in_code
+            continue
+        if in_code:
+            continue
+        ls = s.lstrip()
+        if ls.startswith("- [ ] "):
+            pending.append(ls[6:].strip())
+        elif ls.startswith(("- [x] ", "- [X] ")):
+            done.append(ls[6:].strip())
+    return pending, done
+
+
+@app.command("plan-tasks")
+def plan_tasks(
+    json_out: bool = typer.Option(True, "--json/--text", help="输出 JSON（默认）或文本")
+) -> None:
+    """仅从 .mcp/plan.md 提取任务清单（权威）。"""
+    p = ensure_plan()
+    text = p.read_text(encoding="utf-8")
+    pending, done = _scan_plan_tasks(text)
+    if json_out:
+        print(
+            _json.dumps(
+                {
+                    "pending": pending,
+                    "done": done,
+                    "counts": {"pending": len(pending), "done": len(done)},
+                },
+                ensure_ascii=False,
+            )
+        )
+        return
+    rprint("[bold]Plan Tasks[/]")
+    rprint(f"pending={len(pending)} done={len(done)}")
+    if pending:
+        rprint("[bold]Pending[/]")
+        for it in pending:
+            rprint(f" - {it}")
+    if done:
+        rprint("[bold]Done[/]")
+        for it in done:
+            rprint(f" - {it}")
 
 
 @app.command("rules-suggestions")
@@ -840,6 +1051,46 @@ def plan_set(
     """快捷设置 .mcp/plan.md 的状态/当前/下一步。"""
     update_plan_fields(status=status, current=current, nxt=next_step)
     rprint("[green]✔ 计划已更新[/]")
+
+
+@app.command("license-require-on")
+def license_require_on() -> None:
+    """在项目配置中启用 license.required: true（发布硬门禁，开发默认仍可关闭）。"""
+    ensure_project_config()
+    p = DEFAULT_PROJECT_CONFIG_PATH
+    import yaml as _yaml
+
+    try:
+        data = _yaml.safe_load(p.read_text(encoding="utf-8")) or {}
+    except Exception:
+        data = {}
+    lic = data.get("license", {}) if isinstance(data.get("license", {}), dict) else {}
+    lic["required"] = True
+    data["license"] = lic
+    p.write_text(
+        _yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding="utf-8"
+    )
+    rprint("[green]✔ license.required 已启用（发布模式）[/]")
+
+
+@app.command("license-require-off")
+def license_require_off() -> None:
+    """在项目配置中关闭 license.required（开发/本地模式）。"""
+    ensure_project_config()
+    p = DEFAULT_PROJECT_CONFIG_PATH
+    import yaml as _yaml
+
+    try:
+        data = _yaml.safe_load(p.read_text(encoding="utf-8")) or {}
+    except Exception:
+        data = {}
+    lic = data.get("license", {}) if isinstance(data.get("license", {}), dict) else {}
+    lic["required"] = False
+    data["license"] = lic
+    p.write_text(
+        _yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding="utf-8"
+    )
+    rprint("[green]✔ license.required 已关闭（开发模式）[/]")
 
 
 @app.command("ci-set")

@@ -6,7 +6,7 @@ import json
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple, cast
 
 LICENSE_PATH = Path.home() / ".mcp/license.json"
 # 说明：SALT 为对称验签演示；生产建议首选非对称验签（RS256/ECDSA）
@@ -34,19 +34,20 @@ def _verify_rs256(payload: bytes, signature_b64: str) -> bool:
     if not pem:
         return False
     try:
-        from cryptography.hazmat.primitives import (
-            hashes,  # type: ignore[import-not-found]
-        )
-        from cryptography.hazmat.primitives.asymmetric import (
-            padding,  # type: ignore[import-not-found]
-        )
-        from cryptography.hazmat.primitives.serialization import (
-            load_pem_public_key,  # type: ignore[import-not-found]
-        )
+        from cryptography.hazmat.primitives import hashes
+        from cryptography.hazmat.primitives.asymmetric import padding
+        from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
+        from cryptography.hazmat.primitives.serialization import load_pem_public_key
 
         pub = load_pem_public_key(pem.encode("utf-8"))
+        # 仅支持 RSA 公钥用于 RS256 校验；其他类型直接视为验证失败
+        if not isinstance(pub, RSAPublicKey):
+            return False
         sig = _b64url_decode(signature_b64)
-        pub.verify(sig, payload, padding.PKCS1v15(), hashes.SHA256())
+        # mypy: pub 是 RSAPublicKey，签名 API 与参数匹配
+        cast(RSAPublicKey, pub).verify(
+            sig, payload, padding.PKCS1v15(), hashes.SHA256()
+        )
         return True
     except Exception:
         return False
@@ -94,18 +95,17 @@ def verify_license(path: Path = LICENSE_PATH) -> Dict[str, Any]:
 
 def _sign_rs256(payload: bytes, private_key_pem: bytes) -> str:
     try:
-        from cryptography.hazmat.primitives import (
-            hashes,  # type: ignore[import-not-found]
-        )
-        from cryptography.hazmat.primitives.asymmetric import (
-            padding,  # type: ignore[import-not-found]
-        )
-        from cryptography.hazmat.primitives.serialization import (
-            load_pem_private_key,  # type: ignore[import-not-found]
-        )
+        from cryptography.hazmat.primitives import hashes
+        from cryptography.hazmat.primitives.asymmetric import padding
+        from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey
+        from cryptography.hazmat.primitives.serialization import load_pem_private_key
 
         key = load_pem_private_key(private_key_pem, password=None)
-        sig = key.sign(payload, padding.PKCS1v15(), hashes.SHA256())
+        if not isinstance(key, RSAPrivateKey):
+            raise RuntimeError("rs256 signing requires an RSA private key")
+        sig = cast(RSAPrivateKey, key).sign(
+            payload, padding.PKCS1v15(), hashes.SHA256()
+        )
         return base64.urlsafe_b64encode(sig).rstrip(b"=").decode("ascii")
     except Exception as e:  # pragma: no cover - depends on optional crypto
         raise RuntimeError(f"rs256 signing failed: {e}")

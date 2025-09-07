@@ -24,6 +24,18 @@ class FSGuard:
     def write_text(self, path: Path, content: str, encoding: str = "utf-8") -> None:
         full = self.project_root / path
         full.parent.mkdir(parents=True, exist_ok=True)
+        # 禁止对现有符号链接写入，以避免间接覆盖目标文件
+        try:
+            if full.exists() and full.is_symlink():
+                raise ValueError("FSGuard: 目标是符号链接，拒绝写入")
+        except Exception:
+            ex_cfg: Dict[str, Any] = (
+                self.cfg.get("execution", {})
+                if isinstance(self.cfg.get("execution", {}), dict)
+                else {}
+            )
+            if bool(ex_cfg.get("fs_guard_strict", False)):
+                raise
         # 前置：路径白名单/扩展名白名单（若配置）
         try:
             exec_cfg: Dict[str, Any] = (
@@ -95,12 +107,12 @@ class FSGuard:
                     raise ValueError("FSGuard post checks failed under strict mode")
         except Exception:
             # 安全兜底：不因检查失败影响写入；若严格模式开启，则向上抛出
-            ex_cfg: Dict[str, Any] = (
+            ex_cfg_fallback: Dict[str, Any] = (
                 self.cfg.get("execution", {})
                 if isinstance(self.cfg.get("execution", {}), dict)
                 else {}
             )
-            if bool(ex_cfg.get("fs_guard_strict", False)):
+            if bool(ex_cfg_fallback.get("fs_guard_strict", False)):
                 raise
 
     # ---- Atomic helpers ----

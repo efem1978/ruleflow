@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540">
+  <rect x="0" y="0" width="960" height="540" fill="#0f172a"/>
+  <rect x="40" y="40" width="880" height="460" rx="8" fill="#111827" stroke="#374151"/>
+  <text x="60" y="84" font-size="28" font-family="-apple-system,Segoe UI,Arial" fill="#e5e7eb">RuleFlow 面板总览（占位图）</text>
+  <rect x="60" y="110" width="400" height="120" rx="6" fill="#1f2937" stroke="#374151"/>
+  <text x="80" y="140" font-size="16" fill="#9ca3af">编译规则 / 建议</text>
+  <rect x="500" y="110" width="400" height="120" rx="6" fill="#1f2937" stroke="#374151"/>
+  <text x="520" y="140" font-size="16" fill="#9ca3af">覆盖率（弱项 / 分组 / 近阈值）</text>
+  <rect x="60" y="250" width="400" height="120" rx="6" fill="#1f2937" stroke="#374151"/>
+  <text x="80" y="280" font-size="16" fill="#9ca3af">记忆与计划</text>
+  <rect x="500" y="250" width="400" height="120" rx="6" fill="#1f2937" stroke="#374151"/>
+  <text x="520" y="280" font-size="16" fill="#9ca3af">CI / Hooks</text>
+  <text x="60" y="420" font-size="14" fill="#6b7280">提示：本图用于 README 展示结构，实际界面以运行时为准。</text>
+</svg>

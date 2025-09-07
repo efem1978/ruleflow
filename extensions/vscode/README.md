@@ -6,6 +6,11 @@ Commands
 - MCP: Open Panel — open the assistant panel (rules/coverage/CI)
 - MCP: Commit (run checks)
 - MCP: Push (run gates)
+- MCP: Natural Command — fuzzy bilingual NL command palette
+
+Multi-root & Environment
+- Multi-root: the panel now shows the current workspace and allows selecting/switching project roots; switching updates the Python server context.
+- One-click env: when opening the panel, if `.mcp/venv` or required tools are missing, it prompts to create and install via `env.prepare`.
 
 Install
 - Build or download the `.vsix`, then install via VS Code: Extensions → More… → Install from VSIX.

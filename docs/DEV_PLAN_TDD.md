@@ -46,7 +46,7 @@ Phase E — 集成与 CLI
 - CLI（Typer）烟雾测试：init / ingest-rules / coverage / coverage-groups。
 - MCP 集成：tools/call rules.ingest/validate、fs.apply_patch(strict) 正常与拒绝路径、resources/read 各类 URI。
 
-逐层检查清单 Layered Checklists（可作为执行清单）
+逐层检查清单 Layered Checklists（参考清单，非任务统计来源）
 - 单元层（config/progress/tools/memory/coverage_summary）
   - [ ] 为公开函数补齐失败用例（边界/异常/类型）
   - [ ] 通过后重构（去重/提取），保证对外行为不变
@@ -84,27 +84,41 @@ Phase E — 集成与 CLI
 
 近期待办 Next Actions（与根目录 DEVELOPMENT.md 同步）
 已完成（对齐项）
- - 用生成器覆盖 .pre-commit-config.yaml 与 .github/workflows/ci.yml，阈值取自 .mcp/assistant.yaml；detect-secrets 改为 push 阶段；CI 条件化步骤生效。
- - 覆盖率策略改为与 coverage.xml 一致的 basename 前缀，核心≥98% 实际受控。
- - FSGuard 写入后置挂钩：支持 execution.fs_guard_post_checks 与 fs_guard_strict（严格模式失败阻断）。
- - VS Code Webview 近阈值交互修复：采用 postMessage → 扩展侧调用 MCP，再回传结果。
- - MCP prompts 能力对齐：实现 prompts/list 与 prompts/get 最小占位端点。
- - 依赖精简：已无 pydantic。
- - 版本号对齐：pyproject.toml 与 mcp_rules_assistant/__init__.py 已一致（0.2.3）。
+ - 生成器覆盖 `.pre-commit-config.yaml` 与 `.github/workflows/ci.yml`，阈值取自 `.mcp/assistant.yaml`；detect-secrets 改为 push 阶段；CI 条件化步骤生效。
+ - 覆盖率策略支持 basename 前缀与目录前缀；核心≥98% 受 `coverage.policy` 控制。
+ - FSGuard 写入后置挂钩：支持 `execution.fs_guard_post_checks` 与 `fs_guard_strict`。
+ - VS Code Webview 近阈值交互修复。
+ - MCP prompts 能力对齐（最小占位）。
+ - 依赖精简；版本号对齐（0.2.4）。
 
-1) 统一门槛来源与生成物（高优先级，持续）
-   - 持续校验生成物与配置一致性；文档与实现保持同频（已将 env.prepare 更新为“可创建 venv 并可选安装工具”）。
-2) 清理与结构
-   - 将根部样例/临时工件迁移或忽略（已清理 bad.py/ok2.py）：将 cov.json/cjson.json 移除并加入 .gitignore；README 标注为生成型工件。
-3) 覆盖率与类型
-   - 保持核心≥98%、其余≥95%；跟踪 near 报告稳定性；压降非核心 mypy 告警。
-4) Codecov 行为对齐
-   - CI 增加 codecov 上传（公共仓库免 token；私有使用 CODECOV_TOKEN）。
-5) pre-commit 本地脚本生成时机
-   - install-hooks 首次引导并写入 .mcp/plan_gate.py 与（按规则）.mcp/dockerfile_gate.py；或在生成器中按需条件生成。
-6) 覆盖率差距收敛（新增）
-   - memory.py：补齐 append_turn/snapshot/add_link/_compress_if_needed 的正反例与阈值路径（目标 ≥98%）。
-   - mcp_server.py：tools/resources 错误与边界路径全覆盖；fs.apply_patch(strict) 拒绝分支；初始化异常路径（目标 ≥98%）。
-   - fs_wrapper.py：错误处理分支、权限边界与写入后检查路径（目标 ≥95%）。
-   - license_utils.py：hs256/rs256 的有效/过期/签名错误/无公钥等组合用例（目标 ≥90%）。
-   - 修正 coverage.policy 匹配：文件专属阈值优先级 > 目录前缀 > min_module（为 CLI coverage-report 增加单测）。
+1) CI 与门禁
+   - [ ] 修复 CI matrix 表达式（`${{ matrix.python-version }}`），或运行 `mcp-rules-assistant ci-autofix` 重新生成
+   - [ ] `make local-ci-run` 全绿；Coverage Policy Gate 无 weak
+2) 自动任务记录
+   - [x] `status-update` 输出 `tasks.pending/done` 列表至 `.mcp/dashboard/status.json`
+   - [ ] 面板可选展示剩余任务（非阻断）
+3) 覆盖率差距收敛
+   - [ ] `mcp_server.py`：初始化/错误与 `fs.apply_patch(strict)` 拒绝路径测试（目标 ≥98%）
+   - [ ] `fs_wrapper.py`：权限/白名单/后置检查（目标 ≥95%）
+   - [ ] `license_utils.py`：hs256/rs256 组合用例（目标 ≥90%）
+4) 文档与可发现性
+   - [ ] 在 `DEVELOPMENT.md` 增加“下一步 / Next Actions”指向 `.mcp/plan.md`
+   - [ ] 同步本文件清单与 `.mcp/plan.md` 清单（以 `.mcp/plan.md` 为权威）
+5) 清理与一致性
+  - [x] 移除根 `bad.py`、`ok2.py`、`a.py`、`link.py` 与 `docs/b.txt`
+6) 可选增强
+  - [x] prompts 返回 1–2 个内置模板（handoff/规则摘要），并通过环境变量/配置开关
+  - [x] 在 `.mcp/assistant.yaml` 已明确 `execution.allowed_write_prefixes/allowed_write_extensions`
+  - [x] 新增“规则引导（rules.onboard）”向导：根据 场景/复杂度/模式 推荐并应用阈值（CLI/MCP/VS Code NL 触发）
+
+执行批次（建议）
+- 批次 A（已完成）
+  - 清理样例文件与过时审计文档；对齐文档表述
+  - prompts 最小内置与开关；FSGuard 白名单/严格后置检查对齐
+- 批次 B（规则引导）
+  - CLI: `mcp-rules-assistant rules-onboard --scenario personal --complexity small --dev-mode tdd --apply`
+  - MCP: `tools/call name="rules.onboard" {scenario, complexity, devMode, apply}`
+  - VS Code: 在面板 NL 输入“规则引导/初始化规则” → 交互式选择并应用
+- 批次 C（文档与计划收敛）
+  - 同步 `DEVELOPMENT.md` / `docs/*` 与 `.mcp/plan.md` 状态
+  - 若需：新增手册截图与市场物料（后续批次）

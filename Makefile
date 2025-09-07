@@ -78,6 +78,15 @@ maintenance-all:
 verify:
 	sh scripts/verify-all.sh
 
+# 发布/开发许可门禁快捷开关（不推远端）
+release-harden-on:
+	$(PYTHON) -m mcp_rules_assistant.cli license-require-on
+	@echo "license.required=true 已写入 .mcp/assistant.yaml；CI 将附加 cryptography 依赖。"
+
+release-harden-off:
+	$(PYTHON) -m mcp_rules_assistant.cli license-require-off
+	@echo "license.required=false 已写入 .mcp/assistant.yaml（开发模式）。"
+
 # 已移除前端看板相关目标（dashboard-*）
 
 vscode-test:

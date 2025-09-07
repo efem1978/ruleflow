@@ -5,6 +5,7 @@ import os
 import platform
 import shutil
 import sys
+import time
 import uuid
 from dataclasses import asdict
 from pathlib import Path
@@ -57,6 +58,9 @@ class JsonRpcServer:
         self.fs = FSGuard(self.project_root)
         self.settings: Dict[str, Any] = {"memory_auto": False}
         self.cfg = load_config(self.project_root)
+        # very light rate limiter (per-process): window 1s
+        self._rl_window_start: float = 0.0
+        self._rl_count: int = 0
 
     def _license_required(self) -> bool:
         try:
@@ -87,6 +91,34 @@ class JsonRpcServer:
         params = request.get("params", {})
         result: Dict[str, Any] = {}
         try:
+            # --- light limits (size & rate) ---
+            try:
+                exec_cfg: Dict[str, Any] = (
+                    self.cfg.get("execution", {})
+                    if isinstance(self.cfg.get("execution", {}), dict)
+                    else {}
+                )
+                max_bytes = int(exec_cfg.get("max_request_bytes", 256 * 1024))
+            except Exception:
+                max_bytes = 256 * 1024
+            try:
+                rps = int(exec_cfg.get("rate_limit_rps", 20))  # type: ignore[name-defined]
+            except Exception:  # pragma: no cover - defensive
+                rps = 20
+            try:
+                sz = len(json.dumps(params, ensure_ascii=False).encode("utf-8"))
+            except Exception:
+                sz = 0
+            if max_bytes >= 0 and sz > max_bytes:
+                raise ValueError("request too large")
+            now = time.monotonic()
+            if now - self._rl_window_start >= 1.0:
+                self._rl_window_start = now
+                self._rl_count = 0
+            self._rl_count += 1
+            if rps >= 0 and self._rl_count > rps:
+                raise ValueError("rate limit exceeded")
+            # --- normal dispatch ---
             if method == "initialize":
                 # 声明最小能力集，含 prompts（提供占位端点）
                 caps: Dict[str, Any] = {
@@ -201,12 +233,33 @@ class JsonRpcServer:
                 else:
                     raise ValueError("Unknown resource uri")
             elif method == "prompts/list":
-                # 最小占位：当前不提供内置提示，返回空列表
-                result = {"prompts": []}
+                # 可选启用：当环境变量 MCP_PROMPTS_ENABLE=1 或配置 prompts.enabled 为 true 时返回最小内置模板
+                if self._prompts_enabled():
+                    result = {
+                        "prompts": [
+                            {
+                                "name": "handoff.next_steps",
+                                "description": "Summarize current status and suggest next steps",
+                            },
+                            {
+                                "name": "rules.summary",
+                                "description": "Summarize compiled rules and gates for handoff",
+                            },
+                        ]
+                    }
+                else:
+                    result = {"prompts": []}
             elif method == "prompts/get":
-                # 最小占位：返回不存在
                 name = str(params.get("name", ""))
-                result = {"ok": False, "message": f"prompt '{name}' not found"}
+                if not self._prompts_enabled():
+                    result = {"ok": False, "message": f"prompt '{name}' not found"}
+                else:
+                    tpl = self._prompt_template(name)
+                    result = (
+                        tpl
+                        if tpl
+                        else {"ok": False, "message": f"prompt '{name}' not found"}
+                    )
             else:
                 raise ValueError(f"Unknown method: {method}")
             return {"jsonrpc": "2.0", "id": req_id, "result": result}
@@ -281,6 +334,8 @@ class JsonRpcServer:
             }
         if name == "rules.ingest":
             return self._tool_rules_ingest(args)
+        if name == "rules.onboard":
+            return self._tool_rules_onboard(args)
         if name == "rules.validate":
             return self._tool_rules_validate()
         if name == "env.prepare":
@@ -295,18 +350,36 @@ class JsonRpcServer:
             return self._tool_coverage_report(args)
         if name == "rules.maxima":
             return self._tool_rules_maxima()
+        if name == "ide.scaffold":
+            return self._tool_ide_scaffold(args)
+        if name == "compliance.commitment":
+            return self._tool_compliance_commitment(args)
         if name == "fs.apply_patch":
             # args: { files: [{path, content}] }
             files = args.get("files", [])
+            if not isinstance(files, list):
+                raise ValueError("参数错误：files 必须为数组")
             run_checks = bool(args.get("runChecks", True))
             strict = bool(args.get("strict", False))
             dry_run = bool(args.get("dryRun", False))
+            # 有效文件数上限：优先参数，其次配置 execution.max_files，默认 100
             max_files = args.get("maxFiles", None)
+            exec_cfg_eff: Dict[str, Any] = (
+                self.cfg.get("execution", {})
+                if isinstance(self.cfg.get("execution", {}), dict)
+                else {}
+            )
+            if not isinstance(max_files, int):
+                max_files = int(exec_cfg_eff.get("max_files", 100))
             if isinstance(max_files, int) and max_files >= 0 and len(files) > max_files:
                 raise ValueError("受控写入文件数超出限制（maxFiles）")
             changed_paths: List[Path] = []
             for f in files:
+                if not isinstance(f, dict):
+                    raise ValueError("参数错误：files[*] 必须为对象")
                 content = f["content"]
+                if not isinstance(content, str):
+                    raise ValueError("参数错误：content 必须为字符串")
                 if run_checks and strict:
                     # 轻量严格检查：禁止 skip/xfail 标记
                     if "pytest.mark.skip" in content or "pytest.mark.xfail" in content:
@@ -343,6 +416,9 @@ class JsonRpcServer:
                     dest.relative_to(root_res)
                 except Exception:
                     raise ValueError("禁止写入项目根之外的路径（疑似路径穿越）")
+                # 禁止写入符号链接
+                if dest.exists() and dest.is_symlink():
+                    raise ValueError("禁止写入符号链接目标文件")
                 # 路径前缀白名单 / 扩展名白名单（可选）
                 try:
                     ex_cfg: Dict[str, Any] = (
@@ -370,6 +446,13 @@ class JsonRpcServer:
                     # 严格模式下升级为错误
                     if bool(ex_cfg.get("fs_guard_strict", False)):
                         raise
+                # 内容大小限制：默认 512KB，可通过 execution.max_content_bytes 调整
+                try:
+                    max_bytes = int(exec_cfg_eff.get("max_content_bytes", 512 * 1024))
+                except Exception:
+                    max_bytes = 512 * 1024
+                if max_bytes >= 0 and len(content.encode("utf-8")) > max_bytes:
+                    raise ValueError("受控写入内容超出大小限制")
                 if not dry_run:
                     self.fs.write_text(p, content)
                 changed_paths.append(dest)
@@ -527,6 +610,9 @@ class JsonRpcServer:
         status = args.get("status")
         current = args.get("current")
         nxt = args.get("next")
+        for k, v in (("status", status), ("current", current), ("next", nxt)):
+            if v is not None and not isinstance(v, str):
+                raise ValueError(f"{k} must be string when provided")
         progress_mod.update_plan_fields(
             self.project_root, status=status, current=current, nxt=nxt
         )
@@ -537,9 +623,9 @@ class JsonRpcServer:
         py = str(args.get("python") or sys.executable)
         create = bool(args.get("create", True))
         install = bool(args.get("install", False))
-        packages = list(
-            args.get("packages")
-            or [
+        pk_arg = args.get("packages")
+        if pk_arg is None:
+            packages = [
                 "ruff",
                 "black",
                 "isort",
@@ -549,7 +635,12 @@ class JsonRpcServer:
                 "pytest-cov",
                 "pre-commit",
             ]
-        )
+        else:
+            if not isinstance(pk_arg, list) or not all(
+                isinstance(x, str) for x in pk_arg
+            ):
+                raise ValueError("packages must be a list of strings")
+            packages = list(pk_arg)
         venv_dir = self.project_root / ".mcp/venv"
         plan = {
             "python": py,
@@ -647,8 +738,11 @@ class JsonRpcServer:
     # ---- rules tool helpers ----
     def _tool_rules_ingest(self, args: Dict[str, Any]) -> Dict[str, Any]:
         paths = args.get("paths", [])
-        if not paths:
-            raise ValueError("paths required")
+        if not isinstance(paths, list) or not paths:
+            raise ValueError("paths required (list of files/dirs)")
+        for p in paths:
+            if not isinstance(p, str) or not p.strip():
+                raise ValueError("paths must contain non-empty strings")
         return ri.ingest(paths, project_root=self.project_root)
 
     def _tool_rules_validate(self) -> Dict[str, Any]:
@@ -758,6 +852,212 @@ class JsonRpcServer:
             "needs_hooks": needs_hooks,
             "needs_ci_regen": needs_ci_regen,
         }
+
+    def _tool_rules_onboard(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        """Onboarding wizard (non-interactive via args) to choose and apply a rules profile.
+
+        Args (optional): scenario, complexity, devMode, apply(bool)
+        Behavior: if values missing, use simple heuristics (language/files count) to default.
+        When apply=True, write thresholds to `.mcp/assistant.yaml` (min_module, mutation_test flag).
+        """
+        # defaults via detection
+        try:
+            det = self._tool_project_detect()
+            lang = str(det.get("language", "python"))
+        except Exception:
+            lang = "python"
+        scenario = str(args.get("scenario") or "personal")
+        complexity = str(args.get("complexity") or "small")
+        dev_mode = str(args.get("devMode") or "tdd")
+        # rough project size heuristic
+        try:
+            py_files = list(self.project_root.rglob("*.py"))
+            tests = (
+                list((self.project_root / "tests").rglob("test_*.py"))
+                if (self.project_root / "tests").exists()
+                else []
+            )
+            n = len(py_files)
+            if not args.get("complexity"):
+                if n > 800 or len(tests) > 300:
+                    complexity = "large"
+                elif n > 200 or len(tests) > 80:
+                    complexity = "medium"
+                else:
+                    complexity = "small"
+        except Exception:
+            pass
+        from .rules import Complexity, Scenario, choose_thresholds, explain_thresholds
+
+        try:
+            th = choose_thresholds(Scenario(scenario), Complexity(complexity))
+        except Exception:
+            th = choose_thresholds(Scenario.PERSONAL, Complexity.SMALL)
+        apply = bool(args.get("apply", True))
+        applied = False
+        if apply:
+            cfg_path = (
+                self.project_root / DEFAULT_PROJECT_CONFIG_PATH
+                if not DEFAULT_PROJECT_CONFIG_PATH.is_absolute()
+                else DEFAULT_PROJECT_CONFIG_PATH
+            )
+            ensure_project_config(cfg_path)
+            # load, merge, write
+            try:
+                data = yaml.safe_load(cfg_path.read_text(encoding="utf-8")) or {}
+            except Exception:
+                data = {}
+            perf = (
+                data.get("performance", {})
+                if isinstance(data.get("performance", {}), dict)
+                else {}
+            )
+            on_push = (
+                perf.get("on_push", {})
+                if isinstance(perf.get("on_push", {}), dict)
+                else {}
+            )
+            cov = (
+                on_push.get("coverage", {})
+                if isinstance(on_push.get("coverage", {}), dict)
+                else {}
+            )
+            cov["min_module"] = float(th.coverage_min_module)
+            on_push["coverage"] = cov
+            on_push["mutation_test"] = bool(th.mutation_required)
+            perf["on_push"] = on_push
+            data["performance"] = perf
+            try:
+                cfg_path.write_text(
+                    yaml.safe_dump(data, sort_keys=False, allow_unicode=True),
+                    encoding="utf-8",
+                )
+                self.cfg = load_config(self.project_root)
+                applied = True
+            except Exception:
+                applied = False
+        return {
+            "ok": True,
+            "language": lang,
+            "scenario": scenario,
+            "complexity": complexity,
+            "devMode": dev_mode,
+            "thresholds": explain_thresholds(th),
+            "applied": applied,
+        }
+
+    def _tool_ide_scaffold(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        """Generate per-IDE integration scaffold under .mcp/ide/<editor>.
+
+        Supported editors: vscode, cursor, jetbrains, neovim
+        """
+        editor = str(args.get("editor", "vscode")).strip().lower()
+        base = self.project_root / ".mcp/ide" / editor
+        base.mkdir(parents=True, exist_ok=True)
+        files: list[str] = []
+        if editor in ("vscode", "cursor"):
+            # VS Code/Cursor share same engine; provide settings sample and README
+            sample = {
+                "copilot.mcp.tools": {
+                    "ruleflow": {
+                        "command": "python3",
+                        "args": ["-m", "mcp_rules_assistant.cli", "start"],
+                        "cwd": "${workspaceFolder}",
+                        "env": {"PYTHONUNBUFFERED": "1"},
+                    }
+                }
+            }
+            import json as _json
+
+            (base / "settings.sample.json").write_text(
+                _json.dumps(sample, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+            (base / "README.md").write_text(
+                "VS Code/Cursor: 将 settings.sample.json 合并至工作区 .vscode/settings.json；在命令面板执行 ‘RuleFlow: Open Panel’ 或 Copilot MCP 面板中选择 ruleflow。\n",
+                encoding="utf-8",
+            )
+            files.extend(
+                [
+                    str((base / "settings.sample.json").relative_to(self.project_root)),
+                    str((base / "README.md").relative_to(self.project_root)),
+                ]
+            )
+        elif editor == "jetbrains":
+            # Provide External Tools XML sample + README
+            xml = (
+                (
+                    """
+<externalTools>
+  <tool name="RuleFlow MCP Server">
+    <exec>%(python)s</exec>
+    <arguments>-m mcp_rules_assistant.cli start</arguments>
+    <working_dir>$ProjectFileDir$</working_dir>
+  </tool>
+</externalTools>
+"""
+                ).strip()
+                % {"python": "python3"}
+            )
+            (base / "externalTools.sample.xml").write_text(xml, encoding="utf-8")
+            (base / "README.md").write_text(
+                "JetBrains: Settings → Tools → External Tools → Import 外部工具，或手工添加以上命令以启动 MCP 服务器；通过 Terminal 或自定义动作触发 ruleflow CLI 命令。\n",
+                encoding="utf-8",
+            )
+            files.extend(
+                [
+                    str(
+                        (base / "externalTools.sample.xml").relative_to(
+                            self.project_root
+                        )
+                    ),
+                    str((base / "README.md").relative_to(self.project_root)),
+                ]
+            )
+        elif editor == "neovim":
+            # Provide minimal vimscript snippet + README
+            (base / "init.sample.vim").write_text(
+                ":command! RuleFlowStart :terminal python3 -m mcp_rules_assistant.cli start\n",
+                encoding="utf-8",
+            )
+            (base / "README.md").write_text(
+                "Neovim: 在 init.vim 中引入 init.sample.vim 段落，使用 :RuleFlowStart 启动 MCP 服务器；通过 :terminal 运行 CLI 子命令。\n",
+                encoding="utf-8",
+            )
+            files.extend(
+                [
+                    str((base / "init.sample.vim").relative_to(self.project_root)),
+                    str((base / "README.md").relative_to(self.project_root)),
+                ]
+            )
+        else:
+            raise ValueError("unsupported editor (vscode/cursor/jetbrains/neovim)")
+        return {"ok": True, "editor": editor, "files": files}
+
+    def _tool_compliance_commitment(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        """Return standard AI compliance commitment and optionally write to .mcp/compliance.md."""
+        text = (
+            """
+# AI 合规承诺 / AI Compliance Commitment
+
+- 严格遵循 TDD：先红后绿再重构；禁止跳过或投机（no skip/xfail）。
+- 警告视为错误（-W error），覆盖率达标（核心≥98%，其余≥95%）；不得以拆分测试等方式规避整体质量。
+- 变更伴随测试与文档；不得降低门槛；遵守计划顺序（禁止跳跃）。
+- 不引入未经批准的依赖；不暴露端口/遥测；仅落盘状态文件。
+- 发现冲突/冗余/不一致，先最小化、再统一，遵循奥卡姆剃刀原则。
+
+English summary:
+- TDD strictly; no skip/xfail; warnings-as-errors; coverage thresholds enforced.
+- Changes include tests and docs; follow plan order; no scope jumping.
+- No unapproved deps; no ports/telemetry; local file artifacts only.
+- Resolve conflicts and duplication with minimal and consistent outcome (Occam's razor).
+"""
+        ).strip()
+        write = bool(args.get("write", True))
+        path = self.project_root / ".mcp/compliance.md"
+        if write:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(text, encoding="utf-8")
+        return {"ok": True, "written": write, "path": str(path), "text": text}
 
     def _tool_env_diagnose(self) -> Dict[str, Any]:
         cfg_now = load_config(self.project_root)
@@ -1037,6 +1337,59 @@ class JsonRpcServer:
         if not path.exists():
             raise ValueError("rules resource not found; run rules.ingest first")
         return {"mimeType": mime, "text": path.read_text(encoding="utf-8")}
+
+    # ---- prompts helpers ----
+    def _prompts_enabled(self) -> bool:
+        try:
+            if str(os.environ.get("MCP_PROMPTS_ENABLE", "0")).lower() in (
+                "1",
+                "true",
+                "yes",
+            ):
+                return True
+            prompts_cfg = (
+                self.cfg.get("prompts", {})
+                if isinstance(self.cfg.get("prompts", {}), dict)
+                else {}
+            )
+            return bool(prompts_cfg.get("enabled", False))
+        except Exception:
+            return False
+
+    def _prompt_template(self, name: str) -> Dict[str, Any] | None:
+        templates: Dict[str, Dict[str, Any]] = {
+            "handoff.next_steps": {
+                "ok": True,
+                "name": "handoff.next_steps",
+                "description": "Summarize status and list next 3 concrete actions",
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": "You are a concise senior engineer. Produce a brief handoff: status, risks, next 3 steps.",
+                    },
+                    {
+                        "role": "user",
+                        "content": "Context: {{summary}}\nPlan: {{plan_markdown}}",
+                    },
+                ],
+            },
+            "rules.summary": {
+                "ok": True,
+                "name": "rules.summary",
+                "description": "Summarize compiled rules and enforcement gates",
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": "Summarize coverage thresholds, gates, and security checks in bullet points.",
+                    },
+                    {
+                        "role": "user",
+                        "content": "Compiled Rules JSON: {{rules_compiled_json}}",
+                    },
+                ],
+            },
+        }
+        return templates.get(name)
 
     def _project_id(self) -> str:
         return uuid.uuid5(uuid.NAMESPACE_URL, str(self.project_root.resolve())).hex[:8]

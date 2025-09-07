@@ -26,6 +26,12 @@ RuleFlow: Open PanelMCP 规则与上下文助手 / MCP Rules & Context Assistant
 ![Coverage](https://codecov.io/gh/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool/branch/main/graph/badge.svg)
 ![PyPI](https://img.shields.io/pypi/v/mcp-rules-assistant?label=pypi)
 
+示意图 / Screenshots（占位）
+
+![Panel Overview](docs/assets/panel_overview.svg)
+
+![Coverage Flow](docs/assets/coverage_flow.svg)
+
 覆盖率门禁 Coverage Gate
 - 本地与容器环境均通过覆盖率门禁：核心≥98%，其余≥95%，coverage-report 弱项清零（weak 列表为空）。
 
@@ -38,6 +44,12 @@ RuleFlow: Open PanelMCP 规则与上下文助手 / MCP Rules & Context Assistant
   - rs256：提供私钥 `--private-key private.pem` 生成；设置 `MCP_LICENSE_PUBKEY` 公钥进行校验
 
 快速开始 Quick Start（性能优先）
+（五步快速上手）
+- 初始化与规则摄取：`mcp-rules-assistant init && mcp-rules-assistant ingest-rules README.md docs/`
+- 安装本地钩子：`mcp-rules-assistant install-hooks`
+- 生成并校验 CI：`mcp-rules-assistant generate-ci && mcp-rules-assistant ci-validate`
+- 运行测试与覆盖率：`PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q -p pytest_cov --cov --cov-report=xml:coverage.xml`
+- 刷新状态（新窗口也适用）：`mcp-rules-assistant status-update`（或 `python3 -m mcp_rules_assistant.cli status-update`）
 - 安装：`pip install -e .`（开发模式）
 - 初始化：`mcp-rules-assistant init`（生成 `.mcp/assistant.yaml`）
 - 查看性能模式：`mcp-rules-assistant explain-performance`
@@ -63,7 +75,8 @@ RuleFlow: Open PanelMCP 规则与上下文助手 / MCP Rules & Context Assistant
  - extensions/vscode/README.md：插件说明
 - PRICING：`docs/PRICING.md`（定价与许可、试用政策）
 - 商业化与结算：采用 MoR（Lemon Squeezy / Paddle），USD 计价、自动本地化与税务处理
-- 全量复核报告：`FULL_PROJECT_REVIEW.md`
+- 多 IDE 脚手架：`mcp-rules-assistant ide-scaffold --editor <vscode|cursor|jetbrains|neovim>`（生成至 `.mcp/ide/<editor>/`）
+- 合规承诺：`mcp-rules-assistant compliance-commitment --out COMMITMENT.md`（或默认写入 `.mcp/compliance.md`）
 - Copilot 集成（可选）：已在 `.vscode/settings.json` 预置 `copilot.mcp.tools.ruleflow`，加载后 Copilot MCP 面板可显示本工具，聊天将按需调用。
 - 详细步骤：`docs/COPILOT_MCP.md`
  - 自然语言清单：`docs/NATURAL_LANGUAGE.md`
@@ -143,7 +156,8 @@ VS Code 插件（软拦截）
 - 安装钩子：`mcp-rules-assistant install-hooks`
 - 覆盖率与近阈值：`mcp-rules-assistant coverage` / `coverage-near --within 3 --top 20`
  - 建议导出：`mcp-rules-assistant rules-suggestions --format json|csv`
- - 环境诊断：`mcp-rules-assistant diagnose --json`（默认 JSON；或加 `--text`）
+- 环境诊断：`mcp-rules-assistant diagnose --json`（默认 JSON；或加 `--text`）
+ - 刷新状态：`mcp-rules-assistant status-update`（将计划/覆盖率/记忆汇总到 `.mcp/dashboard/status.json`）
 
 示例 Examples
 ```bash

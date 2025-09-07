@@ -114,6 +114,20 @@ def generate_status(project_root: Optional[Path] = None) -> Dict[str, Any]:
     root = (project_root or Path.cwd()).resolve()
     plan = _plan_snapshot(root)
     coverage = _coverage_snapshot(root)
+    # Collect tasks (pending/done) similar to DevAgent for richer status payload
+    pending_tasks: list[str] = []
+    done_tasks: list[str] = []
+    try:
+        from .dev_agent import _collect_tasks_counts as _collect  # type: ignore
+
+        plan_text = read_plan(root)
+        _d, _u, _p, _dn = _collect(root, plan_text, include_docs=False)
+        pending_tasks = list(_p)[:50]
+        done_tasks = list(_dn)[:50]
+    except Exception:
+        # Best-effort: tasks list unavailable → keep empty arrays
+        pending_tasks = []
+        done_tasks = []
     memory = _memory_snapshot(root)
     overall_progress = 0.0
     try:
@@ -133,6 +147,7 @@ def generate_status(project_root: Optional[Path] = None) -> Dict[str, Any]:
         "coverage": coverage,
         "memory": memory,
         "progress": {"overall": overall_progress},
+        "tasks": {"pending": pending_tasks, "done": done_tasks},
     }
     # persist
     dash = root / ".mcp/dashboard"

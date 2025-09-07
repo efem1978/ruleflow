@@ -11,6 +11,10 @@
 - mcp-rules-assistant enforce
 - mcp-rules-assistant generate-ci
 
+2.1) 规则引导（前置问答/快速建档）
+- mcp-rules-assistant rules-onboard --scenario personal --complexity small --dev-mode tdd
+- VS Code 面板：自然语言输入“规则引导/初始化规则”，按提示选择后自动应用
+
 3) 覆盖率
 - mcp-rules-assistant coverage
 - mcp-rules-assistant coverage-groups

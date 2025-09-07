@@ -81,6 +81,10 @@ export function activate(context: vscode.ExtensionContext) {
         <h2>MCP 规则与上下文助手</h2>
         <p>已连接到 Python MCP Server（最小协议）。默认快速内环：保存轻、推送重。</p>
         <div id="ticker" style="height:22px; overflow:hidden; background:#f6f6f6; border:1px solid #ddd; padding:2px 6px; margin:6px 0;"><span id="tickerText" style="display:inline-block; white-space:nowrap;"></span></div>
+        <div id="proj" style="padding:4px 6px; border:1px solid #ddd; background:#fafafa; margin:6px 0; display:flex; align-items:center; gap:8px;">
+          <b>当前项目:</b> <span id="curProject">(检测中)</span>
+          <button id="btnSelectProject">选择/切换项目…</button>
+        </div>
         <div id="lic" style="padding:4px 6px; border:1px solid #ddd; background:#fafafa; margin:6px 0; display:flex; align-items:center; gap:8px;">
           <b>License:</b> <span id="licText">(loading)</span>
           <button id="btnLicVerify">Verify</button>
@@ -93,6 +97,11 @@ export function activate(context: vscode.ExtensionContext) {
           <button id="nlExamples">范例</button>
           <button id="nlClear">清空历史</button>
           <button id="btnStatusUpdate">刷新状态</button>
+          <span style="margin-left:6px;">近阈值%:</span>
+          <input id="nearPct" value="3" style="width:40px;" />
+          <button id="btnCovNearInline">显示近阈值</button>
+          <button id="btnIdeScaffold">生成 IDE 脚手架</button>
+          <button id="btnCompliance">生成合规承诺</button>
         </div>
         <div id="nlExamplesBox" style="display:none; margin:4px 0 10px 0;">
           <span style="opacity:.8">快速范例：</span>
@@ -156,6 +165,12 @@ export function activate(context: vscode.ExtensionContext) {
           <pre id="plan" style="white-space:pre-wrap; background:#1101; padding:8px;"></pre>
         </div>
         <div>
+          <h3>剩余任务（来自 .mcp/plan.md）</h3>
+          <ul id="tasksPending"></ul>
+          <h3>已完成</h3>
+          <ul id="tasksDone"></ul>
+        </div>
+        <div>
           <h3>CI 配置（hadolint / semgrep）</h3>
           <label><input type="checkbox" id="ciHadolint"> 启用 hadolint</label><br/>
           镜像: <input id="ciHadolintImage" style="width:260px" placeholder="hadolint/hadolint:latest"/>
@@ -178,12 +193,15 @@ export function activate(context: vscode.ExtensionContext) {
           const vscode = acquireVsCodeApi();
           document.getElementById('btnLoad').onclick = () => vscode.postMessage({ t: 'loadRules' });
           document.getElementById('btnStatusUpdate').onclick = () => vscode.postMessage({ t: 'statusUpdate' });
+          (document.getElementById('btnSelectProject') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'selectProject' });
           document.getElementById('btnIngest').onclick = () => vscode.postMessage({ t: 'ingestRules' });
           document.getElementById('btnValidate').onclick = () => vscode.postMessage({ t: 'validateRules' });
           document.getElementById('btnHooks').onclick = () => vscode.postMessage({ t: 'installHooks' });
           document.getElementById('btnLoadSugg').onclick = () => vscode.postMessage({ t: 'loadSugg' });
           document.getElementById('btnCoverage').onclick = () => vscode.postMessage({ t: 'coverage' });
           document.getElementById('btnCovTree').onclick = () => vscode.postMessage({ t: 'coverageTree' });
+          (document.getElementById('btnIdeScaffold') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'ideScaffold' });
+          (document.getElementById('btnCompliance') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'compliance' });
           (document.getElementById('btnPrepareEnvInstall') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'prepareEnvInstall' });
           (document.getElementById('btnShowWeak') as HTMLButtonElement).onclick = () => {
             const all = (window as any).__weakAll || [];
@@ -203,6 +221,12 @@ export function activate(context: vscode.ExtensionContext) {
             const last = (window as any).__nearPct || 3;
             // 通过扩展侧获取输入与数据
             vscode.postMessage({ t: 'covNearPrompt', last });
+          };
+          (document.getElementById('btnCovNearInline') as HTMLButtonElement).onclick = () => {
+            const ip = document.getElementById('nearPct') as HTMLInputElement;
+            const v = parseInt((ip && ip.value) || '3', 10) || 3;
+            (window as any).__nearPct = v;
+            vscode.postMessage({ t: 'covNearPrompt', last: v });
           };
           const memBtn = document.createElement('button');
           memBtn.id = 'btnMemory'; memBtn.textContent = '加载记忆 / Load Memory';
@@ -258,6 +282,10 @@ export function activate(context: vscode.ExtensionContext) {
               const inf = document.getElementById('info');
               if (inf) inf.textContent = msg.text || '';
             }
+            if (msg.t === 'project') {
+              const el = document.getElementById('curProject');
+              if (el) el.textContent = String(msg.name || '(未知)');
+            }
             if (msg.t === 'covNearDisplay') {
               const items = msg.items || [];
               const pct = msg.pct || 3;
@@ -290,6 +318,16 @@ export function activate(context: vscode.ExtensionContext) {
             }
             if (msg.t === 'rules') {
               document.getElementById('rules').textContent = msg.md || '暂无内容';
+            }
+            if (msg.t === 'tasks') {
+              const pend = Array.isArray(msg.pending) ? msg.pending : [];
+              const done = Array.isArray(msg.done) ? msg.done : [];
+              const up = document.getElementById('tasksPending');
+              const ud = document.getElementById('tasksDone');
+              if (up) { up.innerHTML = ''; pend.forEach((t:string)=>{ const li=document.createElement('li'); li.textContent=t; up.appendChild(li); }); }
+              if (ud) { ud.innerHTML = ''; done.forEach((t:string)=>{ const li=document.createElement('li'); li.textContent=t; ud.appendChild(li); }); }
+              const inf = document.getElementById('info');
+              if (inf) inf.textContent = '任务：剩余 ' + String(pend.length) + '，完成 ' + String(done.length);
             }
             if (msg.t === 'sugg') {
               document.getElementById('sugg').textContent = msg.md || '暂无建议';
@@ -577,7 +615,37 @@ export function activate(context: vscode.ExtensionContext) {
       const tools = await client.request('tools/list', {});
       const list = (tools.tools || []).map((t: any) => `<li><code>${t.name}</code> — ${t.description}</li>`).join('');
       panel.webview.html = render('', list);
-      try { const diag = await client.request('tools/call', { name: 'env.diagnose', arguments: {} }); panel.webview.postMessage({ t: 'license', license: (diag && (diag as any).license) || {} }); } catch {}
+      try {
+        const ws0 = vscode.workspace.workspaceFolders?.[0];
+        panel.webview.postMessage({ t: 'project', name: (ws0?.name || '当前工作区') });
+        const diag = await client.request('tools/call', { name: 'env.diagnose', arguments: {} });
+        panel.webview.postMessage({ t: 'license', license: (diag && (diag as any).license) || {} });
+        // 缺少工具或 venv 时，提示一键准备环境
+        const toolsMap = (diag && (diag as any).tools) || {};
+        const missing: string[] = [];
+        ['pytest', 'pre-commit', 'ruff', 'mypy', 'bandit'].forEach(k => { if (!toolsMap[k]) missing.push(k); });
+        let venvMissing = false;
+        try {
+          const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+          if (ws) {
+            const uri = vscode.Uri.file(ws + '/.mcp/venv');
+            await vscode.workspace.fs.stat(uri).then(()=>{}, ()=>{ venvMissing = true; });
+          }
+        } catch { venvMissing = true; }
+        if (venvMissing || missing.length) {
+          panel.webview.postMessage({ t: 'info', text: `检测到开发环境不完整（venv: ${venvMissing ? '缺失' : '存在'}；缺少工具: ${missing.join(', ') || '无'}）。建议点击“准备并安装环境”。` });
+          // 给予快速按钮选择
+          const pick = await vscode.window.showInformationMessage('检测到缺少开发环境，是否一键创建并安装基础工具？', '立即创建', '稍后');
+          if (pick === '立即创建') {
+            try {
+              await client.request('tools/call', { name: 'env.prepare', arguments: { create: true, install: true } });
+              vscode.window.showInformationMessage('已创建并安装基础环境 (.mcp/venv)。');
+            } catch (e:any) {
+              vscode.window.showErrorMessage('创建环境失败：' + String(e));
+            }
+          }
+        }
+      } catch {}
     } catch (e: any) {
       panel.webview.html = `<pre>连接 MCP 失败：${String(e)}</pre>`;
     }
@@ -598,6 +666,8 @@ export function activate(context: vscode.ExtensionContext) {
             try {
               const data = JSON.parse(stdout || '{}');
               panel.webview.postMessage({ t: 'info', text: '状态已刷新。弱项：' + (((data.coverage||{}).weak||[]).length || 0) });
+              const tk = (data.tasks||{});
+              panel.webview.postMessage({ t: 'tasks', pending: tk.pending || [], done: tk.done || [] });
             } catch (e) {
               vscode.window.showInformationMessage('状态已刷新');
             }
@@ -855,6 +925,19 @@ export function activate(context: vscode.ExtensionContext) {
           } catch {
             vscode.window.showWarningMessage('CI 文件不存在，请先生成');
           }
+        } else if (msg.t === 'ideScaffold') {
+          const pick = await vscode.window.showQuickPick([
+            { label: 'VS Code', val: 'vscode' },
+            { label: 'Cursor', val: 'cursor' },
+            { label: 'JetBrains', val: 'jetbrains' },
+            { label: 'Neovim', val: 'neovim' },
+          ], { title: '选择 IDE' });
+          if (!pick) return;
+          const out = await client.request('tools/call', { name: 'ide.scaffold', arguments: { editor: pick.val } });
+          vscode.window.showInformationMessage('已生成脚手架: ' + JSON.stringify(out.files || []));
+        } else if (msg.t === 'compliance') {
+          const out = await client.request('tools/call', { name: 'compliance.commitment', arguments: { write: true } });
+          vscode.window.showInformationMessage('已生成合规承诺: ' + (out.path || '.mcp/compliance.md'));
         } else if (msg.t === 'insertSamples') {
           const semgrep = `rules:\n  - id: py-no-eval\n    message: \"Avoid eval() — security risk\"\n    languages: [python]\n    severity: ERROR\n    pattern: eval(...)\n\n  - id: py-no-exec\n    message: \"Avoid exec() — security risk\"\n    languages: [python]\n    severity: ERROR\n    pattern: exec(...)\n`;
           const hadolint = `ignored:\n  - DL3008\n  - DL3059\n\noverrides:\n  DL3007: warning\n`;
@@ -878,6 +961,18 @@ export function activate(context: vscode.ExtensionContext) {
           } catch (e:any) {
             vscode.window.showErrorMessage('env.prepare 执行失败：' + String(e));
           }
+        } else if (msg.t === 'selectProject') {
+          const folders = vscode.workspace.workspaceFolders || [];
+          if (!folders.length) { vscode.window.showWarningMessage('未找到工作区'); return; }
+          const pick = await vscode.window.showQuickPick(folders.map(f=>({ label: f.name, description: f.uri.fsPath })), { title: '选择项目根目录' });
+          if (!pick) return;
+          try {
+            await client.request('tools/call', { name: 'project.switch', arguments: { path: pick.description } });
+            panel.webview.postMessage({ t: 'project', name: pick.label });
+            panel.webview.postMessage({ t: 'info', text: '已切换至项目：' + pick.label });
+          } catch (e:any) {
+            vscode.window.showErrorMessage('切换项目失败：' + String(e));
+          }
         }
       } catch (e: any) {
         vscode.window.showErrorMessage('操作失败：' + String(e));
@@ -888,7 +983,18 @@ export function activate(context: vscode.ExtensionContext) {
     panel.webview.onDidReceiveMessage(async (msg) => {
       if (msg && msg.t === 'open' && msg.path) {
         try {
-          const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(msg.path));
+          const wsRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '';
+          let filePath = String(msg.path);
+          // If relative, resolve to workspace root
+          if (!filePath.match(/^\w:\\|^\//)) {
+            filePath = require('path').join(wsRoot, filePath);
+          }
+          // Ensure inside workspace
+          if (wsRoot && !String(filePath).startsWith(wsRoot)) {
+            vscode.window.showErrorMessage('无法打开文件：不在当前工作区内');
+            return;
+          }
+          const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(filePath));
           const editor = await vscode.window.showTextDocument(doc, { preview: false });
           const line = Math.max(0, (msg.line || 1) - 1);
           const pos = new vscode.Position(line, 0);
@@ -955,6 +1061,30 @@ export function activate(context: vscode.ExtensionContext) {
           const runCiAutofix = async () => { await client.request('tools/call', { name: 'ci.autofix', arguments: {} }); panel.webview.postMessage({ t: 'info', text: 'CI 已自修复' }); };
           const runInstallHooks = async () => { await client.request('tools/call', { name: 'git.install_hooks', arguments: {} }); panel.webview.postMessage({ t: 'info', text: '钩子安装完成' }); };
           const runEnforce = async () => { await client.request('tools/call', { name: 'rules.enforce', arguments: {} }); panel.webview.postMessage({ t: 'info', text: '已应用门禁策略到配置' }); };
+          const runRulesOnboard = async () => {
+            const pick = await vscode.window.showQuickPick([
+              { label: '个人 / personal', val: 'personal' },
+              { label: '专业 / pro', val: 'pro' },
+              { label: '企业 / enterprise', val: 'enterprise' },
+              { label: '机构 / institution', val: 'institution' },
+            ], { title: '选择应用场景 / Scenario' });
+            if (!pick) return;
+            const pickC = await vscode.window.showQuickPick([
+              { label: '小 / small', val: 'small' },
+              { label: '中 / medium', val: 'medium' },
+              { label: '大 / large', val: 'large' },
+            ], { title: '选择复杂度 / Complexity' });
+            if (!pickC) return;
+            const pickM = await vscode.window.showQuickPick([
+              { label: 'TDD', val: 'tdd' },
+              { label: 'BDD', val: 'bdd' },
+              { label: '文档驱动 / doc', val: 'doc' },
+              { label: '原型 / spike', val: 'spike' },
+            ], { title: '选择开发模式 / Dev Mode' });
+            if (!pickM) return;
+            const out = await client.request('tools/call', { name: 'rules.onboard', arguments: { scenario: pick.val, complexity: pickC.val, devMode: pickM.val, apply: true } });
+            vscode.window.showInformationMessage('已应用规则档：' + JSON.stringify(out));
+          };
           const runPrepareEnv = async () => { const out = await client.request('tools/call', { name: 'env.prepare', arguments: { create: false, install: false } }); vscode.window.showInformationMessage('env.prepare 计划: ' + JSON.stringify(out.plan || out)); };
 
           if (mapped === 'rules.ingest') await runIngest();
@@ -1082,8 +1212,12 @@ export function activate(context: vscode.ExtensionContext) {
       });
       if (!text) return;
       const res = await client.request('tools/call', { name: 'nl.command', arguments: { text } });
-      const tool = (res && (res as any).parsed && (res as any).parsed.tool) || 'nl.command';
-      vscode.window.showInformationMessage('已执行：' + tool);
+          const tool = (res && (res as any).parsed && (res as any).parsed.tool) || 'nl.command';
+          vscode.window.showInformationMessage('已执行：' + tool);
+          if (tool === 'rules.init' || tool === 'rules.onboard' || /初始化规则|规则引导|setup rules|questionnaire/.test(lower)) {
+            await runRulesOnboard();
+            return;
+          }
       // 存历史
       const h = context.globalState.get<string[]>('ruleflow.nl.history') || [];
       const nh = [text, ...h.filter(x=>x!==text)].slice(0, 10);

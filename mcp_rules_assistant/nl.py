@@ -22,6 +22,11 @@ SYNONYMS: Dict[str, str] = {
     "应用门禁": "rules.enforce",
     "enforce rules": "rules.enforce",
     "apply gates": "rules.enforce",
+    # 规则引导/前置问答
+    "规则引导": "rules.onboard",
+    "前置提问": "rules.onboard",
+    "setup rules": "rules.onboard",
+    "questionnaire": "rules.onboard",
     "生成 ci": "ci.generate",
     "生成CI": "ci.generate",
     "校验 ci": "ci.validate",

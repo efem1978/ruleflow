@@ -60,6 +60,7 @@ CLI
 - `mcp-rules-assistant init`
 - `mcp-rules-assistant print-config`
 - `mcp-rules-assistant explain-performance`
+- `mcp-rules-assistant rules-onboard --scenario personal --complexity small --dev-mode tdd`  # 规则引导：根据场景/复杂度/模式应用推荐阈值
 - `mcp-rules-assistant prepare-env`  # 创建 .mcp/venv 并可选安装工具（支持 --dry-run）
 - `mcp-rules-assistant ci-set --hadolint --hadolint-image hadolint/hadolint:latest --hadolint-args "--ignore DL3008"`
 - `mcp-rules-assistant ci-set --semgrep-config p/ci`

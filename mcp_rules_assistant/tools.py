@@ -37,6 +37,11 @@ def setup_default_tools() -> None:
     registry.register(Tool("rules.ingest", "Ingest project rules from docs"))
     registry.register(Tool("rules.validate", "Deduplicate and detect conflicts"))
     registry.register(Tool("rules.enforce", "Set enforcement level"))
+    registry.register(
+        Tool(
+            "rules.onboard", "Interactive onboarding to choose and apply rules profile"
+        )
+    )
     registry.register(Tool("env.prepare", "Prepare language environment"))
     registry.register(Tool("fs.apply_patch", "Guarded write with checks"))
     registry.register(Tool("git.install_hooks", "Install git hooks"))
@@ -65,5 +70,12 @@ def setup_default_tools() -> None:
         Tool(
             "license.activate",
             "Activate license by copying JSON to ~/.mcp/license.json",
+        )
+    )
+    registry.register(Tool("ide.scaffold", "Generate per-IDE integration scaffold"))
+    registry.register(
+        Tool(
+            "compliance.commitment",
+            "Return AI compliance commitment text and optionally write to project",
         )
     )

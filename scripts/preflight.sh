@@ -17,6 +17,13 @@ else
   echo "[preflight] docker not found; skip compose validation"
 fi
 
+echo "[preflight] compliance commitment presence (report-only)..."
+if [ -f .mcp/compliance.md ]; then
+  echo "[preflight] compliance.md exists"
+else
+  echo "[preflight] compliance.md missing (report-only). Generate with: mcp-rules-assistant compliance-commitment"
+fi
+
 echo "[preflight] running docs anchors tests..."
 python3 -c "import importlib,sys; sys.exit(0 if importlib.util.find_spec('pytest') else 1)" >/dev/null 2>&1
 if [ $? -eq 0 ]; then

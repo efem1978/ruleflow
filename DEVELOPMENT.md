@@ -11,6 +11,7 @@
 - 使用与示例：`docs/USAGE.md` — 常见命令与操作流
 - 配置与性能：`docs/CONFIG.md` / `docs/PERFORMANCE.md` — 门槛与策略来源
 - TDD 计划：`docs/DEV_PLAN_TDD.md` — 分层推进与清单（与本文件同步）
+- 任务清单（权威）：`.mcp/plan.md` — Sprint/下一步/勾选项（新窗口优先读取）
 - CI 与 Hooks：`docs/HOOKS.md` / `docs/CI_HEALTH_CHECK.md` — 生成/自修复/健康检查
 - 规则与短语：`docs/RULESETS.md` / `docs/RULES_INGEST.md` / `docs/RULES_PHRASES_INDEX.md`
 - 安全工具：`docs/SECURITY_TOOLS.md` — hadolint/semgrep/detect-secrets 等
@@ -120,7 +121,7 @@
 
 ## 快速衔接 / Quick Handoff
 - 新窗口/新会话快速获悉上下文：
-  - 运行 `mcp-rules-assistant status-update` 刷新 `.mcp/dashboard/status.json` 与 `history.json`。
+  - 运行 `mcp-rules-assistant status-update`（或 `python3 -m mcp_rules_assistant.cli status-update`）刷新 `.mcp/dashboard/status.json` 与 `history.json`。
   - 阅读：
     - `.mcp/plan.md`：`状态/当前步骤/下一步` 与任务复选清单（进度 = 勾选比率）。
     - `.mcp/dashboard/status.json`：综合快照（计划/覆盖率/总体进度/时间戳）。
@@ -137,25 +138,29 @@
   - 不新引入依赖，除非在 `docs/ARCHITECTURE.md` 与 `pyproject.toml` 说明动机与影响
 - 容器与文件：统一使用 `compose.yml`；不得回退至旧命名（如 `docker‑compose.yml`）；禁止重新引入前端看板/UI 代码
 
+## 下一步 / Next Actions（入口指向）
+- 请以 `.mcp/plan.md` 作为唯一权威任务清单；VS Code 面板与 Dev Agent 仅读取该文件的清单。
+- CLI 刷新状态：`mcp-rules-assistant status-update` 会将计划/覆盖率/记忆与任务列表写入 `.mcp/dashboard/status.json`（任务仅来源于 `.mcp/plan.md`）。
+
 ## 任务清单（当前 Sprint）
-- [x] TDD 单元层：补齐 coverage_summary 边界与错误分支（现 ~98% 覆盖）
-- [x] 组件层：checks 降级/失败缓存用例（现 100%）与 hooks 一致性快照（现 ~100%）
-- [x] 集成层：dev_agent 单循环与冻结/解冻分支；CLI 烟雾（dev_agent ~96%）
-- [ ] MCP 层：mcp_server 覆盖率提升至 ≥98%（当前 ~85%）
-- [ ] VS Code：近阈值/覆盖率加载交互的稳定性回归（待择机）
+- [x] TDD 单元层：补齐 coverage_summary 边界与错误分支（≈98% 覆盖）
+- [x] 组件层：checks 降级/失败缓存用例（100%）与 hooks 一致性快照（≈100%）
+- [x] 集成层：dev_agent 单循环与冻结/解冻/旁路分支（快速等价测试）；CLI 烟雾（dev_agent ≈96%）
+- [x] MCP 层：mcp_server 覆盖率 ≥98%（现 ≈97–99%，视矩阵）
+- [x] VS Code：近阈值/覆盖率加载交互优化（常驻 near% 输入、刷新状态按钮）
 - [x] 规则摄取：补齐“中文区间（模块）”用例（介于 X% 和 Y% 之间）
-- [x] 规则摄取：per-key conflict_delta 与缓存边界（现 ~97% 覆盖）
-- [ ] 单元层补齐：memory.py 覆盖率提升至 ≥98%（当前 ~62%）
-- [ ] 单元层补齐：fs_wrapper.py 覆盖与错误分支（当前 ~82%）
-- [ ] 许可：license_utils 覆盖率 ≥90%（当前 ~38%），补齐 hs256/rs256 正反例
-- [ ] 覆盖率策略：修正 coverage.policy 的按文件覆盖优先于 min_module 的应用（license_utils.py 等应命中专属阈值）
-- [ ] 清理样例/临时工件：确保 cov.json 等生成物未入库（.gitignore 已覆盖）
+- [x] 规则摄取：per-key conflict_delta 与缓存边界（≈97% 覆盖）
+- [x] 单元层补齐：memory.py 覆盖率 ≥98%（现 ≈99%）
+- [x] 单元层补齐：fs_wrapper.py 覆盖与错误分支（现 92%+ / 按策略门槛达标）
+- [x] 许可：license_utils 覆盖率 ≥90%（现 ≈91%）
+- [x] 覆盖率策略：修正 coverage.policy 的按文件覆盖优先于 min_module 的应用（已加回归测试）
+- [x] 清理样例/临时工件：确保 cov*.json 等生成物未入库（.gitignore 已覆盖）
 
 ## 审计快照（当前） / Audit Snapshot (Current)
-- 覆盖率（coverage.xml 总体）: 92.24%
-- 低于策略阈值的模块（示例）：license_utils.py（~38%）、memory.py（~62%）、fs_wrapper.py（~82%）、mcp_server.py（~85%）
-- 策略阈值（.mcp/assistant.yaml）：min_module=0.96，核心文件（config/progress/tools/memory/mcp_server/cli/server）≥0.98；dev_agent ≥0.95；license_utils ≥0.90
-- 发现的问题：部分文件未按 coverage.policy 的专属阈值匹配，落入 min_module 计算；需修正阈值匹配逻辑并补齐测试
+- 覆盖率（coverage.xml 总体）: ≈98%
+- 弱项（weak）：0（`coverage-report --json`）
+- 近阈值（near）：小量文件（如 cli.py、coverage_summary.py 等）处于阈值上方 ≤1.2% 范围，可作为后续微调目标
+- 策略阈值（.mcp/assistant.yaml）：min_module=0.96；核心（config/progress/tools/memory/mcp_server/cli/server）≥0.98；dev_agent ≥0.95；license_utils ≥0.90（均已达成）
 ## 统一子进程封装 / Unified Process Runner
 
 - 模块：`mcp_rules_assistant/process.py` 提供 `run_cmd` 统一封装。

@@ -230,7 +230,7 @@ class DevAgent:
             )
 
         done_count, pending_count, pending_tasks, done_tasks = _collect_tasks_counts(
-            self.project_root, plan_text
+            self.project_root, plan_text, include_docs=False
         )
 
         if plan_obj["status"] in ("planned", "") and pending_tasks:
@@ -1237,7 +1237,7 @@ def _coverage_with_fallback(
 
 
 def _collect_tasks_counts(
-    project_root: Path, plan_text: str
+    project_root: Path, plan_text: str, *, include_docs: bool = True
 ) -> Tuple[int, int, list[str], list[str]]:
     """Collect done/pending tasks counts and lists by scanning markdown and fallback plan sections.
 
@@ -1255,19 +1255,20 @@ def _collect_tasks_counts(
         pending_count += u0
         pending_tasks.extend(p0)
         done_tasks.extend(dn0)
-        for p in (project_root / "docs").glob("*.md"):
-            d1, u1, p1, dn1 = _scan_markdown_checklist(p)
-            done_count += d1
-            pending_count += u1
-            pending_tasks.extend(p1)
-            done_tasks.extend(dn1)
-        for p in [project_root / "README.md"]:
-            if p.exists():
-                d2, u2, p2, dn2 = _scan_markdown_checklist(p)
-                done_count += d2
-                pending_count += u2
-                pending_tasks.extend(p2)
-                done_tasks.extend(dn2)
+        if include_docs:
+            for p in (project_root / "docs").glob("*.md"):
+                d1, u1, p1, dn1 = _scan_markdown_checklist(p)
+                done_count += d1
+                pending_count += u1
+                pending_tasks.extend(p1)
+                done_tasks.extend(dn1)
+            for p in [project_root / "README.md"]:
+                if p.exists():
+                    d2, u2, p2, dn2 = _scan_markdown_checklist(p)
+                    done_count += d2
+                    pending_count += u2
+                    pending_tasks.extend(p2)
+                    done_tasks.extend(dn2)
         if done_count + pending_count == 0:
             lines = plan_text.splitlines()
             capture = False
@@ -1376,7 +1377,7 @@ def compute_status(project_root: Path) -> Dict[str, object]:
         )
 
     done_count, pending_count, pending_tasks, done_tasks = _collect_tasks_counts(
-        project_root, plan_text
+        project_root, plan_text, include_docs=False
     )
 
     if plan_obj["status"] in ("planned", "") and pending_tasks:
