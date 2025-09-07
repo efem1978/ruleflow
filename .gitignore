@@ -25,6 +25,7 @@ coverage.xml
 .coverage*
 htmlcov/
 cov.json
+cov*.json
 /bad.py
 /ok2.py
 
