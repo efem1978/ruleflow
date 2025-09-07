@@ -24,6 +24,35 @@ class FSGuard:
     def write_text(self, path: Path, content: str, encoding: str = "utf-8") -> None:
         full = self.project_root / path
         full.parent.mkdir(parents=True, exist_ok=True)
+        # 前置：路径白名单/扩展名白名单（若配置）
+        try:
+            exec_cfg: Dict[str, Any] = (
+                self.cfg.get("execution", {})
+                if isinstance(self.cfg.get("execution", {}), dict)
+                else {}
+            )
+            root_res = self.project_root.resolve()
+            dest = full.resolve()
+            dest.relative_to(root_res)
+            prefixes = exec_cfg.get("allowed_write_prefixes")
+            if isinstance(prefixes, list) and prefixes:
+                rel = str(dest.relative_to(root_res)).replace("\\", "/")
+                okp = any(str(prefix) and rel.startswith(str(prefix)) for prefix in prefixes)
+                if not okp:
+                    raise ValueError("FSGuard: 路径不在允许前缀清单内")
+            exts = exec_cfg.get("allowed_write_extensions")
+            if isinstance(exts, list) and exts:
+                if dest.suffix.lower() not in [str(e).lower() for e in exts if isinstance(e, str)]:
+                    raise ValueError("FSGuard: 扩展名不在允许清单内")
+        except Exception:
+            # 如启用严格模式，向上抛出；否则仅作提示性保护
+            ex_cfg2: Dict[str, Any] = (
+                self.cfg.get("execution", {})
+                if isinstance(self.cfg.get("execution", {}), dict)
+                else {}
+            )
+            if bool(ex_cfg2.get("fs_guard_strict", False)):
+                raise
         # 预留：写入前检查（计划/规则等）
         full.write_text(content, encoding)
         # 可选：写入后执行轻量增量检查（受配置 execution.fs_guard_post_checks 控制，默认关闭）

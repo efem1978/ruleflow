@@ -127,6 +127,10 @@ def default_config_dict() -> Dict[str, Any]:
             # 允许受控写入的相对路径前缀白名单（留空表示不限制）。
             # 例：["mcp_rules_assistant/", "tests/", "docs/", ".mcp/"]
             "allowed_write_prefixes": [],
+            # 允许写入的文件扩展名（小写，包含点，如 .py/.md），留空表示不限制
+            "allowed_write_extensions": [],
+            # 在严格写入时拒绝的内容片段（字符串匹配；如 'pytest.mark.skip', 'xfail', 'import pdb'）
+            "disallow_patterns": [],
         },
         "ci": {"hadolint": False, "vscode_required": True},
     }

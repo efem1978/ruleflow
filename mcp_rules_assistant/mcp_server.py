@@ -276,6 +276,21 @@ class JsonRpcServer:
                         raise ValueError(
                             "检测到 skip/xfail 标记，受控写入被拒绝（strict）。"
                         )
+                    # 配置化禁用的内容片段（如 import pdb 等）
+                    try:
+                        ex_cfg2: Dict[str, Any] = (
+                            self.cfg.get("execution", {})
+                            if isinstance(self.cfg.get("execution", {}), dict)
+                            else {}
+                        )
+                        patterns = ex_cfg2.get("disallow_patterns")
+                        if isinstance(patterns, list) and patterns:
+                            for pat in patterns:
+                                if isinstance(pat, str) and pat and pat in content:
+                                    raise ValueError("内容包含受限片段，受控写入被拒绝（strict）")
+                    except Exception:
+                        # 忽略解析错误，但在严格模式下仍保持 skip/xfail 拒绝
+                        pass
                 # 路径安全：禁止绝对路径与越权（必须在项目根内）
                 if "path" not in f:
                     raise ValueError("缺少文件路径字段 'path'")
@@ -289,7 +304,7 @@ class JsonRpcServer:
                     dest.relative_to(root_res)
                 except Exception:
                     raise ValueError("禁止写入项目根之外的路径（疑似路径穿越）")
-                # 路径前缀白名单（可选）
+                # 路径前缀白名单 / 扩展名白名单（可选）
                 try:
                     ex_cfg: Dict[str, Any] = (
                         self.cfg.get("execution", {})
@@ -302,6 +317,11 @@ class JsonRpcServer:
                         okp = any(str(prefix) and rel.startswith(str(prefix)) for prefix in prefixes)
                         if not okp:
                             raise ValueError("受控写入路径不在允许前缀清单内")
+                    exts = ex_cfg.get("allowed_write_extensions")
+                    if isinstance(exts, list) and exts:
+                        ext = dest.suffix.lower()
+                        if ext not in [str(e).lower() for e in exts if isinstance(e, str)]:
+                            raise ValueError("受控写入文件扩展名不在允许清单内")
                 except Exception as _e:
                     # 严格模式下升级为错误
                     if bool(ex_cfg.get("fs_guard_strict", False)):
