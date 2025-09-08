@@ -27,6 +27,11 @@ print('[verify] near_count =', len(near))
 if weak:
   print('[verify] FAIL: coverage weak files present')
   sys.exit(1)
+if near:
+  top = near[:5]
+  print('[verify] near top5:')
+  for it in top:
+    print(' -', f"{round((it.get('coverage',0)*100),1)}% ≥ {int((it.get('threshold',0))*100)}% —", it.get('file',''))
 PY
 
 echo "[verify] 4/4 dev_agent smoke (local)"

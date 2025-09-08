@@ -31,6 +31,13 @@ if [ "$FOUND" -gt 0 ]; then
   echo "  git rm --cached -f $FORBID_FILES"
 fi
 
+echo "[preflight] upstream branch presence (report-only)..."
+if [ -x scripts/git-upstream-check.sh ]; then
+  sh scripts/git-upstream-check.sh || true
+else
+  echo "[preflight] scripts/git-upstream-check.sh not found; skip upstream check"
+fi
+
 echo "[preflight] compliance commitment presence (report-only)..."
 if [ -f .mcp/compliance.md ]; then
   echo "[preflight] compliance.md exists"

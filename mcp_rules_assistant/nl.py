@@ -13,6 +13,8 @@ SYNONYMS: Dict[str, str] = {
     # 规则/钩子/环境
     "安装钩子": "git.install_hooks",
     "install hooks": "git.install_hooks",
+    "安装 git 钩子": "git.install_hooks",
+    "install git hooks": "git.install_hooks",
     "初始化规则": "rules.init",
     "init rules": "rules.init",
     "摄取规则": "rules.ingest",
@@ -29,8 +31,14 @@ SYNONYMS: Dict[str, str] = {
     "questionnaire": "rules.onboard",
     "生成 ci": "ci.generate",
     "生成CI": "ci.generate",
+    "生成工作流": "ci.generate",
+    "generate ci": "ci.generate",
     "校验 ci": "ci.validate",
+    "校验工作流": "ci.validate",
+    "validate ci": "ci.validate",
     "自修复 ci": "ci.autofix",
+    "自修复工作流": "ci.autofix",
+    "autofix ci": "ci.autofix",
     "载入规则": "resources.read",
     "load rules": "resources.read",
     "加载建议": "resources.read",
@@ -42,12 +50,23 @@ SYNONYMS: Dict[str, str] = {
     "准备环境": "env.prepare",
     "prepare environment": "env.prepare",
     "prepare env": "env.prepare",
+    "准备并安装环境": "env.prepare",
+    "create venv": "env.prepare",
+    "install tools": "env.prepare",
     "开启记忆": "memory.toggle_auto",
     "关闭记忆": "memory.toggle_auto",
     # 新增
     "追加记忆": "memory.append_turn",
     "建议下一步": "plan.suggest_next",
+    "next steps": "plan.suggest_next",
     "项目关联": "project.link",
+    "关联项目": "project.link",
+    "link project": "project.link",
+    # 读取资源快捷语义
+    "加载计划": "resources.read",
+    "load plan": "resources.read",
+    "加载记忆": "resources.read",
+    "load memory": "resources.read",
 }
 
 
