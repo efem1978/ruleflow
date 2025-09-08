@@ -32,7 +32,9 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
         val btnCovSummary = JButton("覆盖率摘要 / Coverage Summary")
         val btnCiGen = JButton("生成 CI / Generate CI")
         val btnCiValidate = JButton("校验 CI / Validate CI")
-        listOf(btnRefresh, btnOpenPlan, btnStatusUpdate, btnIngest, btnCovReport, btnCovSummary, btnCiGen, btnCiValidate).forEach { bar.add(it) }
+        val btnRules = JButton("规则 / Rules")
+        val btnSugg = JButton("建议 / Suggestions")
+        listOf(btnRefresh, btnOpenPlan, btnStatusUpdate, btnIngest, btnCovReport, btnCovSummary, btnCiGen, btnCiValidate, btnRules, btnSugg).forEach { bar.add(it) }
 
         val basePath = project.basePath ?: ""
         fun readStatus(): String {
@@ -156,6 +158,23 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
             val raw = runCli("coverage-report", "--json")
             val json = extractFirstJsonBlock(raw) ?: raw
             ta.text = formatCoverage(json)
+        }
+
+        btnRules.addActionListener {
+            val f = File(basePath, ".mcp/rules_compiled.md")
+            if (!f.exists()) {
+                ta.text = "未找到 .mcp/rules_compiled.md\n请先执行 摄取规则（Ingest）"
+            } else {
+                try { ta.text = f.readText(StandardCharsets.UTF_8) } catch (e: Exception) { ta.text = "读取失败: ${e.message}" }
+            }
+        }
+        btnSugg.addActionListener {
+            val f = File(basePath, ".mcp/rules_suggestions.md")
+            if (!f.exists()) {
+                ta.text = "未找到 .mcp/rules_suggestions.md\n请先执行 摄取规则（Ingest）"
+            } else {
+                try { ta.text = f.readText(StandardCharsets.UTF_8) } catch (e: Exception) { ta.text = "读取失败: ${e.message}" }
+            }
         }
 
         panel.add(bar, BorderLayout.NORTH)

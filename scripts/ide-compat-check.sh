@@ -11,6 +11,8 @@ note=""
 tests_status="unknown"
 vsix_ok=0
 vsix_path=""
+cursor_hint=""
+windsurf_hint=""
 node_ver=""
 engine_req=""
 
@@ -57,6 +59,11 @@ if [ -d "$VS_DIR" ]; then
   fi
 fi
 
+if [ "$vsix_ok" = "1" ]; then
+  cursor_hint=$'Cursor: 打开 Extensions → Install from VSIX... → 选择 VSIX 文件'
+  windsurf_hint=$'Windsurf: 打开 Extensions → Install from VSIX... → 选择 VSIX 文件'
+fi
+
 # Derive tests_status (ok / skipped / fail)
 uname_s="$(uname -s 2>/dev/null || echo unknown)"
 if [ "$ok_tests" = "1" ]; then
@@ -69,7 +76,7 @@ else
   fi
 fi
 
-REPORT="$REPORT" engine_req="$engine_req" node_ver="$node_ver" ok_compile="$ok_compile" ok_tests="$ok_tests" tests_status="$tests_status" note="$note" \
+REPORT="$REPORT" engine_req="$engine_req" node_ver="$node_ver" ok_compile="$ok_compile" ok_tests="$ok_tests" tests_status="$tests_status" note="$note" vsix_ok="$vsix_ok" vsix_path="$vsix_path" cursor_hint="$cursor_hint" windsurf_hint="$windsurf_hint" \
 python3 - <<'PY' || true
 import json,os
 rep=os.environ.get('REPORT')
@@ -81,6 +88,8 @@ d={
   'tests_status': os.environ.get('tests_status','unknown'),
   'vsix_ok': os.environ.get('vsix_ok','0')=='1',
   'vsix': os.environ.get('vsix_path',''),
+  'cursor_install_hint': os.environ.get('cursor_hint',''),
+  'windsurf_install_hint': os.environ.get('windsurf_hint',''),
   'note': os.environ.get('note',''),
 }
 open(rep,'w',encoding='utf-8').write(json.dumps(d,ensure_ascii=False,indent=2))
