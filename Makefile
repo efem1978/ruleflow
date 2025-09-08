@@ -121,9 +121,4 @@ ide-compat:
 	@echo "See extensions/compat_report.json"
 preflight-quick:
 	PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 $(PYTHON) -m pytest -q tests/docs/test_docs_anchors.py
-	$(PYTHON) - <<'PY'
-from pathlib import Path
-import re
-text = Path('README.md').read_text(encoding='utf-8')
-print('[quick] README length =', len(text))
-PY
+	$(PYTHON) -c "from pathlib import Path; text=Path('README.md').read_text(encoding='utf-8'); print('[quick] README length =', len(text))"

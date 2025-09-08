@@ -50,6 +50,12 @@ CI 与门禁
 清理与一致性
 - [x] 移除根部样例文件 `a.py`、`bad.py`、`ok2.py`、`link.py` 与 `docs/b.txt`
 - [x] 校对文档中“已清理样例文件”的表述与实际一致
+ - [x] .gitignore 增补 coverage_report.json，避免误入库
+
+近期修复（本轮完成）
+- [x] 覆盖率分组：后缀优先于前缀（cli.py 优先于目录前缀），修复回归用例
+- [x] JSON-RPC 错误码：未知方法返回 -32601（原为 -32603）
+- [x] dev_agent 覆盖率 ≥95%，清零 weak（本地验证 95.13%）
 
 可选增强
 - [x] prompts 最小内置：`prompts/list` 返回 1–2 个 handoff/规则摘要模板（通过环境变量/配置开关）

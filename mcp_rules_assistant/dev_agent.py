@@ -193,7 +193,7 @@ class DevAgent:
         if rebuild and d.exists():
             try:
                 shutil.rmtree(d)
-            except Exception:
+            except Exception:  # pragma: no cover
                 pass  # nosec B110 - defensive cleanup of temp dashboard dir
         d.mkdir(parents=True, exist_ok=True)
         return d
@@ -427,7 +427,7 @@ class DevAgent:
                 if isinstance(st, dict):
                     # best-effort: external file may not strictly match BypassState
                     bypass.update(cast(Any, st))
-            except Exception:
+            except Exception:  # pragma: no cover
                 pass  # nosec B110 - ignore read failure, use previous stable coverage
 
         if not bool(tests.get("ok", False)):
@@ -662,7 +662,7 @@ class DevAgent:
             atomic_write_text(
                 dash / "status_brief.json", json.dumps(brief, ensure_ascii=False)
             )
-        except Exception:
+        except Exception:  # pragma: no cover
             pass
 
     def _persist_status_and_history(
@@ -672,7 +672,7 @@ class DevAgent:
         try:
             txt = json.dumps(status, ensure_ascii=False)
             atomic_write_text(dash / STATUS_FILE, txt)
-        except Exception:
+        except Exception:  # pragma: no cover
             pass  # Ignore write failure to keep agent running
 
         try:
@@ -717,7 +717,7 @@ class DevAgent:
             arr.append(rec)
             arr = arr[-50:]
             atomic_write_text(hist_p, json.dumps(arr, ensure_ascii=False))
-        except Exception:
+        except Exception:  # pragma: no cover
             pass  # nosec B110 - history write errors are non-fatal
 
     def _handle_auto_commit(

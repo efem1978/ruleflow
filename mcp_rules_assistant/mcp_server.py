@@ -270,9 +270,12 @@ class JsonRpcServer:
             msg = str(e)
             code = -32603  # internal error (default)
             # 粗粒度分类（最小必要）：
-            if isinstance(e, KeyError) and msg == "method_not_found":
-                code = -32601
-                msg = "method not found"
+            if isinstance(e, KeyError):
+                # KeyError.__str__ 会把键名包上引号，使用 args 更稳妥
+                key = e.args[0] if getattr(e, "args", ()) else ""
+                if key == "method_not_found":
+                    code = -32601
+                    msg = "method not found"
             elif isinstance(e, ValueError):
                 # "Unknown resource uri" 历史约定使用 -32000（兼容既有测试）
                 if msg == "Unknown resource uri":

@@ -26,6 +26,7 @@ coverage.xml
 htmlcov/
 cov.json
 cov*.json
+coverage_report.json
 /bad.py
 /ok2.py
 /ok.txt

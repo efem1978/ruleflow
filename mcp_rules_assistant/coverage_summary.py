@@ -227,9 +227,16 @@ def summarize_groups(
     }
 
     def pick_prefix(file: str) -> str:
+        # 优先使用“后缀匹配”（basename），再回退到“前缀匹配”（目录）。
+        # 同一匹配类型下选择更具体（更长）的键。
+        # 构造时 prefixes 已按长度降序，因此可直接按顺序扫描。
+        # 1) 后缀优先（如 cli.py 应优先于 mcp_rules_assistant/）。
         for p, _th in prefixes:
-            # 支持目录前缀与文件名后缀（basename）两种匹配
-            if file.startswith(p) or file.endswith(p):
+            if file.endswith(p):
+                return p
+        # 2) 再考虑前缀（目录级策略）。
+        for p, _th in prefixes:
+            if file.startswith(p):
                 return p
         return "other"
 
