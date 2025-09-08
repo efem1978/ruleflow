@@ -77,7 +77,7 @@ else
   fi
 fi
 
-REPORT="$REPORT" engine_req="$engine_req" node_ver="$node_ver" ok_compile="$ok_compile" ok_tests="$ok_tests" tests_status="$tests_status" note="$note" vsix_ok="$vsix_ok" vsix_path="$vsix_path" cursor_hint="$cursor_hint" windsurf_hint="$windsurf_hint" \
+REPORT="$REPORT" engine_req="$engine_req" node_ver="$node_ver" ok_compile="$ok_compile" ok_tests="$ok_tests" tests_status="$tests_status" note="$note" vsix_ok="$vsix_ok" vsix_path="$vsix_path" cursor_hint="$cursor_hint" windsurf_hint="$windsurf_hint" schema="$schema" \
 python3 - <<'PY' || true
 import json,os
 rep=os.environ.get('REPORT')

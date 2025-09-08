@@ -9,19 +9,39 @@ import java.awt.BorderLayout
 import java.io.File
 import java.nio.charset.StandardCharsets
 import javax.swing.JButton
+import javax.swing.JEditorPane
 import javax.swing.JPanel
 import javax.swing.JScrollPane
-import javax.swing.JTextArea
+import javax.swing.event.HyperlinkEvent
+import com.intellij.openapi.fileEditor.FileEditorManager
+import com.intellij.openapi.fileEditor.OpenFileDescriptor
+import com.intellij.openapi.vfs.LocalFileSystem
 
 class RuleFlowToolWindowFactory : ToolWindowFactory {
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
         val contentFactory = ContentFactory.getInstance()
         val panel = JPanel(BorderLayout())
-        val ta = JTextArea()
-        ta.lineWrap = true
-        ta.wrapStyleWord = true
-        ta.isEditable = false
-        val sp = JScrollPane(ta)
+        val viewer = JEditorPane()
+        viewer.isEditable = false
+        viewer.contentType = "text/html"
+        viewer.addHyperlinkListener { e ->
+            if (e.eventType == HyperlinkEvent.EventType.ACTIVATED) {
+                try {
+                    val url = e.url
+                    if (url != null && url.protocol == "file") {
+                        val line = try { url.ref?.removePrefix("L")?.toInt() ?: 1 } catch (ex: Exception) { 1 }
+                        val p = File(basePath, url.path)
+                        val vfile = LocalFileSystem.getInstance().findFileByIoFile(p)
+                        if (vfile != null) {
+                            OpenFileDescriptor(project, vfile, (line - 1).coerceAtLeast(0), 0).navigate(true)
+                        } else {
+                            Messages.showWarningDialog(project, "文件未找到: " + p.path, "RuleFlow")
+                        }
+                    }
+                } catch (_: Exception) { }
+            }
+        }
+        val sp = JScrollPane(viewer)
 
         val bar = JPanel()
         val btnRefresh = JButton("刷新 / Refresh")
@@ -73,9 +93,22 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
             }
         }
 
-        btnRefresh.addActionListener {
-            ta.text = readStatus()
+        fun escapeHtml(s: String): String = s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        fun showPlain(text: String) { viewer.text = "<html><body style='font-family:sans-serif'><pre>" + escapeHtml(text) + "</pre></body></html>" }
+        fun showHtml(html: String) { viewer.text = "<html><body style='font-family:sans-serif'>" + html + "</body></html>" }
+        fun linkifyPyPaths(text: String): String {
+            // 将形如 path/to/file.py 或 file.py:123 替换为可点击链接 file://path#Lline
+            val esc = escapeHtml(text)
+            val regex = Regex("([A-Za-z0-9_./\\\\-]+\\.py)(?::(\\d+))?")
+            return regex.replace(esc) { m ->
+                val path = m.groupValues[1]
+                val line = m.groupValues.getOrNull(2)
+                val href = if (line != null && line.isNotEmpty()) "file://$path#L$line" else "file://$path"
+                "<a href='${href}'>${m.value}</a>"
+            }.replace("\n", "<br/>")
         }
+
+        btnRefresh.addActionListener { showPlain(readStatus()) }
         btnOpenPlan.addActionListener {
             val plan = File(basePath, ".mcp/plan.md")
             if (!plan.exists()) {
@@ -83,7 +116,7 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
             } else {
                 try {
                     val content = plan.readText(StandardCharsets.UTF_8)
-                    ta.text = content
+                    showPlain(content)
                 } catch (e: Exception) {
                     Messages.showErrorDialog(project, "读取计划失败: ${e.message}", "RuleFlow")
                 }
@@ -91,7 +124,7 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
         }
 
         btnStatusUpdate.addActionListener {
-            ta.text = runCli("status-update")
+            showPlain(runCli("status-update"))
         }
         btnIngest.addActionListener {
             val hint = Messages.showInputDialog(project, "输入要摄取的文件或目录（逗号分隔）", "规则摄取", null)
@@ -100,18 +133,18 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
                 if (parts.isNotEmpty()) {
                     val args = ArrayList<String>()
                     args.add("ingest-rules"); args.addAll(parts)
-                    ta.text = runCli(*args.toTypedArray())
+                    showPlain(runCli(*args.toTypedArray()))
                 }
             }
         }
         btnCovReport.addActionListener {
-            ta.text = runCli("coverage-report", "--json")
+            showPlain(runCli("coverage-report", "--json"))
         }
         btnCiGen.addActionListener {
-            ta.text = runCli("generate-ci")
+            showPlain(runCli("generate-ci"))
         }
         btnCiValidate.addActionListener {
-            ta.text = runCli("ci-validate")
+            showPlain(runCli("ci-validate"))
         }
 
         fun extractFirstJsonBlock(s: String): String? {
@@ -149,16 +182,16 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
                     sb.appendLine("- 分组：")
                     groups.forEach { sb.appendLine(it) }
                 }
-                return sb.toString()
+                return escapeHtml(sb.toString()).replace("\n", "<br/>")
             } catch (e: Exception) {
-                return "解析失败：${e.message}\n原始：\n$json"
+                return escapeHtml("解析失败：${e.message}\n原始：\n$json").replace("\n", "<br/>")
             }
         }
 
         btnCovSummary.addActionListener {
             val raw = runCli("coverage-report", "--json")
             val json = extractFirstJsonBlock(raw) ?: raw
-            ta.text = formatCoverage(json)
+            showHtml(formatCoverage(json))
         }
 
         btnRules.addActionListener {
@@ -166,15 +199,15 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
             if (!f.exists()) {
                 ta.text = "未找到 .mcp/rules_compiled.md\n请先执行 摄取规则（Ingest）"
             } else {
-                try { ta.text = f.readText(StandardCharsets.UTF_8) } catch (e: Exception) { ta.text = "读取失败: ${e.message}" }
+                try { showHtml(linkifyPyPaths(f.readText(StandardCharsets.UTF_8))) } catch (e: Exception) { showPlain("读取失败: ${e.message}") }
             }
         }
         btnSugg.addActionListener {
             val f = File(basePath, ".mcp/rules_suggestions.md")
             if (!f.exists()) {
-                ta.text = "未找到 .mcp/rules_suggestions.md\n请先执行 摄取规则（Ingest）"
+                showPlain("未找到 .mcp/rules_suggestions.md\n请先执行 摄取规则（Ingest）")
             } else {
-                try { ta.text = f.readText(StandardCharsets.UTF_8) } catch (e: Exception) { ta.text = "读取失败: ${e.message}" }
+                try { showHtml(linkifyPyPaths(f.readText(StandardCharsets.UTF_8))) } catch (e: Exception) { showPlain("读取失败: ${e.message}") }
             }
         }
 
@@ -192,9 +225,9 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
                 sb.appendLine("- 覆盖率（核心最低）: ${fmtPercent(minCore)}")
                 sb.appendLine("- 冲突条目: $confCount")
                 sb.appendLine("- 建议条目: $suggCount")
-                sb.toString()
+                escapeHtml(sb.toString()).replace("\n", "<br/>")
             } catch (e: Exception) {
-                "解析失败: ${e.message}"
+                escapeHtml("解析失败: ${e.message}")
             }
         }
 
@@ -204,12 +237,12 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
             if (jf.exists()) {
                 try {
                     val text = jf.readText(StandardCharsets.UTF_8)
-                    ta.text = rulesSummaryFromJson(text)
+                    showHtml(rulesSummaryFromJson(text))
                 } catch (e: Exception) { ta.text = "读取失败: ${e.message}" }
             } else if (mf.exists()) {
-                try { ta.text = mf.readText(StandardCharsets.UTF_8) } catch (e: Exception) { ta.text = "读取失败: ${e.message}" }
+                try { showHtml(linkifyPyPaths(mf.readText(StandardCharsets.UTF_8))) } catch (e: Exception) { showPlain("读取失败: ${e.message}") }
             } else {
-                ta.text = "未找到 .mcp/rules_compiled.json/.md\n请先执行 摄取规则（Ingest）"
+                showPlain("未找到 .mcp/rules_compiled.json/.md\n请先执行 摄取规则（Ingest）")
             }
         }
 
@@ -217,7 +250,7 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
         panel.add(sp, BorderLayout.CENTER)
 
         // 初始刷新
-        ta.text = readStatus()
+        showPlain(readStatus())
 
         val content = contentFactory.createContent(panel, "", false)
         toolWindow.contentManager.addContent(content)
