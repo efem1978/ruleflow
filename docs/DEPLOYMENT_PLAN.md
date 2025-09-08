@@ -35,6 +35,15 @@
 备注
 - 许可能力：提供 HS256/RS256/Ed25519 许可生成/校验与开关（CLI：license-generate/verify/require-on/off）。
 
+许可证门禁 E2E 验证（最小流程）
+- 开启发布硬门禁：`mcp-rules-assistant license-require-on`
+- 未激活调用 gated 工具示例：`tools/call ci.validate` → 应返回 `license required or invalid`
+- 生成并激活许可证（hs256 示例）：
+  - 生成：`mcp-rules-assistant license-generate --issued-to you@example.com --expires 2030-01-01 --alg hs256 --out .mcp/lic.json`
+  - 激活：`mcp-rules-assistant license-activate --file .mcp/lic.json`
+- 再次调用 gated 工具：`tools/call ci.validate` → 通过并返回 `ok: true`
+- 关闭发布硬门禁（回到开发模式）：`mcp-rules-assistant license-require-off`
+
 里程碑完成标准（DoD）
 - M0：本机安装通过；面板功能可用；不对外发布
 - M1：`make verify` 绿；结构自检通过；可选择性公开分发（仍不收费）

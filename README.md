@@ -42,6 +42,7 @@ RuleFlow: Open PanelMCP 规则与上下文助手 / MCP Rules & Context Assistant
 - 发行（离线）：`mcp-rules-assistant license-generate --issued-to Alice --expires 2026-01-01 --alg hs256 --out lic.json`
   - hs256：默认使用 `MCP_LICENSE_SALT`（可选）计算签名（演示）
   - rs256：提供私钥 `--private-key private.pem` 生成；设置 `MCP_LICENSE_PUBKEY` 公钥进行校验
+ - 提示：完整的“激活与门禁验证”流程（含发布硬门禁开关与 e2e 验证）见 `docs/USAGE.md` 与 `docs/DEPLOYMENT_PLAN.md`
 
 快速开始 Quick Start（性能优先）
 三步极简上手（Minimal 3 steps）

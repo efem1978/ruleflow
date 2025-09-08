@@ -51,12 +51,14 @@ rules:
     coverage.min_core: 0.02
 execution:
   allowed_write_prefixes:
-    - "mcp_rules_assistant/"
-    - "tests/"
-    - "docs/"
-    - ".mcp/"
+  - mcp_rules_assistant/
+  - tests/
+  - docs/
+  - .mcp/
   allowed_write_extensions:
-    - ".py"
-    - ".md"
-    - ".yaml"
-    - ".yml"
+  - .py
+  - .md
+  - .yaml
+  - .yml
+license:
+  required: false
