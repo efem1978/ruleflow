@@ -207,6 +207,7 @@ mcp-rules-assistant diagnose --json > diagnose.json
 - 生成与校验 CI：`make ci`
 - VS Code 扩展测试：`make vscode-test`（若受限可先 `export MCP_VSCODE_TEST_ARGS=""`）
 - IDE 兼容性自检：`make ide-compat`（编译 VS Code 扩展 + 无头测试，输出 `extensions/compat_report.json`；macOS 场景下 tests_status=skipped 属正常，详见 `docs/VS_CODE_TEST.md`）
+- 打包 VSIX（供 Cursor/Windsurf 本地安装）：`npm --prefix extensions/vscode run package`；在 Cursor/Windsurf 扩展面板选择“Install from VSIX…”，选取生成的 `.vsix`（详见 `extensions/cursor/README.md`、`extensions/windsurf/README.md`）
 - 规则摄取：`make ingest`
 - 覆盖率摘要：`make coverage`
 - 本地 CI 一键执行：`make local-ci-run`（聚合 lint/type/tests/coverage‑gate，与 CI 门禁一致）

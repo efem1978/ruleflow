@@ -34,7 +34,8 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
         val btnCiValidate = JButton("校验 CI / Validate CI")
         val btnRules = JButton("规则 / Rules")
         val btnSugg = JButton("建议 / Suggestions")
-        listOf(btnRefresh, btnOpenPlan, btnStatusUpdate, btnIngest, btnCovReport, btnCovSummary, btnCiGen, btnCiValidate, btnRules, btnSugg).forEach { bar.add(it) }
+        val btnRulesSummary = JButton("规则摘要 / Rules Summary")
+        listOf(btnRefresh, btnOpenPlan, btnStatusUpdate, btnIngest, btnCovReport, btnCovSummary, btnCiGen, btnCiValidate, btnRules, btnSugg, btnRulesSummary).forEach { bar.add(it) }
 
         val basePath = project.basePath ?: ""
         fun readStatus(): String {
@@ -174,6 +175,41 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
                 ta.text = "未找到 .mcp/rules_suggestions.md\n请先执行 摄取规则（Ingest）"
             } else {
                 try { ta.text = f.readText(StandardCharsets.UTF_8) } catch (e: Exception) { ta.text = "读取失败: ${e.message}" }
+            }
+        }
+
+        fun rulesSummaryFromJson(s: String): String {
+            return try {
+                val minMod = Regex("\\\"coverage.min_module\\\"\\s*:\\s*([0-9.]+)").find(s)?.groupValues?.get(1)?.toDoubleOrNull() ?: 0.0
+                val minCore = Regex("\\\"coverage.min_core\\\"\\s*:\\s*([0-9.]+)").find(s)?.groupValues?.get(1)?.toDoubleOrNull() ?: 0.0
+                val conflictsInner = Regex("\\\"conflicts\\\"\\s*:\\s*\\[(.*?)\\]", RegexOption.DOT_MATCHES_ALL).find(s)?.groupValues?.get(1) ?: ""
+                val confCount = if (conflictsInner.isNotEmpty()) Regex("\\{", RegexOption.DOT_MATCHES_ALL).findAll(conflictsInner).count() else 0
+                val suggInner = Regex("\\\"suggestions\\\"\\s*:\\s*\\[(.*?)\\]", RegexOption.DOT_MATCHES_ALL).find(s)?.groupValues?.get(1) ?: ""
+                val suggCount = if (suggInner.isNotEmpty()) Regex("\\{", RegexOption.DOT_MATCHES_ALL).findAll(suggInner).count() else 0
+                val sb = StringBuilder()
+                sb.appendLine("规则摘要：")
+                sb.appendLine("- 覆盖率（模块最低）: ${fmtPercent(minMod)}")
+                sb.appendLine("- 覆盖率（核心最低）: ${fmtPercent(minCore)}")
+                sb.appendLine("- 冲突条目: $confCount")
+                sb.appendLine("- 建议条目: $suggCount")
+                sb.toString()
+            } catch (e: Exception) {
+                "解析失败: ${e.message}"
+            }
+        }
+
+        btnRulesSummary.addActionListener {
+            val jf = File(basePath, ".mcp/rules_compiled.json")
+            val mf = File(basePath, ".mcp/rules_compiled.md")
+            if (jf.exists()) {
+                try {
+                    val text = jf.readText(StandardCharsets.UTF_8)
+                    ta.text = rulesSummaryFromJson(text)
+                } catch (e: Exception) { ta.text = "读取失败: ${e.message}" }
+            } else if (mf.exists()) {
+                try { ta.text = mf.readText(StandardCharsets.UTF_8) } catch (e: Exception) { ta.text = "读取失败: ${e.message}" }
+            } else {
+                ta.text = "未找到 .mcp/rules_compiled.json/.md\n请先执行 摄取规则（Ingest）"
             }
         }
 
