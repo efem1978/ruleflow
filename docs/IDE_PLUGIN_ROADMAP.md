@@ -32,9 +32,9 @@
 1) 编写 Cursor/Windsurf 安装与诊断指南（本仓库内）。
 2) 验证 VSIX 在 Cursor/Windsurf 的 API 兼容性（本地与 CI 报告）。
 3) 产出 JetBrains 插件骨架设计（模块结构、入口点、与 server 的交互）。
+   - 已落库最小骨架：`extensions/jetbrains/`（Gradle 配置 + ToolWindow）。
 
 备注
 - 坚持“奥卡姆剃刀原则”：
   - Cursor/Windsurf 复用 VSIX；不单独分叉代码。
   - JetBrains 仅实现“必要出口 + 面板”，避免与 VS Code 面板在 UI 上过度一致而导致高成本。
-
