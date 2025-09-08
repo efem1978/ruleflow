@@ -77,6 +77,12 @@ MCP 规则与上下文助手 / MCP Rules & Context Assistant
 - 环境准备（可选）：`mcp-rules-assistant prepare-env --install`（或 `--dry-run` 查看计划）
 - 一键维护：`python -m mcp_rules_assistant.cli maintenance`（安装 hooks + 自修复 CI）
 - 预检（无人值守快照）：`make preflight`
+- 本机安装验证（CLI + 面板）一页流：
+  - `pip install -e .`
+  - `mcp-rules-assistant init && mcp-rules-assistant install-hooks`
+  - 运行测试生成 `coverage.xml`
+  - VS Code：`npm --prefix extensions/vscode run compile` → F5 启动“扩展开发主机” → `RuleFlow: Open Panel`
+  - 面板：执行“摄取规则/加载覆盖率/生成或校验 CI（预览成功即通过）”
  - 安装钩子（回退）：`make hooks-sh`（无 Python 环境）
 
 文档 Docs（入口：`DEVELOPMENT.md`）

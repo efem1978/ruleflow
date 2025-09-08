@@ -19,6 +19,16 @@
 - [x] 构建 Python 包（dist/*.whl, *.tar.gz）
 - [x] 构建 VS Code 扩展（extensions/vscode/*.vsix）
 - [ ] 本机安装验证（CLI + 面板）
+  - 步骤（参考）：
+    1) 安装：`pip install -e .`
+    2) 生成配置与钩子：`mcp-rules-assistant init && mcp-rules-assistant install-hooks`
+    3) 运行测试与覆盖率：`PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q -p pytest_cov --cov=mcp_rules_assistant --cov-report=xml:coverage.xml`
+    4) VS Code：`npm --prefix extensions/vscode run compile`，F5 启动“扩展开发主机”，执行 `RuleFlow: Open Panel`
+    5) 面板验证：
+       - “摄取规则”：输入 `README.md, docs/`
+       - “加载覆盖率”：展示弱项/分组/近阈值/目录树
+       - “安装钩子/生成 CI”：按钮可用，CI 预览成功
+    6) 退出并记录：如需脚本化，执行 `make verify`（预检+测试+覆盖率 gate）
 - [ ] 仓库可设为私有或保留公开但标注“内测，不对外发布”
 - [ ] 暂不配置 Secrets/不打标签发布（保留后续能力）
 

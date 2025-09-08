@@ -552,6 +552,10 @@ jobs:
         working-directory: extensions/vscode
         run: |
           MCP_VSCODE_TEST_ARGS="" xvfb-run -a npm test 2>&1 | tee vscode-test.log
+      - name: IDE Compatibility Summary (best-effort)
+        run: |
+          sh scripts/ide-compat-check.sh || true
+          if [ -f extensions/compat_report.json ]; then echo "[ide-compat] found"; else echo "[ide-compat] missing (ok)"; fi
       - name: VS Code coverage threshold (warn)
         run: |
           sh scripts/check-lcov.sh extensions/vscode/coverage/lcov.info 30
@@ -563,6 +567,12 @@ jobs:
           files: extensions/vscode/coverage/lcov.info
           flags: vscode
           fail_ci_if_error: false
+      - name: Upload IDE compat report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ide-compat
+          path: extensions/compat_report.json
       - name: Upload VS Code test log
         if: always()
         uses: actions/upload-artifact@v4
