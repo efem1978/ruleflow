@@ -48,3 +48,10 @@ CI
 版本固定说明（semgrep）
 - 为提升可重复性，CI 与生成器均固定 semgrep 版本（当前 1.91.x）。
 - 若组织统一维护自有规则或版本，可在 CI 中改为自定义安装命令，并在本文件与生成器（`hooks.py`）的渲染逻辑保持一致。
+
+附：detect-secrets baseline（可选）
+- 若启用 `security.secrets_scan`，建议生成 baseline 文件：
+  - 安装：`pip install detect-secrets`
+  - 生成：`detect-secrets scan > .secrets.baseline`
+  - 更新：`detect-secrets scan --baseline .secrets.baseline > .secrets.baseline`
+  - pre-commit 将在 push 阶段读取 baseline 做增量扫描

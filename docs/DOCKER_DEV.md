@@ -13,6 +13,7 @@
 - `.mcp/dashboard/status.json`：最近一次循环的聚合状态（计划、测试、覆盖率、任务等）。
 - `.mcp/dashboard/history.json`：历史摘要队列（最多 50 条）。
 - `.mcp/dashboard/fail_counters.json`：失败计数与冻结状态。
+  - 简要：`.mcp/dashboard/status_brief.json`（overall/weak_count/timestamp），便于轻量查看。
   - 覆盖率阈值遵循 `.mcp/assistant.yaml`（核心≥98%、其余≥95%；默认 min_module≥95%）。
 
 文件与目录
@@ -43,3 +44,8 @@
    - `.mcp/plan.md` 有 [x]/[ ] 勾选项，且 `当前步骤` 随进度变化；
    - 如需无人值守提交，请在 Compose 中显式启用：`DEV_AGENT_AUTOCOMMIT=1`（可选）与 `DEV_AGENT_AUTOPUSH=1`（可选）；默认已禁用。
    - 覆盖率弱项清零（面板 Weak 为空）。
+常见工具参数（hadolint）
+- 忽略特定规则示例：`--ignore DL3008 --ignore DL3013`
+
+历史清理
+- `.mcp/dashboard/history.json` 默认保留最近 50 条；如需手动清理，可安全删除该文件，dev_agent 会在下一轮重建。

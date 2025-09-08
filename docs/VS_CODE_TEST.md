@@ -58,3 +58,8 @@ Copilot 集成（可选）
 - 执行工具失败：先在项目根运行 `pip install ruff black isort mypy bandit pytest pytest-cov pre-commit`
 - 规则资源读取报错：先执行“摄取规则 / Ingest”或在根目录生成 `.mcp/rules_compiled.*`
  - 信息条与快速操作：资源缺失时，面板顶部“信息条”会提示缺失原因；缺少规则/建议时会出现“快速摄取 / Quick Ingest”按钮，点击按提示输入路径进行摄取
+快速失败排查（macOS/无头）
+- 若 `npm --prefix extensions/vscode test` 失败：
+  - 清空默认参数：`export MCP_VSCODE_TEST_ARGS=""`
+  - 重试：`npm --prefix extensions/vscode test`
+  - 仍失败可在兼容自检报告中看到 tests_status=skipped（见 `make ide-compat`），属正常可忽略

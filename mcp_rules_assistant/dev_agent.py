@@ -635,6 +635,35 @@ class DevAgent:
             },
         }
         _persist_fail_state(dash / FAIL_COUNTERS_FILE, cnt, last, freeze)
+        # brief status for lightweight consumers
+        try:
+            prog = status.get("progress")
+            prog_overall = 0.0
+            if isinstance(prog, dict):
+                try:
+                    prog_overall = float(prog.get("overall", 0.0))
+                except Exception:
+                    prog_overall = 0.0
+            cov = status.get("coverage")
+            weak_len = 0
+            if isinstance(cov, dict):
+                try:
+                    w = cov.get("weak", [])
+                    weak_len = len(w) if isinstance(w, list) else 0
+                except Exception:
+                    weak_len = 0
+            ts = 0.0
+            ts_raw = status.get("timestamp", 0.0)
+            try:
+                ts = float(ts_raw) if isinstance(ts_raw, (int, float, str)) else 0.0
+            except Exception:
+                ts = 0.0
+            brief = {"overall": prog_overall, "weak_count": weak_len, "timestamp": ts}
+            atomic_write_text(
+                dash / "status_brief.json", json.dumps(brief, ensure_ascii=False)
+            )
+        except Exception:
+            pass
 
     def _persist_status_and_history(
         self, status: Dict[str, object], dash: Path, t0: float

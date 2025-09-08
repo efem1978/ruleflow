@@ -70,6 +70,7 @@ RuleFlow: Open PanelMCP 规则与上下文助手 / MCP Rules & Context Assistant
 
 文档 Docs（入口：`DEVELOPMENT.md`）
 （快速入口：`DEVELOPMENT.md` | `docs/IDE_SCAFFOLD.md` | `docs/USAGE.md`）
+- 插件化路线：`docs/IDE_PLUGIN_ROADMAP.md`
 - DEVELOPMENT：`DEVELOPMENT.md`（开发入口 / TDD 计划 / AI 约束 / 文档索引）
 - docs/ARCHITECTURE.md：架构与模块
 - docs/PERFORMANCE.md：性能模式与触发点（默认 Fast）
@@ -199,6 +200,9 @@ mcp-rules-assistant rules-suggestions --format csv --output suggestions.csv
 
 # 环境诊断
 mcp-rules-assistant diagnose --json > diagnose.json
+
+# 混合摄取（多个文件与目录）
+mcp-rules-assistant ingest-rules README.md docs/ ARCHITECTURE.md rules/
 ```
 
 快捷操作 Makefile（可选）

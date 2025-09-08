@@ -22,6 +22,9 @@ SYNONYMS: Dict[str, str] = {
     "校验规则": "rules.validate",
     "validate rules": "rules.validate",
     "应用门禁": "rules.enforce",
+    "生成门禁": "rules.enforce",
+    "门禁回写": "rules.enforce",
+    "enforce gates": "rules.enforce",
     "enforce rules": "rules.enforce",
     "apply gates": "rules.enforce",
     # 规则引导/前置问答

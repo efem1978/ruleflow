@@ -260,6 +260,9 @@ export function activate(context: vscode.ExtensionContext) {
             const ip = document.getElementById('nearPct') as HTMLInputElement;
             const v = parseInt((ip && ip.value) || '3', 10) || 3;
             (window as any).__nearPct = v;
+            try { vscode.setState && vscode.setState({ nearPct: v }); } catch {}
+            try { localStorage.setItem('ruleflow.nearPct', String(v)); } catch {}
+            try { vscode.postMessage({ t: 'saveNearPct', v }); } catch {}
             vscode.postMessage({ t: 'covNearPrompt', last: v });
           };
           const memBtn = document.createElement('button');
@@ -310,6 +313,13 @@ export function activate(context: vscode.ExtensionContext) {
           if (btnClr) btnClr.onclick = () => { vscode.postMessage({ t: 'nlClearHistory' }); };
           vscode.postMessage({ t: 'nlFetchHistory' });
 
+          // 初始化 nearPct 值
+          try {
+            const st = vscode.getState && vscode.getState();
+            const saved = (st && st.nearPct) || Number(localStorage.getItem('ruleflow.nearPct')||'0') || 0;
+            if (saved) { (window as any).__nearPct = saved; const ip = document.getElementById('nearPct') as HTMLInputElement; if (ip) ip.value = String(saved); }
+          } catch {}
+
           window.addEventListener('message', (e) => {
             const msg = e.data || {};
             const setTicker = () => {
@@ -339,6 +349,7 @@ export function activate(context: vscode.ExtensionContext) {
               const items = msg.items || [];
               const pct = msg.pct || 3;
               (window as any).__nearPct = pct;
+              try { vscode.setState && vscode.setState({ nearPct: pct }); } catch {}
               (window as any).__near = items;
               setTicker();
               const ulw = document.getElementById('covWeak');
@@ -519,6 +530,16 @@ export function activate(context: vscode.ExtensionContext) {
                   li.appendChild(a);
                   ul.appendChild(li);
                 });
+              }
+            }
+            if (msg.t === 'suggestIngest') {
+              const bar = document.querySelector('div[style*="margin:8px 0;"]');
+              if (bar && !document.getElementById('btnQuickIngest')) {
+                const qi = document.createElement('button');
+                qi.id = 'btnQuickIngest';
+                qi.textContent = '快速摄取 / Quick Ingest';
+                (qi as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'ingestRules' });
+                bar.appendChild(qi);
               }
             }
             if (msg.t === 'covNear') {

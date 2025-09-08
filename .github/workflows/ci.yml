@@ -110,14 +110,20 @@ PY
             near.csv
             near.json
             tests-artifacts.tar.gz
-      - name: Upload Python coverage to Codecov (conditional)
-        if: always()
-        uses: codecov/codecov-action@v4
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: coverage.xml
-          flags: python
-          fail_ci_if_error: false
+  - name: Upload Python coverage to Codecov (conditional)
+    if: always()
+    uses: codecov/codecov-action@v4
+    with:
+      token: ${{ secrets.CODECOV_TOKEN }}
+      files: coverage.xml
+      flags: python
+      fail_ci_if_error: false
+  - name: Codecov token hint (note only)
+    if: always()
+    run: |
+      if [ -z "${{ secrets.CODECOV_TOKEN }}" ]; then
+        echo "[hint] CODECOV_TOKEN not set; upload step is best-effort."
+      fi
       - name: Security (bandit — high only)
         run: |
           bandit -q -lll -x tests -r .

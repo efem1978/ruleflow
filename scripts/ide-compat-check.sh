@@ -13,6 +13,7 @@ vsix_ok=0
 vsix_path=""
 cursor_hint=""
 windsurf_hint=""
+schema="ruleflow.ide-compat.v1"
 node_ver=""
 engine_req=""
 
@@ -81,6 +82,7 @@ python3 - <<'PY' || true
 import json,os
 rep=os.environ.get('REPORT')
 d={
+  'schema': os.environ.get('schema',''),
   'vscode_engine': os.environ.get('engine_req',''),
   'node': os.environ.get('node_ver',''),
   'compile_ok': os.environ.get('ok_compile','0')=='1',

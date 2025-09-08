@@ -507,7 +507,10 @@ class JsonRpcServer:
                     do_quick_tests=True,
                 )
                 if strict and not result_checks.get("ok", True):
-                    raise ValueError("受控写入后的检查未通过（lint/type/tests）")
+                    raise ValueError(
+                        "受控写入后的检查未通过（lint/type/tests）。"
+                        "可在 .mcp/assistant.yaml 中调整 execution.fs_guard_post_checks / fs_guard_strict。"
+                    )
             out: Dict[str, Any] = {
                 "ok": True,
                 "written": 0 if dry_run else len(files),
