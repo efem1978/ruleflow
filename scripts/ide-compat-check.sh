@@ -9,6 +9,8 @@ ok_compile=0
 ok_tests=0
 note=""
 tests_status="unknown"
+vsix_ok=0
+vsix_path=""
 node_ver=""
 engine_req=""
 
@@ -45,6 +47,14 @@ if [ -d "$VS_DIR" ]; then
       note="vscode-test may require GUI/flags on this OS; see docs/VS_CODE_TEST.md"
     fi
   fi || true
+
+  # Try packaging VSIX (best-effort)
+  if npm --prefix "$VS_DIR" run package >/dev/null 2>&1; then
+    latest_vsix="$(ls -t "$VS_DIR"/*.vsix 2>/dev/null | head -n 1 || true)"
+    if [ -n "$latest_vsix" ]; then vsix_ok=1; vsix_path="$latest_vsix"; fi
+  else
+    if [ -z "$note" ]; then note="VSIX package may require 'vsce' devDependency install"; else note="$note; VSIX package may require 'vsce' install"; fi
+  fi
 fi
 
 # Derive tests_status (ok / skipped / fail)
@@ -69,6 +79,8 @@ d={
   'compile_ok': os.environ.get('ok_compile','0')=='1',
   'tests_ok': os.environ.get('ok_tests','0')=='1',
   'tests_status': os.environ.get('tests_status','unknown'),
+  'vsix_ok': os.environ.get('vsix_ok','0')=='1',
+  'vsix': os.environ.get('vsix_path',''),
   'note': os.environ.get('note',''),
 }
 open(rep,'w',encoding='utf-8').write(json.dumps(d,ensure_ascii=False,indent=2))

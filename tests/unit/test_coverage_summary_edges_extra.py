@@ -21,3 +21,19 @@ def test_read_invalid_coverage_xml_graceful(tmp_path: Path) -> None:
     assert out.get("ok") is True
     assert out.get("count") == 0
     assert out.get("weak") == []
+
+
+def test_summarize_tree_when_no_weak(tmp_path: Path) -> None:
+    # Minimal valid coverage xml with zero classes → no weak → tree still returned
+    cov = (
+        '<coverage line-rate="1.0" branch-rate="0" version="1" timestamp="0">'
+        "<packages></packages></coverage>"
+    )
+    (tmp_path / "coverage.xml").write_text(cov, encoding="utf-8")
+    tree = cs.summarize_tree(
+        project_root=tmp_path, coverage_xml="coverage.xml", policy=None, min_module=0.9
+    )
+    assert tree.get("ok") is True
+    root = tree.get("tree")
+    assert isinstance(root, dict)
+    assert root.get("name") == "/"
