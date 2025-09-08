@@ -92,7 +92,7 @@ Phase E — 集成与 CLI
  - 依赖精简；版本号对齐（0.2.4）。
 
 1) CI 与门禁
-   - [ ] 修复 CI matrix 表达式（`${{ matrix.python-version }}`），或运行 `mcp-rules-assistant ci-autofix` 重新生成
+   - [x] 修复 CI matrix 表达式（`${{ matrix.python-version }}`），或运行 `mcp-rules-assistant ci-autofix` 重新生成
    - [ ] `make local-ci-run` 全绿；Coverage Policy Gate 无 weak
 2) 自动任务记录
    - [x] `status-update` 输出 `tasks.pending/done` 列表至 `.mcp/dashboard/status.json`
@@ -102,8 +102,8 @@ Phase E — 集成与 CLI
    - [ ] `fs_wrapper.py`：权限/白名单/后置检查（目标 ≥95%）
    - [ ] `license_utils.py`：hs256/rs256 组合用例（目标 ≥90%）
 4) 文档与可发现性
-   - [ ] 在 `DEVELOPMENT.md` 增加“下一步 / Next Actions”指向 `.mcp/plan.md`
-   - [ ] 同步本文件清单与 `.mcp/plan.md` 清单（以 `.mcp/plan.md` 为权威）
+   - [x] 在 `DEVELOPMENT.md` 增加“下一步 / Next Actions”指向 `.mcp/plan.md`
+   - [x] 同步本文件清单与 `.mcp/plan.md` 清单（以 `.mcp/plan.md` 为权威）
 5) 清理与一致性
   - [x] 移除根 `bad.py`、`ok2.py`、`a.py`、`link.py` 与 `docs/b.txt`
 6) 可选增强

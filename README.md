@@ -44,6 +44,11 @@ RuleFlow: Open PanelMCP 规则与上下文助手 / MCP Rules & Context Assistant
   - rs256：提供私钥 `--private-key private.pem` 生成；设置 `MCP_LICENSE_PUBKEY` 公钥进行校验
 
 快速开始 Quick Start（性能优先）
+三步极简上手（Minimal 3 steps）
+1) 初始化与规则摄取：`mcp-rules-assistant init && mcp-rules-assistant ingest-rules README.md docs/`
+2) 生成并校验 CI：`mcp-rules-assistant generate-ci && mcp-rules-assistant ci-validate`
+3) 加载覆盖率与状态：`PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q -p pytest_cov --cov=mcp_rules_assistant --cov-report=xml:coverage.xml && mcp-rules-assistant status-update`
+
 （五步快速上手）
 - 初始化与规则摄取：`mcp-rules-assistant init && mcp-rules-assistant ingest-rules README.md docs/`
 - 安装本地钩子：`mcp-rules-assistant install-hooks`
