@@ -293,11 +293,27 @@ class JsonRpcServer:
             new_path = args.get("path")
             if new_path:
                 p = Path(new_path).expanduser().resolve()
+                old_root = self.project_root
+                # 在旧项目记忆中记录“切换到”链接
+                try:
+                    self.mm.add_link(p.name or str(p), "switched_to", str(p))
+                except Exception:
+                    pass
+                # 切换项目根
                 self.project_root = p
                 # Rebind per-project helpers
                 self.mm = MemoryManager(self.project_root)
                 self.fs = FSGuard(self.project_root)
                 self.cfg = load_config(self.project_root)
+                # 在新项目记忆中记录“来自”链接
+                try:
+                    self.mm.add_link(
+                        old_root.name if hasattr(old_root, "name") else str(old_root),
+                        "switched_from",
+                        str(old_root),
+                    )
+                except Exception:
+                    pass
             return {"ok": True, "root": str(self.project_root)}
         if name == "project.link":
             target = str(args.get("project", "")).strip()

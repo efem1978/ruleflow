@@ -160,7 +160,7 @@
 - 覆盖率（coverage.xml 总体）: ≥98%（以 `--cov=mcp_rules_assistant` 统计）
 - 弱项（weak）：0（`coverage-report --json`）
 - 近阈值（near）：小量文件（如 coverage_summary.py 等）处于阈值上方 ≤1.2% 范围，可作为后续微调目标
-- 策略阈值（.mcp/assistant.yaml）：min_module=0.96；核心（config/progress/tools/memory/mcp_server/cli/server）≥0.98；dev_agent ≥0.95；license_utils ≥0.90（均已达成）
+- 策略阈值（.mcp/assistant.yaml）：min_module=0.96；核心（config/progress/tools/memory/mcp_server/cli/server）≥0.98；dev_agent ≥0.95；license_utils ≥0.95（均已达成）
 ## 统一子进程封装 / Unified Process Runner
 
 - 模块：`mcp_rules_assistant/process.py` 提供 `run_cmd` 统一封装。

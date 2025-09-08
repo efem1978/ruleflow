@@ -80,21 +80,22 @@ def license_generate(
     issued_to: str = typer.Option(..., "--issued-to", help="被授权人/组织"),
     expires: str = typer.Option(..., "--expires", help="到期日 YYYY-MM-DD"),
     machine: str = typer.Option("", "--machine", help="机器指纹（可留空）"),
-    alg: str = typer.Option("hs256", "--alg", help="hs256 或 rs256"),
+    alg: str = typer.Option("hs256", "--alg", help="hs256/rs256/ed25519"),
     private_key: Optional[str] = typer.Option(
-        None, "--private-key", help="rs256 私钥 PEM 路径"
+        None, "--private-key", help="rs256/ed25519 私钥 PEM 路径"
     ),
     out: Optional[str] = typer.Option(None, "--out", help="输出路径（默认打印）"),
 ) -> None:
-    """离线生成 license（演示版）：支持 hs256/rs256。
+    """离线生成 license（演示版）：支持 hs256/rs256/ed25519。
 
     - hs256：使用环境变量 MCP_LICENSE_SALT（可选）计算签名；便于本地试用/演示。
     - rs256：需要 --private-key 指定 PEM 格式 RSA 私钥；验证通过 MCP_LICENSE_PUBKEY 公钥。
+    - ed25519：需要 --private-key 指定 PEM 格式 Ed25519 私钥；验证通过 MCP_LICENSE_ED25519_PUBKEY 公钥。
     """
     pk_bytes = None
-    if alg.lower() == "rs256":
+    if alg.lower() in {"rs256", "ed25519"}:
         if not private_key:
-            rprint({"ok": False, "message": "--private-key required for rs256"})
+            rprint({"ok": False, "message": "--private-key required for rs256/ed25519"})
             raise typer.Exit(2)
         p = Path(private_key).expanduser().resolve()
         if not p.exists():

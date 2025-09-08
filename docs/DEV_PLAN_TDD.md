@@ -35,9 +35,9 @@ Phase C — 检查与门禁（边界与降级）
   - generate_pre_commit_config 启动 secrets 与 Docker 基线（push 阶段）。
 
 Phase D — 覆盖率与政策门禁（生产化）
-- 在 `.mcp/assistant.yaml` 中设置政策阈值：
+ - 在 `.mcp/assistant.yaml` 中设置政策阈值：
   - config.py/progress.py/tools.py/memory.py → 0.98
-  - 其余由 `min_module: 0.95` 统一控制
+  - 其余由 `min_module: 0.95` 统一控制；特殊覆盖的非核心模块最低不低于 0.95（如 license_utils.py ≥0.95）
 - CI 增加 “Coverage Policy Gate”：
   - 运行 `coverage-report --json`，若存在 `weak` 文件即失败
   - 新增无 skip/xfail 标记检查；继续维持 `-W error`
@@ -93,14 +93,14 @@ Phase E — 集成与 CLI
 
 1) CI 与门禁
    - [x] 修复 CI matrix 表达式（`${{ matrix.python-version }}`），或运行 `mcp-rules-assistant ci-autofix` 重新生成
-   - [ ] `make local-ci-run` 全绿；Coverage Policy Gate 无 weak
+   - [x] `make local-ci-run` 全绿；Coverage Policy Gate 无 weak
 2) 自动任务记录
    - [x] `status-update` 输出 `tasks.pending/done` 列表至 `.mcp/dashboard/status.json`
-   - [ ] 面板可选展示剩余任务（非阻断）
+   - [x] 面板可选展示剩余任务（非阻断）
 3) 覆盖率差距收敛
-   - [ ] `mcp_server.py`：初始化/错误与 `fs.apply_patch(strict)` 拒绝路径测试（目标 ≥98%）
-   - [ ] `fs_wrapper.py`：权限/白名单/后置检查（目标 ≥95%）
-   - [ ] `license_utils.py`：hs256/rs256 组合用例（目标 ≥90%）
+   - [x] `mcp_server.py`：初始化/错误与 `fs.apply_patch(strict)` 拒绝路径测试（目标 ≥98%）
+   - [x] `fs_wrapper.py`：权限/白名单/后置检查（目标 ≥95%）
+   - [x] `license_utils.py`：hs256/rs256 组合用例与异常分支补齐（目标 ≥95%）
 4) 文档与可发现性
    - [x] 在 `DEVELOPMENT.md` 增加“下一步 / Next Actions”指向 `.mcp/plan.md`
    - [x] 同步本文件清单与 `.mcp/plan.md` 清单（以 `.mcp/plan.md` 为权威）

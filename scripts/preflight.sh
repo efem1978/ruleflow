@@ -18,7 +18,7 @@ else
 fi
 
 echo "[preflight] checking for tracked forbidden files (report-only)..."
-FORBID_FILES="bad.py ok2.py docs/b.txt cov.json cov_cli.json coverage.xml pytest-junit.xml"
+FORBID_FILES="bad.py ok2.py ok.txt docs/b.txt cov.json cov_cli.json coverage.xml pytest-junit.xml extensions/vscode/*.vsix"
 FOUND=0
 for f in $FORBID_FILES; do
   if git ls-files --error-unmatch "$f" >/dev/null 2>&1; then

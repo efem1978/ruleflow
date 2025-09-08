@@ -17,6 +17,12 @@ Everyday Workflow
   - `python3 -m mcp_rules_assistant.cli ingest-rules README.md docs/`
   - `python3 -m mcp_rules_assistant.cli rules-explain --json`
 
+Do not commit generated artifacts
+- Coverage/test artifacts: `coverage.xml`, `.coverage*`, `cov*.json`, `pytest-junit.xml`
+- VS Code extension outputs: `extensions/vscode/out/`, `extensions/vscode/coverage/`, `*.vsix`
+- Build outputs: `dist/`, `build/`, `*.egg-info/`
+(The repo `.gitignore` and `scripts/preflight.sh` help prevent accidental commits.)
+
 Commit & Push Gates
 - Pre-commit hooks are installed via: `python3 -m mcp_rules_assistant.cli install-hooks`
 - Commit requirements:
@@ -44,4 +50,3 @@ Troubleshooting
 - Coverage gate failed? Improve tests near threshold files (see `python3 -m mcp_rules_assistant.cli coverage-near --within 3 --top 20`).
 
 More docs in `docs/CONTRIBUTING.md`, `README.md`, and `DEVELOPMENT.md`.
-

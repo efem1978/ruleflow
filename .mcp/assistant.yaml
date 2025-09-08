@@ -29,7 +29,7 @@ coverage:
     cli.py: 0.98
     server.py: 0.98
     dev_agent.py: 0.95
-    license_utils.py: 0.90
+    license_utils.py: 0.95
   near:
     within: 0.03
     top: 50

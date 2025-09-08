@@ -116,6 +116,7 @@ Hooks & CI（最小闭环）
 - 安装钩子：`mcp-rules-assistant install-hooks`
 - 生成 CI：`mcp-rules-assistant generate-ci`
  - CI 将包含 `prepare` 作业：调用 `env.prepare` 创建 `.mcp/venv` 并在 venv 中执行 pytest+覆盖率
+ - 版本固定：CI 固定 `hadolint` 镜像标签与 `semgrep`/`bandit` 版本，提升可重复性
 - 提交信息约束：计划处于 in_progress，提交信息需包含 `[step:当前步骤]`
 - 自动增强：若已摄取规则包含 `security.secrets_scan`/`container.required` 等，将自动加入 detect-secrets（push 阶段）与 Dockerfile 检查等步骤（CI），不影响保存性能
  - 可配置：`ci.hadolint: true`（容器存在时在 CI 中运行 hadolint）；`ci.semgrep_config: auto|自定义规则集`，`ci.hadolint_image/ci.hadolint_args` 可调
@@ -198,4 +199,10 @@ mcp-rules-assistant diagnose --json > diagnose.json
 - 事件钩子：`run_cmd(..., on_event=callback)` 可获取 start/end/error 事件（含耗时/返回码）。
 - 即时日志：设置 `MCP_RUN_CMD_LOG=1` 或参数 `log=True` 可在控制台输出 start/end/error 摘要。
 - 周期事件：Dev Agent 将本轮命令事件落盘至 `.mcp/dashboard/cmd_events.json`（最近 200 条）与 `cmd_events.jsonl`（追加）。
+
+不提交的生成物（请勿入库）
+- `coverage.xml`、`.coverage*`、`cov*.json`、`pytest-junit.xml`
+- VS Code 产物与包：`extensions/vscode/out/`、`extensions/vscode/coverage/`、`*.vsix`
+- 其他临时目录：`.mypy_cache/`、`.ruff_cache/`、`.pytest_cache/`、`dist/`、`build/`
+（仓库已在 `.gitignore` 与 `scripts/preflight.sh` 做了兜底）
 - CI 注释：Bandit 对高严重度或常见规则（B101/B404/B603/B110/B112）自动输出 GitHub Actions 警告注释（文件/行/标题/摘要）。

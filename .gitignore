@@ -28,6 +28,8 @@ cov.json
 cov*.json
 /bad.py
 /ok2.py
+/ok.txt
+docs/b.txt
 
 # Test reports (do not commit)
 pytest-junit.xml

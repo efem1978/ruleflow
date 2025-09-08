@@ -19,7 +19,8 @@ jobs:
           python -m pip install --upgrade pip
           # Optional crypto (rs256 license verification support)
           pip install cryptography || true
-          pip install ruff black isort mypy bandit pytest pytest-cov types-PyYAML
+          # Pin bandit for reproducibility; other tools follow latest minor
+          pip install ruff black isort mypy bandit==1.7.7 pytest pytest-cov types-PyYAML
       - name: Pre-commit (all files)
         run: |
           python -m pip install pre-commit
@@ -317,7 +318,8 @@ PY
           path: bandit-trend.txt
       - name: SAST (semgrep)
         run: |
-          python -m pip install semgrep
+          # Pin semgrep to a known-good version for reproducibility
+          python -m pip install semgrep==1.91.0
           semgrep --error --config auto
       - name: Mutation testing
         run: |

@@ -1,6 +1,34 @@
 import * as vscode from 'vscode';
 import { spawn, ChildProcessWithoutNullStreams } from 'child_process';
 
+// ---- Workspace helpers (multi-root aware, Occam's razor) ----
+function getWorkspaceRoot(): string | undefined {
+  try {
+    const ed = vscode.window.activeTextEditor;
+    if (ed) {
+      const folder = vscode.workspace.getWorkspaceFolder(ed.document.uri);
+      if (folder) return folder.uri.fsPath;
+    }
+    return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  } catch {
+    return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  }
+}
+
+function getWorkspaceLabel(): string {
+  try {
+    const ed = vscode.window.activeTextEditor;
+    if (ed) {
+      const folder = vscode.workspace.getWorkspaceFolder(ed.document.uri);
+      if (folder) return folder.name;
+    }
+    const ws0 = vscode.workspace.workspaceFolders?.[0];
+    return ws0?.name || '当前工作区';
+  } catch {
+    return '当前工作区';
+  }
+}
+
 class McpClient {
   private proc: ChildProcessWithoutNullStreams | null = null;
   private seq = 0;
@@ -13,7 +41,7 @@ class McpClient {
       ? process.env.MCP_PYTHON_BIN.trim()
       : (process.platform === 'win32' ? 'python' : 'python3');
     this.proc = spawn(pyBin, ['-m', 'mcp_rules_assistant.cli', 'start'], {
-      cwd: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
+      cwd: getWorkspaceRoot(),
       stdio: ['pipe', 'pipe', 'pipe']
     });
     this.proc.on('error', (err) => {
@@ -642,8 +670,7 @@ export function activate(context: vscode.ExtensionContext) {
       const list = (tools.tools || []).map((t: any) => `<li><code>${t.name}</code> — ${t.description}</li>`).join('');
       panel.webview.html = render('', list);
       try {
-        const ws0 = vscode.workspace.workspaceFolders?.[0];
-        panel.webview.postMessage({ t: 'project', name: (ws0?.name || '当前工作区') });
+        panel.webview.postMessage({ t: 'project', name: getWorkspaceLabel() });
         const diag = await client.request('tools/call', { name: 'env.diagnose', arguments: {} });
         panel.webview.postMessage({ t: 'license', license: (diag && (diag as any).license) || {} });
         // 缺少工具或 venv 时，提示一键准备环境
@@ -652,7 +679,7 @@ export function activate(context: vscode.ExtensionContext) {
         ['pytest', 'pre-commit', 'ruff', 'mypy', 'bandit'].forEach(k => { if (!toolsMap[k]) missing.push(k); });
         let venvMissing = false;
         try {
-          const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+          const ws = getWorkspaceRoot();
           if (ws) {
             const uri = vscode.Uri.file(ws + '/.mcp/venv');
             await vscode.workspace.fs.stat(uri).then(()=>{}, ()=>{ venvMissing = true; });
@@ -682,7 +709,7 @@ export function activate(context: vscode.ExtensionContext) {
           const pyBin = process.env.MCP_PYTHON_BIN && process.env.MCP_PYTHON_BIN.trim()
             ? process.env.MCP_PYTHON_BIN.trim()
             : (process.platform === 'win32' ? 'python' : 'python3');
-          const cwd = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
+          const cwd = getWorkspaceRoot() || process.cwd();
           const { execFile } = require('child_process');
           execFile(pyBin, ['-m', 'mcp_rules_assistant.cli', 'status-update', '--json'], { cwd }, (err: any, stdout: string, stderr: string) => {
             if (err) {
@@ -898,11 +925,11 @@ export function activate(context: vscode.ExtensionContext) {
           vscode.window.setStatusBarMessage('已加载 CI 配置', 2000);
         } else if (msg.t === 'ciCheck') {
           try {
-            const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-            if (!ws) throw new Error('no workspace');
-            const target = vscode.Uri.file(ws + '/.github/workflows/ci.yml');
-            await vscode.workspace.fs.stat(target);
-            panel.webview.postMessage({ t: 'ciStatus', exist: true });
+          const ws = getWorkspaceRoot();
+          if (!ws) throw new Error('no workspace');
+          const target = vscode.Uri.file(ws + '/.github/workflows/ci.yml');
+          await vscode.workspace.fs.stat(target);
+          panel.webview.postMessage({ t: 'ciStatus', exist: true });
           } catch {
             panel.webview.postMessage({ t: 'ciStatus', exist: false });
           }
@@ -925,7 +952,7 @@ export function activate(context: vscode.ExtensionContext) {
           const res = await client.request('resources/read', { uri: ciUri });
           panel.webview.postMessage({ t: 'ciPreviewContent', text: res.text || '' });
         } else if (msg.t === 'ciOpen') {
-          const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath; if (!ws) return;
+          const ws = getWorkspaceRoot(); if (!ws) return;
           const target = vscode.Uri.file(ws + '/.github/workflows/ci.yml');
           try {
             await vscode.workspace.fs.stat(target);
@@ -942,7 +969,7 @@ export function activate(context: vscode.ExtensionContext) {
           const doc = await vscode.workspace.openTextDocument({ language: 'yaml', content: res.text || '' });
           await vscode.window.showTextDocument(doc, { preview: true });
         } else if (msg.t === 'ciOpen') {
-          const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath; if (!ws) return;
+          const ws = getWorkspaceRoot(); if (!ws) return;
           const target = vscode.Uri.file(ws + '/.github/workflows/ci.yml');
           try {
             await vscode.workspace.fs.stat(target);
@@ -967,7 +994,7 @@ export function activate(context: vscode.ExtensionContext) {
         } else if (msg.t === 'openCompliance') {
           try {
             // ensure file exists, then open
-            const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath; if (!ws) return;
+            const ws = getWorkspaceRoot(); if (!ws) return;
             const p = vscode.Uri.file(ws + '/.mcp/compliance.md');
             try { await vscode.workspace.fs.stat(p); }
             catch { await client.request('tools/call', { name: 'compliance.commitment', arguments: { write: true } }); }
@@ -978,7 +1005,7 @@ export function activate(context: vscode.ExtensionContext) {
           }
         } else if (msg.t === 'openIdeDir') {
           try {
-            const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath; if (!ws) return;
+            const ws = getWorkspaceRoot(); if (!ws) return;
             const p = vscode.Uri.file(ws + '/.mcp/ide');
             await vscode.commands.executeCommand('revealFileInOS', p);
           } catch (e:any) {
@@ -1029,7 +1056,7 @@ export function activate(context: vscode.ExtensionContext) {
     panel.webview.onDidReceiveMessage(async (msg) => {
       if (msg && msg.t === 'open' && msg.path) {
         try {
-          const wsRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '';
+          const wsRoot = getWorkspaceRoot() || '';
           let filePath = String(msg.path);
           // If relative, resolve to workspace root
           if (!filePath.match(/^\w:\\|^\//)) {
