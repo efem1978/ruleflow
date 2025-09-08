@@ -1090,6 +1090,26 @@ def plan_set(
     rprint("[green]✔ 计划已更新[/]")
 
 
+@app.command("plan-current")
+def plan_current(
+    text: str = typer.Argument(..., help="设置当前步骤（覆盖原值）")
+) -> None:
+    update_plan_fields(current=text)
+    rprint("[green]✔ 当前步骤已更新[/]")
+
+
+@app.command("plan-next")
+def plan_next(text: str = typer.Argument(..., help="设置下一步（覆盖原值）")) -> None:
+    update_plan_fields(nxt=text)
+    rprint("[green]✔ 下一步已更新[/]")
+
+
+@app.command("plan-done")
+def plan_done() -> None:
+    update_plan_fields(status="done")
+    rprint("[green]✔ 计划状态已设置为 done[/]")
+
+
 @app.command("license-require-on")
 def license_require_on() -> None:
     """在项目配置中启用 license.required: true（发布硬门禁，开发默认仍可关闭）。"""
@@ -1277,6 +1297,51 @@ def insert_security_samples() -> None:
     Path(".semgrep.yml").write_text(semgrep, encoding="utf-8")
     Path(".hadolint.yaml").write_text(hadolint, encoding="utf-8")
     rprint("[green]✔ 已插入示例规则[/] .semgrep.yml / .hadolint.yaml")
+
+
+@app.command("rules-export")
+def rules_export(
+    out_dir: Optional[str] = typer.Option(
+        None, "--out-dir", help="输出目录（为空时打印到标准输出）"
+    ),
+    format: str = typer.Option("all", "--format", help="md/json/all（默认 all）"),
+) -> None:
+    """导出编译规则与建议（用于交接/审阅）。"""
+    root = Path.cwd()
+    compiled_md = root / ".mcp/rules_compiled.md"
+    compiled_json = root / ".mcp/rules_compiled.json"
+    sugg_md = root / ".mcp/rules_suggestions.md"
+    fmt = format.lower()
+    want_md = fmt in ("md", "all")
+    want_json = fmt in ("json", "all")
+    if out_dir:
+        outp = Path(out_dir).expanduser().resolve()
+        outp.mkdir(parents=True, exist_ok=True)
+        if want_md:
+            if compiled_md.exists():
+                (outp / "rules_compiled.md").write_text(
+                    compiled_md.read_text(encoding="utf-8"), encoding="utf-8"
+                )
+            if sugg_md.exists():
+                (outp / "rules_suggestions.md").write_text(
+                    sugg_md.read_text(encoding="utf-8"), encoding="utf-8"
+                )
+        if want_json and compiled_json.exists():
+            (outp / "rules_compiled.json").write_text(
+                compiled_json.read_text(encoding="utf-8"), encoding="utf-8"
+            )
+        rprint({"ok": True, "out_dir": str(outp)})
+        return
+    # stdout
+    if want_json and compiled_json.exists():
+        print(compiled_json.read_text(encoding="utf-8"))
+    if want_md:
+        if compiled_md.exists():
+            print("\n# Compiled Rules (Markdown)\n")
+            print(compiled_md.read_text(encoding="utf-8"))
+        if sugg_md.exists():
+            print("\n# Suggestions (Markdown)\n")
+            print(sugg_md.read_text(encoding="utf-8"))
 
 
 @app.command("prepare-env")

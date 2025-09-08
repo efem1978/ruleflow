@@ -80,7 +80,9 @@ export function activate(context: vscode.ExtensionContext) {
       <body style="font-family: -apple-system,Segoe UI,Arial;">
         <h2>MCP 规则与上下文助手</h2>
         <p>已连接到 Python MCP Server（最小协议）。默认快速内环：保存轻、推送重。</p>
-        <div id="ticker" style="height:22px; overflow:hidden; background:#f6f6f6; border:1px solid #ddd; padding:2px 6px; margin:6px 0;"><span id="tickerText" style="display:inline-block; white-space:nowrap;"></span></div>
+        <div id="ticker" style="height:auto; background:#f6f6f6; border:1px solid #ddd; padding:4px 8px; margin:6px 0;">
+          <span id="tickerText" style="display:inline-block; white-space:nowrap; font-size:12px; color:#333;"></span>
+        </div>
         <div id="proj" style="padding:4px 6px; border:1px solid #ddd; background:#fafafa; margin:6px 0; display:flex; align-items:center; gap:8px;">
           <b>当前项目:</b> <span id="curProject">(检测中)</span>
           <button id="btnSelectProject">选择/切换项目…</button>
@@ -282,6 +284,21 @@ export function activate(context: vscode.ExtensionContext) {
 
           window.addEventListener('message', (e) => {
             const msg = e.data || {};
+            const setTicker = () => {
+              const t = document.getElementById('tickerText');
+              if (!t) return;
+              const weakAll = (window as any).__weakAll || [];
+              const nearAll = (window as any).__near || [];
+              const topWeak = (weakAll || []).slice(0, 3).map((w:any)=>`${(w.coverage*100).toFixed(1)}% ${w.file}`);
+              const topNear = (nearAll || []).slice(0, 3).map((n:any)=>`${(n.coverage*100).toFixed(1)}% ${n.file}`);
+              const parts = [
+                `弱项 ${weakAll.length}`,
+                `近阈值 ${nearAll.length}`,
+                topWeak.length ? `Top弱项: ${topWeak.join(' | ')}` : '',
+                topNear.length ? `Top近阈值: ${topNear.join(' | ')}` : ''
+              ].filter(Boolean);
+              (t as any).textContent = parts.join('  ·  ');
+            };
             if (msg.t === 'info') {
               const inf = document.getElementById('info');
               if (inf) inf.textContent = msg.text || '';
@@ -295,6 +312,7 @@ export function activate(context: vscode.ExtensionContext) {
               const pct = msg.pct || 3;
               (window as any).__nearPct = pct;
               (window as any).__near = items;
+              setTicker();
               const ulw = document.getElementById('covWeak');
               if (ulw) {
                 ulw.innerHTML = '';
@@ -481,6 +499,7 @@ export function activate(context: vscode.ExtensionContext) {
               const w = ((window as any).__weakAll || []).length || 0;
               const s = (w ? ('弱项 ' + w + ' 个；') : '') + '近阈值 ' + n + ' 个（≤3%）';
               const inf = document.getElementById('info'); if (inf) inf.textContent = s;
+              setTicker();
             }
             if (msg.t === 'covTreeData') {
               const container = document.getElementById('covTree');
@@ -580,6 +599,9 @@ export function activate(context: vscode.ExtensionContext) {
                     });
                   };
                 }
+                // store for ticker
+                (window as any).__weakAll = msg.items || [];
+                setTicker();
               }
             }
             if (msg.t === 'memory') {

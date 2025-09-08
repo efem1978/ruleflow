@@ -76,6 +76,27 @@ jobs:
           python -m mcp_rules_assistant.cli coverage-near --within 3 --top 10 --format csv --output near.csv || true
           python -m mcp_rules_assistant.cli coverage-near --within 3 --top 10 --format json --output near.json || true
           tar czf tests-artifacts.tar.gz coverage.xml pytest-junit.xml near.txt near.csv near.json || true
+      - name: Coverage Near (Top 10) Summary
+        if: always()
+        run: |
+          python - <<'PY'
+import json, os
+path = 'near.json'
+if not os.path.exists(path):
+    print('[near] near.json not found')
+    raise SystemExit(0)
+data = json.load(open(path))
+top = data[:10] if isinstance(data, list) else []
+lines = [f"- {(it.get('coverage',0)*100):.1f}% ≥ {int((it.get('threshold',0))*100)}% — {it.get('file','')}" for it in top]
+txt = "\n".join(lines)
+print('[near] top 10 near files:\n' + txt)
+# GitHub summary if supported
+gh = os.environ.get('GITHUB_STEP_SUMMARY')
+if gh:
+    with open(gh, 'a', encoding='utf-8') as f:
+        f.write('\n## Coverage Near (Top 10)\n\n')
+        f.write(txt + '\n')
+PY
       - name: Upload coverage & JUnit
         if: always()
         uses: actions/upload-artifact@v4
