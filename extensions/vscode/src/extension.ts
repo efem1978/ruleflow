@@ -346,8 +346,10 @@ export function activate(context: vscode.ExtensionContext) {
               if (el) el.textContent = String(msg.name || '(未知)');
             }
             if (msg.t === 'covNearDisplay') {
-              const items = msg.items || [];
+              let items = msg.items || [];
               const pct = msg.pct || 3;
+              const top = msg.top || items.length;
+              try { items = (items || []).slice().sort((a:any,b:any)=> (a.delta_up||0)-(b.delta_up||0)).slice(0, top); } catch {}
               (window as any).__nearPct = pct;
               try { vscode.setState && vscode.setState({ nearPct: pct }); } catch {}
               (window as any).__near = items;
@@ -365,7 +367,7 @@ export function activate(context: vscode.ExtensionContext) {
                   ulw.appendChild(li);
                 });
               }
-              const inf = document.getElementById('info'); if (inf) inf.textContent = '当前视图：近阈值（≤' + pct + '%） — ' + ((items||[]).length || 0) + ' 个';
+              const inf = document.getElementById('info'); if (inf) inf.textContent = '当前视图：近阈值（≤' + pct + '%，Top ' + top + '） — ' + ((items||[]).length || 0) + ' 个';
             }
             if (msg.t === 'suggestIngest') {
               const bar = document.querySelector('div[style*="margin:8px 0;"]');
@@ -1215,9 +1217,10 @@ export function activate(context: vscode.ExtensionContext) {
           const val = await vscode.window.showInputBox({ title: '近阈值窗口（百分比）', value: String(last), prompt: '单位 %（1–10），例如 3 表示 ≤3%' });
           if (!val) { return; }
           const pct = Math.max(1, Math.min(10, parseFloat(val))) || 3;
-          const res = await client.request('tools/call', { name: 'coverage.near', arguments: { within: pct/100.0, top: 50 } });
+          const top = 50;
+          const res = await client.request('tools/call', { name: 'coverage.near', arguments: { within: pct/100.0, top } });
           const items = (res && (res as any).near) ? (res as any).near : [];
-          panel.webview.postMessage({ t: 'covNearDisplay', items, pct });
+          panel.webview.postMessage({ t: 'covNearDisplay', items, pct, top });
         } catch (e:any) {
           vscode.window.showWarningMessage('获取近阈值失败：' + String(e));
         }

@@ -108,6 +108,34 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
             }.replace("\n", "<br/>")
         }
 
+        fun renderMdWithToc(md: String): String {
+            val lines = md.split("\n")
+            val anchors = mutableListOf<Pair<String,String>>()
+            val body = StringBuilder()
+            var idx = 1
+            for (raw in lines) {
+                if (raw.startsWith("## ")) {
+                    val title = raw.removePrefix("## ").trim()
+                    val id = "S$idx"; idx += 1
+                    anchors.add(Pair(id, title))
+                    body.append("<a name='").append(id).append("'></a><b>")
+                        .append(escapeHtml(title)).append("</b><br/>")
+                } else {
+                    body.append(linkifyPyPaths(raw))
+                }
+            }
+            val toc = if (anchors.isNotEmpty()) {
+                val b = StringBuilder()
+                b.append("<div><b>目录:</b><br/>")
+                anchors.forEach { p ->
+                    b.append("<a href='#").append(p.first).append("'>")
+                        .append(escapeHtml(p.second)).append("</a><br/>")
+                }
+                b.append("</div><hr/>").toString()
+            } else ""
+            return "<div>" + toc + body.toString() + "</div>"
+        }
+
         btnRefresh.addActionListener { showPlain(readStatus()) }
         btnOpenPlan.addActionListener {
             val plan = File(basePath, ".mcp/plan.md")
@@ -197,9 +225,9 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
         btnRules.addActionListener {
             val f = File(basePath, ".mcp/rules_compiled.md")
             if (!f.exists()) {
-                ta.text = "未找到 .mcp/rules_compiled.md\n请先执行 摄取规则（Ingest）"
+                showPlain("未找到 .mcp/rules_compiled.md\n请先执行 摄取规则（Ingest）")
             } else {
-                try { showHtml(linkifyPyPaths(f.readText(StandardCharsets.UTF_8))) } catch (e: Exception) { showPlain("读取失败: ${e.message}") }
+                try { showHtml(renderMdWithToc(f.readText(StandardCharsets.UTF_8))) } catch (e: Exception) { showPlain("读取失败: ${e.message}") }
             }
         }
         btnSugg.addActionListener {
@@ -207,7 +235,7 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
             if (!f.exists()) {
                 showPlain("未找到 .mcp/rules_suggestions.md\n请先执行 摄取规则（Ingest）")
             } else {
-                try { showHtml(linkifyPyPaths(f.readText(StandardCharsets.UTF_8))) } catch (e: Exception) { showPlain("读取失败: ${e.message}") }
+                try { showHtml(renderMdWithToc(f.readText(StandardCharsets.UTF_8))) } catch (e: Exception) { showPlain("读取失败: ${e.message}") }
             }
         }
 

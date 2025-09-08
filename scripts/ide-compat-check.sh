@@ -98,4 +98,13 @@ open(rep,'w',encoding='utf-8').write(json.dumps(d,ensure_ascii=False,indent=2))
 print('[ide-compat] report ->', rep)
 PY
 
+# copy artifacts (best-effort)
+ART_DIR="$ROOT_DIR/extensions/artifacts"
+mkdir -p "$ART_DIR" || true
+cp -f "$REPORT" "$ART_DIR/compat_report.json" || true
+if [ "$vsix_ok" = "1" ] && [ -f "$vsix_path" ]; then
+  cp -f "$vsix_path" "$ART_DIR/" || true
+fi
+echo "[ide-compat] artifacts -> $ART_DIR"
+
 exit 0
