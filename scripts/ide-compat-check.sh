@@ -7,6 +7,7 @@ REPORT="$ROOT_DIR/extensions/compat_report.json"
 
 ok_compile=0
 ok_tests=0
+note=""
 node_ver=""
 engine_req=""
 
@@ -33,7 +34,7 @@ if [ -d "$VS_DIR" ]; then
   echo "[ide-compat] compiling VS Code extension..."
   if npm --prefix "$VS_DIR" run compile; then ok_compile=1; fi
   echo "[ide-compat] running headless tests (best-effort)..."
-  if MCP_VSCODE_TEST_ARGS="" npm --prefix "$VS_DIR" test; then ok_tests=1; fi || true
+  if MCP_VSCODE_TEST_ARGS="" npm --prefix "$VS_DIR" test; then ok_tests=1; else note="vscode-test may require GUI/flags on this OS; see docs/VS_CODE_TEST.md"; fi || true
 fi
 
 REPORT="$REPORT" engine_req="$engine_req" node_ver="$node_ver" ok_compile="$ok_compile" ok_tests="$ok_tests" \
@@ -45,6 +46,7 @@ d={
   'node': os.environ.get('node_ver',''),
   'compile_ok': os.environ.get('ok_compile','0')=='1',
   'tests_ok': os.environ.get('ok_tests','0')=='1',
+  'note': os.environ.get('note',''),
 }
 open(rep,'w',encoding='utf-8').write(json.dumps(d,ensure_ascii=False,indent=2))
 print('[ide-compat] report ->', rep)
