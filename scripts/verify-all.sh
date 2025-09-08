@@ -8,7 +8,14 @@ echo "[verify] 2/4 Tests + Coverage"
 # Prefer project venv Python if available for consistency
 PY=python3
 if [ -x ".mcp/venv/bin/python" ]; then
-  PY=".mcp/venv/bin/python"
+  # Use venv python only if it is executable and works in current OS
+  if ./.mcp/venv/bin/python - <<'PY' >/dev/null 2>&1
+import sys
+print('ok')
+PY
+  then
+    PY=".mcp/venv/bin/python"
+  fi
 fi
 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 "$PY" -m pytest -q -p pytest_cov --maxfail=1 --disable-warnings -W error --strict-markers --cov=mcp_rules_assistant --cov-report=xml:coverage.xml --cov-report=term-missing
 
