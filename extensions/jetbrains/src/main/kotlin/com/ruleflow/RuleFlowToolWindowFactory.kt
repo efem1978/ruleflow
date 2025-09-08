@@ -29,9 +29,10 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
         val btnStatusUpdate = JButton("写入状态 / Status Update")
         val btnIngest = JButton("摄取规则 / Ingest")
         val btnCovReport = JButton("覆盖率报告 / Coverage Report")
+        val btnCovSummary = JButton("覆盖率摘要 / Coverage Summary")
         val btnCiGen = JButton("生成 CI / Generate CI")
         val btnCiValidate = JButton("校验 CI / Validate CI")
-        listOf(btnRefresh, btnOpenPlan, btnStatusUpdate, btnIngest, btnCovReport, btnCiGen, btnCiValidate).forEach { bar.add(it) }
+        listOf(btnRefresh, btnOpenPlan, btnStatusUpdate, btnIngest, btnCovReport, btnCovSummary, btnCiGen, btnCiValidate).forEach { bar.add(it) }
 
         val basePath = project.basePath ?: ""
         fun readStatus(): String {
@@ -108,6 +109,53 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
         }
         btnCiValidate.addActionListener {
             ta.text = runCli("ci-validate")
+        }
+
+        fun extractFirstJsonBlock(s: String): String? {
+            val m = Regex("(?s)\\{.*?\\}").find(s)
+            return m?.value
+        }
+
+        fun fmtPercent(v: Double): String {
+            val p = (v * 100.0)
+            return String.format("%.1f%%", p)
+        }
+
+        fun formatCoverage(json: String): String {
+            // 非严格 JSON 解析：用正则提取关键字段
+            try {
+                val weakCount = Regex("\\\"weak\\\"\\s*:\\s*\\[(.*?)\\]", RegexOption.DOT_MATCHES_ALL)
+                    .find(json)?.groupValues?.get(1)?.let { inner -> Regex("\\{", RegexOption.DOT_MATCHES_ALL).findAll(inner).count() } ?: 0
+                val groups = Regex("\\{\\s*\\\"prefix\\\"\\s*:\\s*\\\"(.*?)\\\",\\s*\\\"coverage\\\"\\s*:\\s*([0-9.]+).*?\\\"threshold\\\"\\s*:\\s*([0-9.]+).*?\\\"weak_count\\\"\\s*:\\s*([0-9]+).*?\\\"files_count\\\"\\s*:\\s*([0-9]+).*?\\}", RegexOption.DOT_MATCHES_ALL)
+                    .findAll(json)
+                    .map { it.groupValues }
+                    .map { vals ->
+                        val name = vals[1]
+                        val cov = vals[2].toDoubleOrNull() ?: 0.0
+                        val th = vals[3].toDoubleOrNull() ?: 0.0
+                        val wk = vals[4]; val fc = vals[5]
+                        "- %s: %s (≥ %s) — 弱项 %s/%s".format(name, fmtPercent(cov), fmtPercent(th), wk, fc)
+                    }.toList()
+                val nearCount = Regex("\\\"near\\\"\\s*:\\s*\\[(.*?)\\]", RegexOption.DOT_MATCHES_ALL)
+                    .find(json)?.groupValues?.get(1)?.let { inner -> Regex("\\{", RegexOption.DOT_MATCHES_ALL).findAll(inner).count() } ?: 0
+                val sb = StringBuilder()
+                sb.appendLine("覆盖率摘要：")
+                sb.appendLine("- 弱项文件：$weakCount")
+                sb.appendLine("- 近阈值：$nearCount")
+                if (groups.isNotEmpty()) {
+                    sb.appendLine("- 分组：")
+                    groups.forEach { sb.appendLine(it) }
+                }
+                return sb.toString()
+            } catch (e: Exception) {
+                return "解析失败：${e.message}\n原始：\n$json"
+            }
+        }
+
+        btnCovSummary.addActionListener {
+            val raw = runCli("coverage-report", "--json")
+            val json = extractFirstJsonBlock(raw) ?: raw
+            ta.text = formatCoverage(json)
         }
 
         panel.add(bar, BorderLayout.NORTH)
