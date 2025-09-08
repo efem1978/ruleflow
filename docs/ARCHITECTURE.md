@@ -3,11 +3,11 @@
 目标：性能优先 + 强约束，采用“插件 + MCP Server”解耦 UI 与能力，复用到 CLI/CI。
 
 组件 Components
-- Python MCP Server：tools/resources/prompts 协议端点（骨架）。
+- Python MCP Server：tools/resources/prompts 协议端点（轻量实现）。
 - 存储 Storage：`.mcp/`（项目）与 `~/.mcp/`（全局），JSON/后续可换 SQLite。
-- 规则 Rules：通用规则包 + 项目级摄取与冲突检测（骨架接口）。
+- 规则 Rules：通用规则包 + 项目级摄取与冲突检测（完整接口）。
 - 记忆 Memory：20 轮滚动 + 轻量摘要；跨项目隔离与关系边。
-- 执行 Execution：包裹式写入与门禁（占位挂钩），git hooks/CI 兜底。
+- 执行 Execution：包裹式写入与门禁（可选挂钩），git hooks/CI 兜底。
 - VS Code 插件：轻薄拦截与展示，调用 MCP 工具。
 
 性能模式 Performance Modes

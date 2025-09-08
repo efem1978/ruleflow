@@ -116,3 +116,6 @@ release-check:
 
 clean-dist:
 	rm -rf dist build *.egg-info || true
+ide-compat:
+	sh scripts/ide-compat-check.sh || true
+	@echo "See extensions/compat_report.json"

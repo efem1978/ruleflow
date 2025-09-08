@@ -104,7 +104,7 @@
 - [ ] 清理小问题（样例文件迁移至 tests/fixtures；README 标注生成型工件；移除/忽略多余样例文件如 cov.json/cjson.json）
 - [ ] 覆盖率 near 报告稳定性回归；mypy 告警压降（非核心）
  - [x] VS Code Webview 行为修复：近阈值按钮通过 postMessage → 扩展侧调用 MCP，再回传结果
- - [x] MCP initialize.capabilities 中 prompts 对齐：补齐 prompts/list 与 prompts/get 最小占位端点
+- [x] MCP initialize.capabilities 中 prompts 对齐：提供 prompts/list 与 prompts/get 最小内置端点
  - [ ] Codecov 上传策略与 README 对齐：公共仓库默认上传（无需 token）/私有仓库用 CODECOV_TOKEN 条件化
  - [ ] pre-commit 本地脚本（.mcp/plan_gate.py/.mcp/dockerfile_gate.py）首次运行前引导 install-hooks 或条件生成，避免缺文件失败
  - [x] 依赖精简：移除未使用依赖（已无 pydantic）

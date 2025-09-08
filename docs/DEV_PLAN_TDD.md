@@ -88,7 +88,7 @@ Phase E — 集成与 CLI
  - 覆盖率策略支持 basename 前缀与目录前缀；核心≥98% 受 `coverage.policy` 控制。
  - FSGuard 写入后置挂钩：支持 `execution.fs_guard_post_checks` 与 `fs_guard_strict`。
  - VS Code Webview 近阈值交互修复。
- - MCP prompts 能力对齐（最小占位）。
+- MCP prompts 能力对齐（最小内置）。
  - 依赖精简；版本号对齐（0.2.4）。
 
 1) CI 与门禁

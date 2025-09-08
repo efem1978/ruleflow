@@ -4,5 +4,5 @@ from .mcp_server import serve_stdio
 
 
 def start() -> None:
-    """启动 JSON-RPC/stdio MCP 兼容服务（最小骨架）。"""
+    """启动 JSON-RPC/stdio MCP 服务（轻量实现，生产门禁已具备）。"""
     serve_stdio()

@@ -9,12 +9,12 @@ from .config import load_config
 
 
 class FSGuard:
-    """包裹式文件写入：为将来的门禁预留挂钩（占位）。
+    """包裹式文件写入：提供可选的轻量门禁挂钩。
 
-    真实实现中，这里应：
-    - 在写入前运行计划/规则/影响面检查
-    - 写入后运行增量 lint/type/test 等（依据性能模式）
-    - 与 git hooks/CI 协同
+    当前实现：
+    - 写入前：路径/扩展名白名单与符号链接保护（可严格模式）。
+    - 写入后：可选运行增量 lint/type/test（execution.fs_guard_post_checks）。
+    - 与 git hooks/CI 协同：重型门禁仍由 push/CI 执行，保持“快速内环”。
     """
 
     def __init__(self, project_root: Optional[Path] = None) -> None:

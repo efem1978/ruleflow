@@ -34,9 +34,9 @@
 
 试用与激活
 - 7 天完整功能试用（离线可用）；到期后需导入许可证（离线激活）。
-- 许可证文件（占位）：`~/.mcp/license.json` 或 项目内 `.mcp/license.json`
+- 许可证文件（演示/示例）：`~/.mcp/license.json` 或 项目内 `.mcp/license.json`
   - 示例：`{"product":"ruleflow","email":"you@example.com","type":"pro","expires":"2026-12-31"}`
-- CLI（占位）：
+- CLI（示例）：
   - 查看状态：`mcp-rules-assistant license-status`
   - 离线激活：`mcp-rules-assistant license-activate --file path/to/license.json`
 

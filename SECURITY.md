@@ -14,7 +14,7 @@ Security updates are provided on the `main` branch. If you discover a vulnerabil
 
 ## Scope
 
-- This project ships a Python CLI + MCP server skeleton and a VS Code extension skeleton. Security issues may include:
+- This project ships a Python CLI + MCP server and a VS Code extension. Security issues may include:
   - Command injection, unsafe subprocess calls, or insecure file handling
   - Insecure defaults in CI/hook generation (e.g., allowing secrets to leak)
   - Vulnerabilities in example Dockerfile or security tool configurations
@@ -22,4 +22,3 @@ Security updates are provided on the `main` branch. If you discover a vulnerabil
 ## Disclosure
 
 - Please do not open public issues for security findings until a coordinated disclosure window is agreed and a fix is available.
-

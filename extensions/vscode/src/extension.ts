@@ -130,7 +130,7 @@ export function activate(context: vscode.ExtensionContext) {
           <span style="margin-left:6px;">近阈值%:</span>
           <input id="nearPct" value="3" style="width:40px;" />
           <button id="btnCovNearInline">显示近阈值</button>
-          <button id="btnIdeScaffold">生成 IDE 脚手架</button>
+          <button id="btnIdeScaffold">生成 IDE 集成配置</button>
           <button id="btnCompliance">生成合规承诺</button>
           <button id="btnOpenCompliance">打开合规承诺</button>
           <button id="btnOpenIdeDir">打开 IDE 目录</button>
@@ -317,13 +317,13 @@ export function activate(context: vscode.ExtensionContext) {
               if (!t) return;
               const weakAll = (window as any).__weakAll || [];
               const nearAll = (window as any).__near || [];
-              const topWeak = (weakAll || []).slice(0, 3).map((w:any)=>`${(w.coverage*100).toFixed(1)}% ${w.file}`);
-              const topNear = (nearAll || []).slice(0, 3).map((n:any)=>`${(n.coverage*100).toFixed(1)}% ${n.file}`);
+              const topWeak = (weakAll || []).slice(0, 3).map((w:any)=> (w.coverage*100).toFixed(1) + '% ' + w.file);
+              const topNear = (nearAll || []).slice(0, 3).map((n:any)=> (n.coverage*100).toFixed(1) + '% ' + n.file);
               const parts = [
-                `弱项 ${weakAll.length}`,
-                `近阈值 ${nearAll.length}`,
-                topWeak.length ? `Top弱项: ${topWeak.join(' | ')}` : '',
-                topNear.length ? `Top近阈值: ${topNear.join(' | ')}` : ''
+                '弱项 ' + String(weakAll.length),
+                '近阈值 ' + String(nearAll.length),
+                topWeak.length ? ('Top弱项: ' + topWeak.join(' | ')) : '',
+                topNear.length ? ('Top近阈值: ' + topNear.join(' | ')) : ''
               ].filter(Boolean);
               (t as any).textContent = parts.join('  ·  ');
             };
@@ -910,7 +910,7 @@ export function activate(context: vscode.ExtensionContext) {
           panel.webview.postMessage({ t: 'plan', text: res.text || '' });
           const act = await vscode.window.showQuickPick(['标记进行中 / In progress', '标记完成 / Done', '仅查看 / View'], { title: '计划操作' });
           if (act && act.startsWith('标记进行中')) {
-            const cur = await vscode.window.showInputBox({ title: '当前步骤 / Current step', placeHolder: '例如：实现 MCP 协议骨架' });
+            const cur = await vscode.window.showInputBox({ title: '当前步骤 / Current step', placeHolder: '例如：实现 MCP 协议方法' });
             if (cur) await client.request('tools/call', { name: 'plan.set', arguments: { status: 'in_progress', current: cur } });
             const res2 = await client.request('resources/read', { uri: planUri });
             panel.webview.postMessage({ t: 'plan', text: res2.text || '' });
@@ -987,7 +987,7 @@ export function activate(context: vscode.ExtensionContext) {
           ], { title: '选择 IDE' });
           if (!pick) return;
           const out = await client.request('tools/call', { name: 'ide.scaffold', arguments: { editor: pick.val } });
-          vscode.window.showInformationMessage('已生成脚手架: ' + JSON.stringify(out.files || []));
+          vscode.window.showInformationMessage('已生成 IDE 集成配置: ' + JSON.stringify(out.files || []));
         } else if (msg.t === 'compliance') {
           const out = await client.request('tools/call', { name: 'compliance.commitment', arguments: { write: true } });
           vscode.window.showInformationMessage('已生成合规承诺: ' + (out.path || '.mcp/compliance.md'));
@@ -1241,7 +1241,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(disposable);
 
-  // 轻量保存拦截占位：不做重操作，仅后续可扩展（保持性能）
+  // 轻量保存拦截：不做重操作，仅后续可扩展（保持性能）
   context.subscriptions.push(vscode.workspace.onWillSaveTextDocument(async (_e) => {
     // 预留：可在此做改动文件 lint 的触发或统计，无阻塞
   }));
@@ -1285,12 +1285,18 @@ export function activate(context: vscode.ExtensionContext) {
       });
       if (!text) return;
       const res = await client.request('tools/call', { name: 'nl.command', arguments: { text } });
-          const tool = (res && (res as any).parsed && (res as any).parsed.tool) || 'nl.command';
-          vscode.window.showInformationMessage('已执行：' + tool);
-          if (tool === 'rules.init' || tool === 'rules.onboard' || /初始化规则|规则引导|setup rules|questionnaire/.test(lower)) {
-            await runRulesOnboard();
-            return;
-          }
+      const tool = (res && (res as any).parsed && (res as any).parsed.tool) || 'nl.command';
+      vscode.window.showInformationMessage('已执行：' + tool);
+      const lower = (text || '').toLowerCase();
+      const runRulesOnboard = async () => {
+        // 直接触发后端 onboarding（非交互式），以保证命令可用
+        await client.request('tools/call', { name: 'rules.onboard', arguments: {} });
+        vscode.window.showInformationMessage('已执行规则引导（默认参数）');
+      };
+      if (tool === 'rules.init' || tool === 'rules.onboard' || /初始化规则|规则引导|setup rules|questionnaire/.test(lower)) {
+        await runRulesOnboard();
+        return;
+      }
       // 存历史
       const h = context.globalState.get<string[]>('ruleflow.nl.history') || [];
       const nh = [text, ...h.filter(x=>x!==text)].slice(0, 10);

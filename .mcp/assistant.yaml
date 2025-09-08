@@ -14,12 +14,13 @@ performance:
     coverage:
       enforce: true
       min_module: 0.96
-      min_core: 1.0
+      min_core: 0.98
     security_scan: true
     mutation_test: false
 language: python
 bilingual: true
 coverage:
+  # 核心模块（文件名后缀匹配）阈值设置，与“核心≥98%”策略一致；其余由 min_module 控制
   policy:
     config.py: 0.98
     progress.py: 0.98

@@ -161,6 +161,15 @@
 - 弱项（weak）：0（`coverage-report --json`）
 - 近阈值（near）：小量文件（如 coverage_summary.py 等）处于阈值上方 ≤1.2% 范围，可作为后续微调目标
 - 策略阈值（.mcp/assistant.yaml）：min_module=0.96；核心（config/progress/tools/memory/mcp_server/cli/server）≥0.98；dev_agent ≥0.95；license_utils ≥0.95（均已达成）
+
+Release Note（0.2.5，维护性更新）
+- 文档：新增 `docs/IDE_SCAFFOLD.md`（VS Code/Cursor/JetBrains/Neovim）；README 增加“快速入口”与 IDE 文档链接。
+- Neovim：在 `ide.scaffold` 输出 Lua 示例（保留 Vimscript）。
+- CI/Hooks：生成器固定 semgrep 1.91.x；CI 新增 Python 覆盖率上传至 Codecov（保留 VS Code lcov 上传）。
+- 清理：移除遗留备份/样例（`.github/workflows/ci.yml.bak`、`bad.py`、`ok2.py`、`docs/b.txt`）。
+- 配置：`coverage.min_core` 统一为 0.98；在 `coverage.policy` 增补“核心≥98%”注释。
+- 许可文档：`docs/LICENSE.md` 明确根 `LICENSE` 为法律文本，本页为生成/校验演示。
+
 ## 统一子进程封装 / Unified Process Runner
 
 - 模块：`mcp_rules_assistant/process.py` 提供 `run_cmd` 统一封装。

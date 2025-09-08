@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.2.5 — 2025-09-08
+
+Maintenance and docs/CI consistency updates (no API changes):
+
+- Docs: add multi‑IDE scaffolding guide `docs/IDE_SCAFFOLD.md` (VS Code/Cursor/JetBrains/Neovim)
+- README: link to IDE guide; add quick entry line to key docs
+- Neovim: provide Lua snippet in `ide.scaffold` output (kept Vimscript) — `mcp_server.py`
+- Hooks/CI: pin semgrep to 1.91.x in generator; clarify pinned version in `docs/HOOKS.md`
+- CI: upload Python coverage (`coverage.xml`) to Codecov in build job (keep VS Code lcov upload)
+- Cleanup: remove stray backup/sample files (`.github/workflows/ci.yml.bak`, `bad.py`, `ok2.py`, `docs/b.txt`)
+- Config: set `coverage.min_core: 0.98` (aligned with “core≥98%”); add comment to `coverage.policy`
+- Docs: `docs/LICENSE.md` now points to root `LICENSE` as legal text (this page is demo for license gen/verify)
+
+All tests and preflight checks pass; coverage policy gate reports weak=0.
+
+## Unreleased
+No changes yet.
+
 ## 0.2.4 — 2025-09-06
 
 Highlights
@@ -49,7 +67,7 @@ Notes
 - DevContainer 与文档（TROUBLESHOOTING/CONTRIBUTING/RELEASE）
 
 ## 0.1.0
-- 初始版本：MCP Server + CLI + 规则摄取/编译骨架 + VS Code 扩展脚手架
+- 初始版本：MCP Server + CLI + 规则摄取/编译 + VS Code 扩展（最小实现）
 ## v0.2.1 — 2025-09-02
 
 - CI: Enforce Coverage Policy Gate (core≥98%, others≥95%); forbid `skip/xfail` in package code；保持 `-W error` 严格。

@@ -313,7 +313,7 @@ if not py_changed:
             tmpl.write_text(
                 (
                     "# Commit message template\n"
-                    "# 请包含计划步骤标记以通过 Gate，例如：[step:实现 MCP 协议骨架]\n"
+                    "# 请包含计划步骤标记以通过 Gate，例如：[step:实现 MCP 协议方法]\n"
                     "# 第一行：简要说明改动\n"
                     "# 空一行\n"
                     "# 细节：列出关键点、影响面、测试、回滚计划\n"
@@ -383,7 +383,7 @@ def render_github_ci_yaml(project_root: Optional[Path] = None) -> str:
             "      - name: SAST (semgrep)\n"
             "        run: |\n"
             "          # 固定 semgrep 版本以提升可重复性\n"
-            "          python -m pip install 'semgrep==1.79.0'\n"
+            "          python -m pip install 'semgrep==1.91.0'\n"
             f"          semgrep --error --config {ci_cfg.get('semgrep_config','auto')}\n"
         )
 

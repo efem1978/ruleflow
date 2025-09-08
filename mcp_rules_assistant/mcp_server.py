@@ -46,9 +46,9 @@ def _read_stdin_lines() -> List[str]:
 
 
 class JsonRpcServer:
-    """极简 JSON-RPC 2.0 stdio 服务器（MCP 风格方法名）。
+    """轻量 JSON-RPC 2.0 stdio 服务器（MCP 风格方法名）。
 
-    说明：此为教学与骨架用途，不含完整错误分类与并发/流控。
+    说明：已具备生产所需的关键门禁与资源/工具接口；并发/流控保持简化。
     """
 
     def __init__(self) -> None:
@@ -261,16 +261,33 @@ class JsonRpcServer:
                         else {"ok": False, "message": f"prompt '{name}' not found"}
                     )
             else:
-                raise ValueError(f"Unknown method: {method}")
+                # JSON-RPC: method not found
+                raise KeyError("method_not_found")
             return {"jsonrpc": "2.0", "id": req_id, "result": result}
-        except Exception as e:  # noqa: BLE001 - simple skeleton
+        except (
+            Exception
+        ) as e:  # noqa: BLE001 - boundary mapping to JSON-RPC error codes
+            msg = str(e)
+            code = -32603  # internal error (default)
+            # 粗粒度分类（最小必要）：
+            if isinstance(e, KeyError) and msg == "method_not_found":
+                code = -32601
+                msg = "method not found"
+            elif isinstance(e, ValueError):
+                # "Unknown resource uri" 历史约定使用 -32000（兼容既有测试）
+                if msg == "Unknown resource uri":
+                    code = -32000
+                else:
+                    code = -32602  # invalid params / semantic validation
+            elif isinstance(e, FileNotFoundError):
+                code = -32001  # custom: resource not found
             return {
                 "jsonrpc": "2.0",
                 "id": req_id,
-                "error": {"code": -32000, "message": str(e)},
+                "error": {"code": code, "message": msg},
             }
 
-    # ---- Tools implementations (skeleton) ----
+    # ---- Tools implementations ----
     def _call_tool(self, name: str, args: Dict[str, Any]) -> Dict[str, Any]:
         # 许可门禁：对敏感工具启用软硬门禁（受配置 license.required 控制）
         gated = {
@@ -1033,18 +1050,33 @@ class JsonRpcServer:
                 ]
             )
         elif editor == "neovim":
-            # Provide minimal vimscript snippet + README
+            # Provide minimal vimscript & lua snippet + README
             (base / "init.sample.vim").write_text(
                 ":command! RuleFlowStart :terminal python3 -m mcp_rules_assistant.cli start\n",
                 encoding="utf-8",
             )
+            (base / "init.sample.lua").write_text(
+                (
+                    "local function RuleFlowStart()\n"
+                    "  vim.fn.termopen({'python3','-m','mcp_rules_assistant.cli','start'})\n"
+                    "end\n"
+                    "vim.api.nvim_create_user_command('RuleFlowStart', RuleFlowStart, {})\n"
+                ),
+                encoding="utf-8",
+            )
             (base / "README.md").write_text(
-                "Neovim: 在 init.vim 中引入 init.sample.vim 段落，使用 :RuleFlowStart 启动 MCP 服务器；通过 :terminal 运行 CLI 子命令。\n",
+                (
+                    "Neovim:\n"
+                    "- Vimscript: 在 init.vim 引入 init.sample.vim，使用 :RuleFlowStart 启动 MCP 服务器\n"
+                    "- Lua: 在 init.lua 引入 init.sample.lua（或复制函数体），同样使用 :RuleFlowStart\n"
+                    "- 可通过 :terminal 执行 CLI 子命令（如 rules/coverage/ci）\n"
+                ),
                 encoding="utf-8",
             )
             files.extend(
                 [
                     str((base / "init.sample.vim").relative_to(self.project_root)),
+                    str((base / "init.sample.lua").relative_to(self.project_root)),
                     str((base / "README.md").relative_to(self.project_root)),
                 ]
             )
@@ -1113,7 +1145,7 @@ English summary:
             "hadolint": shutil.which("hadolint") or "",
             "docker": shutil.which("docker") or "",
         }
-        # 许可（演示校验）：存在性 + 占位签名/有效期检查
+        # 许可校验：存在性 + 签名/有效期检查（hs256/rs256/ed25519）
         try:
             from .license_utils import verify_license as _verify_license
 

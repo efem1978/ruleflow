@@ -5,6 +5,8 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from .fs_wrapper import atomic_write_json as _atomic_write_json
+
 DEFAULT_MEMORY_FILE = Path(".mcp/memory.json")
 
 
@@ -97,7 +99,8 @@ class MemoryManager:
         return json.loads(self.path.read_text("utf-8"))
 
     def _write(self, data: Dict[str, Any]) -> None:
-        self.path.write_text(json.dumps(data, ensure_ascii=False, indent=2), "utf-8")
+        # 使用原子写入，避免异常或并发导致的部分写入/损坏
+        _atomic_write_json(self.path, data, indent=2)
 
     # ---- helpers ----
     def _compress_if_needed(self, data: Dict[str, Any]) -> Dict[str, Any]:

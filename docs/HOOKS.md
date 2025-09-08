@@ -34,7 +34,7 @@ CI 生成
   - 开启了 `security.sast_strict`（预留）：建议集成 `semgrep` 或组织内部 SAST 规则（可在 CI 中追加）
   - Python 测试后附加“近阈值摘要”步骤：执行 `coverage-near --within 3 --top 10` 打印距离阈值不超过 3% 的文件清单（仅报告，不影响门禁）
   - 生成工件：`coverage.xml`、`pytest-junit.xml`、`near.txt/near.csv/near.json`，并打包为 `tests-artifacts.tar.gz` 上传，便于 PR 审阅与归档
-  - 版本固定：CI 中 `semgrep` 使用固定版本（pip 安装，已锁定），`hadolint` 使用固定镜像标签，提升可重复性
+  - 版本固定：CI 中 `semgrep` 使用固定版本（当前 1.91.x，pip 安装），`hadolint` 使用固定镜像标签，提升可重复性
   - 新增（可选）：`prepare` 作业将调用 `env.prepare` 创建 `.mcp/venv` 并在 venv 中跑 pytest+覆盖率，便于隔离环境验证
 
 VS Code 无头测试（必跑项）
@@ -44,3 +44,7 @@ VS Code 无头测试（必跑项）
 CI
 - 生成 GitHub Actions：`mcp-rules-assistant generate-ci`
 - 工作流路径：`.github/workflows/ci.yml`
+
+版本固定说明（semgrep）
+- 为提升可重复性，CI 与生成器均固定 semgrep 版本（当前 1.91.x）。
+- 若组织统一维护自有规则或版本，可在 CI 中改为自定义安装命令，并在本文件与生成器（`hooks.py`）的渲染逻辑保持一致。

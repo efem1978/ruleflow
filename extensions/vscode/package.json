@@ -2,7 +2,7 @@
   "name": "mcp-rules-assistant",
   "displayName": "RuleFlow: Rules & Memory (MCP)",
   "publisher": "ruleflow",
-  "version": "0.0.3",
+  "version": "0.2.5",
   "repository": {
     "type": "git",
     "url": "https://github.com/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool.git"

@@ -26,7 +26,7 @@ RuleFlow: Open PanelMCP 规则与上下文助手 / MCP Rules & Context Assistant
 ![Coverage](https://codecov.io/gh/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool/branch/main/graph/badge.svg)
 ![PyPI](https://img.shields.io/pypi/v/mcp-rules-assistant?label=pypi)
 
-示意图 / Screenshots（占位）
+示意图 / Screenshots
 
 ![Panel Overview](docs/assets/panel_overview.svg)
 
@@ -59,7 +59,7 @@ RuleFlow: Open PanelMCP 规则与上下文助手 / MCP Rules & Context Assistant
 - 安装：`pip install -e .`（开发模式）
 - 初始化：`mcp-rules-assistant init`（生成 `.mcp/assistant.yaml`）
 - 查看性能模式：`mcp-rules-assistant explain-performance`
-- 启动占位服务：`mcp-rules-assistant start`（MCP Server 骨架，后续扩展）
+- 启动 MCP 服务：`mcp-rules-assistant start`
 - VS Code：
   - 打开“RuleFlow: Open Panel”（或点击状态栏左侧“RuleFlow”）
   - 自然语言：执行“RuleFlow: Natural Command”，输入“摄取规则 README.md, docs/ / 加载覆盖率 / 开启滚动记忆”等
@@ -69,6 +69,7 @@ RuleFlow: Open PanelMCP 规则与上下文助手 / MCP Rules & Context Assistant
  - 安装钩子（回退）：`make hooks-sh`（无 Python 环境）
 
 文档 Docs（入口：`DEVELOPMENT.md`）
+（快速入口：`DEVELOPMENT.md` | `docs/IDE_SCAFFOLD.md` | `docs/USAGE.md`）
 - DEVELOPMENT：`DEVELOPMENT.md`（开发入口 / TDD 计划 / AI 约束 / 文档索引）
 - docs/ARCHITECTURE.md：架构与模块
 - docs/PERFORMANCE.md：性能模式与触发点（默认 Fast）
@@ -81,7 +82,9 @@ RuleFlow: Open PanelMCP 规则与上下文助手 / MCP Rules & Context Assistant
  - extensions/vscode/README.md：插件说明
 - PRICING：`docs/PRICING.md`（定价与许可、试用政策）
 - 商业化与结算：采用 MoR（Lemon Squeezy / Paddle），USD 计价、自动本地化与税务处理
-- 多 IDE 脚手架：`mcp-rules-assistant ide-scaffold --editor <vscode|cursor|jetbrains|neovim>`（生成至 `.mcp/ide/<editor>/`）
+- IDE 集成指南：
+- 多 IDE 最小集成：`mcp-rules-assistant ide-scaffold --editor <vscode|cursor|jetbrains|neovim>`（生成至 `.mcp/ide/<editor>/`）
+- 文档指引：`docs/IDE_SCAFFOLD.md`（各 IDE 集成与使用说明）
 - 合规承诺：`mcp-rules-assistant compliance-commitment --out COMMITMENT.md`（或默认写入 `.mcp/compliance.md`）
 - Copilot 集成（可选）：已在 `.vscode/settings.json` 预置 `copilot.mcp.tools.ruleflow`，加载后 Copilot MCP 面板可显示本工具，聊天将按需调用。
 - 详细步骤：`docs/COPILOT_MCP.md`
@@ -155,6 +158,22 @@ VS Code 插件（软拦截）
 - `mcp-rules-assistant coverage-report --json`：一次性输出弱项/分组/近阈值（默认 JSON）
 - `mcp-rules-assistant coverage-clean-cache`：删除覆盖率解析缓存 `.mcp/coverage_cache.json`
 
+错误码约定（JSON-RPC）
+- 服务器在 stdio JSON-RPC 层对错误进行分层：
+  - -32601：method not found（未知方法）
+  - -32602：invalid params / 语义校验失败（参数缺失/无效）
+  - -32603：internal error（内部错误）
+  - -32000：Unknown resource uri（历史兼容约定）
+  - -32001：resource not found（文件/资源缺失）
+- 详见：`docs/MCP.md`
+
+受限环境 VS Code 测试提示
+- 若 `npm --prefix extensions/vscode test` 在本机失败：
+  - 尝试清空默认启动参数：`export MCP_VSCODE_TEST_ARGS=""`
+  - 或自定义启动参数（逗号分隔）：`export MCP_VSCODE_TEST_ARGS="--disable-extensions"`
+  - 然后重试：`npm --prefix extensions/vscode test`
+  - 详见 `docs/VS_CODE_TEST.md`
+
 一页流（从摄取到门禁）
 - 摄取规则：`mcp-rules-assistant ingest-rules <文件或目录>`
 - 解释规则：`mcp-rules-assistant rules-explain`（或 `--json --with-suggestions short`）
@@ -189,7 +208,8 @@ mcp-rules-assistant diagnose --json > diagnose.json
 - VS Code 扩展测试：`make vscode-test`（若受限可先 `export MCP_VSCODE_TEST_ARGS=""`）
 - 规则摄取：`make ingest`
 - 覆盖率摘要：`make coverage`
- - 本地 CI 一键执行：`make local-ci-run`（聚合 lint/type/tests/coverage‑gate，与 CI 门禁一致）
+- 本地 CI 一键执行：`make local-ci-run`（聚合 lint/type/tests/coverage‑gate，与 CI 门禁一致）
+- IDE 兼容性自检：`make ide-compat`（编译 VS Code 扩展 + 无头测试，并输出 `extensions/compat_report.json`；供 Cursor/Windsurf 参考）
 
 许可证与商业化
 - 预留本地授权/离线激活能力接口（见 docs/ARCHITECTURE.md）。

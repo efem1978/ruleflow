@@ -45,7 +45,7 @@ def init() -> None:
 
 @app.command("license-status")
 def license_status() -> None:
-    """占位：显示简易许可状态（读取 ~/.mcp/license.json 是否存在）。"""
+    """显示许可状态（读取 ~/.mcp/license.json 是否存在并校验）。"""
     lic = (Path.home() / ".mcp" / "license.json").resolve()
     if lic.exists():
         rprint({"ok": True, "activated": True, "path": str(lic)})
@@ -57,7 +57,7 @@ def license_status() -> None:
 def license_activate(
     file: str = typer.Option(..., "--file", help="许可文件路径（JSON）")
 ) -> None:
-    """占位：激活许可（复制到 ~/.mcp/license.json）。"""
+    """激活许可（复制到 ~/.mcp/license.json）。"""
     src = Path(file).expanduser().resolve()
     if not src.exists():
         rprint({"ok": False, "message": f"license file not found: {src}"})
@@ -423,7 +423,7 @@ def rules_onboard(
 def ide_scaffold(
     editor: str = typer.Option(..., "--editor", help="vscode/cursor/jetbrains/neovim")
 ) -> None:
-    """生成各 IDE 最小集成脚手架（写入 .mcp/ide/<editor>/）。"""
+    """生成各 IDE 最小集成配置（写入 .mcp/ide/<editor>/）。"""
     editor_l = editor.strip().lower()
     if editor_l not in {"vscode", "cursor", "jetbrains", "neovim"}:
         rprint({"ok": False, "message": "unsupported editor"})

@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540">
   <rect x="0" y="0" width="960" height="540" fill="#0f172a"/>
-  <text x="40" y="60" font-size="28" font-family="-apple-system,Segoe UI,Arial" fill="#e5e7eb">覆盖率工作流（占位图）</text>
+  <text x="40" y="60" font-size="28" font-family="-apple-system,Segoe UI,Arial" fill="#e5e7eb">覆盖率工作流</text>
   <rect x="60" y="100" width="180" height="60" rx="6" fill="#1f2937" stroke="#374151"/>
   <text x="80" y="135" font-size="16" fill="#9ca3af">pytest + cov</text>
   <rect x="300" y="100" width="220" height="60" rx="6" fill="#1f2937" stroke="#374151"/>
