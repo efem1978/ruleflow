@@ -35,6 +35,12 @@ PY
 
 echo "[ide-compat] VS Code engine: ${engine_req:-unknown}"
 echo "[ide-compat] Node version: ${node_ver:-missing}"
+if [[ "${node_ver}" =~ ^v([0-9]+)\..*$ ]]; then
+  nv=${BASH_REMATCH[1]}
+  if [ "$nv" -lt 18 ]; then
+    echo "[ide-compat] hint: Node < 18 detected. Consider 'nvm install 20 && nvm use 20' or installing Node 20+.";
+  fi
+fi
 
 if [ -d "$VS_DIR" ]; then
   echo "[ide-compat] compiling VS Code extension..."

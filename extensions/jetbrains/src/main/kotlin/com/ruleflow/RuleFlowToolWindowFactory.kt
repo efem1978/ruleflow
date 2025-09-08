@@ -55,7 +55,9 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
         val btnRules = JButton("规则 / Rules")
         val btnSugg = JButton("建议 / Suggestions")
         val btnRulesSummary = JButton("规则摘要 / Rules Summary")
-        listOf(btnRefresh, btnOpenPlan, btnStatusUpdate, btnIngest, btnCovReport, btnCovSummary, btnCiGen, btnCiValidate, btnRules, btnSugg, btnRulesSummary).forEach { bar.add(it) }
+        val btnEnvPreview = JButton("环境计划 / Env (dry-run)")
+        val btnSetPy = JButton("设置 Python / Set Python")
+        listOf(btnRefresh, btnOpenPlan, btnStatusUpdate, btnIngest, btnCovReport, btnCovSummary, btnCiGen, btnCiValidate, btnRules, btnSugg, btnRulesSummary, btnEnvPreview, btnSetPy).forEach { bar.add(it) }
 
         val basePath = project.basePath ?: ""
         fun readStatus(): String {
@@ -69,7 +71,9 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
             }
         }
 
+        var pyOverride: String? = null
         fun pyBin(): String {
+            if (pyOverride != null && pyOverride!!.isNotEmpty()) return pyOverride!!
             val env = System.getenv("MCP_PYTHON_BIN")
             if (env != null && env.trim().isNotEmpty()) return env.trim()
             return if (System.getProperty("os.name").lowerCase().contains("win")) "python" else "python3"
@@ -175,6 +179,18 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
             showPlain(runCli("ci-validate"))
         }
 
+        btnEnvPreview.addActionListener {
+            showPlain(runCli("prepare-env"))
+        }
+        btnSetPy.addActionListener {
+            val cur = pyOverride ?: System.getenv("MCP_PYTHON_BIN") ?: ""
+            val v = Messages.showInputDialog(project, "输入 Python 解释器路径 (优先于 MCP_PYTHON_BIN)", "设置 Python", null, cur, null)
+            if (v != null) {
+                pyOverride = v.trim()
+                Messages.showInfoMessage(project, "已设置 Python: $pyOverride", "RuleFlow")
+            }
+        }
+
         fun extractFirstJsonBlock(s: String): String? {
             val m = Regex("(?s)\\{.*?\\}").find(s)
             return m?.value
@@ -253,6 +269,19 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
                 sb.appendLine("- 覆盖率（核心最低）: ${fmtPercent(minCore)}")
                 sb.appendLine("- 冲突条目: $confCount")
                 sb.appendLine("- 建议条目: $suggCount")
+                // 额外：展示前 5 条冲突 (key/keep→old/new)
+                val confRe = Regex("\\{.*?\\\"key\\\"\\s*:\\s*\\\"(.*?)\\\".*?\\\"keep\\\"\\s*:\\s*(.*?),.*?\\\"old\\\"\\s*:\\s*(.*?),.*?\\\"new\\\"\\s*:\\s*(.*?),.*?\\}", RegexOption.DOT_MATCHES_ALL)
+                val top = confRe.findAll(s).take(5).toList()
+                if (top.isNotEmpty()) {
+                    sb.appendLine("- 冲突示例 (Top 5):")
+                    for (m in top) {
+                        val key = m.groupValues[1]
+                        val keep = m.groupValues[2]
+                        val oldv = m.groupValues[3]
+                        val newv = m.groupValues[4]
+                        sb.appendLine("  • "+key+": keep="+keep+" ; old="+oldv+" ; new="+newv)
+                    }
+                }
                 escapeHtml(sb.toString()).replace("\n", "<br/>")
             } catch (e: Exception) {
                 escapeHtml("解析失败: ${e.message}")
