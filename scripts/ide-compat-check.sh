@@ -38,7 +38,12 @@ if [ -d "$VS_DIR" ]; then
   if MCP_VSCODE_TEST_ARGS="" npm --prefix "$VS_DIR" test; then
     ok_tests=1
   else
-    note="vscode-test may require GUI/flags on this OS; see docs/VS_CODE_TEST.md"
+    # Provide quick hints for macOS headless runs
+    if [ "$(uname -s 2>/dev/null || echo unknown)" = "Darwin" ]; then
+      note=$'vscode-test may require GUI/flags on macOS. Try:\n  export MCP_VSCODE_TEST_ARGS=""\n  npm --prefix extensions/vscode test\nSee docs/VS_CODE_TEST.md'
+    else
+      note="vscode-test may require GUI/flags on this OS; see docs/VS_CODE_TEST.md"
+    fi
   fi || true
 fi
 

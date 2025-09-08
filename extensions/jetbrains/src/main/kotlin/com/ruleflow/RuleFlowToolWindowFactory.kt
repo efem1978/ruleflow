@@ -26,8 +26,12 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
         val bar = JPanel()
         val btnRefresh = JButton("刷新 / Refresh")
         val btnOpenPlan = JButton("打开计划 / Open Plan")
-        bar.add(btnRefresh)
-        bar.add(btnOpenPlan)
+        val btnStatusUpdate = JButton("写入状态 / Status Update")
+        val btnIngest = JButton("摄取规则 / Ingest")
+        val btnCovReport = JButton("覆盖率报告 / Coverage Report")
+        val btnCiGen = JButton("生成 CI / Generate CI")
+        val btnCiValidate = JButton("校验 CI / Validate CI")
+        listOf(btnRefresh, btnOpenPlan, btnStatusUpdate, btnIngest, btnCovReport, btnCiGen, btnCiValidate).forEach { bar.add(it) }
 
         val basePath = project.basePath ?: ""
         fun readStatus(): String {
@@ -38,6 +42,30 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
                 p.readText(StandardCharsets.UTF_8)
             } catch (e: Exception) {
                 "读取失败: ${e.message}"
+            }
+        }
+
+        fun pyBin(): String {
+            val env = System.getenv("MCP_PYTHON_BIN")
+            if (env != null && env.trim().isNotEmpty()) return env.trim()
+            return if (System.getProperty("os.name").lowerCase().contains("win")) "python" else "python3"
+        }
+
+        fun runCli(vararg args: String): String {
+            if (basePath.isEmpty()) return "(no project basePath)"
+            return try {
+                val cmd = ArrayList<String>()
+                cmd.add(pyBin()); cmd.add("-m"); cmd.add("mcp_rules_assistant.cli")
+                cmd.addAll(args.toList())
+                val pb = ProcessBuilder(cmd)
+                pb.directory(File(basePath))
+                pb.redirectErrorStream(true)
+                val p = pb.start()
+                val out = p.inputStream.readAllBytes().toString(StandardCharsets.UTF_8)
+                val code = p.waitFor()
+                "$ ${cmd.joinToString(" ")}\n(exit $code)\n" + out
+            } catch (e: Exception) {
+                "执行失败: ${e.message}"
             }
         }
 
@@ -56,6 +84,30 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
                     Messages.showErrorDialog(project, "读取计划失败: ${e.message}", "RuleFlow")
                 }
             }
+        }
+
+        btnStatusUpdate.addActionListener {
+            ta.text = runCli("status-update")
+        }
+        btnIngest.addActionListener {
+            val hint = Messages.showInputDialog(project, "输入要摄取的文件或目录（逗号分隔）", "规则摄取", null)
+            if (hint != null && hint.trim().isNotEmpty()) {
+                val parts = hint.split(',').map { it.trim() }.filter { it.isNotEmpty() }
+                if (parts.isNotEmpty()) {
+                    val args = ArrayList<String>()
+                    args.add("ingest-rules"); args.addAll(parts)
+                    ta.text = runCli(*args.toTypedArray())
+                }
+            }
+        }
+        btnCovReport.addActionListener {
+            ta.text = runCli("coverage-report", "--json")
+        }
+        btnCiGen.addActionListener {
+            ta.text = runCli("generate-ci")
+        }
+        btnCiValidate.addActionListener {
+            ta.text = runCli("ci-validate")
         }
 
         panel.add(bar, BorderLayout.NORTH)
