@@ -404,7 +404,7 @@ PY
         if: always()
         uses: codecov/codecov-action@v4
         with:
-          token: ${ secrets.CODECOV_TOKEN }
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: extensions/vscode/coverage/lcov.info
           flags: vscode
           fail_ci_if_error: false

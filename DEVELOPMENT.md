@@ -32,7 +32,7 @@
   - 安装：`pip install -e .`
   - 工具链（可选）：`mcp-rules-assistant prepare-env --install` 或 `make setup`
   - 运行测试：
-    - `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q -p pytest_cov --maxfail=1 --disable-warnings -W error --strict-markers --cov --cov-report=xml:coverage.xml`
+    - `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q -p pytest_cov --maxfail=1 --disable-warnings -W error --strict-markers --cov=mcp_rules_assistant --cov-report=xml:coverage.xml`
 - 本地一键 CI：`make local-ci-run`
 - 安装 Git hooks（commit-msg / pre-push）：`make hooks` 或 `python -m mcp_rules_assistant.cli install-hooks`
   - 无 Python 环境的回退：`make hooks-sh`（安装最小 commit-msg 与 pre-push）
@@ -157,9 +157,9 @@
 - [x] 清理样例/临时工件：确保 cov*.json 等生成物未入库（.gitignore 已覆盖）
 
 ## 审计快照（当前） / Audit Snapshot (Current)
-- 覆盖率（coverage.xml 总体）: ≈98%
+- 覆盖率（coverage.xml 总体）: ≥98%（以 `--cov=mcp_rules_assistant` 统计）
 - 弱项（weak）：0（`coverage-report --json`）
-- 近阈值（near）：小量文件（如 cli.py、coverage_summary.py 等）处于阈值上方 ≤1.2% 范围，可作为后续微调目标
+- 近阈值（near）：小量文件（如 coverage_summary.py 等）处于阈值上方 ≤1.2% 范围，可作为后续微调目标
 - 策略阈值（.mcp/assistant.yaml）：min_module=0.96；核心（config/progress/tools/memory/mcp_server/cli/server）≥0.98；dev_agent ≥0.95；license_utils ≥0.90（均已达成）
 ## 统一子进程封装 / Unified Process Runner
 

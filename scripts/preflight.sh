@@ -17,6 +17,20 @@ else
   echo "[preflight] docker not found; skip compose validation"
 fi
 
+echo "[preflight] checking for tracked forbidden files (report-only)..."
+FORBID_FILES="bad.py ok2.py docs/b.txt cov.json cov_cli.json coverage.xml pytest-junit.xml"
+FOUND=0
+for f in $FORBID_FILES; do
+  if git ls-files --error-unmatch "$f" >/dev/null 2>&1; then
+    echo "[preflight] tracked forbidden file: $f"
+    FOUND=$((FOUND+1))
+  fi
+done
+if [ "$FOUND" -gt 0 ]; then
+  echo "[preflight] found $FOUND tracked forbidden file(s). Consider removing from index:"
+  echo "  git rm --cached -f $FORBID_FILES"
+fi
+
 echo "[preflight] compliance commitment presence (report-only)..."
 if [ -f .mcp/compliance.md ]; then
   echo "[preflight] compliance.md exists"
@@ -51,6 +65,32 @@ if 'VS Code 无头测试（必跑项）' not in hooks:
   raise SystemExit('HOOKS missing VS Code required hint')
 print('[preflight] lightweight anchors OK')
 PY
+fi
+
+echo "[preflight] coverage policy snapshot (report-only when present)..."
+if [ -f coverage.xml ]; then
+  # Use module CLI to summarize and ensure weak==0
+  PYTHONWARNINGS=ignore PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m mcp_rules_assistant.cli coverage-report --json > cov_cli.json || true
+  python3 - <<'PY'
+import json, sys
+from pathlib import Path
+p=Path('cov_cli.json')
+if not p.exists():
+    print('[preflight] coverage report not generated'); sys.exit(0)
+try:
+    d=json.loads(p.read_text(encoding='utf-8'))
+except Exception:
+    print('[preflight] coverage report parse error (non-blocking)'); sys.exit(0)
+weak=d.get('weak') or []
+if weak:
+    print('[preflight] Coverage policy gate would fail. Weak files:')
+    for w in weak:
+        print(' -', w.get('file'), 'cov=', w.get('coverage'), '<', w.get('threshold'))
+else:
+    print('[preflight] Coverage policy snapshot OK (weak=0)')
+PY
+else
+  echo "[preflight] coverage.xml missing; skip coverage snapshot"
 fi
 
 echo "[preflight] checking version consistency (pyproject vs __init__)..."

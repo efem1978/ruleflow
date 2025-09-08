@@ -47,7 +47,7 @@
 - 与 CI/Hooks：`rules.enforce` 将阈值/策略回写配置；CI/Hooks 据此生成
 
 ## 覆盖率与报告
-- 运行：`pytest -q -p pytest_cov --maxfail=1 --disable-warnings -W error --strict-markers --cov --cov-report=xml:coverage.xml`
+- 运行：`pytest -q -p pytest_cov --maxfail=1 --disable-warnings -W error --strict-markers --cov=mcp_rules_assistant --cov-report=xml:coverage.xml`
 - 汇总：`mcp-rules-assistant coverage-report --json`
 - 近阈值：`coverage-near --within 3 --top 20`（可用 `coverage.near-set` 调整窗口/Top）
 - 核心模块（≥98%）示例策略（已写入 `.mcp/assistant.yaml`）：

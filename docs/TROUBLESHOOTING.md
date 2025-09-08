@@ -14,7 +14,7 @@
 
 - 未生成 coverage.xml
   - 现象：面板“加载覆盖率”报缺少 coverage.xml
-  - 处理：运行 `pytest --cov --cov-report=xml:coverage.xml`
+  - 处理：运行 `pytest --cov=mcp_rules_assistant --cov-report=xml:coverage.xml`
 
 - 规则未摄取/编译
   - 现象：面板/CLI 提示“未找到编译规则”

@@ -12,7 +12,7 @@
 
 测试 Tests
 - Python：`make test`（禁用外部 PyTest 插件）或运行：
-  - `pytest -q --maxfail=1 --disable-warnings -W error --strict-markers --cov --cov-report=term-missing --cov-fail-under=95`
+  - `pytest -q --maxfail=1 --disable-warnings -W error --strict-markers --cov=mcp_rules_assistant --cov-report=term-missing --cov-fail-under=95`
   - 覆盖率缓存清理：`mcp-rules-assistant coverage-clean-cache`
 - VS Code：`make vscode-test`（受限环境可设置 `MCP_VSCODE_TEST_ARGS=""`）
 

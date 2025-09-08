@@ -48,7 +48,7 @@ RuleFlow: Open PanelMCP 规则与上下文助手 / MCP Rules & Context Assistant
 - 初始化与规则摄取：`mcp-rules-assistant init && mcp-rules-assistant ingest-rules README.md docs/`
 - 安装本地钩子：`mcp-rules-assistant install-hooks`
 - 生成并校验 CI：`mcp-rules-assistant generate-ci && mcp-rules-assistant ci-validate`
-- 运行测试与覆盖率：`PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q -p pytest_cov --cov --cov-report=xml:coverage.xml`
+- 运行测试与覆盖率：`PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q -p pytest_cov --cov=mcp_rules_assistant --cov-report=xml:coverage.xml`
 - 刷新状态（新窗口也适用）：`mcp-rules-assistant status-update`（或 `python3 -m mcp_rules_assistant.cli status-update`）
 - 安装：`pip install -e .`（开发模式）
 - 初始化：`mcp-rules-assistant init`（生成 `.mcp/assistant.yaml`）
@@ -87,7 +87,7 @@ RuleFlow: Open PanelMCP 规则与上下文助手 / MCP Rules & Context Assistant
     - `pip install -e . && pip install -U pytest pytest-cov ruff black isort mypy bandit`
     - 或 `make setup`（使用内置 .mcp/venv）
   - 运行测试：
-    - `pytest -q --maxfail=1 --disable-warnings -W error --strict-markers --cov --cov-report=term-missing --cov-fail-under=<阈值>`
+    - `pytest -q --maxfail=1 --disable-warnings -W error --strict-markers --cov=mcp_rules_assistant --cov-report=term-missing --cov-fail-under=<阈值>`
   - 清理覆盖率缓存：`mcp-rules-assistant coverage-clean-cache`
 - CI 中按项目配置的 `coverage.min_module` 动态设置门槛（默认值见配置），并上传 `coverage.xml` 到 Codecov 以生成覆盖率徽章。
 

@@ -78,6 +78,10 @@ maintenance-all:
 verify:
 	sh scripts/verify-all.sh
 
+.PHONY: git-upstream-check
+git-upstream-check:
+	sh scripts/git-upstream-check.sh
+
 # 发布/开发许可门禁快捷开关（不推远端）
 release-harden-on:
 	$(PYTHON) -m mcp_rules_assistant.cli license-require-on
