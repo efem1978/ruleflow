@@ -1,4 +1,5 @@
-RuleFlow: Open PanelMCP 规则与上下文助手 / MCP Rules & Context Assistant
+RuleFlow: Open Panel
+MCP 规则与上下文助手 / MCP Rules & Context Assistant
 
 以“插件 + MCP Server”模式，提供跨 IDE 的上下文滚动记忆、编程规则强约束、
 包裹式改动门禁与性能优先的开发体验。默认启用“快速内环（Fast Inner Loop）”，
@@ -19,11 +20,21 @@ RuleFlow: Open PanelMCP 规则与上下文助手 / MCP Rules & Context Assistant
 - 规则与门禁 Rules Enforcement：规则摄取与冲突检测、覆盖率阈值与分组策略、Git Hooks 与 CI 门禁生成/校验。
 - 上下文记忆 Context Memory：20 轮滚动记忆与计划资源（memory:// / progress://），在多轮协作中保持一致性与衔接。
 
+一览 / At a Glance（双语）
+- 初始化配置：`mcp-rules-assistant init`（生成 `.mcp/assistant.yaml`）
+- 摄取规则：`mcp-rules-assistant ingest-rules README.md docs/`
+- 生成/校验 CI：`mcp-rules-assistant generate-ci && mcp-rules-assistant ci-validate`
+- 钩子安装：`mcp-rules-assistant install-hooks`（首次务必执行；提交信息需包含 `[step:...]`）
+- 覆盖率：`PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q -p pytest_cov --cov=mcp_rules_assistant --cov-report=xml:coverage.xml`
+- 状态刷新：`mcp-rules-assistant status-update`（写入 `.mcp/dashboard/status.json`）
+- VS Code 面板：命令 `RuleFlow: Open Panel`；自然语言 `RuleFlow: Natural Command`
+
 状态 Status
 
 ![CI](https://img.shields.io/github/actions/workflow/status/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool/ci.yml?branch=main&label=CI)
 ![Release](https://img.shields.io/github/v/tag/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool?label=release)
 ![Coverage](https://codecov.io/gh/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool/branch/main/graph/badge.svg)
+（Codecov 说明：公共仓库默认无需 token；私有仓库需在 CI 配置 `CODECOV_TOKEN`，本仓库工作流已在无 token 时降级为“尽力而为，不阻断”。）
 ![PyPI](https://img.shields.io/pypi/v/mcp-rules-assistant?label=pypi)
 
 示意图 / Screenshots

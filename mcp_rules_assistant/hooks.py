@@ -41,22 +41,22 @@ def generate_pre_commit_config(project_root: Optional[Path] = None) -> Path:
     secrets_block = ""
     if policy.get("security.secrets_scan"):
         secrets_block = (
-            "  - repo: https://github.com/Yelp/detect-secrets\\n"
-            "    rev: v1.4.0\\n"
-            "    hooks:\\n"
-            "      - id: detect-secrets\\n"
-            "        stages: [push]\\n"
+            "  - repo: https://github.com/Yelp/detect-secrets\n"
+            "    rev: v1.4.0\n"
+            "    hooks:\n"
+            "      - id: detect-secrets\n"
+            "        stages: [push]\n"
         )
 
     docker_local_hook = ""
     if policy.get(KEY_CONTAINER_POLICY_BASELINE):
         docker_local_hook = (
-            "      - id: dockerfile-baseline\\n"
-            "        name: dockerfile baseline (push)\\n"
-            "        entry: python .mcp/dockerfile_gate.py\\n"
-            "        language: system\\n"
-            "        pass_filenames: false\\n"
-            "        stages: [push]\\n"
+            "      - id: dockerfile-baseline\n"
+            "        name: dockerfile baseline (push)\n"
+            "        entry: python .mcp/dockerfile_gate.py\n"
+            "        language: system\n"
+            "        pass_filenames: false\n"
+            "        stages: [push]\n"
         )
 
     # Optional tool versions from config
