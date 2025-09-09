@@ -35,6 +35,11 @@
 - Gradle 面板运行 `Run Plugin`；或使用 `./gradlew runIde`
 - 在新启动的 IDE 实例中打开目标仓库，打开工具窗口“RuleFlow”，即可使用上述按钮
 
+输出与便捷操作
+- JSON 美化：勾选“JSON 美化”开关，美化 resources/read 与 tools/call 输出
+- 复制输出：点击“复制输出”复制当前文本到剪贴板
+- 保存输出：点击“保存输出”保存当前文本到文件
+
 受控写入（fs.apply_patch）
 - 按钮：“MCP: 受控写入(dry-run)” 与 “MCP: 受控写入(严格写入)”
 - 输入：相对路径（如 `mcp_rules_assistant/tmp_demo.py`）与多行内容
