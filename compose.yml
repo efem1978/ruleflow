@@ -29,19 +29,23 @@ services:
       - NO_COLOR=1
       - FORCE_COLOR=0
       - MCP_VSCODE_TEST_ARGS
-    command: >-
-      bash -lc "set -e; export DEBIAN_FRONTEND=noninteractive;
-      apt-get update -y >/dev/null;
-      apt-get install -y --no-install-recommends \
-        xvfb xauth \
-        libglib2.0-0 libgdk-pixbuf-2.0-0 \
-        libgtk-3-0 libasound2 libnss3 libxss1 libxshmfence1 \
-        libgbm1 libdrm2 libxdamage1 libxfixes3 libxcomposite1 \
-        libxi6 libxrandr2 libatk-bridge2.0-0 libx11-xcb1 libxext6 \
-        libxkbfile1 libxkbcommon0 libwayland-client0 libxrender1 \
-        ca-certificates >/dev/null;
-      npm ci >/dev/null;
-      xvfb-run -a -s '-screen 0 1024x768x24' npm test"
+    command:
+      - bash
+      - -lc
+      - |
+        set -e
+        export DEBIAN_FRONTEND=noninteractive
+        apt-get update -y >/dev/null
+        apt-get install -y --no-install-recommends \
+          xvfb xauth \
+          libglib2.0-0 libgdk-pixbuf-2.0-0 \
+          libgtk-3-0 libasound2 libnss3 libxss1 libxshmfence1 \
+          libgbm1 libdrm2 libxdamage1 libxfixes3 libxcomposite1 \
+          libxi6 libxrandr2 libatk-bridge2.0-0 libx11-xcb1 libxext6 \
+          libxkbfile1 libxkbcommon0 libwayland-client0 libxrender1 \
+          ca-certificates >/dev/null
+        npm ci >/dev/null
+        xvfb-run -a -s '-screen 0 1024x768x24' npm test
 
   jb-build:
     image: gradle:8.7.0-jdk17
