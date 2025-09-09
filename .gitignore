@@ -27,6 +27,9 @@ htmlcov/
 cov.json
 cov*.json
 coverage_report.json
+/near.txt
+/near.csv
+/near.json
 /bad.py
 /ok2.py
 /ok.txt
