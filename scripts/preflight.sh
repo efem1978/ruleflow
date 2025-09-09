@@ -33,7 +33,11 @@ fi
 
 echo "[preflight] upstream branch presence (report-only)..."
 if [ -x scripts/git-upstream-check.sh ]; then
-  sh scripts/git-upstream-check.sh || true
+  if command -v bash >/dev/null 2>&1; then
+    bash scripts/git-upstream-check.sh || true
+  else
+    sh scripts/git-upstream-check.sh || true
+  fi
 else
   echo "[preflight] scripts/git-upstream-check.sh not found; skip upstream check"
 fi
