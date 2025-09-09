@@ -159,7 +159,7 @@ jobs:
           if [ -f extensions/compat_report.json ]; then echo "[ide-compat] found"; else echo "[ide-compat] missing (ok)"; fi
       - name: VS Code coverage threshold (warn)
         run: |
-          sh scripts/check-lcov.sh extensions/vscode/coverage/lcov.info 40
+          sh scripts/check-lcov.sh extensions/vscode/coverage/lcov.info 50
       - name: Upload VS Code coverage to Codecov (conditional)
         if: always()
         uses: codecov/codecov-action@v4

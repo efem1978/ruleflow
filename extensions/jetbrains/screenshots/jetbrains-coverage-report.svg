@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="760" height="420">
+<svg width="800" height="200" xmlns="http://www.w3.org/2000/svg">
   <rect width="100%" height="100%" fill="#1e1e1e"/>
   <text x="24" y="40" font-family="monospace" font-size="18" fill="#9cdcfe">Coverage Report (placeholder)</text>
-  <rect x="20" y="60" width="720" height="320" fill="#252526" stroke="#3c3c3c"/>
-  <text x="32" y="92" font-family="monospace" font-size="14" fill="#d4d4d4">{"weak": [], "groups": [{"prefix":"mcp_server.py","coverage":0.983}], "near": []}</text>
+  <text x="24" y="80" font-family="monospace" font-size="14" fill="#d4d4d4">tools/call: coverage.report =&gt; groups/near/weak JSON</text>
+  <text x="24" y="110" font-family="monospace" font-size="14" fill="#c5e478">阈值: core≥98%, min_module=0.96</text>
 </svg>

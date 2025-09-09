@@ -47,6 +47,8 @@ MCP 规则与上下文助手 / MCP Rules & Context Assistant
 JetBrains（示意图，待替换为实拍截图）
 
 ![JetBrains ToolWindow](extensions/jetbrains/screenshots/jetbrains-toolwindow-plan.svg)
+![JetBrains Coverage Report](extensions/jetbrains/screenshots/jetbrains-coverage-report.svg)
+![JetBrains fs.apply_patch](extensions/jetbrains/screenshots/jetbrains-fs-apply-patch.svg)
 
 ![Coverage Flow](docs/assets/coverage_flow.svg)
 

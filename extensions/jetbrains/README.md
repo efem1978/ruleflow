@@ -46,10 +46,10 @@
 - 行为：严格模式禁止内容包含 `pytest.mark.skip/xfail`；白名单/扩展名/大小限制与项目配置一致
 
 截图（示意）
-> 当前为示意 SVG，后续将替换为实际运行截图。
-- ToolWindow（计划/记忆）：`screenshots/jetbrains-toolwindow-plan.png`
-- 覆盖率报告：`screenshots/jetbrains-coverage-report.png`
-- 受控写入对话框：`screenshots/jetbrains-fs-apply-patch.png`
+> 当前为示意 SVG，后续将替换为实际运行截图（PNG）。
+- ToolWindow（计划/记忆）：`screenshots/jetbrains-toolwindow-plan.svg`
+- 覆盖率报告：`screenshots/jetbrains-coverage-report.svg`
+- 受控写入对话框：`screenshots/jetbrains-fs-apply-patch.svg`
 
 JSON 示例（coverage.report）
 ```json
