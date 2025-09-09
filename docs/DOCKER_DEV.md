@@ -6,8 +6,12 @@
 
 快速开始
 - 前置：已安装 Docker 与 Docker Compose。
-- 启动：`docker compose up --build dev-agent`
+- 启动开发代理：`docker compose up --build dev-agent`
   - 首次会安装依赖与工具链，并开始周期性更新状态文件（不再提供本地浏览界面）。
+- VS Code 扩展无头测试（可选）：`docker compose run --rm vscode-test`
+  - 基于 `node:20`，自动安装最小依赖并通过 `xvfb-run` 运行 `npm test`
+- JetBrains 构建环境占位（可选）：`docker compose run --rm jb-build`
+  - 基于 `gradle:8.7-jdk17`，用于后续 P2/P3 任务（当前命令仅校验环境 `gradle -v`）
 
 状态文件
 - `.mcp/dashboard/status.json`：最近一次循环的聚合状态（计划、测试、覆盖率、任务等）。
@@ -49,3 +53,7 @@
 
 历史清理
 - `.mcp/dashboard/history.json` 默认保留最近 50 条；如需手动清理，可安全删除该文件，dev_agent 会在下一轮重建。
+
+诊断打包
+- 在容器内或主机执行：`python -m mcp_rules_assistant.cli diagnose-bundle`（或 `mcp-rules-assistant diagnose-bundle`）
+- 将收集 coverage.xml、pytest-junit.xml、near.{txt,csv,json}、cov.json、.mcp 关键文件（assistant.yaml/plan.md/memory.json/rules_compiled.* 等）打包为 `diagnostics-<ts>.tar.gz`

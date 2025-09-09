@@ -27,6 +27,7 @@ MCP 规则与上下文助手 / MCP Rules & Context Assistant
 - 钩子安装：`mcp-rules-assistant install-hooks`（首次务必执行；提交信息需包含 `[step:...]`）
 - 覆盖率：`PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q -p pytest_cov --cov=mcp_rules_assistant --cov-report=xml:coverage.xml`
 - 状态刷新：`mcp-rules-assistant status-update`（写入 `.mcp/dashboard/status.json`）
+- 诊断打包：`mcp-rules-assistant diagnose-bundle`（收集 coverage/pytest/near/.mcp 状态与规则/计划 → 生成 tar.gz）
 - VS Code 面板：命令 `RuleFlow: Open Panel`；自然语言 `RuleFlow: Natural Command`
  - JetBrains 插件：见 `extensions/jetbrains/README.md`（工具窗口最小直连 MCP：启动/停止/Ping/资源/计划/摄取/覆盖率/CI/受控写入）
 
@@ -213,6 +214,7 @@ VS Code 插件（软拦截）
 - 覆盖率与近阈值：`mcp-rules-assistant coverage` / `coverage-near --within 3 --top 20`
  - 建议导出：`mcp-rules-assistant rules-suggestions --format json|csv`
 - 环境诊断：`mcp-rules-assistant diagnose --json`（默认 JSON；或加 `--text`）
+- 诊断打包：`mcp-rules-assistant diagnose-bundle`（生成 `diagnostics-<ts>.tar.gz`）
  - 刷新状态：`mcp-rules-assistant status-update`（将计划/覆盖率/记忆汇总到 `.mcp/dashboard/status.json`）
 
 示例 Examples
@@ -238,6 +240,11 @@ mcp-rules-assistant ingest-rules README.md docs/ ARCHITECTURE.md rules/
 - 一键环境准备：`make setup`
 - 本地测试（禁用外部 PyTest 插件）：`make test`
 - 生成与校验 CI：`make ci`
+
+Docker 辅助（可选）
+- 开发代理：`docker compose up --build dev-agent`（落盘状态文件，无前端）
+- VS Code 扩展无头测试：`docker compose run --rm vscode-test`
+- JetBrains 构建环境占位：`docker compose run --rm jb-build`
 - VS Code 扩展测试：`make vscode-test`（若受限可先 `export MCP_VSCODE_TEST_ARGS=""`）
 - IDE 兼容性自检：`make ide-compat`（编译 VS Code 扩展 + 无头测试，输出 `extensions/compat_report.json`；macOS 场景下 tests_status=skipped 属正常，详见 `docs/VS_CODE_TEST.md`）
 - 打包 VSIX（供 Cursor/Windsurf 本地安装）：`npm --prefix extensions/vscode run package`；在 Cursor/Windsurf 扩展面板选择“Install from VSIX…”，选取生成的 `.vsix`（详见 `extensions/cursor/README.md`、`extensions/windsurf/README.md`）
