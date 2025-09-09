@@ -252,7 +252,14 @@ mcp-rules-assistant ingest-rules README.md docs/ ARCHITECTURE.md rules/
   - 更新 `CHANGELOG.md`（概述变更/兼容性/迁移说明）
 - 质量门禁：
   - `make local-ci-run` 全绿，`coverage-report --json` weak=0
-  - VS Code：`npm --prefix extensions/vscode test` 生成 lcov；确保 CI 前端覆盖率门禁（≥70%）通过
+- VS Code：`npm --prefix extensions/vscode test` 生成 lcov；确保 CI 前端覆盖率门禁（≥95%）通过（失败时 CI 将自动输出近阈值与最低覆盖的文件清单）
+
+本地生成发布正文（示例，一键三步）
+```
+make release-simulate
+make release-note-full
+sh scripts/release-compose-body.sh
+```
 - 许可硬化（如需商业发布）：
   - `make release-harden-verify` 一键验证（开启 license.required → MCP 敏感工具受限 → 关闭）
 - 打包核验：

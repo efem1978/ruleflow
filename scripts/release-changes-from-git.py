@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 from pathlib import Path
@@ -23,21 +24,21 @@ def previous_tag() -> str | None:
             return None
 
 
-def collect_commits(rng: str | None) -> list[tuple[str, str]]:
-    fmt = "%H\x01%s"
+def collect_commits(rng: str | None) -> list[tuple[str, str, str]]:
+    fmt = "%H\x01%an\x01%s"
     cmd = ["git", "log", "--no-merges", f"--pretty=format:{fmt}"]
     if rng:
         cmd.append(rng)
     out = run(cmd)
-    commits: list[tuple[str, str]] = []
+    commits: list[tuple[str, str, str]] = []
     for line in out.splitlines():
         if not line.strip():
             continue
         try:
-            h, s = line.split("\x01", 1)
+            h, a, s = line.split("\x01", 2)
         except ValueError:
             continue
-        commits.append((h.strip(), s.strip()))
+        commits.append((h.strip(), a.strip(), s.strip()))
     return commits
 
 
@@ -73,17 +74,23 @@ def main() -> None:
         out_path.write_text("(no changes detected)\n", encoding="utf-8")
         print(str(out_path))
         return
-    buckets: dict[str, list[tuple[str, str]]] = {c: [] for c in CATS + ["other"]}
-    for h, s in commits:
-        buckets[categorize(s)].append((h, s))
+    buckets: dict[str, list[tuple[str, str, str]]] = {c: [] for c in CATS + ["other"]}
+    for h, a, s in commits:
+        buckets[categorize(s)].append((h, a, s))
     lines: list[str] = []
+    repo = os.environ.get("GITHUB_REPOSITORY", "")
     for c in [*CATS, "other"]:
-        items = buckets.get(c) or []
+        items: list[tuple[str, str, str]] = buckets.get(c) or []
         if not items:
             continue
         lines.append(f"## {c}")
-        for h, s in items:
-            lines.append(f"- {s} ({h[:7]})")
+        for h, a, s in items:
+            pr_link = ""
+            m = re.search(r"\(#(\d+)\)", s)
+            if m and repo:
+                pr_link = f" https://github.com/{repo}/pull/{m.group(1)}"
+            author = f" by {a}" if a else ""
+            lines.append(f"- {s}{author} ({h[:7]}){pr_link}")
         lines.append("")
     out_path.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
     print(str(out_path))
