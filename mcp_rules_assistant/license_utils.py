@@ -4,7 +4,7 @@ import base64
 import hashlib
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple, cast
 
@@ -81,7 +81,7 @@ def verify_license(path: Path = LICENSE_PATH) -> Dict[str, Any]:
     machine = str(data.get("machine", "")).strip()
     signature = str(data.get("signature", "")).strip()
     alg = str(data.get("alg", "hs256") or "hs256").lower()
-    now = datetime.utcnow().date()
+    now = datetime.now(timezone.utc).date()
     valid_date = True
     if expires:
         try:

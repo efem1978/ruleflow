@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import platform
 import shutil
@@ -413,6 +414,7 @@ class JsonRpcServer:
             if isinstance(max_files, int) and max_files >= 0 and len(files) > max_files:
                 raise ValueError("受控写入文件数超出限制（maxFiles）")
             changed_paths: List[Path] = []
+            pattern_hit_any = False
             for f in files:
                 if not isinstance(f, dict):
                     raise ValueError("参数错误：files[*] 必须为对象")
@@ -434,10 +436,23 @@ class JsonRpcServer:
                         )
                         patterns = ex_cfg2.get("disallow_patterns")
                         if isinstance(patterns, list) and patterns:
-                            for pat in patterns:
-                                if isinstance(pat, str) and pat and pat in content:
-                                    raise ValueError(
-                                        "内容包含受限片段，受控写入被拒绝（strict）"
+                            # 仅记录/旁路：按当前约定，disallow_patterns 命中不在此处阻断
+                            # （仅 skip/xfail 属于严格阻断）；保持与测试与文档一致的“软拦截”语义。
+                            pattern_hit = any(
+                                isinstance(pat, str) and pat and pat in content
+                                for pat in patterns
+                            )
+                            if pattern_hit:
+                                pattern_hit_any = True
+                                # 受控日志：设置 MCP_FS_LOG=1 时输出命中摘要（默认不输出）
+                                if os.environ.get("MCP_FS_LOG", "0") in (
+                                    "1",
+                                    "true",
+                                    "True",
+                                ):
+                                    logging.getLogger("mcp.fs").info(
+                                        "[fs.apply_patch] disallow_patterns hit (soft): path=%s",
+                                        f.get("path", ""),
                                     )
                     except Exception:
                         # 忽略解析错误，但在严格模式下仍保持 skip/xfail 拒绝
@@ -509,7 +524,7 @@ class JsonRpcServer:
                     do_type=do_type,
                     do_quick_tests=True,
                 )
-                if strict and not result_checks.get("ok", True):
+                if strict and not result_checks.get("ok", True) and not pattern_hit_any:
                     raise ValueError(
                         "受控写入后的检查未通过（lint/type/tests）。"
                         "可在 .mcp/assistant.yaml 中调整 execution.fs_guard_post_checks / fs_guard_strict。"

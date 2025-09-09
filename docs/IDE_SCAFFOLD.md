@@ -10,6 +10,10 @@
 - 生成位置：`.mcp/ide/<editor>/`
 - 支持编辑器：VS Code / Cursor / JetBrains / Neovim
 
+兼容性说明
+- Cursor / Windsurf：直接安装 VSIX（与 VS Code 共享引擎），功能等同 VS Code；无需单独分叉。
+- JetBrains：最小骨架与路线图见 `docs/IDE_PLUGIN_ROADMAP.md`；骨架代码位于 `extensions/jetbrains/`。
+
 VS Code / Cursor
 - 输出：`.mcp/ide/vscode/settings.sample.json` 与 README
 - 使用：

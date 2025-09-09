@@ -72,6 +72,7 @@
 ## 统一子进程封装 / Unified Process Runner
 
 - 入口：`mcp_rules_assistant/process.py` 提供 `run_cmd`，所有外部命令统一经该封装调用（dev_agent/hooks/mcp_server 已委托）。
+- 兼容说明：`checks.py` 为兼容历史测试桩（直接 patch `checks.subprocess` 与 `PIPE` 行为），在模块内保留了轻量 `_run` 封装；后续若迁移到 `run_cmd` 将以“可配置委托”的方式进行，不改变现有返回结构。
 - 默认策略：
   - 默认超时 300 秒，可通过 `timeout` 覆盖。
   - 当 `capture_stdout=True` 时，同时捕获 `stderr`，并对 `stdout/stderr` 做末尾截断（最大 8000 字符），避免日志爆量。

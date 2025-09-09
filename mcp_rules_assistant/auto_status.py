@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -137,7 +137,8 @@ def generate_status(project_root: Optional[Path] = None) -> Dict[str, Any]:
     except Exception:
         overall_progress = 0.0
     payload: Dict[str, Any] = {
-        "time": datetime.utcnow().isoformat() + "Z",
+        # 使用 timezone-aware 时间，避免 utcnow 弃用告警（-W error 环境下会失败）
+        "time": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "plan": {
             "status": plan.status,
             "current": plan.current,

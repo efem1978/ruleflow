@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.11.9-slim
 
 # Minimal baseline-friendly image; install git for tests, then drop privileges
 RUN useradd -m appuser \
