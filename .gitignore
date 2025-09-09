@@ -40,5 +40,9 @@ extensions/vscode/.vscode-test/
 extensions/vscode/coverage/
 extensions/vscode/*.vsix
 
+# JetBrains storyboard outputs (generated)
+extensions/jetbrains/screenshots/jb_*.json
+extensions/jetbrains/screenshots/jb_*.md
+
 # pytest cache
 .pytest_cache/
