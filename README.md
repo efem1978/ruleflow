@@ -42,6 +42,10 @@ MCP 规则与上下文助手 / MCP Rules & Context Assistant
 
 ![Panel Overview](docs/assets/panel_overview.svg)
 
+JetBrains（占位图，待实拍替换）
+
+![JetBrains ToolWindow](extensions/jetbrains/screenshots/jetbrains-toolwindow-plan.svg)
+
 ![Coverage Flow](docs/assets/coverage_flow.svg)
 
 覆盖率门禁 Coverage Gate

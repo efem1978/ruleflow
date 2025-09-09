@@ -15,6 +15,7 @@ import javax.swing.JScrollPane
 import javax.swing.JTextArea
 import javax.swing.JList
 import javax.swing.DefaultListModel
+import javax.swing.JCheckBox
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 
@@ -40,6 +41,10 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
         val btnHooks = JButton("Git: 安装 hooks")
         val btnMcpIngest = JButton("MCP: 规则摄取")
         val btnMcpCovReport = JButton("MCP: 覆盖率报告")
+        val btnFsDry = JButton("MCP: 受控写入(dry-run)")
+        val btnFsWrite = JButton("MCP: 受控写入(严格写入)")
+        val btnFsDryMulti = JButton("MCP: 多文件(dry-run)")
+        val btnFsWriteMulti = JButton("MCP: 多文件(严格)")
         val btnOpenPlan = JButton("在编辑器打开计划")
         val btnOpenMemory = JButton("在编辑器打开记忆")
         top.add(btnPlan)
@@ -59,10 +64,18 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
         top.add(btnHooks)
         top.add(btnCfgYaml)
         top.add(btnCiYaml)
+        top.add(btnFsDry)
+        top.add(btnFsWrite)
+        top.add(btnFsDryMulti)
+        top.add(btnFsWriteMulti)
 
         val text = JTextArea(20, 80)
         text.isEditable = false
         val scroll = JScrollPane(text)
+        val chkPretty = JCheckBox("JSON 美化", true)
+        val chkFold = JCheckBox("折叠长输出", true)
+        top.add(chkPretty)
+        top.add(chkFold)
 
         fun readFile(rel: String): String {
             val base = project.basePath ?: return "(no project base)"
@@ -297,7 +310,7 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
                 } else {
                     mcp.request("tools/call", "{\"name\":\"coverage.report\",\"arguments\":{}}", 10000)
                 }
-                text.text = out
+                text.text = maybePrettyAndFold(out, chkPretty.isSelected, chkFold.isSelected)
             } catch (e: Exception) {
                 text.text = "MCP 请求失败: ${e.message}"
             }
@@ -330,6 +343,38 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
 
         btnFsDry.addActionListener { promptFsApplyPatch(strict = true, dryRun = true) }
         btnFsWrite.addActionListener { promptFsApplyPatch(strict = true, dryRun = false) }
+
+        fun promptFsApplyPatchMulti(strict: Boolean, dryRun: Boolean) {
+            try {
+                if (!mcp.isRunning()) mcp.start(project)
+                val nStr = javax.swing.JOptionPane.showInputDialog(null, "输入文件数量(1-10)", "2") ?: return
+                val n = nStr.toIntOrNull() ?: return
+                val files = mutableListOf<Pair<String,String>>()
+                val count = n.coerceIn(1, 10)
+                for (i in 1..count) {
+                    val p = javax.swing.JOptionPane.showInputDialog(null, "第 ${i} 个路径(相对)", "mcp_rules_assistant/tmp_${i}.py") ?: break
+                    val area = javax.swing.JTextArea(10, 64)
+                    val scroll2 = javax.swing.JScrollPane(area)
+                    val res = javax.swing.JOptionPane.showConfirmDialog(null, scroll2, "第 ${i} 个文件内容", javax.swing.JOptionPane.OK_CANCEL_OPTION, javax.swing.JOptionPane.PLAIN_MESSAGE)
+                    if (res != javax.swing.JOptionPane.OK_OPTION) break
+                    files.add(Pair(p, area.text))
+                }
+                if (files.isEmpty()) return
+                val itemsJson = files.joinToString(",") { (p, c) ->
+                    val pe = p.replace("\\", "\\\\").replace("\"", "\\\"")
+                    val ce = c.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n")
+                    "{\"path\":\"$pe\",\"content\":\"$ce\"}"
+                }
+                val argsJson = "{\"files\":[" + itemsJson + "],\"runChecks\":true,\"strict\":" + (if (strict) "true" else "false") + ",\"dryRun\":" + (if (dryRun) "true" else "false") + "}"
+                val req = "{\"name\":\"fs.apply_patch\",\"arguments\":$argsJson}"
+                val out = mcp.request("tools/call", req, if (dryRun) 8000 else 15000)
+                text.text = maybePrettyAndFold(out, chkPretty.isSelected, chkFold.isSelected)
+            } catch (e: Exception) {
+                text.text = "MCP 请求失败: ${e.message}"
+            }
+        }
+        btnFsDryMulti.addActionListener { promptFsApplyPatchMulti(true, true) }
+        btnFsWriteMulti.addActionListener { promptFsApplyPatchMulti(true, false) }
 
         panel.add(top, BorderLayout.NORTH)
         panel.add(scroll, BorderLayout.CENTER)
@@ -415,5 +460,13 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
             }
         }
         return sb.toString()
+    }
+
+    private fun maybePrettyAndFold(s: String, pretty: Boolean, fold: Boolean): String {
+        var out = if (pretty) prettyJson(s) else s
+        if (!fold) return out
+        val lines = out.split('\n')
+        val limit = 300
+        return if (lines.size > limit) lines.take(limit).joinToString("\n") + "\n... (truncated)" else out
     }
 }
