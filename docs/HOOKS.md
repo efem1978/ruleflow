@@ -50,6 +50,10 @@ CI
 - 生成 GitHub Actions：`mcp-rules-assistant generate-ci`
 - 工作流路径：`.github/workflows/ci.yml`
 
+阶段命名（统一建议）
+- 建议统一使用 Git 钩子名作为 stage：`pre-commit` / `commit-msg` / `pre-push`，避免历史上使用 `commit`/`push` 的混用问题。
+- 本仓库生成器与示例均已切换到上述命名；如需迁移，参考 `mcp-rules-assistant precommit-migrate-stages`。
+
 版本固定说明（semgrep）
 - 为提升可重复性，CI 与生成器均固定 semgrep 版本（当前 1.91.x）。
 - 若组织统一维护自有规则或版本，可在 CI 中改为自定义安装命令，并在本文件与生成器（`hooks.py`）的渲染逻辑保持一致。

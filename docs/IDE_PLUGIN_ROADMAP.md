@@ -2,7 +2,7 @@
 
 目标：在保持“最小集成可用”的前提下，分阶段为 Cursor、Windsurf、JetBrains 提供“完整插件级体验”。
 
-阶段与里程碑
+阶段与里程碑（进展）
 - P0（现状）：
   - VS Code 扩展完整（面板/命令/资源/无头测试/CI 条件纳入）。
   - Cursor/Windsurf 可直接安装 VSIX（基于 VS Code 引擎）获得同等功能（最小集成）。
@@ -11,10 +11,10 @@
   - 发布通道与签名（可复用 VSIX）；安装指南与诊断文档。
   - UI 微调（标题/图标/产品名），适配各商店展示规范。
 - P2（JetBrains 最小插件，2–4 周）：
-  - 插件骨架（Gradle/Kotlin）：动作/工具窗口/UI 面板。
-  - 调用本地 MCP Server（stdio）与资源呈现（memory/progress/coverage/ci）。
-  - 受控写入（保存后检查）入口与配置面板。
-  - 基本 E2E 测试（IDEA IU Headless 的 smoke）。
+  - 插件骨架（Gradle/Kotlin）：动作/工具窗口/UI 面板。（已完成）
+  - 调用本地 MCP Server（stdio）与资源呈现（memory/progress/coverage/ci）。（已完成最小闭环：启动/停止/Ping/资源列表/计划/规则摄取/覆盖率报告）
+  - 受控写入（保存后检查）入口与配置面板。（计划）
+  - 基本 E2E 测试（IDEA IU Headless 的 smoke）。（计划）
 - P3（统一能力细节，>2 周，按需）：
   - 统一“自然语言路由”入口（命令面板/操作面板）。
   - 统一“覆盖率/近阈值/规则建议”可视化与导出。
@@ -32,7 +32,7 @@
 1) 编写 Cursor/Windsurf 安装与诊断指南（本仓库内）。
 2) 验证 VSIX 在 Cursor/Windsurf 的 API 兼容性（本地与 CI 报告）。
 3) 产出 JetBrains 插件骨架设计（模块结构、入口点、与 server 的交互）。
-   - 已落库最小骨架：`extensions/jetbrains/`（Gradle 配置 + ToolWindow）。
+   - 已落库最小实现：`extensions/jetbrains/`（Gradle 配置 + ToolWindow + MCP 直连）。
 
 备注
 - 坚持“奥卡姆剃刀原则”：
