@@ -34,14 +34,14 @@ services:
     command: ["bash", "-lc", "xvfb-run -a -s '-screen 0 1024x768x24' npm test"]
 
   jb-build:
-    image: gradle:8.7.0-jdk17
+    image: gradle:8.5.0-jdk17
     working_dir: /work/extensions/jetbrains
     volumes:
       - .:/work
     command: bash -lc "gradle -v || true"
 
   jb-test:
-    image: gradle:8.7.0-jdk17
+    image: gradle:8.5.0-jdk17
     working_dir: /work/extensions/jetbrains
     environment:
       - CI=1
