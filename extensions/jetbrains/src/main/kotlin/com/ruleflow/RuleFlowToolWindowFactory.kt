@@ -33,6 +33,8 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
         val btnMcpPing = JButton("MCP: Ping")
         val btnMcpList = JButton("MCP: 资源列表")
         val btnMcpPlan = JButton("MCP: 加载计划")
+        val btnCfgYaml = JButton("MCP: 配置 YAML")
+        val btnCiYaml = JButton("MCP: CI 工作流")
         val btnCiGen = JButton("CI: 生成")
         val btnCiVal = JButton("CI: 校验")
         val btnHooks = JButton("Git: 安装 hooks")
@@ -55,6 +57,8 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
         top.add(btnCiGen)
         top.add(btnCiVal)
         top.add(btnHooks)
+        top.add(btnCfgYaml)
+        top.add(btnCiYaml)
 
         val text = JTextArea(20, 80)
         text.isEditable = false
@@ -181,7 +185,7 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
             try {
                 if (!mcp.isRunning()) mcp.start(project)
                 val out = mcp.request("resources/list")
-                text.text = out
+                text.text = prettyJson(out)
             } catch (e: Exception) {
                 text.text = "MCP 请求失败: ${e.message}"
             }
@@ -198,7 +202,7 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
                     val out = mcp.request("resources/read", params)
                     val mime = extractString(out, "mimeType") ?: "text/plain"
                     val body = extractString(out, "text") ?: out
-                    text.text = "[$mime]\n\n$body"
+                    text.text = if (mime.contains("json")) prettyJson(body) else "[$mime]\n\n$body"
                 }
             } catch (e: Exception) {
                 text.text = "MCP 请求失败: ${e.message}"
@@ -209,7 +213,7 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
             try {
                 if (!mcp.isRunning()) mcp.start(project)
                 val out = mcp.request("tools/call", "{\"name\":\"ci.generate\",\"arguments\":{}}", 12000)
-                text.text = out
+                text.text = prettyJson(out)
             } catch (e: Exception) {
                 text.text = "MCP 请求失败: ${e.message}"
             }
@@ -218,7 +222,7 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
             try {
                 if (!mcp.isRunning()) mcp.start(project)
                 val out = mcp.request("tools/call", "{\"name\":\"ci.validate\",\"arguments\":{}}", 8000)
-                text.text = out
+                text.text = prettyJson(out)
             } catch (e: Exception) {
                 text.text = "MCP 请求失败: ${e.message}"
             }
@@ -227,7 +231,7 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
             try {
                 if (!mcp.isRunning()) mcp.start(project)
                 val out = mcp.request("tools/call", "{\"name\":\"git.install_hooks\",\"arguments\":{}}", 12000)
-                text.text = out
+                text.text = prettyJson(out)
             } catch (e: Exception) {
                 text.text = "MCP 请求失败: ${e.message}"
             }
@@ -246,7 +250,37 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
                 val pathsJson = items.joinToString(",") { "\"" + it.replace("\\", "\\\\").replace("\"", "\\\"") + "\"" }
                 val params = "{\"name\":\"rules.ingest\",\"arguments\":{\"paths\":[" + pathsJson + "]}}"
                 val out = mcp.request("tools/call", params, 15000)
-                text.text = out
+                text.text = prettyJson(out)
+            } catch (e: Exception) {
+                text.text = "MCP 请求失败: ${e.message}"
+            }
+        }
+
+        btnCfgYaml.addActionListener {
+            try {
+                if (!mcp.isRunning()) mcp.start(project)
+                val resList = mcp.request("resources/list")
+                val uri = extractFirstUri(resList, "config://", "/assistant.yaml")
+                val out = if (uri != null) {
+                    val params = "{\"uri\":\"${uri}\"}"
+                    mcp.request("resources/read", params, 5000)
+                } else "{\"error\":\"config resource not found\"}"
+                text.text = prettyJson(out)
+            } catch (e: Exception) {
+                text.text = "MCP 请求失败: ${e.message}"
+            }
+        }
+
+        btnCiYaml.addActionListener {
+            try {
+                if (!mcp.isRunning()) mcp.start(project)
+                val resList = mcp.request("resources/list")
+                val uri = extractFirstUri(resList, "ci://", "/workflow")
+                val out = if (uri != null) {
+                    val params = "{\"uri\":\"${uri}\"}"
+                    mcp.request("resources/read", params, 5000)
+                } else "{\"error\":\"ci workflow not found\"}"
+                text.text = prettyJson(out)
             } catch (e: Exception) {
                 text.text = "MCP 请求失败: ${e.message}"
             }
@@ -350,5 +384,36 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
         val re = ("\\\"" + key + "\\\"\\s*:\\s*\\\"([^\\\"]*)\\\"").toRegex()
         val m = re.find(json) ?: return null
         return m.groupValues[1]
+    }
+
+    private fun prettyJson(s: String): String {
+        val t = s.trim()
+        if (!(t.startsWith("{") || t.startsWith("["))) return s
+        val sb = StringBuilder()
+        var indent = 0
+        var inStr = false
+        var esc = false
+        for (ch in t) {
+            if (inStr) {
+                sb.append(ch)
+                if (esc) {
+                    esc = false
+                } else if (ch == '\\') {
+                    esc = true
+                } else if (ch == '"') {
+                    inStr = false
+                }
+                continue
+            }
+            when (ch) {
+                '"' -> { inStr = true; sb.append(ch) }
+                '{', '[' -> { sb.append(ch).append('\n'); indent++; sb.append("  ".repeat(indent)) }
+                '}', ']' -> { sb.append('\n'); indent = (indent-1).coerceAtLeast(0); sb.append("  ".repeat(indent)).append(ch) }
+                ',' -> { sb.append(ch).append('\n'); sb.append("  ".repeat(indent)) }
+                ':' -> { sb.append(": ") }
+                else -> sb.append(ch)
+            }
+        }
+        return sb.toString()
     }
 }

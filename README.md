@@ -28,6 +28,7 @@ MCP 规则与上下文助手 / MCP Rules & Context Assistant
 - 覆盖率：`PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q -p pytest_cov --cov=mcp_rules_assistant --cov-report=xml:coverage.xml`
 - 状态刷新：`mcp-rules-assistant status-update`（写入 `.mcp/dashboard/status.json`）
 - VS Code 面板：命令 `RuleFlow: Open Panel`；自然语言 `RuleFlow: Natural Command`
+ - JetBrains 插件：见 `extensions/jetbrains/README.md`（工具窗口最小直连 MCP：启动/停止/Ping/资源/计划/摄取/覆盖率/CI/受控写入）
 
 状态 Status
 
