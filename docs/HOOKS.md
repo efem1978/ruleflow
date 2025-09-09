@@ -54,8 +54,9 @@ CI
 - 建议统一使用 Git 钩子名作为 stage：`pre-commit` / `commit-msg` / `pre-push`，避免历史上使用 `commit`/`push` 的混用问题。
 - 本仓库生成器与示例均已切换到上述命名；如需迁移，参考 `mcp-rules-assistant precommit-migrate-stages`。
 
-版本固定说明（semgrep）
+版本固定说明（semgrep/hadolint）
 - 为提升可重复性，CI 与生成器均固定 semgrep 版本（当前 1.91.x）。
+- Dockerfile Lint 使用固定镜像标签（本仓库使用 `hadolint/hadolint:2.12.0`）。
 - 若组织统一维护自有规则或版本，可在 CI 中改为自定义安装命令，并在本文件与生成器（`hooks.py`）的渲染逻辑保持一致。
 
 附：detect-secrets baseline（可选）

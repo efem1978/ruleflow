@@ -139,6 +139,11 @@
 - 容器与文件：统一使用 `compose.yml`；不得回退至旧命名（如 `docker‑compose.yml`）；禁止重新引入前端看板/UI 代码
  - fs.apply_patch（严格模式）说明：严格阻断仅针对内容中包含 `pytest.mark.skip/xfail` 的情形；`execution.disallow_patterns` 命中仅作软拦截（旁路/记录），不直接阻断写入，保持“保存轻、推送/CI 重”的准则。
 
+提交门禁提示（commit-msg Gate）
+- `.mcp/plan.md` 需处于 `in_progress` 且存在“当前步骤”。
+- 提交信息需包含 `[step:当前步骤]` 标记。若处于 `completed` 将被 Gate 拦截。
+- 可用 CLI 快捷设置：`mcp-rules-assistant plan-set --status in_progress --current "<步骤>" --next-step "<下一步>"`。
+
 ## 下一步 / Next Actions（入口指向）
 - 请以 `.mcp/plan.md` 作为唯一权威任务清单；VS Code 面板与 Dev Agent 仅读取该文件的清单。
 - CLI 刷新状态：`mcp-rules-assistant status-update` 会将计划/覆盖率/记忆与任务列表写入 `.mcp/dashboard/status.json`（任务仅来源于 `.mcp/plan.md`）。

@@ -65,9 +65,9 @@
 - 生成：`mcp-rules-assistant generate-ci` 与 `install-hooks`
 - 自修复：`mcp-rules-assistant ci-autofix`
 - 条件化步骤：
-  - hadolint：当开启容器策略或 `ci.hadolint=true`
-  - semgrep：当开启 `security.sast_strict` 或 `ci.semgrep_config`
-- 计划门禁：提交信息需包含 `[step:当前步骤]`，且 `.mcp/plan.md` 处于 `in_progress`
+  - hadolint：当开启容器策略或 `ci.hadolint=true`（固定镜像标签，当前使用 `hadolint/hadolint:2.12.0`）
+  - semgrep：当开启 `security.sast_strict` 或 `ci.semgrep_config`（固定版本：`1.91.x`）
+  - 计划门禁：提交信息需包含 `[step:当前步骤]`，且 `.mcp/plan.md` 处于 `in_progress`
 
 ## 统一子进程封装 / Unified Process Runner
 

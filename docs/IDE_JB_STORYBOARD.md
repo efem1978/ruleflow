@@ -24,5 +24,4 @@ JetBrains 插件替代方案（无需安装） / JetBrains Storyboard (No-IDE)
 
 后续（可选）
 - 当获取到 JetBrains 实拍截图后，可将现有 SVG 示意图替换为 PNG 并更新 README 引用。
-- CI 已包含 JetBrains Gradle 编译作业（compile-only），保障 Kotlin 源码可编译性。
-
+- CI 已包含 JetBrains Storyboard 生成作业（生成 jb_*.json/md 工件，见 `jetbrains-storyboard` job）。Gradle 编译作业（compile-only）可按需添加。

@@ -5,7 +5,7 @@ ifneq (,$(wildcard .mcp/venv/bin/python))
 endif
 NPM ?= npm
 
-.PHONY: setup test lint type format ci vscode-test ingest coverage package release-check clean-dist help local-ci-run hooks hooks-sh ci-autofix preflight nightly-local maintenance-all verify
+.PHONY: setup test lint type format ci vscode-test ingest coverage package release-check clean-dist clean help local-ci-run hooks hooks-sh ci-autofix preflight nightly-local maintenance-all verify jb-storyboard
 
 help:
 	@echo "Targets: setup test lint type format ci vscode-test ingest coverage"
@@ -133,6 +133,12 @@ release-check:
 
 clean-dist:
 	rm -rf dist build *.egg-info || true
+clean:
+	rm -f coverage.xml cov*.json pytest-junit.xml || true
+	rm -rf extensions/vscode/coverage extensions/vscode/out || true
+	rm -f extensions/vscode/*.vsix || true
+jb-storyboard:
+	sh scripts/jb-storyboard.sh
 ide-compat:
 	sh scripts/ide-compat-check.sh || true
 	@echo "See extensions/compat_report.json"
