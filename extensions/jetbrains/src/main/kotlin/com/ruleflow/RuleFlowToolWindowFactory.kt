@@ -27,6 +27,9 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
         val btnPlan = JButton("加载计划 / Load Plan")
         val btnMemory = JButton("加载记忆 / Load Memory")
         val btnCoverage = JButton("加载覆盖率摘要 / Load Coverage Summary")
+        val btnMcpStart = JButton("启动 MCP")
+        val btnMcpList = JButton("MCP: 资源列表")
+        val btnMcpPlan = JButton("MCP: 加载计划")
         val btnOpenPlan = JButton("在编辑器打开计划")
         val btnOpenMemory = JButton("在编辑器打开记忆")
         top.add(btnPlan)
@@ -34,6 +37,9 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
         top.add(btnCoverage)
         top.add(btnOpenPlan)
         top.add(btnOpenMemory)
+        top.add(btnMcpStart)
+        top.add(btnMcpList)
+        top.add(btnMcpPlan)
 
         val text = JTextArea(20, 80)
         text.isEditable = false
@@ -137,6 +143,40 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
         btnOpenPlan.addActionListener { openInEditor(".mcp/plan.md") }
         btnOpenMemory.addActionListener { openInEditor(".mcp/memory.json") }
 
+        // ---- MCP integration (minimal) ----
+        val mcp = McpClient()
+        btnMcpStart.addActionListener {
+            if (!mcp.isRunning()) mcp.start(project)
+            Messages.showInfoMessage(project, if (mcp.isRunning()) "MCP 运行中" else "MCP 启动失败", "RuleFlow")
+        }
+        btnMcpList.addActionListener {
+            try {
+                if (!mcp.isRunning()) mcp.start(project)
+                val out = mcp.request("resources/list")
+                text.text = out
+            } catch (e: Exception) {
+                text.text = "MCP 请求失败: ${e.message}"
+            }
+        }
+        btnMcpPlan.addActionListener {
+            try {
+                if (!mcp.isRunning()) mcp.start(project)
+                val resList = mcp.request("resources/list")
+                val planUri = extractFirstUri(resList, "progress://", "/plan")
+                if (planUri == null) {
+                    text.text = resList
+                } else {
+                    val params = "{\"uri\":\"${planUri}\"}"
+                    val out = mcp.request("resources/read", params)
+                    val mime = extractString(out, "mimeType") ?: "text/plain"
+                    val body = extractString(out, "text") ?: out
+                    text.text = "[$mime]\n\n$body"
+                }
+            } catch (e: Exception) {
+                text.text = "MCP 请求失败: ${e.message}"
+            }
+        }
+
         panel.add(top, BorderLayout.NORTH)
         panel.add(scroll, BorderLayout.CENTER)
 
@@ -175,5 +215,20 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
 
         val content = ContentFactory.getInstance().createContent(panel, "", false)
         toolWindow.contentManager.addContent(content)
+    }
+
+    private fun extractFirstUri(json: String, prefix: String, suffix: String): String? {
+        val re = "\\\"uri\\\"\\s*:\\s*\\\"([^\\\"]+)\\\"".toRegex()
+        for (m in re.findAll(json)) {
+            val u = m.groupValues[1]
+            if (u.startsWith(prefix) && u.endsWith(suffix)) return u
+        }
+        return null
+    }
+
+    private fun extractString(json: String, key: String): String? {
+        val re = ("\\\"" + key + "\\\"\\s*:\\s*\\\"([^\\\"]*)\\\"").toRegex()
+        val m = re.find(json) ?: return null
+        return m.groupValues[1]
     }
 }

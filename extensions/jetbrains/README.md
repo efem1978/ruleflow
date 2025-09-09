@@ -19,13 +19,12 @@
 - 不复制 VS Code 前端；以“最小可用”为目标。
 - 与 Python 端通过 JSON-RPC 交互，严格遵守错误码约定（见 `docs/MCP.md`）。
 
-里程碑
-- M1：项目骨架（plugin.xml、Gradle、Hello ToolWindow）
-- M2：调用 MCP `resources/list`/`resources/read` 展示 plan/memory/coverage
-- M3：动作菜单与命令路由（rules.ingest / coverage.report / ci.generate）
-- M4：受控写入（fs.apply_patch）入口与结果提示
-- M5：打包、离线安装、基础冒烟测试
+里程碑（进度）
+- M1（已完成）：项目骨架（plugin.xml、Gradle、工具窗口）
+- M2（已完成）：最小 MCP 直连（启动/请求）；支持 `resources/list` 与 `resources/read`（计划）
+- M3（进行中）：动作菜单与命令路由（rules.ingest / coverage.report / ci.generate）
+- M4（计划）：受控写入（fs.apply_patch）入口与结果提示
+- M5（计划）：打包、离线安装、基础冒烟测试
 
 目录
 - 后续将在 `extensions/jetbrains/` 内建立 Gradle 项目；当前为计划说明，待你确认后启用。
-
