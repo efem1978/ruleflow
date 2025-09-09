@@ -269,6 +269,34 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
             }
         }
 
+        fun promptFsApplyPatch(strict: Boolean, dryRun: Boolean) {
+            try {
+                if (!mcp.isRunning()) mcp.start(project)
+                val p = javax.swing.JOptionPane.showInputDialog(
+                    null,
+                    if (dryRun) "受控写入（dry-run）：输入相对路径" else "受控写入（严格）：输入相对路径",
+                    "mcp_rules_assistant/tmp_demo.py"
+                ) ?: return
+                val area = javax.swing.JTextArea(16, 64)
+                val scroll = javax.swing.JScrollPane(area)
+                val res = javax.swing.JOptionPane.showConfirmDialog(
+                    null, scroll, "输入文件内容", javax.swing.JOptionPane.OK_CANCEL_OPTION, javax.swing.JOptionPane.PLAIN_MESSAGE
+                )
+                if (res != javax.swing.JOptionPane.OK_OPTION) return
+                val pathEsc = p.replace("\\", "\\\\").replace("\"", "\\\"")
+                val contentEsc = area.text.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n")
+                val argsJson = "{\"files\":[{\"path\":\"$pathEsc\",\"content\":\"$contentEsc\"}],\"runChecks\":true,\"strict\":" + (if (strict) "true" else "false") + ",\"dryRun\":" + (if (dryRun) "true" else "false") + "}"
+                val req = "{\"name\":\"fs.apply_patch\",\"arguments\":$argsJson}"
+                val out = mcp.request("tools/call", req, if (dryRun) 8000 else 15000)
+                text.text = out
+            } catch (e: Exception) {
+                text.text = "MCP 请求失败: ${e.message}"
+            }
+        }
+
+        btnFsDry.addActionListener { promptFsApplyPatch(strict = true, dryRun = true) }
+        btnFsWrite.addActionListener { promptFsApplyPatch(strict = true, dryRun = false) }
+
         panel.add(top, BorderLayout.NORTH)
         panel.add(scroll, BorderLayout.CENTER)
 
