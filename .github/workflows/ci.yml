@@ -156,9 +156,9 @@ jobs:
       - name: VS Code coverage warn (min 95%)
         run: |
           sh scripts/check-lcov.sh extensions/vscode/coverage/lcov.info 95 || true
-      - name: VS Code coverage gate (min 90%)
+      - name: VS Code coverage gate (min 95%)
         run: |
-          sh scripts/check-lcov.sh extensions/vscode/coverage/lcov.info 90 gate
+          sh scripts/check-lcov.sh extensions/vscode/coverage/lcov.info 95 gate
       - name: Upload VS Code coverage to Codecov (conditional)
         if: always()
         uses: codecov/codecov-action@v4
