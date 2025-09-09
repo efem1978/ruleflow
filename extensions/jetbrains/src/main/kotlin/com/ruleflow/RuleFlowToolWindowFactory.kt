@@ -80,13 +80,30 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
 
         btnCoverage.addActionListener {
             val raw = readFile(".mcp/dashboard/status.json")
-            // 简要计数 weak/near 数量（启发式：统计数组内的 '{' 数）
             try {
                 val weakArr = extractArray(raw, "weak") ?: "[]"
                 val nearArr = extractArray(raw, "near") ?: "[]"
-                val weakCount = weakArr.count { it == '{' }
-                val nearCount = nearArr.count { it == '{' }
-                text.text = "Weak: $weakCount, Near: $nearCount\n\n" + raw
+                val weakList = mutableListOf<String>()
+                val nearList = mutableListOf<String>()
+                val itemRegex = "\"file\"\\s*:\\s*\"([^\"]+)\"[\\s\\S]*?\"coverage\"\\s*:\\s*([0-9.]+)".toRegex()
+                for (m in itemRegex.findAll(weakArr)) {
+                    val f = m.groupValues[1]
+                    val c = (m.groupValues[2].toDoubleOrNull() ?: 0.0) * 100.0
+                    weakList.add(String.format("- %.1f%% — %s", c, f))
+                }
+                for (m in itemRegex.findAll(nearArr)) {
+                    val f = m.groupValues[1]
+                    val c = (m.groupValues[2].toDoubleOrNull() ?: 0.0) * 100.0
+                    nearList.add(String.format("- %.1f%% — %s", c, f))
+                }
+                val sb = StringBuilder()
+                sb.append("Weak: ").append(weakList.size).append('\n')
+                weakList.forEach { sb.append(it).append('\n') }
+                sb.append('\n')
+                sb.append("Near: ").append(nearList.size).append('\n')
+                nearList.take(20).forEach { sb.append(it).append('\n') }
+                sb.append('\n').append(raw)
+                text.text = sb.toString()
             } catch (e: Exception) {
                 text.text = raw
             }
