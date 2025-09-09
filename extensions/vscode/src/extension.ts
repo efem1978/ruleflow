@@ -489,6 +489,13 @@ export function activate(context: vscode.ExtensionContext) {
                 const ex = cfg.execution || {};
                 (document.getElementById('execChecksDelegate') as HTMLInputElement).checked = !!ex.checks_delegate_run_cmd;
               } catch {}
+              try {
+                const perf = cfg.performance || {};
+                const strict = String(perf.mode || '').toLowerCase() === 'strict' || !!ci.mutation_gate_strict;
+                // Update status bar hint
+                (globalThis as any).__ruleflowStrict = strict;
+                sb.text = strict ? 'RuleFlow [Strict]' : 'RuleFlow';
+              } catch {}
             }
             if (msg.t === 'ciStatus') {
               const el = document.getElementById('ciStatus');
