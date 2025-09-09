@@ -56,6 +56,7 @@ JetBrains（示意图，待替换为实拍截图）
 
 覆盖率门禁 Coverage Gate
 - 本地与容器环境均通过覆盖率门禁：核心≥98%，其余≥95%，coverage-report 弱项清零（weak 列表为空）。
+ - VS Code 前端：CI 已启用 lcov 覆盖率门禁（当前 70%，低于则 CI 失败）。
 
 许可与试用 License & Trial
 - 本产品为商业授权（全部功能付费，含 7 天试用）；详见 `docs/PRICING.md`
@@ -244,6 +245,24 @@ mcp-rules-assistant ingest-rules README.md docs/ ARCHITECTURE.md rules/
 - 规则摄取：`make ingest`
 - 覆盖率摘要：`make coverage`
 - 本地 CI 一键执行：`make local-ci-run`（聚合 lint/type/tests/coverage‑gate，与 CI 门禁一致）
+
+发行流程清单 Release Checklist（建议）
+- 版本与日志：
+  - 同步 `pyproject.toml` 与 `mcp_rules_assistant/__init__.py` 版本号
+  - 更新 `CHANGELOG.md`（概述变更/兼容性/迁移说明）
+- 质量门禁：
+  - `make local-ci-run` 全绿，`coverage-report --json` weak=0
+  - VS Code：`npm --prefix extensions/vscode test` 生成 lcov；确保 CI 前端覆盖率门禁（≥70%）通过
+- 许可硬化（如需商业发布）：
+  - `make release-harden-verify` 一键验证（开启 license.required → MCP 敏感工具受限 → 关闭）
+- 打包核验：
+  - Python 包：`make package && make release-check`（`twine check` 通过；含 `py.typed`）
+  - VS Code 扩展：`npm --prefix extensions/vscode run package` 生成 `.vsix`（可选）
+- CI 状态：
+  - GitHub Actions 全部通过（含 SAST/hadolint/Mutation 可选/IDE 兼容脚本）
+- 标签与发布：
+  - 打 tag：`git tag vX.Y.Z && git push --tags`（或使用 Release 工作流）
+  - PyPI/VS Code 市场发布（如适用），并在 README 更新安装指引与版本徽章
 - IDE 兼容性自检：`make ide-compat`（编译 VS Code 扩展 + 无头测试，并输出 `extensions/compat_report.json`；供 Cursor/Windsurf 参考）
 
 许可证与商业化
