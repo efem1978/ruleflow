@@ -185,7 +185,7 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
             try {
                 if (!mcp.isRunning()) mcp.start(project)
                 val out = mcp.request("resources/list")
-                text.text = prettyJson(out)
+                text.text = if (chkPretty.isSelected) prettyJson(out) else out
             } catch (e: Exception) {
                 text.text = "MCP 请求失败: ${e.message}"
             }
@@ -202,7 +202,7 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
                     val out = mcp.request("resources/read", params)
                     val mime = extractString(out, "mimeType") ?: "text/plain"
                     val body = extractString(out, "text") ?: out
-                    text.text = if (mime.contains("json")) prettyJson(body) else "[$mime]\n\n$body"
+                    text.text = if (mime.contains("json")) (if (chkPretty.isSelected) prettyJson(body) else body) else "[$mime]\n\n$body"
                 }
             } catch (e: Exception) {
                 text.text = "MCP 请求失败: ${e.message}"
@@ -213,7 +213,7 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
             try {
                 if (!mcp.isRunning()) mcp.start(project)
                 val out = mcp.request("tools/call", "{\"name\":\"ci.generate\",\"arguments\":{}}", 12000)
-                text.text = prettyJson(out)
+                text.text = if (chkPretty.isSelected) prettyJson(out) else out
             } catch (e: Exception) {
                 text.text = "MCP 请求失败: ${e.message}"
             }
@@ -222,7 +222,7 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
             try {
                 if (!mcp.isRunning()) mcp.start(project)
                 val out = mcp.request("tools/call", "{\"name\":\"ci.validate\",\"arguments\":{}}", 8000)
-                text.text = prettyJson(out)
+                text.text = if (chkPretty.isSelected) prettyJson(out) else out
             } catch (e: Exception) {
                 text.text = "MCP 请求失败: ${e.message}"
             }
