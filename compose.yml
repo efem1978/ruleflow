@@ -40,4 +40,16 @@ services:
       - .:/work
     command: bash -lc "gradle -v || true"
 
-volumes: {}
+  jb-test:
+    image: gradle:8.7.0-jdk17
+    working_dir: /work/extensions/jetbrains
+    environment:
+      - CI=1
+      - GRADLE_OPTS=-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs='-Xmx768m'
+    volumes:
+      - .:/work
+      - gradle-cache:/home/gradle/.gradle
+    command: bash -lc "gradle test -i"
+
+volumes:
+  gradle-cache:
