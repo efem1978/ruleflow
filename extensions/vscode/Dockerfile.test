@@ -1,0 +1,27 @@
+FROM node:20-bookworm
+
+# Preinstall headless test deps once (cached layer)
+RUN set -eux; \
+    export DEBIAN_FRONTEND=noninteractive; \
+    apt-get update -y >/dev/null; \
+    apt-get install -y --no-install-recommends \
+      xvfb xauth \
+      libglib2.0-0 libgdk-pixbuf-2.0-0 \
+      libgtk-3-0 libasound2 libnss3 libxss1 libxshmfence1 \
+      libgbm1 libdrm2 libxdamage1 libxfixes3 libxcomposite1 \
+      libxi6 libxrandr2 libatk-bridge2.0-0 libx11-xcb1 libxext6 
+      libxkbfile1 libxkbcommon0 libwayland-client0 libxrender1 \
+      ca-certificates >/dev/null; \
+    rm -rf /var/lib/apt/lists/*
+
+# Cache node_modules based on package*.json only
+WORKDIR /opt/app
+COPY extensions/vscode/package*.json ./
+RUN npm ci --no-audit --no-fund
+
+# Make toolchain visible from any working dir
+ENV PATH="/opt/app/node_modules/.bin:${PATH}"
+ENV NODE_PATH="/opt/app/node_modules"
+
+# Workdir will be the mounted repo path when running via compose
+WORKDIR /work/extensions/vscode
