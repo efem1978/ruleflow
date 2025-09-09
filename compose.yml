@@ -24,6 +24,7 @@ services:
     working_dir: /work/extensions/vscode
     volumes:
       - .:/work
+      - npm-cache:/root/.npm
     environment:
       - CI=1
       - NO_COLOR=1
@@ -44,7 +45,7 @@ services:
           libxi6 libxrandr2 libatk-bridge2.0-0 libx11-xcb1 libxext6 \
           libxkbfile1 libxkbcommon0 libwayland-client0 libxrender1 \
           ca-certificates >/dev/null
-        npm ci >/dev/null
+        npm ci --no-audit --no-fund
         xvfb-run -a -s '-screen 0 1024x768x24' npm test
 
   jb-build:
@@ -53,3 +54,6 @@ services:
     volumes:
       - .:/work
     command: bash -lc "gradle -v || true"
+
+volumes:
+  npm-cache:
