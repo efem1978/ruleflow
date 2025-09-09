@@ -30,6 +30,8 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
         val btnMcpStart = JButton("启动 MCP")
         val btnMcpList = JButton("MCP: 资源列表")
         val btnMcpPlan = JButton("MCP: 加载计划")
+        val btnMcpIngest = JButton("MCP: 规则摄取")
+        val btnMcpCovReport = JButton("MCP: 覆盖率报告")
         val btnOpenPlan = JButton("在编辑器打开计划")
         val btnOpenMemory = JButton("在编辑器打开记忆")
         top.add(btnPlan)
@@ -40,6 +42,8 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
         top.add(btnMcpStart)
         top.add(btnMcpList)
         top.add(btnMcpPlan)
+        top.add(btnMcpIngest)
+        top.add(btnMcpCovReport)
 
         val text = JTextArea(20, 80)
         text.isEditable = false
@@ -172,6 +176,42 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
                     val body = extractString(out, "text") ?: out
                     text.text = "[$mime]\n\n$body"
                 }
+            } catch (e: Exception) {
+                text.text = "MCP 请求失败: ${e.message}"
+            }
+        }
+
+        btnMcpIngest.addActionListener {
+            try {
+                if (!mcp.isRunning()) mcp.start(project)
+                val input = javax.swing.JOptionPane.showInputDialog(
+                    null,
+                    "输入要摄取的文件或目录（逗号分隔）",
+                    "README.md, docs/"
+                ) ?: return@addActionListener
+                val items = input.split(',').map { it.trim() }.filter { it.isNotEmpty() }
+                if (items.isEmpty()) return@addActionListener
+                val pathsJson = items.joinToString(",") { "\"" + it.replace("\\", "\\\\").replace("\"", "\\\"") + "\"" }
+                val params = "{\"name\":\"rules.ingest\",\"arguments\":{\"paths\":[" + pathsJson + "]}}"
+                val out = mcp.request("tools/call", params, 15000)
+                text.text = out
+            } catch (e: Exception) {
+                text.text = "MCP 请求失败: ${e.message}"
+            }
+        }
+
+        btnMcpCovReport.addActionListener {
+            try {
+                if (!mcp.isRunning()) mcp.start(project)
+                val resList = mcp.request("resources/list")
+                val uri = extractFirstUri(resList, "coverage://", "/report")
+                val out = if (uri != null) {
+                    val params = "{\"uri\":\"${uri}\"}"
+                    mcp.request("resources/read", params, 8000)
+                } else {
+                    mcp.request("tools/call", "{\"name\":\"coverage.report\",\"arguments\":{}}", 10000)
+                }
+                text.text = out
             } catch (e: Exception) {
                 text.text = "MCP 请求失败: ${e.message}"
             }

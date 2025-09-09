@@ -11,6 +11,7 @@
   - “生成 CI / Generate CI”
   - “加载覆盖率 / Load Coverage”
   - “自然语言指令 / Natural Command”
+  - “启动 MCP / 资源列表 / 加载计划 / 规则摄取 / 覆盖率报告”（最小直连）
 - 集成：
   - 启动/调用本地 MCP Server（stdio），或复用现有进程。
   - 受控写入（保存后检查）入口与配置。
