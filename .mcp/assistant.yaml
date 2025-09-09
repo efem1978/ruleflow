@@ -20,7 +20,6 @@ performance:
 language: python
 bilingual: true
 coverage:
-  # 核心模块（文件名后缀匹配）阈值设置，与“核心≥98%”策略一致；其余由 min_module 控制
   policy:
     config.py: 0.98
     progress.py: 0.98

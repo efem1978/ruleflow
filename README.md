@@ -56,7 +56,7 @@ JetBrains（示意图，待替换为实拍截图）
 
 覆盖率门禁 Coverage Gate
 - 本地与容器环境均通过覆盖率门禁：核心≥98%，其余≥95%，coverage-report 弱项清零（weak 列表为空）。
- - VS Code 前端：CI 已启用 lcov 覆盖率门禁（当前 70%，低于则 CI 失败）。
+ - VS Code 前端：CI 已启用 lcov 覆盖率门禁（当前 80%，低于则 CI 失败）。
 
 许可与试用 License & Trial
 - 本产品为商业授权（全部功能付费，含 7 天试用）；详见 `docs/PRICING.md`

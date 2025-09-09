@@ -82,6 +82,10 @@ verify:
 release-harden-verify:
 	sh scripts/release-harden-verify.sh
 
+.PHONY: release-simulate
+release-simulate:
+	sh scripts/release-simulate.sh
+
 .PHONY: git-upstream-check
 git-upstream-check:
 	sh scripts/git-upstream-check.sh
