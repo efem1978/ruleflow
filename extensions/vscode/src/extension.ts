@@ -203,11 +203,17 @@ export function activate(context: vscode.ExtensionContext) {
           <ul id="tasksDone"></ul>
         </div>
         <div>
-          <h3>CI 配置（hadolint / semgrep）</h3>
+          <h3>CI 配置（hadolint / semgrep / mutation）</h3>
           <label><input type="checkbox" id="ciHadolint"> 启用 hadolint</label><br/>
           镜像: <input id="ciHadolintImage" style="width:260px" placeholder="hadolint/hadolint:latest"/>
           参数: <input id="ciHadolintArgs" style="width:260px" placeholder="--ignore DL3008"/><br/>
           semgrep 规则: <input id="ciSemgrepConfig" style="width:180px" placeholder="auto / p/ci"/>
+          <div style="margin-top:4px;">
+            <label><input type="checkbox" id="ciMutGateStrict"> 严格模式变异门禁（strict 或显式开启）</label>
+          </div>
+          <div style="margin-top:4px;">
+            <label><input type="checkbox" id="execChecksDelegate"> checks 委托至统一 runner（process.run_cmd）</label>
+          </div>
           <button id="btnCiSave">保存 CI 配置</button>
           <button id="btnCiGen">生成 CI</button>
           <button id="btnCiPreview">预览 CI</button>
@@ -282,7 +288,9 @@ export function activate(context: vscode.ExtensionContext) {
             const img = (document.getElementById('ciHadolintImage') as HTMLInputElement).value;
             const args = (document.getElementById('ciHadolintArgs') as HTMLInputElement).value;
             const sem = (document.getElementById('ciSemgrepConfig') as HTMLInputElement).value;
-            vscode.postMessage({ t: 'ciSave', data: { hadolint: had, hadolint_image: img, hadolint_args: args, semgrep_config: sem } });
+            const mutStrict = (document.getElementById('ciMutGateStrict') as HTMLInputElement).checked;
+            const execChecks = (document.getElementById('execChecksDelegate') as HTMLInputElement).checked;
+            vscode.postMessage({ t: 'ciSave', data: { hadolint: had, hadolint_image: img, hadolint_args: args, semgrep_config: sem, mutation_gate_strict: mutStrict, execution: { checks_delegate_run_cmd: execChecks } } });
           };
           (document.getElementById('btnCiGen') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'ciGen' });
           (document.getElementById('btnCiPreview') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'ciPreviewInline' });
@@ -476,6 +484,11 @@ export function activate(context: vscode.ExtensionContext) {
               (document.getElementById('ciHadolintImage') as HTMLInputElement).value = ci.hadolint_image || '';
               (document.getElementById('ciHadolintArgs') as HTMLInputElement).value = ci.hadolint_args || '';
               (document.getElementById('ciSemgrepConfig') as HTMLInputElement).value = ci.semgrep_config || '';
+              (document.getElementById('ciMutGateStrict') as HTMLInputElement).checked = !!ci.mutation_gate_strict;
+              try {
+                const ex = cfg.execution || {};
+                (document.getElementById('execChecksDelegate') as HTMLInputElement).checked = !!ex.checks_delegate_run_cmd;
+              } catch {}
             }
             if (msg.t === 'ciStatus') {
               const el = document.getElementById('ciStatus');

@@ -22,6 +22,11 @@ Git Hooks 与门禁（性能优先）
   - 生成 `coverage.xml`（用于面板“加载覆盖率”与薄弱模块展示）
   - 若规则启用 `security.secrets_scan`：自动在 pre-commit 配置中加入 `detect-secrets`（push 阶段），保存阶段不运行
 
+变异测试门禁（Strict 档）
+- 严格模式下（`performance.mode: strict`），或显式在配置开启 `ci.mutation_gate_strict: true` 时，CI 的“Mutation testing”步骤将作为硬门禁运行（mutmut 失败即失败）。
+- 非严格模式默认保持非阻断（`mutmut run -q || true`），以优先保障开发内环速度。
+- 生成器与仓库现有工作流已对齐此逻辑；可在 VS Code 面板“CI 配置”中勾选“严格模式变异门禁”。
+
 注意（本地脚本生成时机）
 - `.pre-commit-config.yaml` 中引用的本地脚本（如 `.mcp/plan_gate.py`、`.mcp/dockerfile_gate.py`）由 `mcp-rules-assistant install-hooks` 生成。
 - 请优先执行一次 `install-hooks` 再进行提交/推送；后续计划将这些条目改为“条件生成”，避免首次运行时因缺失脚本而失败。

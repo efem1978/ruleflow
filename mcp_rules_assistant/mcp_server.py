@@ -1269,10 +1269,26 @@ English summary:
         except Exception:
             data = {}
         ci = data.get("ci", {}) if isinstance(data.get("ci", {}), dict) else {}
-        for k in ["hadolint", "hadolint_image", "hadolint_args", "semgrep_config"]:
+        for k in [
+            "hadolint",
+            "hadolint_image",
+            "hadolint_args",
+            "semgrep_config",
+            "mutation_gate_strict",
+        ]:
             if k in payload:
                 ci[k] = payload[k]
         data["ci"] = ci
+        # Optional: update execution.checks_delegate_run_cmd
+        if "execution" in payload and isinstance(payload["execution"], dict):
+            ex = (
+                data.get("execution", {})
+                if isinstance(data.get("execution", {}), dict)
+                else {}
+            )
+            if "checks_delegate_run_cmd" in payload["execution"]:
+                ex["checks_delegate_run_cmd"] = bool(payload["execution"]["checks_delegate_run_cmd"])  # type: ignore[truthy-bool]
+            data["execution"] = ex
         cfg_path.parent.mkdir(parents=True, exist_ok=True)
         atomic_write_text(
             cfg_path, yaml.safe_dump(data, sort_keys=False, allow_unicode=True)
