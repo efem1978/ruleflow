@@ -22,10 +22,12 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
 
         val btnPlan = JButton("加载计划 / Load Plan")
         val btnMemory = JButton("加载记忆 / Load Memory")
+        val btnCoverage = JButton("加载覆盖率摘要 / Load Coverage Summary")
         val btnOpenPlan = JButton("在编辑器打开计划")
         val btnOpenMemory = JButton("在编辑器打开记忆")
         top.add(btnPlan)
         top.add(btnMemory)
+        top.add(btnCoverage)
         top.add(btnOpenPlan)
         top.add(btnOpenMemory)
 
@@ -52,6 +54,42 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
         btnMemory.addActionListener {
             val content = readFile(".mcp/memory.json")
             text.text = content
+        }
+
+        fun extractArray(json: String, key: String): String? {
+            val anchor = "\"$key\""
+            val i = json.indexOf(anchor)
+            if (i < 0) return null
+            var j = json.indexOf('[', i)
+            if (j < 0) return null
+            var depth = 0
+            var k = j
+            while (k < json.length) {
+                val ch = json[k]
+                if (ch == '[') depth++
+                if (ch == ']') {
+                    depth--
+                    if (depth == 0) {
+                        return json.substring(j, k + 1)
+                    }
+                }
+                k++
+            }
+            return null
+        }
+
+        btnCoverage.addActionListener {
+            val raw = readFile(".mcp/dashboard/status.json")
+            // 简要计数 weak/near 数量（启发式：统计数组内的 '{' 数）
+            try {
+                val weakArr = extractArray(raw, "weak") ?: "[]"
+                val nearArr = extractArray(raw, "near") ?: "[]"
+                val weakCount = weakArr.count { it == '{' }
+                val nearCount = nearArr.count { it == '{' }
+                text.text = "Weak: $weakCount, Near: $nearCount\n\n" + raw
+            } catch (e: Exception) {
+                text.text = raw
+            }
         }
 
         fun openInEditor(rel: String) {

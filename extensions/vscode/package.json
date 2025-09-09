@@ -55,6 +55,14 @@
         "title": "RuleFlow: Open Panel"
       },
       {
+        "command": "mcpRulesAssistant.openPlan",
+        "title": "RuleFlow: Open Plan"
+      },
+      {
+        "command": "mcpRulesAssistant.openMemory",
+        "title": "RuleFlow: Open Memory"
+      },
+      {
         "command": "mcpRulesAssistant.commit",
         "title": "RuleFlow: Commit (run checks)"
       },

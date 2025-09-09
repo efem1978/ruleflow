@@ -93,6 +93,32 @@ export function activate(context: vscode.ExtensionContext) {
   sb.show();
   context.subscriptions.push(sb);
 
+  // 快捷命令：快速打开计划与记忆文件
+  context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant.openPlan', async () => {
+    const ws = getWorkspaceRoot();
+    if (!ws) { vscode.window.showInformationMessage('No workspace'); return; }
+    const uri = vscode.Uri.file(ws + '/.mcp/plan.md');
+    try {
+      await vscode.workspace.fs.stat(uri);
+      const doc = await vscode.workspace.openTextDocument(uri);
+      await vscode.window.showTextDocument(doc, { preview: false });
+    } catch {
+      vscode.window.showInformationMessage('.mcp/plan.md not found');
+    }
+  }));
+  context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant.openMemory', async () => {
+    const ws = getWorkspaceRoot();
+    if (!ws) { vscode.window.showInformationMessage('No workspace'); return; }
+    const uri = vscode.Uri.file(ws + '/.mcp/memory.json');
+    try {
+      await vscode.workspace.fs.stat(uri);
+      const doc = await vscode.workspace.openTextDocument(uri);
+      await vscode.window.showTextDocument(doc, { preview: false });
+    } catch {
+      vscode.window.showInformationMessage('.mcp/memory.json not found');
+    }
+  }));
+
   const disposable = vscode.commands.registerCommand('mcpRulesAssistant.openPanel', async () => {
     // 按需启动后端 Python 服务器
     try { client.start(context); } catch {}
