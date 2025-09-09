@@ -90,6 +90,11 @@ release-simulate:
 release-note:
 	python3 scripts/release-note-from-report.py --report .mcp/dashboard/release_check.md --out .mcp/dashboard/release_note_snippet.md
 
+.PHONY: release-note-full
+release-note-full:
+	python3 scripts/release-note-from-report.py --report .mcp/dashboard/release_check.md --out .mcp/dashboard/release_note_snippet.md
+	python3 scripts/release-changes-from-git.py
+
 .PHONY: git-upstream-check
 git-upstream-check:
 	sh scripts/git-upstream-check.sh

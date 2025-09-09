@@ -17,6 +17,9 @@ jobs:
       - name: Generate release note snippet (best-effort)
         run: |
           python3 scripts/release-note-from-report.py || true
+      - name: Generate changes from git (best-effort)
+        run: |
+          python3 scripts/release-changes-from-git.py || true
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -42,6 +45,10 @@ jobs:
             cat docs/RELEASE_NOTES_TEMPLATE.md >> "$BODY"
             echo >> "$BODY"; echo '---' >> "$BODY"; echo 'Auto Report' >> "$BODY"; echo >> "$BODY"
             cat .mcp/dashboard/release_note_snippet.md >> "$BODY"
+            if [ -f .mcp/dashboard/release_changes.md ]; then
+              echo >> "$BODY"; echo '---' >> "$BODY"; echo 'Changes (auto from git)' >> "$BODY"; echo >> "$BODY"
+              cat .mcp/dashboard/release_changes.md >> "$BODY"
+            fi
           elif [ -f .mcp/dashboard/release_note_snippet.md ]; then
             cp .mcp/dashboard/release_note_snippet.md "$BODY"
           elif [ -f docs/RELEASE_NOTES_TEMPLATE.md ]; then
