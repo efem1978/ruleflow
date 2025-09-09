@@ -79,22 +79,22 @@ repos:
     hooks:
       - id: ruff
         args: ["--fix"]
-        stages: [commit]
+        stages: [pre-commit]
   - repo: https://github.com/psf/black
     rev: {v_black}
     hooks:
       - id: black
-        stages: [commit]
+        stages: [pre-commit]
   - repo: https://github.com/pycqa/isort
     rev: {v_isort}
     hooks:
       - id: isort
-        stages: [commit]
+        stages: [pre-commit]
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: {v_mypy}
     hooks:
       - id: mypy
-        stages: [commit]
+        stages: [pre-commit]
         files: mcp_rules_assistant/
         additional_dependencies: [types-PyYAML]
 {secrets_block}  - repo: local
@@ -108,12 +108,12 @@ repos:
         name: tdd gate (commit)
         entry: python .mcp/tdd_gate.py
         language: system
-        stages: [commit]
+        stages: [pre-commit]
       - id: branch-name-gate
         name: branch naming gate (commit)
         entry: python .mcp/branch_name_gate.py
         language: system
-        stages: [commit]
+        stages: [pre-commit]
 {docker_local_hook}      - id: pytest-with-coverage
         name: pytest with coverage (push)
         entry: sh -c 'pytest -q --maxfail=1 --disable-warnings -W error --strict-markers --cov --cov-report=xml:coverage.xml --cov-report=term-missing --cov-fail-under={int(min_module*100)}'

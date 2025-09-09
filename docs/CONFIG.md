@@ -79,6 +79,10 @@ CLI
  - `mcp-rules-assistant coverage-clean-cache`  # 删除覆盖率解析缓存（.mcp/coverage_cache.json）
  - `mcp-rules-assistant coverage-report --json`  # 一次性输出弱项/分组/近阈值（默认 JSON）
 
+配置更新（config.update）兼容性
+- 推荐：`tools/call name="config.update" {"data": {"mutation_gate_strict": true, "execution": {"checks_delegate_run_cmd": true}}}`
+- 兼容：未提供 `data` 时，可直接传入顶层键：`{"mutation_gate_strict": true, "execution": {"checks_delegate_run_cmd": true}}`
+
 配置拓展（可选 Optional）
 ```yaml
 rules:

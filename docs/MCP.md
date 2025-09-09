@@ -24,7 +24,7 @@ MCP 协议（JSON-RPC/stdio，轻量实现）
 - git.install_hooks → 安装本地钩子（pre-commit/commit-msg/pre-push）
 - nl.command { text } → 自然语言解析
 - config.get { section? } → 获取项目配置（或子节）
-- config.update { data } → 更新配置中的 `ci` 字段
+- config.update { data } → 更新配置中的 `ci`/`execution` 字段（兼容：未提供 data 时可直接传入顶层键，如 `mutation_gate_strict` 与 `execution.checks_delegate_run_cmd`）
 - ci.generate → 生成 GitHub Actions 工作流
 - ci.validate → 校验 CI 工作流是否包含关键步骤（pre-commit/hadolint/semgrep/pytest/bandit）
 - ci.autofix → 一键修复：按规则/配置覆盖生成标准 CI（如已有则备份为 ci.yml.bak）

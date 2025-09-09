@@ -1259,9 +1259,19 @@ English summary:
         return {"ok": True, "config": raw.get(section, raw) if section else raw}
 
     def _tool_config_update(self, args: Dict[str, Any]) -> Dict[str, Any]:
-        payload = args.get("data", {})
+        """Update assistant.yaml configuration.
+
+        Compatibility:
+        - Preferred: { data: { ci:..., execution:.../flags... } }
+        - Also accepts flattened top-level keys (no `data` wrapper), e.g.:
+          { mutation_gate_strict: true, execution: { checks_delegate_run_cmd: true } }
+        """
+        payload = args.get("data", None)
+        # 兼容平铺参数：当未提供 data 时，将整个 args 视为负载
+        if payload is None:
+            payload = dict(args)
         if not isinstance(payload, dict):
-            raise ValueError("data must be object")
+            raise ValueError("data must be object or provide flattened keys")
         cfg_path = self.project_root / DEFAULT_PROJECT_CONFIG_PATH
         ensure_project_config(cfg_path)
         try:
