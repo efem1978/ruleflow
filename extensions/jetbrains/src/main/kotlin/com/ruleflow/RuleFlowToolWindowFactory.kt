@@ -22,14 +22,20 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
         val panel = JPanel(BorderLayout())
         val top = JPanel(FlowLayout(FlowLayout.LEFT))
-        top.add(JLabel("RuleFlow MCP (Preview) — plan/memory"))
+        val lblStatus = JLabel("RuleFlow MCP (Preview) — plan/memory")
+        top.add(lblStatus)
 
         val btnPlan = JButton("加载计划 / Load Plan")
         val btnMemory = JButton("加载记忆 / Load Memory")
         val btnCoverage = JButton("加载覆盖率摘要 / Load Coverage Summary")
         val btnMcpStart = JButton("启动 MCP")
+        val btnMcpStop = JButton("停止 MCP")
+        val btnMcpPing = JButton("MCP: Ping")
         val btnMcpList = JButton("MCP: 资源列表")
         val btnMcpPlan = JButton("MCP: 加载计划")
+        val btnCiGen = JButton("CI: 生成")
+        val btnCiVal = JButton("CI: 校验")
+        val btnHooks = JButton("Git: 安装 hooks")
         val btnMcpIngest = JButton("MCP: 规则摄取")
         val btnMcpCovReport = JButton("MCP: 覆盖率报告")
         val btnOpenPlan = JButton("在编辑器打开计划")
@@ -44,6 +50,11 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
         top.add(btnMcpPlan)
         top.add(btnMcpIngest)
         top.add(btnMcpCovReport)
+        top.add(btnMcpPing)
+        top.add(btnMcpStop)
+        top.add(btnCiGen)
+        top.add(btnCiVal)
+        top.add(btnHooks)
 
         val text = JTextArea(20, 80)
         text.isEditable = false
@@ -151,7 +162,20 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
         val mcp = McpClient()
         btnMcpStart.addActionListener {
             if (!mcp.isRunning()) mcp.start(project)
-            Messages.showInfoMessage(project, if (mcp.isRunning()) "MCP 运行中" else "MCP 启动失败", "RuleFlow")
+            lblStatus.text = if (mcp.isRunning()) "MCP 运行中" else "MCP 启动失败"
+        }
+        btnMcpStop.addActionListener {
+            mcp.stop()
+            lblStatus.text = "MCP 已停止"
+        }
+        btnMcpPing.addActionListener {
+            try {
+                if (!mcp.isRunning()) mcp.start(project)
+                val out = mcp.request("ping")
+                text.text = out
+            } catch (e: Exception) {
+                text.text = "MCP 请求失败: ${e.message}"
+            }
         }
         btnMcpList.addActionListener {
             try {
@@ -176,6 +200,34 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
                     val body = extractString(out, "text") ?: out
                     text.text = "[$mime]\n\n$body"
                 }
+            } catch (e: Exception) {
+                text.text = "MCP 请求失败: ${e.message}"
+            }
+        }
+
+        btnCiGen.addActionListener {
+            try {
+                if (!mcp.isRunning()) mcp.start(project)
+                val out = mcp.request("tools/call", "{\"name\":\"ci.generate\",\"arguments\":{}}", 12000)
+                text.text = out
+            } catch (e: Exception) {
+                text.text = "MCP 请求失败: ${e.message}"
+            }
+        }
+        btnCiVal.addActionListener {
+            try {
+                if (!mcp.isRunning()) mcp.start(project)
+                val out = mcp.request("tools/call", "{\"name\":\"ci.validate\",\"arguments\":{}}", 8000)
+                text.text = out
+            } catch (e: Exception) {
+                text.text = "MCP 请求失败: ${e.message}"
+            }
+        }
+        btnHooks.addActionListener {
+            try {
+                if (!mcp.isRunning()) mcp.start(project)
+                val out = mcp.request("tools/call", "{\"name\":\"git.install_hooks\",\"arguments\":{}}", 12000)
+                text.text = out
             } catch (e: Exception) {
                 text.text = "MCP 请求失败: ${e.message}"
             }

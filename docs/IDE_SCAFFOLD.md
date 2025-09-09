@@ -23,12 +23,10 @@ VS Code / Cursor
   4) 快捷命令：`RuleFlow: Open Plan` / `RuleFlow: Open Memory` 直接打开 `.mcp/plan.md` / `.mcp/memory.json`
 
 JetBrains（IDEA / PyCharm 等）
-- 输出：`.mcp/ide/jetbrains/externalTools.sample.xml` 与 README
-- 使用：
-  1) Settings → Tools → External Tools → Import，导入 `externalTools.sample.xml`
-  2) 或手动添加一个 External Tool：可执行程序 `python3`，参数 `-m mcp_rules_assistant.cli start`，工作目录 `$ProjectFileDir$`
-  3) 通过 External Tool 或 Terminal 启动服务器/执行 CLI
- - RuleFlow 工具窗口：提供“加载计划/记忆/覆盖率摘要”按钮与“在编辑器打开计划/记忆”动作，便于快速查看 `.mcp/` 状态。
+- 最小插件已实现（见 `extensions/jetbrains/`）：
+  - 按钮：启动/停止 MCP、Ping、资源列表、加载计划、规则摄取、覆盖率报告、生成 CI、校验 CI、安装 hooks
+  - 运行：使用 Gradle 任务 `Run Plugin` 或 `./gradlew runIde` 启动沙箱 IDE 后，在工具窗口“RuleFlow”使用上述操作
+  - 仍可选用 External Tools（无需插件）直接启动 MCP：程序 `python3`，参数 `-m mcp_rules_assistant.cli start`，工作目录 `$ProjectFileDir$`
 
 Neovim
 - 输出：`.mcp/ide/neovim/init.sample.vim`、`.mcp/ide/neovim/init.sample.lua` 与 README

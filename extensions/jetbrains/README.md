@@ -11,7 +11,7 @@
   - “生成 CI / Generate CI”
   - “加载覆盖率 / Load Coverage”
   - “自然语言指令 / Natural Command”
-  - “启动 MCP / 资源列表 / 加载计划 / 规则摄取 / 覆盖率报告”（最小直连）
+  - “启动/停止 MCP / Ping / 资源列表 / 加载计划 / 规则摄取 / 覆盖率报告 / 生成 CI / 校验 CI / 安装 hooks”（最小直连）
 - 集成：
   - 启动/调用本地 MCP Server（stdio），或复用现有进程。
   - 受控写入（保存后检查）入口与配置。
@@ -28,4 +28,9 @@
 - M5（计划）：打包、离线安装、基础冒烟测试
 
 目录
-- 后续将在 `extensions/jetbrains/` 内建立 Gradle 项目；当前为计划说明，待你确认后启用。
+- 已在 `extensions/jetbrains/` 建立 Gradle 项目与最小实现（ToolWindow + MCP 直连）。
+
+运行（开发）
+- 打开该子目录作为项目，使用 IntelliJ IDEA Community 2023.1+
+- Gradle 面板运行 `Run Plugin`；或使用 `./gradlew runIde`
+- 在新启动的 IDE 实例中打开目标仓库，打开工具窗口“RuleFlow”，即可使用上述按钮
