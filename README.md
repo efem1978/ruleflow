@@ -50,6 +50,8 @@ JetBrains（示意图，待替换为实拍截图）
 ![JetBrains Coverage Report](extensions/jetbrains/screenshots/jetbrains-coverage-report.svg)
 ![JetBrains fs.apply_patch](extensions/jetbrains/screenshots/jetbrains-fs-apply-patch.svg)
 
+没有安装 JetBrains? 可使用“无 IDE 替代方案（Storyboard）”直接生成等价的数据样例，见 `docs/IDE_JB_STORYBOARD.md`。
+
 ![Coverage Flow](docs/assets/coverage_flow.svg)
 
 覆盖率门禁 Coverage Gate

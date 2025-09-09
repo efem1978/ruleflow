@@ -30,6 +30,10 @@
 目录
 - 已在 `extensions/jetbrains/` 建立 Gradle 项目与最小实现（ToolWindow + MCP 直连）。
 
+无 IDE 替代方案（Storyboard）
+- 未安装 JetBrains 也可复现面板展示的数据内容，参见：`docs/IDE_JB_STORYBOARD.md`
+- 执行 `sh scripts/jb-storyboard.sh` 即可在 `extensions/jetbrains/screenshots/` 生成 `jb_*.{json,md}` 样例输出。
+
 运行（开发）
 - 打开该子目录作为项目，使用 IntelliJ IDEA Community 2023.1+
 - Gradle 面板运行 `Run Plugin`；或使用 `./gradlew runIde`
