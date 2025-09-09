@@ -23,6 +23,9 @@ VS Code 面板手测指南 / VS Code Manual Test
 5) CI 操作
    - 填写 hadolint/semgrep 配置，点击“保存 CI 配置”
    - 点击“生成 CI”，再点击“预览 CI”“校验 CI”“打开 CI 文件”
+   - 覆盖率门禁：CI 中已启用 VS Code lcov 覆盖率门禁（当前 60%），测试脚本会生成 `extensions/vscode/coverage/lcov.info` 后以门禁模式校验：
+     - 核心命令：`sh scripts/check-lcov.sh extensions/vscode/coverage/lcov.info 60 gate`
+     - 低于阈值时该步骤失败（阻断）；可在 PR 中逐步提升阈值
 6) 插入示例安全规则
    - 点击“插入示例规则”，确认根目录生成 `.semgrep.yml` 与 `.hadolint.yaml`
 7) 记忆与计划
@@ -35,7 +38,12 @@ VS Code 面板手测指南 / VS Code Manual Test
    - 若 `npm --prefix extensions/vscode test` 在本机失败，可尝试：
      - 移除默认参数（不传任何启动参数）：`export MCP_VSCODE_TEST_ARGS=""`
      - 或自定义启动参数（逗号分隔）：`export MCP_VSCODE_TEST_ARGS="--disable-extensions"`
-   - 再运行：`npm --prefix extensions/vscode test`
+  - 再运行：`npm --prefix extensions/vscode test`
+
+覆盖率门禁脚本（进阶）
+- `scripts/check-lcov.sh <lcov.info> <threshold_pct> [gate]`
+  - 不带第三参：低于阈值仅告警（非阻断）
+  - 第三参为 `gate`：低于阈值时退出 1（阻断）
 
 Copilot 集成（可选）
 - 工作区 `.vscode/settings.json` 已登记：

@@ -78,6 +78,10 @@ maintenance-all:
 verify:
 	sh scripts/verify-all.sh
 
+.PHONY: release-harden-verify
+release-harden-verify:
+	sh scripts/release-harden-verify.sh
+
 .PHONY: git-upstream-check
 git-upstream-check:
 	sh scripts/git-upstream-check.sh
