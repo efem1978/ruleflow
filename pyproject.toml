@@ -42,9 +42,8 @@ license-files = ["LICENSE"]
 mcp_rules_assistant = ["py.typed"]
 
 [tool.coverage.run]
-omit = [
-  "**/.mcp/*.py"
-]
+source = ["mcp_rules_assistant"]
+omit = ["**/.mcp/*.py"]
 
 [tool.coverage.report]
 show_missing = true
