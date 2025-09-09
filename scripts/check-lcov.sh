@@ -1,10 +1,12 @@
 #!/usr/bin/env sh
-# Usage: scripts/check-lcov.sh extensions/vscode/coverage/lcov.info 30
-# Warn (non-blocking) if lcov line coverage percent is below threshold.
+# Usage: scripts/check-lcov.sh <lcov.info> <threshold_pct> [gate]
+# - Default: warn (non-blocking) if below threshold
+# - With third arg 'gate': exit 1 when below threshold (blocking)
 
 set -e
 LCOV_FILE="$1"
 THRESHOLD="${2:-30}"
+MODE="${3:-warn}"
 
 if [ ! -f "$LCOV_FILE" ]; then
   echo "[lcov] file not found: $LCOV_FILE"
@@ -26,7 +28,11 @@ echo "[lcov] VS Code coverage: $PCT% (threshold ${THRESHOLD}%)"
 # Emit GitHub Actions warning annotation if below threshold
 LESS=$(awk "BEGIN { if ($PCT < $THRESHOLD) print 1; else print 0 }")
 if [ "$LESS" -eq 1 ]; then
-  echo "::warning ::VS Code coverage $PCT% is below threshold ${THRESHOLD}%"
+  if [ "$MODE" = "gate" ]; then
+    echo "::error ::VS Code coverage $PCT% is below threshold ${THRESHOLD}% (gate)"
+    exit 1
+  else
+    echo "::warning ::VS Code coverage $PCT% is below threshold ${THRESHOLD}%"
+  fi
 fi
 exit 0
-

@@ -1,6 +1,6 @@
 # 项目计划 / Project Plan（进行中）
 
-- 状态: completed
+- 状态: in_progress
 - 当前步骤: 持续迭代
 - 下一步: （无）
 - 风险与阻塞: （待补充）
