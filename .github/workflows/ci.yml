@@ -229,7 +229,7 @@ jobs:
           python -m pip install -e .
       - name: Generate JetBrains storyboard artifacts
         run: |
-          sh scripts/jb-storyboard.sh || true
+          bash scripts/jb-storyboard.sh || true
       - name: Upload storyboard artifacts
         if: always()
         uses: actions/upload-artifact@v4
