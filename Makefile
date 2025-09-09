@@ -86,6 +86,10 @@ release-harden-verify:
 release-simulate:
 	sh scripts/release-simulate.sh
 
+.PHONY: release-note
+release-note:
+	python3 scripts/release-note-from-report.py --report .mcp/dashboard/release_check.md --out .mcp/dashboard/release_note_snippet.md
+
 .PHONY: git-upstream-check
 git-upstream-check:
 	sh scripts/git-upstream-check.sh
