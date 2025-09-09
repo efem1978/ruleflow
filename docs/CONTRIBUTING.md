@@ -1,5 +1,7 @@
 贡献指南 Contributing
 
+注意：根目录 `CONTRIBUTING.md` 为权威入口，本文为补充说明与本地化提示；如出现冲突，请以根文档为准。
+
 开发流程 Development Flow
 - TDD：先写红，再实现，最后重构，保持测试绿灯
 - CLI 快捷：见 Makefile（`make setup|test|ci|vscode-test|ingest|coverage`）

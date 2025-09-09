@@ -14,6 +14,7 @@ from typing import Any, Dict, List
 
 import yaml
 
+from . import __version__ as PKG_VERSION
 from . import checks as checks_mod
 from . import coverage_summary as covsum
 from . import hooks as hooks_mod
@@ -129,7 +130,7 @@ class JsonRpcServer:
                 }
                 result = {
                     "server": "mcp-rules-assistant",
-                    "version": "0.1.0",
+                    "version": str(PKG_VERSION),
                     "capabilities": caps,
                 }
             elif method == "ping":

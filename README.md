@@ -38,11 +38,13 @@ MCP 规则与上下文助手 / MCP Rules & Context Assistant
 （Codecov 说明：公共仓库默认无需 token；私有仓库需在 CI 配置 `CODECOV_TOKEN`，本仓库工作流已在无 token 时降级为“尽力而为，不阻断”。）
 ![PyPI](https://img.shields.io/pypi/v/mcp-rules-assistant?label=pypi)
 
+提示：`docs/CI_HEALTH_CHECK.md` 仅用于触发 CI 运行的占位文档（无技术内容）。
+
 示意图 / Screenshots
 
 ![Panel Overview](docs/assets/panel_overview.svg)
 
-JetBrains（占位图，待实拍替换）
+JetBrains（示意图，待替换为实拍截图）
 
 ![JetBrains ToolWindow](extensions/jetbrains/screenshots/jetbrains-toolwindow-plan.svg)
 

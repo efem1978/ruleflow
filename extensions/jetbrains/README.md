@@ -22,9 +22,9 @@
 
 里程碑（进度）
 - M1（已完成）：项目骨架（plugin.xml、Gradle、工具窗口）
-- M2（已完成）：最小 MCP 直连（启动/请求）；支持 `resources/list` 与 `resources/read`（计划）
-- M3（进行中）：动作菜单与命令路由（rules.ingest / coverage.report / ci.generate）
-- M4（计划）：受控写入（fs.apply_patch）入口与结果提示
+- M2（已完成）：最小 MCP 直连（启动/请求）；支持 `resources/list` 与 `resources/read`
+- M3（已完成）：动作菜单与命令路由（rules.ingest / coverage.report / ci.generate / ci.validate / git.install_hooks）
+- M4（已完成）：受控写入（fs.apply_patch）入口（单文件/多文件、dry-run/strict）与结果展示
 - M5（计划）：打包、离线安装、基础冒烟测试
 
 目录
@@ -45,8 +45,8 @@
 - 输入：相对路径（如 `mcp_rules_assistant/tmp_demo.py`）与多行内容
 - 行为：严格模式禁止内容包含 `pytest.mark.skip/xfail`；白名单/扩展名/大小限制与项目配置一致
 
-截图（占位）
-> 后续补充实际截图。
+截图（示意）
+> 当前为示意 SVG，后续将替换为实际运行截图。
 - ToolWindow（计划/记忆）：`screenshots/jetbrains-toolwindow-plan.png`
 - 覆盖率报告：`screenshots/jetbrains-coverage-report.png`
 - 受控写入对话框：`screenshots/jetbrains-fs-apply-patch.png`
