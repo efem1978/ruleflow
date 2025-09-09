@@ -17,7 +17,7 @@
    - 其余同 Fast
 
 3) Strict（企业/机构）
-   - On Push/CI: 变异测试（按改动模块），核心覆盖率≥95%
+   - On Push/CI: 变异测试（按改动模块），核心覆盖率≥95%；当 `performance.mode: strict`（或 `ci.mutation_gate_strict: true`）时，变异测试作为硬门禁执行
    - 规则更严：禁止 skip/xfail，警告视为错误
 
 优化技巧 Optimizations

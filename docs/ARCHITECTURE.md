@@ -21,7 +21,7 @@
 
 子进程封装 Process Runner
 
-- 统一封装：`mcp_rules_assistant/process.py` 提供 `run_cmd`，各模块（dev_agent/hooks/mcp_server）统一委托，避免散落的 `subprocess.run`。
+- 统一封装：`mcp_rules_assistant/process.py` 提供 `run_cmd`，各模块（dev_agent/hooks/mcp_server）统一委托，避免散落的 `subprocess.run`。`checks.py` 出于历史测试桩兼容保留了最小 `_run` 包装；可通过配置 `execution.checks_delegate_run_cmd: true`（或环境变量 `MCP_CHECKS_PROCESS_RUNNER=1`）选择性委托到 `run_cmd`。
 - 默认策略：
   - 默认超时 300 秒（可覆盖）。
   - `capture_stdout=True` 时，同时捕获 stderr，并对 stdout/stderr 进行末尾截断（最大 8000 字符）。

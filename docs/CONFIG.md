@@ -41,6 +41,7 @@ ci:
   hadolint_args: ""          # 额外参数（可留空）
   semgrep_config: "auto"     # SAST 配置（规则集），如：p/ci, p/security-audit 等
   vscode_required: true       # VS Code 扩展测试是否必跑（默认 true；true 时不再使用 if: hashFiles 条件）
+  mutation_gate_strict: false # 严格门禁：为 true 或 performance.mode=strict 时，CI 中的变异测试作为硬门禁（默认非阻断）
 ```
 
 说明（coverage.policy 键的写法）
@@ -95,6 +96,8 @@ execution:
     - "tests/"
     - "docs/"
   - ".mcp/"
+  # checks 委托到统一 process runner（可选，默认关闭；也可用环境变量 MCP_CHECKS_PROCESS_RUNNER=1 开启）
+  checks_delegate_run_cmd: false
 
 license:
   # 是否启用许可硬门禁：开启后，部分敏感操作（rules.enforce / ci.generate / ci.validate / ci.autofix / git.install_hooks）
@@ -107,3 +110,7 @@ license:
   - 如需将现有 `.pre-commit-config.yaml` 的 `stages: [commit/push]` 批量迁移，可运行：
     - `mcp-rules-assistant precommit-migrate-stages`
 - CI 工具版本固定：建议固定 hadolint/semgrep 版本以提升构建可重复性；本仓库生成的 CI 已固定 semgrep（pip 安装）与 hadolint（容器镜像）版本，仍可在 `ci-set` 中覆盖。
+
+可选开关（摘要）
+- `execution.checks_delegate_run_cmd`：为 true（或 `MCP_CHECKS_PROCESS_RUNNER=1`）时，`checks.py` 将在内部委托 `process.run_cmd` 执行外部命令；默认保持旧实现以兼容历史测试桩。
+- `ci.mutation_gate_strict`：为 true（或 `performance.mode: strict`）时，CI 的变异测试变为硬门禁；否则为非阻断（`|| true`）。

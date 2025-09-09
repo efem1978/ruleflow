@@ -402,11 +402,16 @@ def render_github_ci_yaml(project_root: Optional[Path] = None) -> str:
     if policy.get("test.mutation_required") or bool(
         on_push_cfg.get("mutation_test", False)
     ):
+        # 严格模式或显式开启 ci.mutation_gate_strict 时，变异测试作为硬门禁；否则非阻断。
         mutation_step = (
             "      - name: Mutation testing\n"
             "        run: |\n"
             "          python -m pip install mutmut\n"
-            "          mutmut run -q || true\n"
+            "          if grep -Eq '(^|[^#])\\bmode:\\s*strict\\b' .mcp/assistant.yaml || grep -Eq '(^|[^#])\\bmutation_gate_strict:\\s*true\\b' .mcp/assistant.yaml; then\\n"
+            "            mutmut run -q\\n"
+            "          else\\n"
+            "            mutmut run -q || true\\n"
+            "          fi\n"
         )
 
     require_vscode = bool((cfg.get("ci", {}) or {}).get("vscode_required", False))
@@ -468,7 +473,8 @@ jobs:
         run: |
           python -m mcp_rules_assistant.cli coverage-report --json > cov.json
           python - <<'PY'
-          import json, sys
+          import json
+          import sys
           data = json.load(open('cov.json'))
           weak = data.get('weak') or []
           if weak:

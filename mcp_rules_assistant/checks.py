@@ -11,12 +11,83 @@ from typing import Dict, List, Optional, Set, cast
 
 import yaml
 
+# 可选委托到统一的 process.run_cmd（默认关闭，保持向后兼容测试桩行为）。
+# 开启方式：
+#  - 环境变量 MCP_CHECKS_PROCESS_RUNNER=1
+#  - 或项目配置 `.mcp/assistant.yaml` 中设置 execution.checks_delegate_run_cmd: true
+try:  # 仅在需要时导入，避免冷启动额外依赖
+    from .config import load_config as _load_cfg  # type: ignore
+    from .process import run_cmd as _proc_run_cmd  # type: ignore
+except Exception:  # pragma: no cover - 在极端环境下回退
+    _load_cfg = None  # type: ignore
+    _proc_run_cmd = None  # type: ignore
+
+_USE_PROC_RUNNER_CACHE: Optional[bool] = None
+
+
+def _use_process_runner(project_root: Optional[Path]) -> bool:
+    global _USE_PROC_RUNNER_CACHE
+    env = os.environ.get("MCP_CHECKS_PROCESS_RUNNER")
+    if env in ("1", "true", "True"):
+        return True
+    if env in ("0", "false", "False"):
+        return False
+    if _USE_PROC_RUNNER_CACHE is not None:
+        return _USE_PROC_RUNNER_CACHE
+    # 配置优先（execution.checks_delegate_run_cmd: true）
+    use = False
+    try:
+        if _load_cfg is not None:
+            root = (project_root or Path.cwd()).resolve()
+            cfg = _load_cfg(root)
+            ex = (
+                cfg.get("execution", {})
+                if isinstance(cfg.get("execution", {}), dict)
+                else {}
+            )
+            use = bool(ex.get("checks_delegate_run_cmd", False))
+    except Exception:
+        use = False
+    _USE_PROC_RUNNER_CACHE = use
+    return use
+
 
 def _run(
     cmd: List[str], cwd: Optional[Path] = None, env: Optional[Dict[str, str]] = None
 ) -> Dict[str, object]:
+    """运行外部命令：默认直接使用 subprocess.run；当开启委托开关时，使用统一的 process.run_cmd。
+
+    返回结构保持：{ok, code, stdout, stderr, cmd}；若可执行缺失返回 skipped。
+    """
+    # 优先尝试 process.run_cmd（可配置）
+    if _use_process_runner(cwd) and _proc_run_cmd is not None:
+        try:
+            p = _proc_run_cmd(
+                cmd,
+                cwd=(cwd or Path.cwd()),
+                capture_stdout=True,
+                env=env,
+                check=False,
+            )
+            return {
+                "ok": getattr(p, "returncode", 0) == 0,
+                "code": getattr(p, "returncode", 0),
+                "stdout": getattr(p, "stdout", ""),
+                "stderr": getattr(p, "stderr", ""),
+                "cmd": cmd,
+            }
+        except FileNotFoundError:
+            return {
+                "ok": True,
+                "skipped": True,
+                "reason": f"{cmd[0]} not found",
+                "cmd": cmd,
+            }
+        except Exception:
+            # 回退到本地实现，保证兼容性
+            pass
+    # 兼容旧实现：直接 subprocess.run，并从原生 subprocess 模块获取 PIPE
     try:
-        # 获取真实 subprocess.PIPE，避免测试将 checks.subprocess 替换为不含 PIPE 的占位
         try:
             import importlib
 
