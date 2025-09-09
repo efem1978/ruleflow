@@ -13,6 +13,10 @@ import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.JScrollPane
 import javax.swing.JTextArea
+import javax.swing.JList
+import javax.swing.DefaultListModel
+import java.awt.event.MouseAdapter
+import java.awt.event.MouseEvent
 
 class RuleFlowToolWindowFactory : ToolWindowFactory {
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
@@ -98,10 +102,13 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
                 }
                 val sb = StringBuilder()
                 sb.append("Weak: ").append(weakList.size).append('\n')
-                weakList.forEach { sb.append(it).append('\n') }
+                // update model
+                weakModel.removeAllElements()
+                weakList.forEach { sb.append(it).append('\n'); weakModel.addElement(it) }
                 sb.append('\n')
                 sb.append("Near: ").append(nearList.size).append('\n')
-                nearList.take(20).forEach { sb.append(it).append('\n') }
+                nearModel.removeAllElements()
+                nearList.take(20).forEach { sb.append(it).append('\n'); nearModel.addElement(it) }
                 sb.append('\n').append(raw)
                 text.text = sb.toString()
             } catch (e: Exception) {
@@ -132,6 +139,39 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
 
         panel.add(top, BorderLayout.NORTH)
         panel.add(scroll, BorderLayout.CENTER)
+
+        // Clickable lists for weak/near (double-click to open file)
+        val weakModel = DefaultListModel<String>()
+        val nearModel = DefaultListModel<String>()
+        val weakJList = JList(weakModel)
+        val nearJList = JList(nearModel)
+        fun openFileSpec(spec: String) {
+            val idx = spec.indexOf(" — ")
+            val path = if (idx >= 0) spec.substring(idx + 3).trim() else spec.trim()
+            openInEditor(path)
+        }
+        weakJList.addMouseListener(object: MouseAdapter() {
+            override fun mouseClicked(e: MouseEvent) {
+                if (e.clickCount == 2) {
+                    val sel = weakJList.selectedValue ?: return
+                    openFileSpec(sel)
+                }
+            }
+        })
+        nearJList.addMouseListener(object: MouseAdapter() {
+            override fun mouseClicked(e: MouseEvent) {
+                if (e.clickCount == 2) {
+                    val sel = nearJList.selectedValue ?: return
+                    openFileSpec(sel)
+                }
+            }
+        })
+        val bottom = JPanel(FlowLayout(FlowLayout.LEFT))
+        bottom.add(JLabel("Weak:"))
+        bottom.add(JScrollPane(weakJList))
+        bottom.add(JLabel("Near:"))
+        bottom.add(JScrollPane(nearJList))
+        panel.add(bottom, BorderLayout.SOUTH)
 
         val content = ContentFactory.getInstance().createContent(panel, "", false)
         toolWindow.contentManager.addContent(content)

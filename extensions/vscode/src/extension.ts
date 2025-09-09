@@ -302,7 +302,15 @@ export function activate(context: vscode.ExtensionContext) {
           const planBtn = document.createElement('button');
           planBtn.id = 'btnPlan'; planBtn.textContent = '加载计划 / Load Plan';
           const bar = document.querySelector('div[style*="margin:8px 0;"]');
-          if (bar) { bar.appendChild(memBtn); bar.appendChild(planBtn); }
+          if (bar) { 
+            bar.appendChild(memBtn); 
+            bar.appendChild(planBtn);
+            const btnOpenPlan = document.createElement('button'); btnOpenPlan.textContent = '在编辑器打开计划';
+            const btnOpenMemory = document.createElement('button'); btnOpenMemory.textContent = '在编辑器打开记忆';
+            btnOpenPlan.onclick = () => vscode.postMessage({ t: 'open', path: '.mcp/plan.md', line: 1 });
+            btnOpenMemory.onclick = () => vscode.postMessage({ t: 'open', path: '.mcp/memory.json', line: 1 });
+            bar.appendChild(btnOpenPlan); bar.appendChild(btnOpenMemory);
+          }
           memBtn.onclick = () => vscode.postMessage({ t: 'memory' });
           planBtn.onclick = () => vscode.postMessage({ t: 'plan' });
           // 读取 CI 配置
