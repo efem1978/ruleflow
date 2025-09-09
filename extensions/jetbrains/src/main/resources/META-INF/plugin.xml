@@ -8,5 +8,8 @@
   <extensions defaultExtensionNs="com.intellij">
     <toolWindow id="RuleFlow" anchor="right" factoryClass="com.ruleflow.RuleFlowToolWindowFactory"/>
   </extensions>
-</idea-plugin>
 
+  <actions>
+    <action id="RuleFlowOpenPlan" class="com.ruleflow.OpenPlanAction" text="RuleFlow: Open Plan" description="Open .mcp/plan.md in editor"/>
+  </actions>
+</idea-plugin>
