@@ -6,6 +6,60 @@ on:
       - 'v*'
 
 jobs:
+  github-release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Generate release note snippet (best-effort)
+        run: |
+          python3 scripts/release-note-from-report.py || true
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Build Python package (attach artifacts)
+        run: |
+          python -m pip install --upgrade pip build twine
+          python -m build
+          python -m twine check dist/*
+      - name: Build VS Code VSIX (attach artifacts)
+        run: |
+          npm i -g @vscode/vsce
+          npm --prefix extensions/vscode ci || npm --prefix extensions/vscode install
+          npm --prefix extensions/vscode run compile
+          vsce package --no-dependencies --out extensions/vscode/mcp-rules-assistant.vsix
+      - name: Compose release body
+        run: |
+          BODY=.mcp/dashboard/release_body.md
+          mkdir -p .mcp/dashboard
+          if [ -f docs/RELEASE_NOTES_TEMPLATE.md ] && [ -f .mcp/dashboard/release_note_snippet.md ]; then
+            echo "# Release $(python3 - <<'PY'\nimport re,sys; t=open('pyproject.toml').read(); m=re.search(r"^version\\s*=\\s*\"([^\"]+)\"", t, re.M); print(m.group(1) if m else 'unknown')\nPY)" > "$BODY"
+            echo >> "$BODY"
+            cat docs/RELEASE_NOTES_TEMPLATE.md >> "$BODY"
+            echo >> "$BODY"; echo '---' >> "$BODY"; echo 'Auto Report' >> "$BODY"; echo >> "$BODY"
+            cat .mcp/dashboard/release_note_snippet.md >> "$BODY"
+          elif [ -f .mcp/dashboard/release_note_snippet.md ]; then
+            cp .mcp/dashboard/release_note_snippet.md "$BODY"
+          elif [ -f docs/RELEASE_NOTES_TEMPLATE.md ]; then
+            cp docs/RELEASE_NOTES_TEMPLATE.md "$BODY"
+          else
+            echo "Release ${{ github.ref_name }}" > "$BODY"
+          fi
+      - name: Create/Update GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body_path: .mcp/dashboard/release_body.md
+          files: |
+            dist/*
+            extensions/vscode/*.vsix
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   pypi:
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest

@@ -24,10 +24,10 @@ VS Code 面板手测指南 / VS Code Manual Test
    - 填写 hadolint/semgrep 配置，点击“保存 CI 配置”
    - 点击“生成 CI”，再点击“预览 CI”“校验 CI”“打开 CI 文件”
    - 覆盖率门禁（两阶段）：
-     - 警示阶段：CI 先对 `lcov.info` 执行 90% 的“非阻断”检查，低于阈值仅发出警告：
-       `sh scripts/check-lcov.sh extensions/vscode/coverage/lcov.info 90`
-     - 门禁阶段：随后执行 80% 的“阻断”检查，低于阈值 CI 失败：
-       `sh scripts/check-lcov.sh extensions/vscode/coverage/lcov.info 80 gate`
+     - 警示阶段：CI 先对 `lcov.info` 执行 95% 的“非阻断”检查，低于阈值仅发出警告：
+       `sh scripts/check-lcov.sh extensions/vscode/coverage/lcov.info 95`
+     - 门禁阶段：随后执行 90% 的“阻断”检查，低于阈值 CI 失败：
+       `sh scripts/check-lcov.sh extensions/vscode/coverage/lcov.info 90 gate`
      - 低于阈值时该步骤失败（阻断）；可在 PR 中逐步提升阈值
 6) 插入示例安全规则
    - 点击“插入示例规则”，确认根目录生成 `.semgrep.yml` 与 `.hadolint.yaml`
