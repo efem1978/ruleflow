@@ -5,6 +5,8 @@ import os
 import platform
 import shutil
 import sys
+import tarfile
+import time
 from pathlib import Path
 from typing import Optional
 
@@ -180,6 +182,55 @@ def start_server() -> None:
 @app.command("version")
 def version() -> None:
     rprint(f"mcp-rules-assistant {__version__}")
+
+
+@app.command("diagnose-bundle")
+def diagnose_bundle(
+    out: Optional[str] = typer.Option(
+        None, "--out", help="输出路径（默认 diagnostics-<ts>.tar.gz）"
+    )
+) -> None:
+    """打包常用诊断工件为 tar.gz（coverage/pytest/near/.mcp 状态与规则/计划）。
+
+    - 收集（存在则加入）：
+      coverage.xml、pytest-junit.xml、near.{txt,csv,json}、cov.json
+      .mcp/assistant.yaml、.mcp/plan.md、.mcp/memory.json
+      .mcp/rules_compiled.{json,md}、.mcp/rules_suggestions.md、.mcp/rules_raw.json
+      .mcp/dashboard/{status.json,status_brief.json,history.json,fail_counters.json}
+    """
+    root = Path.cwd()
+    ts = time.strftime("%Y%m%d-%H%M%S")
+    outp = (
+        Path(out).expanduser().resolve() if out else (root / f"diagnostics-{ts}.tar.gz")
+    )
+    files = [
+        "coverage.xml",
+        "pytest-junit.xml",
+        "near.txt",
+        "near.csv",
+        "near.json",
+        "cov.json",
+        ".mcp/assistant.yaml",
+        ".mcp/plan.md",
+        ".mcp/memory.json",
+        ".mcp/rules_compiled.json",
+        ".mcp/rules_compiled.md",
+        ".mcp/rules_suggestions.md",
+        ".mcp/rules_raw.json",
+        ".mcp/dashboard/status.json",
+        ".mcp/dashboard/status_brief.json",
+        ".mcp/dashboard/history.json",
+        ".mcp/dashboard/fail_counters.json",
+    ]
+    added = []
+    outp.parent.mkdir(parents=True, exist_ok=True)
+    with tarfile.open(outp, mode="w:gz") as tar:
+        for f in files:
+            p = root / f
+            if p.exists():
+                tar.add(str(p), arcname=f)
+                added.append(f)
+    rprint({"ok": True, "path": str(outp), "added": added})
 
 
 @app.command("install-hooks")

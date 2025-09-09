@@ -34,6 +34,7 @@ coverage_report.json
 /ok2.py
 /ok.txt
 docs/b.txt
+diagnostics-*.tar.gz
 
 # Test reports (do not commit)
 pytest-junit.xml
