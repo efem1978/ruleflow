@@ -1,9 +1,9 @@
 # 项目计划 / Project Plan（进行中）
 
-- 状态: done
-- 当前步骤: 批次B — 清理与一致性（含占位项收敛）
-- 下一步: 批次B — 清理与一致性（含占位项收敛）
-- 风险与阻塞: 无（JetBrains 实拍截图允许暂缓）
+- 状态: in_progress
+- 当前步骤: 批次G — 预发布验证（不发布）
+- 下一步: 批次H — README 安装与本地验证段落微调（可选）
+- 风险与阻塞: 无（不进行发布，仅本地/CI 验证）
 
 ## 任务清单（可勾选，唯一权威）
 
@@ -38,6 +38,11 @@
 
 （允许暂缓项 — 仅图片）
 - [ ] 将 JetBrains 占位 SVG 替换为实拍 PNG（完成即勾选；不阻断本批次验收）
+
+批次G — 预发布验证（不发布）
+- [ ] Python 打包：`python -m build`（wheel/sdist）
+- [ ] 产物校验：`python -m twine check dist/*`
+- [ ] CI 侧（可选）：添加 build/twine check 作业（非阻断）
 
 ## 验收标准（Definition of Done）
 - `make local-ci-run` 通过；Coverage Policy Gate 无 weak；近阈值 Top5 中无“核心”模块
