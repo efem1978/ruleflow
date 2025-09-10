@@ -53,6 +53,12 @@ JetBrains（示意图，待替换为实拍截图）
 
 没有安装 JetBrains? 可使用“无 IDE 替代方案（Storyboard）”直接生成等价的数据样例，见 `docs/IDE_JB_STORYBOARD.md`。
 
+JetBrains 打包与最小 E2E
+- 打包：`sh scripts/jb-package.sh`（生成于 `extensions/jetbrains/build/distributions`）
+- 最小 E2E（CI/本地）：运行 JetBrains 测试（包含对 `.mcp/dashboard/status.json`/mock 的 smoke 断言）：
+  - Docker：`docker compose run --rm jb-test`
+  - CI：见 `jetbrains-tests` 作业（非阻断）
+
 ![Coverage Flow](docs/assets/coverage_flow.svg)
 
 覆盖率门禁 Coverage Gate
