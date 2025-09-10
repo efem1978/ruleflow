@@ -71,6 +71,10 @@ JetBrains 打包与最小 E2E
   - Docker：`docker compose run --rm jb-test`
   - CI：见 `jetbrains-tests` 作业（非阻断）
 
+JetBrains 头less UI Smoke（可选）
+- 本地（容器）运行：`docker compose run --rm jb-ui-smoke`（timeboxed 约 20s，日志输出至 `extensions/jetbrains/ui_smoke.log`）
+- CI 作业：`jetbrains-ui-smoke`（非阻断），自动上传 smoke 日志工件
+
 ![Coverage Flow](docs/assets/coverage_flow.svg)
 
 覆盖率门禁 Coverage Gate
