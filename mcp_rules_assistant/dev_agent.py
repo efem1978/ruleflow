@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import os
 import shutil
 import time
@@ -77,6 +78,10 @@ class DevAgent:
             return json.loads(p.read_text(encoding="utf-8"))
         except Exception:
             return {}
+
+    @property
+    def _log(self) -> logging.Logger:
+        return logging.getLogger(__name__)
 
     def _run_tests_with_coverage(
         self, *, on_event: Optional[Callable[[Dict[str, Any]], None]] = None
@@ -606,8 +611,8 @@ class DevAgent:
                         ensure_ascii=False,
                     ),
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                self._log.debug("[agent] persist fail_state skipped: %r", e)
 
         fail_state_file = dash / FAIL_COUNTERS_FILE
         cnt, last, freeze = _load_fail_state(fail_state_file)
@@ -620,8 +625,10 @@ class DevAgent:
                 prev = self._read_json(dash / STATUS_FILE)
                 if isinstance(prev.get("coverage", {}), dict):
                     status["coverage"] = prev.get("coverage")
-            except Exception:
-                pass
+            except Exception as e:
+                self._log.debug(
+                    "[agent] load previous coverage for freeze failed: %r", e
+                )
 
         status["freeze"] = freeze
         status["fail_counters"] = {
@@ -662,8 +669,8 @@ class DevAgent:
             atomic_write_text(
                 dash / "status_brief.json", json.dumps(brief, ensure_ascii=False)
             )
-        except Exception:  # pragma: no cover
-            pass
+        except Exception as e:  # pragma: no cover
+            self._log.debug("[agent] write status_brief.json skipped: %r", e)
 
     def _persist_status_and_history(
         self, status: Dict[str, object], dash: Path, t0: float
@@ -672,8 +679,8 @@ class DevAgent:
         try:
             txt = json.dumps(status, ensure_ascii=False)
             atomic_write_text(dash / STATUS_FILE, txt)
-        except Exception:  # pragma: no cover
-            pass  # Ignore write failure to keep agent running
+        except Exception as e:  # pragma: no cover
+            self._log.debug("[agent] write status.json skipped: %r", e)
 
         try:
             progress_status = status.get("progress", {})
@@ -717,8 +724,10 @@ class DevAgent:
             arr.append(rec)
             arr = arr[-50:]
             atomic_write_text(hist_p, json.dumps(arr, ensure_ascii=False))
-        except Exception:  # pragma: no cover
-            pass  # nosec B110 - history write errors are non-fatal
+        except Exception as e:  # pragma: no cover
+            self._log.debug(
+                "[agent] write history skipped: %r", e
+            )  # nosec B110 non-fatal
 
     def _handle_auto_commit(
         self,
@@ -810,8 +819,10 @@ class DevAgent:
                                     check=False,
                                 )
                         return time.time()
-            except Exception:
-                pass  # nosec B110 - auto-commit is best-effort
+            except Exception as e:
+                self._log.debug(
+                    "[agent] auto-commit skipped: %r", e
+                )  # nosec B110 best-effort
         return last_commit_ts
 
     def _handle_auto_tag(
@@ -981,10 +992,10 @@ class DevAgent:
                             "a", encoding="utf-8"
                         ) as jf:
                             jf.write(jlines)
-                except Exception:
-                    pass
-            except Exception:
-                pass
+                except Exception as e:
+                    self._log.debug("[agent] persist cmd_events.jsonl skipped: %r", e)
+            except Exception as e:
+                self._log.debug("[agent] persist cmd_events skipped: %r", e)
 
             # 7. Wait for next cycle
             dt = max(1, interval - int(time.time() - t0))

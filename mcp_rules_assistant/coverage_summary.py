@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, TypedDict
 
 from defusedxml import ElementTree as ET  # type: ignore
+
+_log = logging.getLogger(__name__)
 
 
 class ClassItem(TypedDict, total=False):
@@ -57,9 +60,10 @@ def _read_classes_with_cache(project_root: Path, coverage_xml: str) -> List[Clas
         ):
             # cache hit
             return list(cache_entry.get("items") or [])  # type: ignore[return-value]
-    except Exception:
+    except Exception as e:
         sig = ""
         cache = {}
+        _log.debug("[coverage] cache probe failed: %r", e)
     # parse fresh
     try:
         tree = ET.parse(str(path))
@@ -101,9 +105,10 @@ def _read_classes_with_cache(project_root: Path, coverage_xml: str) -> List[Clas
                 cpath.write_text(
                     json.dumps(cache, ensure_ascii=False, indent=2), encoding="utf-8"
                 )
-        except Exception:  # pragma: no cover (I/O failures ignored)
-            pass
-    except Exception:
+        except Exception as e:  # pragma: no cover (I/O failures ignored)
+            _log.debug("[coverage] cache write skipped: %r", e)
+    except Exception as e:
+        _log.debug("[coverage] parse failed, returning empty list: %r", e)
         return []
     return items
 
