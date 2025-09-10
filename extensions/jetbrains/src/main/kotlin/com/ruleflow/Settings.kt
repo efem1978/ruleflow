@@ -17,6 +17,8 @@ import java.awt.Insets
 import java.io.File
 import javax.swing.JButton
 import javax.swing.JFileChooser
+import com.intellij.openapi.project.ProjectManager
+import com.intellij.openapi.ui.Messages
 
 @State(name = "RuleFlowSettings", storages = [Storage("RuleFlowSettings.xml")])
 @Service(Service.Level.APP)
@@ -48,6 +50,7 @@ class RuleFlowConfigurable : Configurable {
     private val cbRunChecks = JCheckBox("Run checks", true)
     private val cbStrict = JCheckBox("Strict", true)
     private val cbDryRun = JCheckBox("Dry-run", true)
+    private val btnTest = JButton("Test Connection (ping)")
 
     init {
         val c = GridBagConstraints()
@@ -60,6 +63,23 @@ class RuleFlowConfigurable : Configurable {
         c.gridx = 0; c.gridy = 2; panel.add(cbRunChecks, c)
         c.gridx = 1; panel.add(cbStrict, c)
         c.gridx = 2; panel.add(cbDryRun, c)
+        c.gridx = 0; c.gridy = 3; panel.add(btnTest, c)
+        btnTest.addActionListener {
+            try {
+                val prj = ProjectManager.getInstance().openProjects.firstOrNull()
+                if (prj == null) {
+                    Messages.showInfoMessage("No open project to run MCP.", "RuleFlow")
+                    return@addActionListener
+                }
+                val cli = McpClient()
+                cli.start(prj)
+                val out = cli.request("ping", "{}", 4000)
+                Messages.showInfoMessage("Ping response: $out", "RuleFlow")
+                cli.stop()
+            } catch (e: Exception) {
+                Messages.showErrorDialog("Ping failed: ${e.message}", "RuleFlow")
+            }
+        }
     }
 
     override fun getDisplayName(): String = "RuleFlow MCP"

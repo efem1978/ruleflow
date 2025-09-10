@@ -21,8 +21,14 @@ class McpClient {
     fun start(project: Project) {
         if (proc != null) return
         try {
-            val py = System.getenv("MCP_PYTHON_BIN")?.takeIf { it.isNotBlank() }
-                ?: (if (System.getProperty("os.name").lowercase().contains("win")) "python" else "python3")
+            val cfgBin = try { RuleFlowSettingsState.getInstance().pythonBin.trim() } catch (_: Exception) { "" }
+            val envBin = System.getenv("MCP_PYTHON_BIN")?.takeIf { it.isNotBlank() }
+            val py = when {
+                !cfgBin.isNullOrEmpty() -> cfgBin
+                envBin != null -> envBin
+                System.getProperty("os.name").lowercase().contains("win") -> "python"
+                else -> "python3"
+            }
             val pb = ProcessBuilder(py, "-m", "mcp_rules_assistant.cli", "start")
             if (project.basePath != null) pb.directory(java.io.File(project.basePath!!))
             pb.redirectErrorStream(true)
@@ -98,4 +104,3 @@ class McpClient {
         return try { m.groupValues[1].toInt() } catch (_: Exception) { null }
     }
 }
-
