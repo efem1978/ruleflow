@@ -347,8 +347,38 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
             }
         }
 
-        btnFsDry.addActionListener { promptFsApplyPatch(strict = true, dryRun = true) }
-        btnFsWrite.addActionListener { promptFsApplyPatch(strict = true, dryRun = false) }
+        btnFsDry.addActionListener {
+            try {
+                val dlg = FsApplyPatchDialog()
+                dlg.preset(path = "mcp_rules_assistant/tmp_demo.py", strict = true, dryRun = true)
+                val params = dlg.showAndGet() ?: return@addActionListener
+                if (!mcp.isRunning()) mcp.start(project)
+                val pe = params.path.replace("\\", "\\\\").replace("\"", "\\\"")
+                val ce = params.content.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n")
+                val argsJson = "{\"files\":[{\"path\":\"$pe\",\"content\":\"$ce\"}],\"runChecks\":" + (if (params.runChecks) "true" else "false") + ",\"strict\":" + (if (params.strict) "true" else "false") + ",\"dryRun\":" + (if (params.dryRun) "true" else "false") + "}"
+                val req = "{\"name\":\"fs.apply_patch\",\"arguments\":$argsJson}"
+                val out = mcp.request("tools/call", req, if (params.dryRun) 8000 else 15000)
+                text.text = maybePrettyAndFold(out, chkPretty.isSelected, chkFold.isSelected)
+            } catch (e: Exception) {
+                text.text = "MCP 请求失败: ${e.message}"
+            }
+        }
+        btnFsWrite.addActionListener {
+            try {
+                val dlg = FsApplyPatchDialog()
+                dlg.preset(path = "mcp_rules_assistant/tmp_demo.py", strict = true, dryRun = false)
+                val params = dlg.showAndGet() ?: return@addActionListener
+                if (!mcp.isRunning()) mcp.start(project)
+                val pe = params.path.replace("\\", "\\\\").replace("\"", "\\\"")
+                val ce = params.content.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n")
+                val argsJson = "{\"files\":[{\"path\":\"$pe\",\"content\":\"$ce\"}],\"runChecks\":" + (if (params.runChecks) "true" else "false") + ",\"strict\":" + (if (params.strict) "true" else "false") + ",\"dryRun\":" + (if (params.dryRun) "true" else "false") + "}"
+                val req = "{\"name\":\"fs.apply_patch\",\"arguments\":$argsJson}"
+                val out = mcp.request("tools/call", req, if (params.dryRun) 8000 else 15000)
+                text.text = maybePrettyAndFold(out, chkPretty.isSelected, chkFold.isSelected)
+            } catch (e: Exception) {
+                text.text = "MCP 请求失败: ${e.message}"
+            }
+        }
 
         fun promptFsApplyPatchMulti(strict: Boolean, dryRun: Boolean) {
             try {

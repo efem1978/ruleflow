@@ -7,6 +7,7 @@
 
   <extensions defaultExtensionNs="com.intellij">
     <toolWindow id="RuleFlow" anchor="right" factoryClass="com.ruleflow.RuleFlowToolWindowFactory"/>
+    <applicationConfigurable instance="com.ruleflow.RuleFlowConfigurable" displayName="RuleFlow MCP"/>
   </extensions>
 
   <actions>
