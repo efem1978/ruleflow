@@ -158,10 +158,8 @@
 - [ ] 文档同步：README 覆盖率策略小贴士；同步 `docs/DEV_PLAN_TDD.md` 与 `.mcp/plan.md`
 
 ## 审计快照（当前） / Audit Snapshot (Current)
-- 覆盖率（coverage.xml 总体）: ≥98%（以 `--cov=mcp_rules_assistant` 统计）
-- 弱项（weak）：0（`coverage-report --json`）
-- 近阈值（near）：dev_agent/mcp_server/rules_ingest 等处于阈值上方 ≤1.0–1.2% 范围（本轮抛光目标）
-- 策略阈值（.mcp/assistant.yaml）：min_module=0.96；核心≥0.98；dev_agent ≥0.95；license_utils ≥0.95（本轮拉高核心上限 margin）
+- 以工具输出为准：请通过 `mcp-rules-assistant coverage-report --json` 查看实时 weak/near 与分组；避免文档与实现漂移。
+- 策略阈值（.mcp/assistant.yaml）：min_module=0.96；核心≥0.98；dev_agent ≥0.95；license_utils ≥0.95（核心上限按需抛光）
 
 Release Note（0.2.5，维护性更新）
 - 文档：新增 `docs/IDE_SCAFFOLD.md`（VS Code/Cursor/JetBrains/Neovim）；README 增加“快速入口”与 IDE 文档链接。
