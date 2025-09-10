@@ -45,11 +45,11 @@ MCP 规则与上下文助手 / MCP Rules & Context Assistant
 
 ![Panel Overview](docs/assets/panel_overview.svg)
 
-JetBrains（示意图，待替换为实拍截图）
+JetBrains 截图（预览）
 
-![JetBrains ToolWindow](extensions/jetbrains/screenshots/jetbrains-toolwindow-plan.svg)
-![JetBrains Coverage Report](extensions/jetbrains/screenshots/jetbrains-coverage-report.svg)
-![JetBrains fs.apply_patch](extensions/jetbrains/screenshots/jetbrains-fs-apply-patch.svg)
+![JetBrains ToolWindow](extensions/jetbrains/screenshots/jetbrains-toolwindow-plan.png)
+![JetBrains Coverage Report](extensions/jetbrains/screenshots/jetbrains-coverage-report.png)
+![JetBrains fs.apply_patch](extensions/jetbrains/screenshots/jetbrains-fs-apply-patch.png)
 
 没有安装 JetBrains? 可使用“无 IDE 替代方案（Storyboard）”直接生成等价的数据样例，见 `docs/IDE_JB_STORYBOARD.md`。
 
