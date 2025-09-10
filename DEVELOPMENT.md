@@ -149,18 +149,18 @@
 - CLI 刷新状态：`mcp-rules-assistant status-update` 会将计划/覆盖率/记忆与任务列表写入 `.mcp/dashboard/status.json`（任务仅来源于 `.mcp/plan.md`）。
 
 ## 任务清单（当前 Sprint）
-- 本轮目标（不得延后；以 `.mcp/plan.md` 为权威）
-- [ ] 覆盖率抛光：dev_agent.py（≥96.5%）、mcp_server.py（≥99.0%）、rules_ingest.py（≥98.0%）
-- [ ] 门禁强化：CI 输出扫描 skip/xfail（仅报警）；CLI 合同测试（示例命令存在性/失败路径）
-- [ ] 清理与一致性：清理 docs/link.py 与根样例；Makefile/scripts 增补清理；docs/CI_HEALTH_CHECK.md 转健康检查说明
-- [ ] JetBrains P3：完成 `scripts/jb-package.sh` 与最小 E2E（读取 `.mcp/dashboard/status.json` smoke）
-- [ ] 统一子进程封装：checks.py 委托 run_cmd 的 on/off 回归测试
-- [ ] 文档同步：README 覆盖率策略小贴士；同步 `docs/DEV_PLAN_TDD.md` 与 `.mcp/plan.md`
+- 本轮目标（以 `.mcp/plan.md` 为权威，当前已完成）
+- [x] 覆盖率抛光：dev_agent.py（≥96.5%）、mcp_server.py（≥99.0%）、rules_ingest.py（≥98.0%）
+- [x] 门禁强化：CI 输出扫描 skip/xfail（仅报警）；CLI 合同测试（示例命令存在性/失败路径）
+- [x] 清理与一致性：清理 docs/link.py 与根样例；Makefile/scripts 增补清理；docs/CI_HEALTH_CHECK.md 转健康检查说明
+- [x] JetBrains P3：完成 `scripts/jb-package.sh` 与最小 E2E（读取 `.mcp/dashboard/status.json` smoke）
+- [x] 统一子进程封装：checks.py 委托 run_cmd 的 on/off 回归测试
+- [x] 文档同步：README 覆盖率策略小贴士；同步 `docs/DEV_PLAN_TDD.md` 与 `.mcp/plan.md`
 
 ## 审计快照（当前） / Audit Snapshot (Current)
 - 以工具输出为准：请通过 `mcp-rules-assistant coverage-report --json` 查看实时 weak/near 与分组；避免文档与实现漂移。
 - 策略阈值（.mcp/assistant.yaml）：min_module=0.96；核心≥0.98；dev_agent ≥0.95；license_utils ≥0.95（核心上限按需抛光）
- - 近阈值窗口覆盖：本仓库将 `coverage.near.within` 设为 0.5%（0.005），用于更敏感地标记近阈值文件；可用 `mcp-rules-assistant coverage-near-set --within 3 --top 20` 调整。
+ - 近阈值窗口覆盖：本仓库将 `coverage.near.within` 设为 1.0%（0.01），用于更敏感地标记近阈值文件；可用 `mcp-rules-assistant coverage-near-set --within 3 --top 20` 调整。
  - CI 已包含 JetBrains Storyboard 产物与最小 smoke 校验（读取 `.mcp/dashboard/status.json` 关键字段）。
 
 Release Note（0.2.5，维护性更新）

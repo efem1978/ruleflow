@@ -49,7 +49,7 @@ ci:
 - 因此，既可以写目录前缀（如 `mcp_rules_assistant/` 或 `src/core/`），也可以直接写文件名（如 `cli.py`、`mcp_server.py`）。
 - 建议做法：
   - 若要对一类目录生效，使用目录前缀：`mcp_rules_assistant/`: 0.95。
-  - 若要对单个模块设更高门槛，使用文件名后缀：`cli.py: 0.98`、`mcp_server.py: 0.98`。
+ - 若要对单个模块设更高门槛，使用文件名后缀：`cli.py: 0.98`、`mcp_server.py: 0.98`。
 
 命令 Commands（中英 + 模糊）
 - 开启滚动记忆 / enable rolling memory / 记忆开 / auto-memo on
@@ -80,7 +80,8 @@ CLI
 - `mcp-rules-assistant coverage-report --json`  # 一次性输出弱项/分组/近阈值（默认 JSON）
 
 近阈值窗口（near）说明
-- 文档示例默认窗口为 3%（即 `within=0.03`）。本仓库为便于抛光核心模块，将项目配置覆盖为 0.5%（`coverage.near.within=0.005`）。
+- 文档示例默认窗口为 3%（即 `within=0.03`）。本仓库为便于抛光核心模块，将项目配置覆盖为 1.0%（`coverage.near.within=0.01`）。
+- 工具允许的窗口范围为 1–10%（CLI/报告会按需夹紧到该范围）。
 - 可用 CLI 快速调整：`mcp-rules-assistant coverage-near-set --within 3 --top 20`（将窗口改回 3%，Top=20）。
 - 读取/导出近阈值：`mcp-rules-assistant coverage-near --within 3 --top 20 --format json`。
 

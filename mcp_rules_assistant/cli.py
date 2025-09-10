@@ -693,6 +693,7 @@ def coverage_near(
         float(near_cfg.get("within", 0.03) * 100.0) if within is None else float(within)
     )
     top_n = int(near_cfg.get("top", 20)) if top is None else int(top)
+    # clamp 1–10%
     within_pct = max(1.0, min(10.0, within_pct))
     res = cov_near(
         policy=policy, min_module=min_module, within=within_pct / 100.0, top=top_n

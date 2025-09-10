@@ -20,6 +20,15 @@ MCP 规则与上下文助手 / MCP Rules & Context Assistant
 - 规则与门禁 Rules Enforcement：规则摄取与冲突检测、覆盖率阈值与分组策略、Git Hooks 与 CI 门禁生成/校验。
 - 上下文记忆 Context Memory：20 轮滚动记忆与计划资源（memory:// / progress://），在多轮协作中保持一致性与衔接。
 
+功能矩阵 / 支持矩阵 / 无遥测声明
+- 运行环境：本地（Python ≥3.10）/ Docker 容器 / CI（GitHub Actions）
+- IDE 集成：VS Code（完整）、Cursor/Windsurf（复用 VSIX）、JetBrains（MVP 工具窗口）、Neovim（最小命令）
+- MCP/CLI：JSON-RPC/stdio MCP Server + Typer CLI（双语 + 模糊语义）
+- 规则门禁：规则摄取/编译/冲突建议 → 配置/CI/Hooks 一致性生成与校验
+- 覆盖率：weak/groups/near/tree 汇总；核心模块目标≥98%，其余≥95%（策略可配）
+- 安全：bandit（高危阻断）/ semgrep（固定版本，策略可调）/ hadolint（固定镜像标签）
+- 遥测：无；仅在工作区写入 `.mcp/` 状态/规则/计划等本地工件
+
 一览 / At a Glance（双语）
 - 初始化配置：`mcp-rules-assistant init`（生成 `.mcp/assistant.yaml`）
 - 摄取规则：`mcp-rules-assistant ingest-rules README.md docs/`
@@ -50,7 +59,7 @@ MCP 规则与上下文助手 / MCP Rules & Context Assistant
 提示：`docs/CI_HEALTH_CHECK.md` 为 CI 健康检查说明文档（包含必备检查、触发方式与常见失败定位）。
 
 近阈值窗口（near）与 CI 说明
-- 默认示例使用 3% 窗口；本仓库为抛光核心模块将 `coverage.near.within` 覆盖为 0.5%（0.005）。可用命令快速调整：`mcp-rules-assistant coverage-near-set --within 3 --top 20`。
+- 默认示例使用 3% 窗口；本仓库为抛光核心模块将 `coverage.near.within` 覆盖为 1.0%（0.01）。可用命令快速调整：`mcp-rules-assistant coverage-near-set --within 3 --top 20`。
 - CI 已包含 JetBrains 最小 smoke：读取 `.mcp/dashboard/status.json` 并校验关键字段；对应工件会随构建上传（见 `jetbrains-storyboard` 作业）。
 
 示意图 / Screenshots
@@ -83,7 +92,7 @@ JetBrains 头less UI Smoke（可选）
  - 小贴士（coverage.policy 命中策略）：policy 键既支持“目录前缀”也支持“文件名后缀（basename）”。
    - 对单个关键模块设更高门槛，推荐直接使用文件名后缀（如 `mcp_server.py: 0.99`）。
    - 对一类目录设默认门槛，使用目录前缀（如 `mcp_rules_assistant/`: 0.95）。
- - 小贴士（近阈值 near 窗口）：文档示例为 3%，本仓库覆盖为 0.5%（`coverage.near.within=0.005`）。可用 `mcp-rules-assistant coverage-near-set --within 3 --top 20` 调整。
+ - 小贴士（近阈值 near 窗口）：文档示例为 3%，本仓库覆盖为 1.0%（`coverage.near.within=0.01`）。可用 `mcp-rules-assistant coverage-near-set --within 3 --top 20` 调整。
 
 覆盖率策略（示例）
 ```yaml
