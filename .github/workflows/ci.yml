@@ -242,6 +242,21 @@ jobs:
       - name: Generate JetBrains storyboard artifacts
         run: |
           bash scripts/jb-storyboard.sh || true
+      - name: JetBrains smoke (status.json)
+        run: |
+          # 生成并校验状态快照（供 JetBrains 工具窗口使用的同源数据）
+          python -m mcp_rules_assistant.cli status-update > .mcp/dashboard/status.json
+          python - <<'PY'
+          import json,sys
+          d=json.load(open('.mcp/dashboard/status.json',encoding='utf-8'))
+          has_plan=isinstance(d.get('plan'), dict)
+          has_cov=isinstance(d.get('coverage'), dict)
+          tests=d.get('tests') or {}
+          # 仅校验字段存在性与基本类型，不硬性要求 tests.ok=true（避免偶发不稳定）
+          assert has_plan and has_cov, 'missing plan/coverage in status.json'
+          assert 'ok' in tests, 'tests field missing ok'
+          print('[jb-smoke] status.json structure OK')
+          PY
       - name: Upload storyboard artifacts
         if: always()
         uses: actions/upload-artifact@v4
@@ -252,6 +267,7 @@ jobs:
             extensions/jetbrains/screenshots/jb_plan.md
             extensions/jetbrains/screenshots/jb_memory.json
             extensions/jetbrains/screenshots/jb_fs_apply_patch_dry.json
+            .mcp/dashboard/status.json
 
   jetbrains-tests:
     runs-on: ubuntu-latest

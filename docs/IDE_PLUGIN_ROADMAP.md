@@ -14,7 +14,7 @@
   - 插件骨架（Gradle/Kotlin）：动作/工具窗口/UI 面板。（已完成）
   - 调用本地 MCP Server（stdio）与资源呈现（memory/progress/coverage/ci）。（已完成最小闭环：启动/停止/Ping/资源列表/计划/规则摄取/覆盖率报告）
   - 受控写入（保存后检查）入口与配置面板。（计划）
-  - 基本 E2E 测试（IDEA IU Headless 的 smoke）。（计划）
+  - 基本 E2E 测试（IDEA IU Headless 的 smoke）。（最小 smoke 已纳入 CI：读取 `.mcp/dashboard/status.json` 并校验关键字段；后续可增加真正 headless UI 启动）
 - P3（统一能力细节，>2 周，按需）：
   - 统一“自然语言路由”入口（命令面板/操作面板）。
   - 统一“覆盖率/近阈值/规则建议”可视化与导出。

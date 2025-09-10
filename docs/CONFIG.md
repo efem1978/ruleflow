@@ -77,7 +77,12 @@ CLI
 - `mcp-rules-assistant rules-validate`  # 校验规则（基于已摄取原始数据）并输出冲突/建议摘要
  - `mcp-rules-assistant rules-suggestions --format json|csv`  # 导出建议清单（含 severity/action/value）
  - `mcp-rules-assistant coverage-clean-cache`  # 删除覆盖率解析缓存（.mcp/coverage_cache.json）
- - `mcp-rules-assistant coverage-report --json`  # 一次性输出弱项/分组/近阈值（默认 JSON）
+- `mcp-rules-assistant coverage-report --json`  # 一次性输出弱项/分组/近阈值（默认 JSON）
+
+近阈值窗口（near）说明
+- 文档示例默认窗口为 3%（即 `within=0.03`）。本仓库为便于抛光核心模块，将项目配置覆盖为 0.5%（`coverage.near.within=0.005`）。
+- 可用 CLI 快速调整：`mcp-rules-assistant coverage-near-set --within 3 --top 20`（将窗口改回 3%，Top=20）。
+- 读取/导出近阈值：`mcp-rules-assistant coverage-near --within 3 --top 20 --format json`。
 
 配置更新（config.update）兼容性
 - 推荐：`tools/call name="config.update" {"data": {"mutation_gate_strict": true, "execution": {"checks_delegate_run_cmd": true}}}`

@@ -49,6 +49,10 @@ MCP 规则与上下文助手 / MCP Rules & Context Assistant
 
 提示：`docs/CI_HEALTH_CHECK.md` 为 CI 健康检查说明文档（包含必备检查、触发方式与常见失败定位）。
 
+近阈值窗口（near）与 CI 说明
+- 默认示例使用 3% 窗口；本仓库为抛光核心模块将 `coverage.near.within` 覆盖为 0.5%（0.005）。可用命令快速调整：`mcp-rules-assistant coverage-near-set --within 3 --top 20`。
+- CI 已包含 JetBrains 最小 smoke：读取 `.mcp/dashboard/status.json` 并校验关键字段；对应工件会随构建上传（见 `jetbrains-storyboard` 作业）。
+
 示意图 / Screenshots
 
 ![Panel Overview](docs/assets/panel_overview.svg)
