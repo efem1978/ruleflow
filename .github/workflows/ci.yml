@@ -85,6 +85,18 @@ jobs:
           python -m mcp_rules_assistant.cli coverage-near --within 3 --top 10 --format csv --output near.csv || true
           python -m mcp_rules_assistant.cli coverage-near --within 3 --top 10 --format json --output near.json || true
           tar czf tests-artifacts.tar.gz coverage.xml pytest-junit.xml near.txt near.csv near.json || true
+      - name: Skip/XFail Summary (non-blocking)
+        run: |
+          python3 scripts/pytest-skipxfail-summary.py pytest-junit.xml || true
+      - name: Release Harden Verify (summary)
+        run: |
+          sh scripts/release-harden-verify.sh || true
+      - name: Upload release verification summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-check
+          path: .mcp/dashboard/release_check.md
       - name: Upload coverage & JUnit
         if: always()
         uses: actions/upload-artifact@v4
