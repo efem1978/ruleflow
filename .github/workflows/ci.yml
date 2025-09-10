@@ -274,3 +274,23 @@ jobs:
           path: |
             extensions/jetbrains/build/test-results
             extensions/jetbrains/build/reports/tests
+
+  jetbrains-package:
+    runs-on: ubuntu-latest
+    container:
+      image: gradle:8.5.0-jdk17
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build JetBrains plugin distribution
+        working-directory: extensions/jetbrains
+        env:
+          CI: "1"
+          GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.jvmargs='-Xmx768m'
+        run: |
+          gradle buildPlugin -i
+      - name: Upload JB distribution
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jetbrains-distributions
+          path: extensions/jetbrains/build/distributions/*.zip
