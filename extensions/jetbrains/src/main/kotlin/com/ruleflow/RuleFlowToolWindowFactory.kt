@@ -98,6 +98,9 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
             text.text = content
         }
 
+        // Models and lists for weak/near coverage, defined before handlers to satisfy Kotlin scoping
+        // moved earlier
+
         fun extractArray(json: String, key: String): String? {
             val anchor = "\"$key\""
             val i = json.indexOf(anchor)
