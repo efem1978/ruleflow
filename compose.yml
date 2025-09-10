@@ -64,6 +64,14 @@ services:
       - gradle-cache:/home/gradle/.gradle
     command: bash -lc "gradle buildPlugin -i"
 
+  jb-ui-smoke:
+    image: gradle:8.5.0-jdk17
+    working_dir: /work
+    volumes:
+      - .:/work
+      - gradle-cache:/home/gradle/.gradle
+    command: bash -lc "apt-get update && apt-get install -y xvfb && bash scripts/jb-ui-smoke.sh || true"
+
   verify:
     build: .
     working_dir: /work

@@ -5,6 +5,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      COVERAGE_WARN_FILTER: '1'
     strategy:
       matrix:
         python-version: ['3.10', '3.11', '3.12']
@@ -273,7 +275,7 @@ jobs:
             extensions/jetbrains/screenshots/jb_fs_apply_patch_dry.json
             .mcp/dashboard/status.json
 
-  jetbrains-package:
+  jetbrains-ui-smoke:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -282,16 +284,18 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-      - name: Build JetBrains plugin
-        working-directory: extensions/jetbrains
+      - name: Install xvfb
         run: |
-          ./gradlew buildPlugin -i || gradle buildPlugin -i || echo "gradle not found" && true
-      - name: Upload JetBrains plugin artifact
+          sudo apt-get update && sudo apt-get install -y xvfb
+      - name: UI smoke (timeboxed)
+        run: |
+          bash scripts/jb-ui-smoke.sh
+      - name: Upload UI smoke log
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: jetbrains-plugin
-          path: extensions/jetbrains/build/distributions/*.zip
+          name: jetbrains-ui-smoke-log
+          path: extensions/jetbrains/ui_smoke.log
 
   jetbrains-tests:
     runs-on: ubuntu-latest
