@@ -87,7 +87,7 @@ Phase E — 集成与 CLI
 
 本轮（不得延后）
 1) 覆盖率抛光（核心路径）
-   - [ ] dev_agent.py：冻结/解冻/旁路/失败分支补齐（目标 ≥96.5%）
+   - [ ] dev_agent.py：冻结/解冻/旁路/失败分支补齐（目标 ≥96%）
    - [ ] mcp_server.py：env/coverage/resources 边界异常与极值分支（目标 ≥99.0%）
    - [ ] rules_ingest.py：上限/区间/异常 YAML/JSON 分支（目标 ≥98.0%）
 2) 门禁强化
