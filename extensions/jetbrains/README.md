@@ -49,11 +49,15 @@
 - 输入：相对路径（如 `mcp_rules_assistant/tmp_demo.py`）与多行内容
 - 行为：严格模式禁止内容包含 `pytest.mark.skip/xfail`；白名单/扩展名/大小限制与项目配置一致
 
+安装（手动从 ZIP 安装）
+1. 构建分发包：在该子目录运行 `gradle buildPlugin -i`（产物位于 `build/distributions/*.zip`）。
+2. JetBrains IDE：Preferences → Plugins → 点击齿轮 → Install Plugin from Disk… → 选择上述 ZIP。
+3. 重启 IDE，打开工具窗口“RuleFlow”。
+
 截图与示例
-> 已提供 JSON 样例与工具窗口示意（SVG）；如需 PNG 截图，可通过 `scripts/jb-storyboard.sh` 生成样例数据后手动截屏，无需插件运行环境。
-- ToolWindow（计划/记忆）：`screenshots/jetbrains-toolwindow-plan.svg`
-- 覆盖率报告：`screenshots/jetbrains-coverage-report.svg`
-- 受控写入对话框：`screenshots/jetbrains-fs-apply-patch.svg`
+- ToolWindow（计划/记忆）：`screenshots/jetbrains-toolwindow-plan.png`
+- 覆盖率报告：`screenshots/jetbrains-coverage-report.png`
+- 受控写入对话框：`screenshots/jetbrains-fs-apply-patch.png`
 
 JSON 示例（coverage.report）
 ```json

@@ -127,6 +127,12 @@ package:
 	$(PYTHON) -m build
 	@echo "Artifacts in dist/. Upload with: twine upload dist/*"
 
+distcheck:
+	$(PYTHON) -m pip install --upgrade build twine || true
+	$(PYTHON) -m build
+	$(PYTHON) -m twine check dist/*
+	@echo "[distcheck] wheel/sdist build + twine check passed"
+
 release-check:
 	$(PYTHON) -m pip install --upgrade twine || true
 	$(PYTHON) -m twine check dist/*

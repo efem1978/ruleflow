@@ -103,6 +103,10 @@ execution:
   # checks 委托到统一 process runner（可选，默认关闭；也可用环境变量 MCP_CHECKS_PROCESS_RUNNER=1 开启）
   checks_delegate_run_cmd: false
 
+注意与实践建议
+- 符号链接：fs.apply_patch 默认拒绝写入符号链接目标（避免路径混淆）。
+- disallow_patterns：命中仅“软拦截”（记录/提示），严格阻断仅针对 `pytest.mark.skip/xfail`（保持保存轻、推送/CI 重的原则）。
+
 license:
   # 是否启用许可硬门禁：开启后，部分敏感操作（rules.enforce / ci.generate / ci.validate / ci.autofix / git.install_hooks）
   # 需通过 license-verify 校验（演示支持 hs256/rs256）。默认 false。

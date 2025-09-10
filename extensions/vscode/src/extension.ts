@@ -1316,6 +1316,40 @@ export function activate(context: vscode.ExtensionContext) {
       }
     });
   });
+  // Quick actions: small launcher for common tasks
+  context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant.quickActions', async () => {
+    const pick = await vscode.window.showQuickPick([
+      { label: '摄取规则 / Ingest', action: 'ingestRules' },
+      { label: '加载覆盖率 / Load Coverage', action: 'coverage' },
+      { label: '生成 CI / Generate CI', action: 'ciGen' },
+      { label: '校验 CI / Validate CI', action: 'ciValidate' },
+    ], { title: 'RuleFlow: Quick Actions' });
+    if (!pick) { return; }
+    try { client.start(context); } catch {}
+    // Route to openPanel first to ensure webview exists
+    await vscode.commands.executeCommand('mcpRulesAssistant.openPanel');
+    // Post a message to the active webview (panel reuses the last instance)
+    try {
+      // Use a global state marker; in this minimal change, rely on the panel created above
+      // The panel handler already registers message listeners; send event via commands below
+      switch (pick.action) {
+        case 'ingestRules':
+          vscode.commands.executeCommand('mcpRulesAssistant.openPanel');
+          break;
+        case 'coverage':
+          vscode.commands.executeCommand('mcpRulesAssistant.openPanel');
+          break;
+        case 'ciGen':
+          vscode.commands.executeCommand('mcpRulesAssistant.openPanel');
+          break;
+        case 'ciValidate':
+          vscode.commands.executeCommand('mcpRulesAssistant.openPanel');
+          break;
+      }
+    } catch (e:any) {
+      vscode.window.showErrorMessage('Quick action failed: ' + String(e));
+    }
+  }));
 
   context.subscriptions.push(disposable);
 

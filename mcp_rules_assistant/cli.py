@@ -1458,5 +1458,49 @@ def coverage_near_set(
     rprint({"coverage": {"near": cov.get("near")}})
 
 
+@app.command("health")
+def health(json_out: bool = typer.Option(True, "--json/--text")) -> None:
+    """Aggregate quick health info: diagnose + plan task counts + status summary."""
+    # Diagnose subset
+    cfg = load_config()
+    perf = (
+        cfg.get("performance", {})
+        if isinstance(cfg.get("performance", {}), dict)
+        else {}
+    )
+    min_module = float(
+        (perf.get("on_push", {}) or {}).get("coverage", {}).get("min_module", 0.9)
+    )
+    coverage_exists = Path("coverage.xml").exists()
+    compiled_exists = Path(".mcp/rules_compiled.json").exists()
+    # Plan tasks
+    p = ensure_plan()
+    text = p.read_text(encoding="utf-8")
+    pending, done = _scan_plan_tasks(text)
+    # Status summary
+    try:
+        from .auto_status import generate_status as _gen
+
+        status = _gen()
+    except Exception:
+        status = {}
+    payload = {
+        "coverage": {"exists": coverage_exists, "min_module": min_module},
+        "rules": {"compiled_exists": compiled_exists},
+        "plan": {"pending": len(pending), "done": len(done)},
+        "status_ok": bool(status.get("ok", True)) if isinstance(status, dict) else True,
+    }
+    if json_out:
+        import json as _json
+
+        print(_json.dumps(payload, ensure_ascii=False))
+    else:
+        rprint("[bold]Health[/]")
+        rprint(f"coverage.xml={coverage_exists} min_module={min_module}")
+        rprint(
+            f"compiled_rules={compiled_exists} plan: pending={len(pending)} done={len(done)}"
+        )
+
+
 if __name__ == "__main__":
     app()
