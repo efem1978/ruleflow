@@ -41,7 +41,21 @@ VS Code 面板手测指南 / VS Code Manual Test
    - 若 `npm --prefix extensions/vscode test` 在本机失败，可尝试：
      - 移除默认参数（不传任何启动参数）：`export MCP_VSCODE_TEST_ARGS=""`
      - 或自定义启动参数（逗号分隔）：`export MCP_VSCODE_TEST_ARGS="--disable-extensions"`
-  - 再运行：`npm --prefix extensions/vscode test`
+ - 再运行：`npm --prefix extensions/vscode test`
+
+通过 Docker Compose 运行（推荐缓存）
+--------------------------------
+
+首次构建会预装依赖并预下载 VS Code 测试内核（镜像层缓存），随后运行速度显著提升：
+
+```bash
+docker compose build vscode-test
+docker compose run --rm vscode-test
+```
+
+说明：
+- 预构建镜像 `extensions/vscode/Dockerfile.test` 会执行 `npm ci` 并通过 `@vscode/test-electron` 预下载 VS Code 到 `/opt/app/.vscode-test`。
+- 运行时命令会将该目录符号链接到工作区 `extensions/vscode/.vscode-test`，避免每次重新下载。
 
 覆盖率门禁脚本（进阶）
 - `scripts/check-lcov.sh <lcov.info> <threshold_pct> [gate]`

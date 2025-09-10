@@ -14,6 +14,9 @@ import javax.swing.JTextField
 import java.awt.GridBagLayout
 import java.awt.GridBagConstraints
 import java.awt.Insets
+import java.io.File
+import javax.swing.JButton
+import javax.swing.JFileChooser
 
 @State(name = "RuleFlowSettings", storages = [Storage("RuleFlowSettings.xml")])
 @Service(Service.Level.APP)
@@ -99,6 +102,7 @@ data class FsApplyPatchParams(
 )
 
 class FsApplyPatchDialog(
+    private val baseDir: File? = null,
     private val defaults: RuleFlowSettingsState = RuleFlowSettingsState.getInstance()
 ) : javax.swing.JDialog() {
     private var ok = false
@@ -118,6 +122,8 @@ class FsApplyPatchDialog(
         c.fill = GridBagConstraints.HORIZONTAL
         c.gridx = 0; c.gridy = 0; p.add(JLabel("Path (relative)"), c)
         c.gridx = 1; p.add(tfPath, c)
+        val btnBrowse = JButton("Browse…")
+        c.gridx = 2; p.add(btnBrowse, c)
         c.gridx = 0; c.gridy = 1; c.gridwidth = 2
         p.add(javax.swing.JScrollPane(taContent), c)
         c.gridy = 2; c.gridwidth = 1
@@ -135,6 +141,22 @@ class FsApplyPatchDialog(
         setLocationRelativeTo(null)
         btnOk.addActionListener { ok = true; dispose() }
         btnCancel.addActionListener { ok = false; dispose() }
+
+        btnBrowse.addActionListener {
+            val chooser = JFileChooser()
+            if (baseDir != null && baseDir.exists()) chooser.currentDirectory = baseDir
+            chooser.fileSelectionMode = JFileChooser.FILES_ONLY
+            val res = chooser.showOpenDialog(this)
+            if (res == JFileChooser.APPROVE_OPTION) {
+                val sel = chooser.selectedFile
+                val path = try {
+                    if (baseDir != null && sel.absolutePath.startsWith(baseDir.absolutePath))
+                        baseDir.toPath().relativize(sel.toPath()).toString()
+                    else sel.absolutePath
+                } catch (_: Exception) { sel.path }
+                tfPath.text = path.replace('\\', '/')
+            }
+        }
     }
 
     fun preset(path: String? = null, content: String? = null, strict: Boolean? = null, dryRun: Boolean? = null) {
@@ -159,4 +181,3 @@ class FsApplyPatchDialog(
         )
     }
 }
-
