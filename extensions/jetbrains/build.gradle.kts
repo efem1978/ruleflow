@@ -13,10 +13,18 @@ intellij {
     version.set("2023.1")
 }
 
+dependencies {
+    testImplementation(kotlin("test"))
+    testImplementation("junit:junit:4.13.2")
+}
+
 tasks {
     patchPluginXml {
         sinceBuild.set("231")
         untilBuild.set(null as String?)
     }
+    test {
+        // Use JUnit4 for simple smoke/unit tests
+        useJUnit()
+    }
 }
-

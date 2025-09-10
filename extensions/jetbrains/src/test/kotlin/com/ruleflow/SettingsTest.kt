@@ -1,8 +1,8 @@
 package com.ruleflow
 
 import org.junit.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 
 class SettingsTest {
     @Test
@@ -15,4 +15,3 @@ class SettingsTest {
         assertTrue(s.defaultDryRun)
     }
 }
-

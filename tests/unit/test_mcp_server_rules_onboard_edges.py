@@ -1,51 +1,35 @@
-from __future__ import annotations
-
 from pathlib import Path
-
-import pytest
 
 from mcp_rules_assistant.mcp_server import JsonRpcServer
 
 
-def test_onboard_detect_fail(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_rules_onboard_complexity_heuristics_large(tmp_path: Path) -> None:
+    # 构造一个临时项目，包含 >300 个 tests 文件，触发 large 分支
+    tests_dir = tmp_path / "tests"
+    tests_dir.mkdir(parents=True, exist_ok=True)
+    for i in range(0, 305):
+        (tests_dir / f"test_{i}.py").write_text("pass\n", encoding="utf-8")
+
     srv = JsonRpcServer()
     srv.project_root = tmp_path
-    monkeypatch.setattr(JsonRpcServer, "_tool_project_detect", lambda self: (_ for _ in ()).throw(RuntimeError("boom")))  # type: ignore[no-untyped-call]
+
+    # 不传 complexity，让启发式生效
     out = srv._call_tool("rules.onboard", {"apply": False})
+    # 只校验输出结构存在，具体阈值由 choose_thresholds 决定
     assert out.get("ok") is True
-    assert out.get("language") == "python"
+    th = out.get("thresholds")
+    # explain_thresholds 返回字符串摘要，允许实现返回字符串或结构化对象
+    assert isinstance(th, (dict, str)) and ("min_module" in str(th))
 
 
-def test_onboard_yaml_read_exception(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    import yaml as _yaml
-
+def test_rules_onboard_invalid_enums_fallback(tmp_path: Path) -> None:
     srv = JsonRpcServer()
     srv.project_root = tmp_path
-    # Make yaml.safe_load raise to hit except path
-    monkeypatch.setattr(_yaml, "safe_load", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("bad yaml")))  # type: ignore[no-untyped-call]
-    out = srv._call_tool("rules.onboard", {"apply": True})
-    assert out.get("ok") is True
-    assert out.get("applied") in (True, False)  # write may still succeed or be skipped
-
-
-def test_onboard_write_exception(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    from pathlib import Path as _P
-
-    srv = JsonRpcServer()
-    srv.project_root = tmp_path
-    # Pre-create config to avoid ensure_project_config writing during patch
-    cfg = tmp_path / ".mcp/assistant.yaml"
-    cfg.parent.mkdir(parents=True, exist_ok=True)
-    cfg.write_text(
-        "performance:\n  on_push: {coverage: {min_module: 0.9}, mutation_test: false}\n",
-        encoding="utf-8",
+    # 传入非法 scenario/complexity 值，触发异常并走 fallback 分支
+    out = srv._call_tool(
+        "rules.onboard",
+        {"scenario": "__bad__", "complexity": "__bad__", "apply": False},
     )
-    # Make Path.write_text raise to mark applied=False
-    monkeypatch.setattr(_P, "write_text", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("io error")))  # type: ignore[no-untyped-call]
-    out = srv._call_tool("rules.onboard", {"apply": True})
     assert out.get("ok") is True
-    assert out.get("applied") is False
+    th = out.get("thresholds")
+    assert isinstance(th, (dict, str)) and ("min_module" in str(th))

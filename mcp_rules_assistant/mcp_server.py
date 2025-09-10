@@ -498,8 +498,12 @@ class JsonRpcServer:
                         ]:
                             raise ValueError("受控写入文件扩展名不在允许清单内")
                 except Exception as _e:
-                    # 严格模式下升级为错误
-                    if bool(ex_cfg.get("fs_guard_strict", False)):
+                    # 严格模式下升级为错误（使用外层 exec_cfg_eff，以避免本地变量未绑定）
+                    try:
+                        strict_on = bool((exec_cfg_eff or {}).get("fs_guard_strict", False))  # type: ignore[union-attr]
+                    except Exception:
+                        strict_on = False
+                    if strict_on:
                         raise
                 # 内容大小限制：默认 512KB，可通过 execution.max_content_bytes 调整
                 try:

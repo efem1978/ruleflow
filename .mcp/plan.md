@@ -1,72 +1,49 @@
 # 项目计划 / Project Plan（进行中）
 
 - 状态: in_progress
-- 当前步骤: 冲刺收尾：覆盖率配置与清理工件
-- 下一步: JetBrains P2增量（受控写入与E2E）
-- 风险与阻塞: （待补充）
+- 当前步骤: 批次A — 覆盖率抛光与门禁强化
+- 下一步: 批次B — 清理与一致性（含占位项收敛）
+- 风险与阻塞: 无（JetBrains 实拍截图允许暂缓）
 
 ## 任务清单（可勾选，唯一权威）
 
-CI 与门禁
-- [x] 修复 `.github/workflows/ci.yml` 的 matrix 表达式（`${{ matrix.python-version }}`），或运行 `mcp-rules-assistant ci-autofix` 重新生成
-- [x] 回归构建：`make local-ci-run` 全绿，覆盖率 Gate 通过
+批次A — 覆盖率抛光与门禁强化
+- [ ] dev_agent.py：补齐冻结/解冻/旁路与失败分支各 1–2 条用例，使覆盖率≥96.5%
+- [ ] mcp_server.py：补齐 env/coverage/resources 边界异常与大小/速率极端值用例，使覆盖率≥99.0%
+- [ ] rules_ingest.py：补齐“上限/区间/异常 YAML/JSON”用例，覆盖率≥98.0%
+- [ ] CLI 合同测试：文档示例命令存在性校验（抽样）与失败路径（如 rules-explain 无文件）
+- [ ] CI “禁止 skip/xfail（包内）”规则增强：额外扫描测试输出统计（仅报警，不误伤测试用例标记）
 
-自动任务记录与面板
-- [x] CLI `status-update` 增强：在 `.mcp/dashboard/status.json` 中输出 `tasks.pending/done` 列表
-- [x] VS Code 面板“状态”区域补充显示剩余任务（可选）
+批次B — 清理与一致性（含占位项收敛）
+- [ ] 清理无用样例：docs/link.py、bad.py/ok2.py/ok.txt、docs/b.txt（并在 Makefile clean 与脚本中覆盖）
+- [ ] README 覆盖率策略说明：补充“policy 键可后缀匹配文件名”的最佳实践小贴士
+- [ ] docs/CI_HEALTH_CHECK.md：由占位改为“健康检查操作说明 + 触发方式 + 常见失败定位”
+- [ ] scripts/workspace-clean.sh：覆盖上述样例与临时工件的清理
 
-覆盖率与测试（细化）
-- `mcp_rules_assistant/mcp_server.py` ≥98%
-  - [x] initialize/capabilities 成功与未知方法错误
-  - [x] 速率限制/请求体超限（`rate_limit_rps`/`max_request_bytes`）错误
-  - [x] tools/list 返回注册项；tools/call 许可门禁（`license.required: true` + 无效许可 → 拒绝）
-  - [x] resources/list 完整项；rules 资源缺失时报错（需先/未 ingest 的两路）
-  - [x] resources/read：memory/links、rules(compiled/md/json/suggestions/maxima)、coverage(summary/groups/tree/near/report)、progress、config、ci
-  - [x] fs.apply_patch：
-        - dryRun 返回 would_write；maxFiles 超限拒绝；内容大小超限拒绝
-        - strict+runChecks：内容包含 skip/xfail 片段拒绝；写入后检查失败拒绝
-        - allowed_write_prefixes/extensions 生效（允许/拒绝各一例）
-  - [x] env.prepare：dry-run 计划；create+install 成功；失败路径返回 message
-  - [x] env.diagnose：工具探测字段存在、coverage/compiled 状态判定
-  - [x] plan.suggest_next：基于 plan/summary 给出建议
-  - [x] coverage.report：weak/groups/near 合并输出的结构与字段
+批次C — JetBrains P3：打包与最小 E2E（本轮落地）
+- [ ] 脚本：`scripts/jb-package.sh` 完成 & 文档化（执行 `./gradlew buildPlugin`）
+- [ ] 最小 E2E：在 CI 新增 smoke（读取 `.mcp/dashboard/status.json` 并校验关键字段）
+- [ ] README/DEV_PLAN 增补 JB 打包与 E2E 说明
 
-- `mcp_rules_assistant/fs_wrapper.py` ≥95%
-  - [x] 目标为符号链接 → 严格模式拒绝；非严格允许写入
-  - [x] allowed_write_prefixes/allowed_write_extensions 白名单命中/未命中两路
-  - [x] fs_guard_post_checks=True：写入后 run_checks 被调用；严格模式失败抛错；非严格仅记录
-  - [x] 正常写入：内容落盘，未触发异常
+批次D — 统一子进程封装与开关验证
+- [ ] checks.py 委托 `process.run_cmd` 的配置开关回归测试（on/off 两路，保持历史桩兼容）
 
-- `mcp_rules_assistant/license_utils.py` ≥90%
-  - [x] hs256：签名正确/错误验签
-  - [x] rs256：生成并验签（设置 `MCP_LICENSE_PUBKEY`）；缺失公钥/非 RSA 公钥 → 验签失败
-  - [x] 过期日期/无效日期格式路径
-  - [x] generate_license：hs256/rs256 输出字段完整性
+批次E — 文档与入口指南同步
+- [ ] `DEVELOPMENT.md`：更新“任务清单（当前 Sprint）”为本批次内容；保留锚点不变
+- [ ] `docs/DEV_PLAN_TDD.md`：更新“近期待办/执行批次”与阈值目标，纳入本轮清单
 
-文档与可发现性
-- [x] 在 `DEVELOPMENT.md` 增加“下一步 / Next Actions”指向 `.mcp/plan.md`（单一权威）
-- [x] 更新 `docs/DEV_PLAN_TDD.md` 的严格 TDD 清单，聚焦上述覆盖率与 CI 差距
+批次F — 商业化与出货演练
+- [ ] 许可门禁 E2E 小结：`release-harden-verify` 的摘要输出写入 `.mcp/dashboard/release_check.md`
+- [ ] PR 检查清单（贡献指南补充）：覆盖率 Gate/近阈值提示/许可门禁切换步骤
 
-清理与一致性
-- [x] 移除根部样例文件 `a.py`、`bad.py`、`ok2.py`、`link.py` 与 `docs/b.txt`
-- [x] 校对文档中“已清理样例文件”的表述与实际一致
- - [x] .gitignore 增补 coverage_report.json，避免误入库
-
-近期修复（本轮完成）
-- [x] 覆盖率分组：后缀优先于前缀（cli.py 优先于目录前缀），修复回归用例
-- [x] JSON-RPC 错误码：未知方法返回 -32601（原为 -32603）
-- [x] dev_agent 覆盖率 ≥95%，清零 weak（本地验证 95.13%）
-
-可选增强
-- [x] prompts 最小内置：`prompts/list` 返回 1–2 个 handoff/规则摘要模板（通过环境变量/配置开关）
-- [x] 发布模式开关：新增 CLI `license-require-on/off` 便于切换出货/开发模式
-- [x] 在 `.mcp/assistant.yaml` 明确 `execution.allowed_write_prefixes/allowed_write_extensions` 提升受控写入安全
-- [x] 规则引导（rules.onboard）：CLI/MCP/VS Code NL 触发，应用推荐阈值到配置
+（允许暂缓项 — 仅图片）
+- [ ] 将 JetBrains 占位 SVG 替换为实拍 PNG（完成即勾选；不阻断本批次验收）
 
 ## 验收标准（Definition of Done）
-- [x] `make local-ci-run` 通过；CI 与门禁（覆盖率 Gate 无 weak）一致
-- [x] 覆盖率达标：mcp_server≥98%、fs_wrapper≥95%、license_utils≥90%
-- [x] `.mcp/plan.md` 勾选与提交门禁匹配（commit-msg 含 `[step:...]`）
+- `make local-ci-run` 通过；Coverage Policy Gate 无 weak；近阈值 Top5 中无“核心”模块
+- 关键模块覆盖率：mcp_server≥99%、dev_agent≥96.5%、rules_ingest≥98%
+- 清理项可在 `make clean` 与 `scripts/workspace-clean.sh` 一键完成
+- CI 健康检查文档可按步骤复现；JB 打包脚本可用；E2E smoke 绿
 
 ## 说明
 - 任务清单为单一权威：所有更新以本文件为准。

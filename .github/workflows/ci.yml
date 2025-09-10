@@ -240,3 +240,25 @@ jobs:
             extensions/jetbrains/screenshots/jb_plan.md
             extensions/jetbrains/screenshots/jb_memory.json
             extensions/jetbrains/screenshots/jb_fs_apply_patch_dry.json
+
+  jetbrains-tests:
+    runs-on: ubuntu-latest
+    container:
+      image: gradle:8.5.0-jdk17
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run JetBrains plugin tests (smoke)
+        working-directory: extensions/jetbrains
+        env:
+          CI: "1"
+          GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.jvmargs='-Xmx768m'
+        run: |
+          gradle test -i
+      - name: Upload JB test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jetbrains-tests
+          path: |
+            extensions/jetbrains/build/test-results
+            extensions/jetbrains/build/reports/tests

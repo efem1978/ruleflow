@@ -83,42 +83,67 @@ Phase E — 集成与 CLI
 - 规则：`.mcp/rules_compiled.{json,md}` 与 `rules_suggestions.md`。
 
 近期待办 Next Actions（与根目录 DEVELOPMENT.md 同步）
-已完成（对齐项）
- - 生成器覆盖 `.pre-commit-config.yaml` 与 `.github/workflows/ci.yml`，阈值取自 `.mcp/assistant.yaml`；detect-secrets 改为 push 阶段；CI 条件化步骤生效。
- - 覆盖率策略支持 basename 前缀与目录前缀；核心≥98% 受 `coverage.policy` 控制。
- - FSGuard 写入后置挂钩：支持 `execution.fs_guard_post_checks` 与 `fs_guard_strict`。
- - VS Code Webview 近阈值交互修复。
-- MCP prompts 能力对齐（最小内置）。
- - 依赖精简；版本号对齐（0.2.4）。
+已完成（历史对齐项，略）
 
-1) CI 与门禁
-   - [x] 修复 CI matrix 表达式（`${{ matrix.python-version }}`），或运行 `mcp-rules-assistant ci-autofix` 重新生成
-   - [x] `make local-ci-run` 全绿；Coverage Policy Gate 无 weak
-2) 自动任务记录
-   - [x] `status-update` 输出 `tasks.pending/done` 列表至 `.mcp/dashboard/status.json`
-   - [x] 面板可选展示剩余任务（非阻断）
-3) 覆盖率差距收敛
-   - [x] `mcp_server.py`：初始化/错误与 `fs.apply_patch(strict)` 拒绝路径测试（目标 ≥98%）
-   - [x] `fs_wrapper.py`：权限/白名单/后置检查（目标 ≥95%）
-   - [x] `license_utils.py`：hs256/rs256 组合用例与异常分支补齐（目标 ≥95%）
-4) 文档与可发现性
-   - [x] 在 `DEVELOPMENT.md` 增加“下一步 / Next Actions”指向 `.mcp/plan.md`
-   - [x] 同步本文件清单与 `.mcp/plan.md` 清单（以 `.mcp/plan.md` 为权威）
-5) 清理与一致性
-  - [x] 移除根 `bad.py`、`ok2.py`、`a.py`、`link.py` 与 `docs/b.txt`
-6) 可选增强
-  - [x] prompts 返回 1–2 个内置模板（handoff/规则摘要），并通过环境变量/配置开关
-  - [x] 在 `.mcp/assistant.yaml` 已明确 `execution.allowed_write_prefixes/allowed_write_extensions`
-  - [x] 新增“规则引导（rules.onboard）”向导：根据 场景/复杂度/模式 推荐并应用阈值（CLI/MCP/VS Code NL 触发）
+本轮（不得延后）
+1) 覆盖率抛光（核心路径）
+   - [ ] dev_agent.py：冻结/解冻/旁路/失败分支补齐（目标 ≥96.5%）
+   - [ ] mcp_server.py：env/coverage/resources 边界异常与极值分支（目标 ≥99.0%）
+   - [ ] rules_ingest.py：上限/区间/异常 YAML/JSON 分支（目标 ≥98.0%）
+2) 门禁强化
+   - [ ] CI 扫描测试输出中的 skip/xfail 统计（仅报警，不误伤用例标记）
+   - [ ] CLI 合同测试：文档示例命令存在性与失败路径覆盖
+3) 清理与一致性
+   - [ ] 清理无用样例（docs/link.py、bad.py/ok2.py/ok.txt、docs/b.txt）；Makefile/scripts 增补清理
+   - [ ] README 增补 coverage.policy “后缀匹配”小贴士
+   - [ ] docs/CI_HEALTH_CHECK.md 改为健康检查说明文档
+4) JetBrains P3（本轮落地）
+   - [ ] `scripts/jb-package.sh` 完成并在文档指引
+   - [ ] 最小 E2E：读取 `.mcp/dashboard/status.json` 的 smoke；CI 作业输出工件
+   - [ ] 后续：实拍 PNG 替换 SVG（允许暂缓，不阻断本轮 DoD）
+5) 统一子进程封装与开关
+   - [ ] checks.py 委托 run_cmd 的 on/off 回归测试（保持历史桩兼容）
+6) 文档入口同步
+   - [ ] 更新 `DEVELOPMENT.md` 当前 Sprint 任务为本轮内容
+   - [ ] 同步 `.mcp/plan.md` 与本文件清单（以 `.mcp/plan.md` 为权威）
 
-执行批次（建议）
-- 批次 A（已完成）
-  - 清理样例文件与过时审计文档；对齐文档表述
-  - prompts 最小内置与开关；FSGuard 白名单/严格后置检查对齐
-- 批次 B（规则引导）
-  - CLI: `mcp-rules-assistant rules-onboard --scenario personal --complexity small --dev-mode tdd --apply`
-  - MCP: `tools/call name="rules.onboard" {scenario, complexity, devMode, apply}`
-  - VS Code: 在面板 NL 输入“规则引导/初始化规则” → 交互式选择并应用
-- 批次 C（文档与计划收敛）
-  - 同步 `DEVELOPMENT.md` / `docs/*` 与 `.mcp/plan.md` 状态
-  - 若需：新增手册截图与市场物料（后续批次）
+执行批次（完整）
+批次 A（已完成）
+ - 清理样例文件与过时审计文档；对齐文档表述
+ - prompts 最小内置与开关；FSGuard 白名单/严格后置检查对齐
+
+批次 B（规则引导）
+ - CLI: `mcp-rules-assistant rules-onboard --scenario personal --complexity small --dev-mode tdd --apply`
+ - MCP: `tools/call name="rules.onboard" {scenario, complexity, devMode, apply}`
+ - VS Code: 在面板 NL 输入“规则引导/初始化规则” → 交互式选择并应用
+
+批次 C（文档与计划收敛 + 清理自动化）
+ - 同步 `DEVELOPMENT.md` / `docs/*` 与 `.mcp/plan.md` 状态
+ - 修正文档示例错误：`docs/CONFIG.md` YAML 缩进
+ - Makefile: `make clean` 增加样例文件与 VSIX 清理
+ - 新增脚本：`scripts/workspace-clean.sh`（一键清理未追踪/本地工件）
+
+批次 D（近阈值覆盖率消除）
+ - dev_agent.py：补齐冻结/解冻与旁路的少数分支用例（目标 96%+）
+ - mcp_server.py：覆盖 `fs.apply_patch` 边界与错误路径剩余分支（目标 99%）
+ - rules_ingest.py：补齐区间/上限与异常输入分支（目标 98%）
+
+批次 E（JetBrains P3：打包与最小 E2E）
+ - Gradle 打包：`./gradlew buildPlugin`（脚本占位 `scripts/jb-package.sh`）
+ - 最小 E2E：基于运行时读取 `.mcp/dashboard/status.json` 的 smoke 校验（不引重型测试框架）
+ - 替换占位 SVG 为实际截屏（PNG）
+
+批次 F（发布与物料）
+ - 产品化文档：功能矩阵/支持矩阵/零遥测声明
+ - VS Code 商店条目更新、JetBrains Marketplace 草案
+ - 许可门禁演练脚本完善与说明
+
+批次 G（覆盖率抛光与门禁强化 — 本轮）
+ - 覆盖率抛光（dev_agent/mcp_server/rules_ingest）与 CLI 合同测试
+ - CI 输出扫描 skip/xfail（仅报警）
+
+批次 H（清理与一致性 — 本轮）
+ - 清理样例/脚本增强；CI 健康检查文档化；README 覆盖率小贴士
+
+批次 I（JetBrains P3 — 本轮）
+ - `scripts/jb-package.sh` + 最小 E2E；后续替换占位截图

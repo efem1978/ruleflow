@@ -48,3 +48,20 @@ def test_compress_continue_on_nondict(tmp_path: Path) -> None:
     }
     out = mm._compress_if_needed(data)
     assert isinstance(out, dict) and isinstance(out.get("turns"), list)
+
+
+def test_compress_continue_on_nondict_with_loop(tmp_path: Path) -> None:
+    # Ensure the for-loop executes (n-3 > 0) and hits the 'continue' branch
+    mm = MemoryManager(tmp_path, window=8, max_bytes=200)
+    # Create 6 turns; first is non-dict to trigger 'continue', others large to ensure compression path
+    turns = [
+        "bad_entry",
+        {"role": "assistant", "content": "X" * 300, "meta": {}},
+        {"role": "user", "content": "Y" * 300, "meta": {}},
+        {"role": "assistant", "content": "Z" * 300, "meta": {}},
+        {"role": "user", "content": "W" * 300, "meta": {}},
+        {"role": "assistant", "content": "V" * 300, "meta": {}},
+    ]
+    data = {"turns": turns, "summary": "", "links": []}
+    out = mm._compress_if_needed(data)
+    assert isinstance(out, dict) and isinstance(out.get("turns"), list)

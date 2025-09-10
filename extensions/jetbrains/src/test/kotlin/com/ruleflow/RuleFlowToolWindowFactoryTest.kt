@@ -10,4 +10,3 @@ class RuleFlowToolWindowFactoryTest {
         assert(true)
     }
 }
-

@@ -149,30 +149,25 @@
 - CLI 刷新状态：`mcp-rules-assistant status-update` 会将计划/覆盖率/记忆与任务列表写入 `.mcp/dashboard/status.json`（任务仅来源于 `.mcp/plan.md`）。
 
 ## 任务清单（当前 Sprint）
-- [x] TDD 单元层：补齐 coverage_summary 边界与错误分支（≈98% 覆盖）
-- [x] 组件层：checks 降级/失败缓存用例（100%）与 hooks 一致性快照（≈100%）
-- [x] 集成层：dev_agent 单循环与冻结/解冻/旁路分支（快速等价测试）；CLI 烟雾（dev_agent ≈96%）
-- [x] MCP 层：mcp_server 覆盖率 ≥98%（现 ≈97–99%，视矩阵）
-- [x] VS Code：近阈值/覆盖率加载交互优化（常驻 near% 输入、刷新状态按钮）
-- [x] 规则摄取：补齐“中文区间（模块）”用例（介于 X% 和 Y% 之间）
-- [x] 规则摄取：per-key conflict_delta 与缓存边界（≈97% 覆盖）
-- [x] 单元层补齐：memory.py 覆盖率 ≥98%（现 ≈99%）
-- [x] 单元层补齐：fs_wrapper.py 覆盖与错误分支（现 92%+ / 按策略门槛达标）
-- [x] 许可：license_utils 覆盖率 ≥90%（现 ≈91%）
-- [x] 覆盖率策略：修正 coverage.policy 的按文件覆盖优先于 min_module 的应用（已加回归测试）
-- [x] 清理样例/临时工件：确保 cov*.json 等生成物未入库（.gitignore 已覆盖）
+- 本轮目标（不得延后；以 `.mcp/plan.md` 为权威）
+- [ ] 覆盖率抛光：dev_agent.py（≥96.5%）、mcp_server.py（≥99.0%）、rules_ingest.py（≥98.0%）
+- [ ] 门禁强化：CI 输出扫描 skip/xfail（仅报警）；CLI 合同测试（示例命令存在性/失败路径）
+- [ ] 清理与一致性：清理 docs/link.py 与根样例；Makefile/scripts 增补清理；docs/CI_HEALTH_CHECK.md 转健康检查说明
+- [ ] JetBrains P3：完成 `scripts/jb-package.sh` 与最小 E2E（读取 `.mcp/dashboard/status.json` smoke）
+- [ ] 统一子进程封装：checks.py 委托 run_cmd 的 on/off 回归测试
+- [ ] 文档同步：README 覆盖率策略小贴士；同步 `docs/DEV_PLAN_TDD.md` 与 `.mcp/plan.md`
 
 ## 审计快照（当前） / Audit Snapshot (Current)
 - 覆盖率（coverage.xml 总体）: ≥98%（以 `--cov=mcp_rules_assistant` 统计）
 - 弱项（weak）：0（`coverage-report --json`）
-- 近阈值（near）：小量文件（如 coverage_summary.py 等）处于阈值上方 ≤1.2% 范围，可作为后续微调目标
-- 策略阈值（.mcp/assistant.yaml）：min_module=0.96；核心（config/progress/tools/memory/mcp_server/cli/server）≥0.98；dev_agent ≥0.95；license_utils ≥0.95（均已达成）
+- 近阈值（near）：dev_agent/mcp_server/rules_ingest 等处于阈值上方 ≤1.0–1.2% 范围（本轮抛光目标）
+- 策略阈值（.mcp/assistant.yaml）：min_module=0.96；核心≥0.98；dev_agent ≥0.95；license_utils ≥0.95（本轮拉高核心上限 margin）
 
 Release Note（0.2.5，维护性更新）
 - 文档：新增 `docs/IDE_SCAFFOLD.md`（VS Code/Cursor/JetBrains/Neovim）；README 增加“快速入口”与 IDE 文档链接。
 - Neovim：在 `ide.scaffold` 输出 Lua 示例（保留 Vimscript）。
 - CI/Hooks：生成器固定 semgrep 1.91.x；CI 新增 Python 覆盖率上传至 Codecov（保留 VS Code lcov 上传）。
-- 清理：移除遗留备份/样例（`.github/workflows/ci.yml.bak`、`bad.py`、`ok2.py`、`docs/b.txt`）。
+- 清理：确保样例/临时工件未入库（`.github/workflows/ci.yml.bak`、`bad.py`、`ok2.py`、`docs/b.txt` 等已由 `.gitignore` 屏蔽），并在 `make clean` 中提供清理项。
 - 配置：`coverage.min_core` 统一为 0.98；在 `coverage.policy` 增补“核心≥98%”注释。
 - 许可文档：`docs/LICENSE.md` 明确根 `LICENSE` 为法律文本，本页为生成/校验演示。
 

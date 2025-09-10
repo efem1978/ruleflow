@@ -137,6 +137,8 @@ clean:
 	rm -f coverage.xml cov*.json pytest-junit.xml || true
 	rm -rf extensions/vscode/coverage extensions/vscode/out || true
 	rm -f extensions/vscode/*.vsix || true
+	# 清理本地样例/临时工件（未追踪但建议移除）
+	rm -f bad.py ok2.py ok.txt docs/b.txt docs/link.py || true
 jb-storyboard:
 	sh scripts/jb-storyboard.sh
 ide-compat:

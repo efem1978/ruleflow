@@ -99,7 +99,7 @@ execution:
     - "mcp_rules_assistant/"
     - "tests/"
     - "docs/"
-  - ".mcp/"
+    - ".mcp/"
   # checks 委托到统一 process runner（可选，默认关闭；也可用环境变量 MCP_CHECKS_PROCESS_RUNNER=1 开启）
   checks_delegate_run_cmd: false
 
