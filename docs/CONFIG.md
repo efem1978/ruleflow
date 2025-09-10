@@ -103,6 +103,12 @@ execution:
   # checks 委托到统一 process runner（可选，默认关闭；也可用环境变量 MCP_CHECKS_PROCESS_RUNNER=1 开启）
   checks_delegate_run_cmd: false
 
+组合建议（只读/严格/限制）
+- 只读保护：`execution.readonly: true` 时，`fs.apply_patch` 在非 dry-run 下将被拒绝（可用于冻结窗口）。
+- 文件/内容限制：`max_files` 与 `max_content_bytes` 可限制一次写入的文件数量与单文件大小（默认 100、512KB）。
+- 路径/扩展白名单：同时设置 `allowed_write_prefixes` 与 `allowed_write_extensions`，精确约束可改动范围。
+- 严格挂钩：开启 `fs_guard_post_checks: true` 与 `fs_guard_strict: true`，写入后若增量 lint/type/tests 失败，将直接阻断（与 `fs.apply_patch --strict` 语义一致）。
+
 注意与实践建议
 - 符号链接：fs.apply_patch 默认拒绝写入符号链接目标（避免路径混淆）。
 - disallow_patterns：命中仅“软拦截”（记录/提示），严格阻断仅针对 `pytest.mark.skip/xfail`（保持保存轻、推送/CI 重的原则）。

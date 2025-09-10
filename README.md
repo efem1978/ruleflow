@@ -171,6 +171,10 @@ Hooks & CI（最小闭环）
  - CI 将包含 `prepare` 作业：调用 `env.prepare` 创建 `.mcp/venv` 并在 venv 中执行 pytest+覆盖率
  - 版本固定：CI 固定 `hadolint` 镜像标签与 `semgrep`/`bandit` 版本，提升可重复性
 - 提交信息约束：计划处于 in_progress，提交信息需包含 `[step:当前步骤]`
+  - 快速示例：
+    - 切换为进行中并设定步骤：`mcp-rules-assistant plan-set --status in_progress --current "<步骤>"`
+    - 提交时在消息中带标记：`git commit -m "feat: xxx [step:<步骤>]"`
+    - 任务完成后可关闭：`mcp-rules-assistant plan-done`
 - 自动增强：若已摄取规则包含 `security.secrets_scan`/`container.required` 等，将自动加入 detect-secrets（push 阶段）与 Dockerfile 检查等步骤（CI），不影响保存性能
  - 可配置：`ci.hadolint: true`（容器存在时在 CI 中运行 hadolint）；`ci.semgrep_config: auto|自定义规则集`，`ci.hadolint_image/ci.hadolint_args` 可调
  - 近阈值摘要：CI 在 Python 测试后打印 `coverage-near --within 3 --top 10` 结果，用于在 PR 中快速识别“接近阈值”的文件并优先补测
