@@ -17,7 +17,11 @@ PY
     PY=".mcp/venv/bin/python"
   fi
 fi
-PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 "$PY" -m pytest -q -p pytest_cov --maxfail=1 --disable-warnings -W error --strict-markers --cov=mcp_rules_assistant --cov-report=xml:coverage.xml --cov-report=term-missing
+if [ "${COVERAGE_WARN_FILTER:-0}" = "1" ] && [ -x scripts/coverage-warn-filter.sh ]; then
+  PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 "$PY" -m pytest -q -p pytest_cov --maxfail=1 --disable-warnings -W error --strict-markers --cov=mcp_rules_assistant --cov-report=xml:coverage.xml --cov-report=term-missing 2> >(scripts/coverage-warn-filter.sh 1>&2)
+else
+  PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 "$PY" -m pytest -q -p pytest_cov --maxfail=1 --disable-warnings -W error --strict-markers --cov=mcp_rules_assistant --cov-report=xml:coverage.xml --cov-report=term-missing
+fi
 
 echo "[verify] 3/4 Coverage Gate"
 "$PY" -m mcp_rules_assistant.cli coverage-report --json > /tmp/coverage_report.json

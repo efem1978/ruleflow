@@ -53,6 +53,17 @@ services:
       - gradle-cache:/home/gradle/.gradle
     command: bash -lc "gradle test -i"
 
+  jb-package:
+    image: gradle:8.5.0-jdk17
+    working_dir: /work/extensions/jetbrains
+    environment:
+      - CI=1
+      - GRADLE_OPTS=-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs='-Xmx768m'
+    volumes:
+      - .:/work
+      - gradle-cache:/home/gradle/.gradle
+    command: bash -lc "gradle buildPlugin -i"
+
   verify:
     build: .
     working_dir: /work

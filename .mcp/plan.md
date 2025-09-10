@@ -1,8 +1,8 @@
 # 项目计划 / Project Plan（进行中）
 
 - 状态: in_progress
-- 当前步骤: CI 增加 JetBrains smoke + 文档 near 窗口口径同步 + 清理工件
-- 下一步: 收尾验收与发布物料检查
+- 当前步骤: 容器 verify 流程增强 + JetBrains 打包服务 + CI 包装
+- 下一步: 收尾验收与发布物料检查（可切换 done）
 - 风险与阻塞: （无）
 
 ## 任务清单（可勾选，唯一权威）

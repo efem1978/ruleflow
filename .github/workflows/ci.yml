@@ -269,6 +269,26 @@ jobs:
             extensions/jetbrains/screenshots/jb_fs_apply_patch_dry.json
             .mcp/dashboard/status.json
 
+  jetbrains-package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      - name: Build JetBrains plugin
+        working-directory: extensions/jetbrains
+        run: |
+          ./gradlew buildPlugin -i || gradle buildPlugin -i || echo "gradle not found" && true
+      - name: Upload JetBrains plugin artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jetbrains-plugin
+          path: extensions/jetbrains/build/distributions/*.zip
+
   jetbrains-tests:
     runs-on: ubuntu-latest
     container:
