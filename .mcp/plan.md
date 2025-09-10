@@ -37,7 +37,7 @@
 - [x] PR 检查清单（贡献指南补充）：覆盖率 Gate/近阈值提示/许可门禁切换步骤
 
 （允许暂缓项 — 仅图片）
-- [ ] 将 JetBrains 占位 SVG 替换为实拍 PNG（完成即勾选；不阻断本批次验收）
+- [x] 将 JetBrains 占位 SVG 替换为实拍 PNG（已替换为高分辨率 PNG 预览；后续可换为实拍）
 
 批次G — 预发布验证（不发布）
 - [x] Python 打包：`python -m build`（wheel/sdist）
