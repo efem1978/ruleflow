@@ -81,6 +81,17 @@ JetBrains 打包与最小 E2E
    - 对一类目录设默认门槛，使用目录前缀（如 `mcp_rules_assistant/`: 0.95）。
  - 小贴士（近阈值 near 窗口）：文档示例为 3%，本仓库覆盖为 0.5%（`coverage.near.within=0.005`）。可用 `mcp-rules-assistant coverage-near-set --within 3 --top 20` 调整。
 
+覆盖率策略（示例）
+```yaml
+coverage:
+  policy:
+    # 目录前缀（应用于整类目录）
+    mcp_rules_assistant/: 0.95
+    # 文件名后缀（更精确，推荐用于关键模块）
+    cli.py: 0.98
+    mcp_server.py: 0.99
+```
+
 容器内一键验证
 - 运行完整预检 + 测试 + 覆盖率门禁 + dev-agent smoke：`docker compose run --rm verify`
 
