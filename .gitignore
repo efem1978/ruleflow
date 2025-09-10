@@ -47,6 +47,7 @@ extensions/vscode/*.vsix
 # JetBrains storyboard outputs (generated)
 extensions/jetbrains/screenshots/jb_*.json
 extensions/jetbrains/screenshots/jb_*.md
+extensions/jetbrains/ui_smoke.log
 
 # pytest cache
 .pytest_cache/
