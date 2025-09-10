@@ -31,6 +31,14 @@ MCP 规则与上下文助手 / MCP Rules & Context Assistant
 - VS Code 面板：命令 `RuleFlow: Open Panel`；自然语言 `RuleFlow: Natural Command`
  - JetBrains 插件：见 `extensions/jetbrains/README.md`（工具窗口最小直连 MCP：启动/停止/Ping/资源/计划/摄取/覆盖率/CI/受控写入）
 
+本地安装验证（不发布）
+- 可编辑安装：`pip install -e .`，验证：`mcp-rules-assistant version`
+- 打包安装：
+  - 构建：`python -m build`
+  - 安装：`pip install dist/mcp_rules_assistant-<ver>-py3-none-any.whl`
+  - 验证：`mcp-rules-assistant status-update --json`
+  - 卸载：`pip uninstall -y mcp-rules-assistant`
+
 状态 Status
 
 ![CI](https://img.shields.io/github/actions/workflow/status/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool/ci.yml?branch=main&label=CI)

@@ -294,3 +294,26 @@ jobs:
         with:
           name: jetbrains-distributions
           path: extensions/jetbrains/build/distributions/*.zip
+
+  python-dist:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - name: Build wheel/sdist
+        run: |
+          python -m pip install --upgrade pip build twine
+          python -m build
+      - name: Twine check
+        run: |
+          python -m twine check dist/*
+      - name: Upload Python dists
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-dist
+          path: dist/*

@@ -40,9 +40,9 @@
 - [ ] 将 JetBrains 占位 SVG 替换为实拍 PNG（完成即勾选；不阻断本批次验收）
 
 批次G — 预发布验证（不发布）
-- [ ] Python 打包：`python -m build`（wheel/sdist）
-- [ ] 产物校验：`python -m twine check dist/*`
-- [ ] CI 侧（可选）：添加 build/twine check 作业（非阻断）
+- [x] Python 打包：`python -m build`（wheel/sdist）
+- [x] 产物校验：`python -m twine check dist/*`
+- [x] CI 侧（可选）：添加 build/twine check 作业（非阻断）
 
 ## 验收标准（Definition of Done）
 - `make local-ci-run` 通过；Coverage Policy Gate 无 weak；近阈值 Top5 中无“核心”模块

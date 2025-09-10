@@ -49,4 +49,11 @@ Troubleshooting
 - Missing tools? Run `make setup` again to (re)install into `.mcp/venv`.
 - Coverage gate failed? Improve tests near threshold files (see `python3 -m mcp_rules_assistant.cli coverage-near --within 3 --top 20`).
 
+Local install & revert (no publish)
+- Editable install: `pip install -e .`; verify with `mcp-rules-assistant version`
+- Build + wheel install:
+  - `python -m build && pip install dist/mcp_rules_assistant-<ver>-py3-none-any.whl`
+  - Verify: `mcp-rules-assistant status-update --json`
+  - Revert: `pip uninstall -y mcp-rules-assistant`
+
 More docs in `docs/CONTRIBUTING.md`, `README.md`, and `DEVELOPMENT.md`.
