@@ -79,6 +79,10 @@ JetBrains 打包与最小 E2E
  - 小贴士（coverage.policy 命中策略）：policy 键既支持“目录前缀”也支持“文件名后缀（basename）”。
    - 对单个关键模块设更高门槛，推荐直接使用文件名后缀（如 `mcp_server.py: 0.99`）。
    - 对一类目录设默认门槛，使用目录前缀（如 `mcp_rules_assistant/`: 0.95）。
+ - 小贴士（近阈值 near 窗口）：文档示例为 3%，本仓库覆盖为 0.5%（`coverage.near.within=0.005`）。可用 `mcp-rules-assistant coverage-near-set --within 3 --top 20` 调整。
+
+容器内一键验证
+- 运行完整预检 + 测试 + 覆盖率门禁 + dev-agent smoke：`docker compose run --rm verify`
 
 许可与试用 License & Trial
 - 本产品为商业授权（全部功能付费，含 7 天试用）；详见 `docs/PRICING.md`

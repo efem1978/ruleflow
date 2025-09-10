@@ -57,3 +57,13 @@
 诊断打包
 - 在容器内或主机执行：`python -m mcp_rules_assistant.cli diagnose-bundle`（或 `mcp-rules-assistant diagnose-bundle`）
 - 将收集 coverage.xml、pytest-junit.xml、near.{txt,csv,json}、cov.json、.mcp 关键文件（assistant.yaml/plan.md/memory.json/rules_compiled.* 等）打包为 `diagnostics-<ts>.tar.gz`
+
+一键验证（容器内）
+- 通过 compose 运行完整预检 + 测试 + 覆盖率门禁 + dev-agent smoke：
+  - `docker compose run --rm verify`
+  - 该命令内部等价于执行 `make verify`，输出 near/weak 摘要与 dev-agent 快照结果（status.json）。
+
+可选：过滤 coverage 非阻断提示
+- 某些路径映射场景下，coverage 在终端报告中可能打印“Couldn't parse '/work/…'”警告（不影响统计与门禁）。
+- 可选通过脚本过滤该提示（不改变退出码与门禁）：
+  - `... --cov-report=term-missing 2> >(scripts/coverage-warn-filter.sh 1>&2)`

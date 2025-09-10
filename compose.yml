@@ -53,5 +53,16 @@ services:
       - gradle-cache:/home/gradle/.gradle
     command: bash -lc "gradle test -i"
 
+  verify:
+    build: .
+    working_dir: /work
+    volumes:
+      - .:/work
+    environment:
+      - PYTEST_DISABLE_PLUGIN_AUTOLOAD=1
+      - PYTHONUNBUFFERED=1
+      - PYTHONPATH=/work
+    command: sh scripts/verify-all.sh
+
 volumes:
   gradle-cache:
