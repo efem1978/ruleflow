@@ -15,12 +15,14 @@ RUN set -eux; \
     rm -rf /var/lib/apt/lists/*
 
 # Cache node_modules based on package*.json only
+ARG VSCODE_TEST_VERSION=1.84.0
+ENV VSCODE_TEST_VERSION=${VSCODE_TEST_VERSION}
 WORKDIR /opt/app
 COPY extensions/vscode/package*.json ./
 RUN npm ci --no-audit --no-fund
 
 # Pre-download VS Code test runtime for @vscode/test-electron to speed up first run
-RUN node -e "(async()=>{try{const t=require('@vscode/test-electron');await t.downloadAndUnzipVSCode();console.log('vscode cached');}catch(e){console.error(e);process.exit(1)}})()"
+RUN node -e "(async()=>{try{const t=require('@vscode/test-electron');const v=process.env.VSCODE_TEST_VERSION||'1.84.0';await t.downloadAndUnzipVSCode(v);console.log('vscode cached',v);}catch(e){console.error(e);process.exit(1)}})()"
 
 # Make toolchain visible from any working dir
 ENV PATH="/opt/app/node_modules/.bin:${PATH}"

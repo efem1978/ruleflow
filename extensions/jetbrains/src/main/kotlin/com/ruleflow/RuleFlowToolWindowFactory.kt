@@ -349,7 +349,7 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
 
         btnFsDry.addActionListener {
             try {
-                val dlg = FsApplyPatchDialog(project.basePath?.let { java.io.File(it) })
+                val dlg = FsApplyPatchDialog(project, project.basePath?.let { java.io.File(it) })
                 dlg.preset(path = "mcp_rules_assistant/tmp_demo.py", strict = true, dryRun = true)
                 val params = dlg.showAndGet() ?: return@addActionListener
                 if (!mcp.isRunning()) mcp.start(project)
@@ -365,7 +365,7 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
         }
         btnFsWrite.addActionListener {
             try {
-                val dlg = FsApplyPatchDialog(project.basePath?.let { java.io.File(it) })
+                val dlg = FsApplyPatchDialog(project, project.basePath?.let { java.io.File(it) })
                 dlg.preset(path = "mcp_rules_assistant/tmp_demo.py", strict = true, dryRun = false)
                 val params = dlg.showAndGet() ?: return@addActionListener
                 if (!mcp.isRunning()) mcp.start(project)

@@ -19,6 +19,9 @@ import javax.swing.JButton
 import javax.swing.JFileChooser
 import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.ui.Messages
+import com.intellij.openapi.project.Project
+import com.intellij.openapi.fileChooser.FileChooser
+import com.intellij.openapi.fileChooser.FileChooserDescriptor
 
 @State(name = "RuleFlowSettings", storages = [Storage("RuleFlowSettings.xml")])
 @Service(Service.Level.APP)
@@ -122,6 +125,7 @@ data class FsApplyPatchParams(
 )
 
 class FsApplyPatchDialog(
+    private val project: Project? = null,
     private val baseDir: File? = null,
     private val defaults: RuleFlowSettingsState = RuleFlowSettingsState.getInstance()
 ) : javax.swing.JDialog() {
@@ -163,6 +167,23 @@ class FsApplyPatchDialog(
         btnCancel.addActionListener { ok = false; dispose() }
 
         btnBrowse.addActionListener {
+            try {
+                if (project != null) {
+                    val d = FileChooserDescriptor(true, false, false, false, false, false)
+                    val vf = FileChooser.chooseFile(d, project, null)
+                    if (vf != null) {
+                        val ap = vf.path
+                        val path = try {
+                            if (baseDir != null && ap.startsWith(baseDir.absolutePath))
+                                baseDir.toPath().relativize(File(ap).toPath()).toString() else ap
+                        } catch (_: Exception) { ap }
+                        tfPath.text = path.replace('\\', '/')
+                        return@addActionListener
+                    }
+                }
+            } catch (_: Exception) {
+                // fallback to Swing chooser
+            }
             val chooser = JFileChooser()
             if (baseDir != null && baseDir.exists()) chooser.currentDirectory = baseDir
             chooser.fileSelectionMode = JFileChooser.FILES_ONLY

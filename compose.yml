@@ -23,6 +23,8 @@ services:
     build:
       context: .
       dockerfile: extensions/vscode/Dockerfile.test
+      args:
+        VSCODE_TEST_VERSION: "1.84.0"
     working_dir: /work/extensions/vscode
     volumes:
       - .:/work
