@@ -99,7 +99,10 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
         }
 
         // Models and lists for weak/near coverage, defined before handlers to satisfy Kotlin scoping
-        // moved earlier
+        val weakModel = DefaultListModel<String>()
+        val nearModel = DefaultListModel<String>()
+        val weakJList = JList(weakModel)
+        val nearJList = JList(nearModel)
 
         fun extractArray(json: String, key: String): String? {
             val anchor = "\"$key\""
@@ -382,11 +385,7 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
         panel.add(top, BorderLayout.NORTH)
         panel.add(scroll, BorderLayout.CENTER)
 
-        // Clickable lists for weak/near (double-click to open file)
-        val weakModel = DefaultListModel<String>()
-        val nearModel = DefaultListModel<String>()
-        val weakJList = JList(weakModel)
-        val nearJList = JList(nearModel)
+        // Clickable lists for weak/near (double-click to open file) — models defined earlier
         fun openFileSpec(spec: String) {
             val idx = spec.indexOf(" — ")
             val path = if (idx >= 0) spec.substring(idx + 3).trim() else spec.trim()
