@@ -173,6 +173,7 @@ export function activate(context: vscode.ExtensionContext) {
           <button id="btnLicVerify">Verify</button>
           <button id="btnLicActivate">Activate…</button>
         </div>
+        <pre id="licDetail" style="white-space:pre-wrap; display:none; font-size:11px; color:#555; background:#f7f7f7; padding:4px;"></pre>
         <div id="info" style="margin:6px 0; color:#d33;"></div>
         <div style="margin:8px 0;">
           <input id="nlInput" placeholder="自然语言指令：如 摄取规则 README.md, docs/ / 加载覆盖率 / 开启滚动记忆" style="width:65%;" />
@@ -239,6 +240,9 @@ export function activate(context: vscode.ExtensionContext) {
           <h3>覆盖率薄弱（Top 20）</h3>
           <input id="covFilter" placeholder="过滤文件名关键词..." />
           <button id="btnCovFilter">过滤</button>
+          <button id="btnOpenWeakCsv">打开 weak_top.csv</button>
+          <button id="btnOpenNearCsv">打开 near_top.csv</button>
+          <button id="btnOpenGroupsCsv">打开 groups.csv</button>
           <ul id="covWeak"></ul>
         </div>
         <div>
@@ -292,6 +296,9 @@ export function activate(context: vscode.ExtensionContext) {
           document.getElementById('btnLoadSugg').onclick = () => vscode.postMessage({ t: 'loadSugg' });
           document.getElementById('btnCoverage').onclick = () => vscode.postMessage({ t: 'coverage' });
           document.getElementById('btnCovTree').onclick = () => vscode.postMessage({ t: 'coverageTree' });
+          (document.getElementById('btnOpenWeakCsv') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'open', path: '.mcp/dashboard/weak_top.csv', line: 1 });
+          (document.getElementById('btnOpenNearCsv') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'open', path: '.mcp/dashboard/near_top.csv', line: 1 });
+          (document.getElementById('btnOpenGroupsCsv') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'open', path: '.mcp/dashboard/groups.csv', line: 1 });
           (document.getElementById('btnCovExport') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'covExport' });
           (document.getElementById('btnIdeScaffold') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'ideScaffold' });
           (document.getElementById('btnCompliance') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'compliance' });
@@ -764,6 +771,8 @@ export function activate(context: vscode.ExtensionContext) {
               if (activated && ok && !dateok) { label = 'Expired'; }
               if (activated && ok && dateok) { label = 'Valid'; color = '#2a2'; }
               if (el) { el.textContent = label + (exp ? (' (expires ' + exp + ')') : ''); (el as any).style = 'color:' + color; }
+              const det = document.getElementById('licDetail');
+              if (det) { try { (det as any).textContent = JSON.stringify(L, null, 2); (det as any).style = 'display:block'; } catch { (det as any).textContent=''; (det as any).style='display:none'; } }
             }
         });
         </script>
@@ -1339,6 +1348,7 @@ export function activate(context: vscode.ExtensionContext) {
       { label: '加载覆盖率 / Load Coverage', action: 'coverage' },
       { label: '生成 CI / Generate CI', action: 'ciGen' },
       { label: '校验 CI / Validate CI', action: 'ciValidate' },
+      { label: '导出覆盖率 / Export Coverage', action: 'covExport' },
     ], { title: 'RuleFlow: Quick Actions' });
     if (!pick) { return; }
     try { client.start(context); } catch {}
@@ -1360,6 +1370,11 @@ export function activate(context: vscode.ExtensionContext) {
           break;
         case 'ciValidate':
           vscode.commands.executeCommand('mcpRulesAssistant.openPanel');
+          break;
+        case 'covExport':
+          vscode.commands.executeCommand('mcpRulesAssistant.openPanel');
+          // The panel will be ready; send message to trigger export
+          // Rely on message route in openPanel handler
           break;
       }
     } catch (e:any) {

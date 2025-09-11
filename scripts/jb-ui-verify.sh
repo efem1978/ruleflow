@@ -50,4 +50,20 @@ sugg = D.get('suggestions') or []
 print('[jb-ui-verify] rules: conflicts =', len(conf), 'suggestions =', len(sugg))
 PY
 
+# Optional: suggestions severity counters from markdown (if available)
+python3 - << 'PY'
+import re, os
+from pathlib import Path
+root = Path(os.getcwd())
+md = root/'.mcp'/'rules_suggestions.md'
+if not md.exists():
+    print('[jb-ui-verify] suggestions(md): not found (ok)')
+else:
+    text = md.read_text(encoding='utf-8', errors='ignore')
+    must = len(re.findall(r'(^|\n)\s*Severity\s*:\s*must\b', text, re.I))
+    warn = len(re.findall(r'(^|\n)\s*Severity\s*:\s*warn\b', text, re.I))
+    info = len(re.findall(r'(^|\n)\s*Severity\s*:\s*info\b', text, re.I))
+    print(f"[jb-ui-verify] suggestions(md): must={must} warn={warn} info={info}")
+PY
+
 echo "[jb-ui-verify] done"

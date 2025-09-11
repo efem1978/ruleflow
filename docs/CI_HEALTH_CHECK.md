@@ -21,10 +21,20 @@ CI 健康检查 / CI Health Check
 - 覆盖率 Gate 失败：
   - 查看 `Coverage Policy Gate` 步骤输出的 weak 列表与 `near.txt`/`near.csv`/`near.json` 工件。
   - 按 `coverage.policy` 或 `.mcp/assistant.yaml` 的阈值，优先补测近阈值文件（Top 10）。
-  - 从构件到行动（Artifacts → Actions）：下载 `coverage-export` 构件，打开 `weak_top.csv` 与 `near_top.csv`：
-    - `weak_top.csv`：优先为 delta 最大的前 5–10 个文件补测或提升阈值策略（如核心与非核心分层）。
-    - `near_top.csv`：用例微调即可达标的候选，先补齐这些“临门一脚”的文件。
-    - `groups.csv`：若某前缀整体偏低，考虑为该前缀集中补测或下调策略阈值（经规则建议评估）。
+- 从构件到行动（Artifacts → Actions）：下载 `coverage-export` 构件，打开 `weak_top.csv` 与 `near_top.csv`：
+  - `weak_top.csv`：优先为 delta 最大的前 5–10 个文件补测或提升阈值策略（如核心与非核心分层）。
+  - `near_top.csv`：用例微调即可达标的候选，先补齐这些“临门一脚”的文件。
+  - `groups.csv`：若某前缀整体偏低，考虑为该前缀集中补测或“分层阈值”策略：
+    - 在 `.mcp/assistant.yaml` 的 `coverage.policy` 中为该前缀（目录前缀或文件名后缀）单独设置门槛；
+    - 示例：
+      ```yaml
+      coverage:
+        policy:
+          "mcp_rules_assistant/dev_agent.py": 0.95  # 非核心维持 95%
+          "mcp_rules_assistant/mcp_server.py": 0.98  # 核心提高至 98%
+          "mcp_rules_assistant/": 0.95
+      ```
+    - 先使用 `near_top.csv` 中的“近阈值”文件作为快速修补对象，再整体检查该前缀的 group 覆盖率。
 - VS Code lcov 低于阈值：
   - 查看 `near_vscode.txt` 输出；优先为“消息路由/命令处理/核心交互”补测，降低不必要 UI 分支复杂度。
 - 类型检查失败：
