@@ -30,10 +30,13 @@
 
 - docs/USAGE.md / docs/AI_DEVELOPER_GUIDE.md（使用与深入）
   - 角色：Maintainers
-  - 触发：CLI 子命令/行为变更；AI 约束或协作模式调整
+ - 触发：CLI 子命令/行为变更；AI 约束或协作模式调整
+
+权威计划来源（唯一）
+- `.mcp/plan.md`：任务清单与当前步骤的唯一权威来源；任何自动化（面板/CLI/Dev Agent/CI 注释）仅读取该文件。
+- `DEVELOPMENT.md` 与 `docs/DEV_PLAN_TDD.md` 仅作说明与索引，不承载任务状态。
 
 维护实践（建议）
 - 变更伴随 PR：改动代码需同步更新相应文档；PR 描述中链接到受影响文档段落
 - 快照检查：为生成类文档（如 CI）保留最小 diff 快照，必要时在测试中校验关键行
 - 自检命令：详见 `DEVELOPMENT.md` 的“文档维护与自检”段
-

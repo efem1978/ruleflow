@@ -163,6 +163,7 @@ coverage:
 
 文档 Docs（入口：`DEVELOPMENT.md`）
 （快速入口：`DEVELOPMENT.md` | `docs/IDE_SCAFFOLD.md` | `docs/USAGE.md`）
+- 任务计划（唯一权威）：`.mcp/plan.md`（面板与工具仅读取此处的清单与状态）
 - 插件化路线：`docs/IDE_PLUGIN_ROADMAP.md`
 - DEVELOPMENT：`DEVELOPMENT.md`（开发入口 / TDD 计划 / AI 约束 / 文档索引）
 - docs/ARCHITECTURE.md：架构与模块

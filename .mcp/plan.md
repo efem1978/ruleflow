@@ -1,8 +1,8 @@
 # 项目计划 / Project Plan（进行中）
 
 - 状态: in_progress
-- 当前步骤: 扩展 Webview 核心消息路由与命令交互测试覆盖提升（不引入重型依赖）
-- 下一步: 提升 VS Code 覆盖率阈值至 90%（先告警）并补齐缺口；准备发布物料与一键发布脚本（不推远端）
+- 当前步骤: 规则/覆盖率一致性回归
+- 下一步: Docker 内批量执行剩余任务并推送 CI
 - 风险与阻塞: （无）
 
 ## 任务清单（可勾选，唯一权威）
@@ -19,6 +19,11 @@
 - [x] README 覆盖率策略说明：补充“policy 键可后缀匹配文件名”的最佳实践小贴士
 - [x] docs/CI_HEALTH_CHECK.md：由占位改为“健康检查操作说明 + 触发方式 + 常见失败定位”
 - [x] scripts/workspace-clean.sh：覆盖上述样例与临时工件的清理
+
+批次B2 — 文档入口与权威计划标注（AI 友好）
+- [x] 在 README 顶部文档入口处清晰标注“任务计划（唯一权威）：.mcp/plan.md”
+- [x] 在 `DEVELOPMENT.md` 顶部强调仅以 `.mcp/plan.md` 为权威计划来源
+- [x] 在 `docs/DOCS_MAP.md` 增补“权威计划来源”说明，避免歧义
 
 批次C — JetBrains P3：打包与最小 E2E（本轮落地）
 - [x] 脚本：`scripts/jb-package.sh` 完成 & 文档化（执行 `./gradlew buildPlugin`）
@@ -54,3 +59,4 @@
 ## 说明
 - 任务清单为单一权威：所有更新以本文件为准。
 - 提交门禁：需保证本文件处于 in_progress，且提交消息包含 `[step:当前步骤]`。
+ - 文档一致性：README/DEVELOPMENT/Docs 已统一指向本文件作为唯一任务来源；若有不一致，以此文件为准。

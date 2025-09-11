@@ -6,6 +6,10 @@
 - 快速环境与运行说明（本地与容器）
 - 文档体系索引（单页入口）
 
+权威任务来源
+- 唯一权威任务清单：`.mcp/plan.md`（任何任务推进与提交门禁均以该文件为准）。
+- 本文件与 `docs/DEV_PLAN_TDD.md` 仅做导引与背景，遇到与 `.mcp/plan.md` 不一致时，以 `.mcp/plan.md` 为准。
+
 ## 快速索引 / Docs Index（按常用度）
 - 架构与模块：`docs/ARCHITECTURE.md` — 组件划分与性能模式
 - 使用与示例：`docs/USAGE.md` — 常见命令与操作流
