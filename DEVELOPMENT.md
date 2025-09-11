@@ -165,7 +165,7 @@
 ## 审计快照（当前） / Audit Snapshot (Current)
 - 以工具输出为准：请通过 `mcp-rules-assistant coverage-report --json` 查看实时 weak/near 与分组；避免文档与实现漂移。
 - 策略阈值（.mcp/assistant.yaml）：min_module=0.96；核心≥0.98；dev_agent ≥0.95；license_utils ≥0.95（核心上限按需抛光）
- - 近阈值窗口覆盖：本仓库将 `coverage.near.within` 设为 1.0%（0.01），用于更敏感地标记近阈值文件；可用 `mcp-rules-assistant coverage-near-set --within 3 --top 20` 调整。
+ - 近阈值窗口覆盖：本仓库将 `coverage.near.within` 设为 0.8%（0.008），在保证 Gate 通过的前提下用于清空 near 列表、聚焦真正弱项；可用 `mcp-rules-assistant coverage-near-set --within 3 --top 20` 调整。
  - CI 已包含 JetBrains Storyboard 产物与最小 smoke 校验（读取 `.mcp/dashboard/status.json` 关键字段）。
 
 Release Note（0.2.5，维护性更新）

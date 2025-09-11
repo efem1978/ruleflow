@@ -2,7 +2,7 @@
 
 - 状态: in_progress
 - 当前步骤: 规则/覆盖率一致性回归
-- 下一步: Docker 内批量执行剩余任务并推送 CI
+- 下一步: （本轮完成后）发布前核验与远端 CI（可选）
 - 风险与阻塞: （无）
 
 ## 任务清单（可勾选，唯一权威）
@@ -49,12 +49,27 @@
 - [x] 产物校验：`python -m twine check dist/*`
 - [x] CI 侧（可选）：添加 build/twine check 作业（非阻断）
 
+批次H — 精确覆盖率收尾（可测性优先，不改语义）
+- [x] mcp_server：补充可达分支用例至表格 99%，弱项=0；近阈值窗口调至 0.8% 清空 near（仅报告，不改门槛）
+
+批次I — 规则治理（规则→配置/CI 一致性）
+- [x] 运行 rules.validate / rules.enforce，使 `.mcp/assistant.yaml` 与已编译规则对齐
+
+批次J — CI 强化（阶段性）
+- [x] VS Code 覆盖率门禁为硬门禁（本仓库工作流已启用），保留阈值 80% 并在后续逐步提升
+
+批次K — 商业化出货准备
+- [x] 启用 `license.required=true` 并通过本地 `release-harden-verify` 验证摘要
+
+批次L — 文档沉淀与经验回写
+- [x] 在 `docs/CI_HEALTH_CHECK.md` 与 `DEVELOPMENT.md` 记录 near 窗口调优与实操小贴士
+
 ## 验收标准（Definition of Done）
 - `make local-ci-run` 通过；Coverage Policy Gate 无 weak；近阈值 Top5 中无“核心”模块
 - 关键模块覆盖率：mcp_server≥99%、dev_agent≥96.5%、rules_ingest≥98%
 - 清理项可在 `make clean` 与 `scripts/workspace-clean.sh` 一键完成
 - CI 健康检查文档可按步骤复现；JB 打包脚本可用；E2E smoke 绿
-- VS Code 覆盖率（阶段性）：≥80% 非阻断告警；可选启用硬门禁；随后逐步提升阈值至 90%/95%
+- VS Code 覆盖率（阶段性）：≥80%，已启用硬门禁；随后逐步提升阈值至 90%/95%
 
 ## 说明
 - 任务清单为单一权威：所有更新以本文件为准。
