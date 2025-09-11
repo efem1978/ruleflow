@@ -4,6 +4,12 @@ services:
     working_dir: /work
     volumes:
       - .:/work
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
     environment:
       - PYTEST_DISABLE_PLUGIN_AUTOLOAD=1
       - PYTHONUNBUFFERED=1
@@ -18,6 +24,12 @@ services:
       # 自动推送默认禁用；如需启用置为 1
       - DEV_AGENT_AUTOPUSH=0
     command: python -m mcp_rules_assistant.dev_agent --interval 60
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os,sys; sys.exit(0 if os.path.exists('/work/.mcp/dashboard/status.json') else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
 
   vscode-test:
     build:
@@ -32,7 +44,7 @@ services:
       - CI=1
       - NO_COLOR=1
       - FORCE_COLOR=0
-      - MCP_VSCODE_TEST_ARGS
+      - MCP_VSCODE_TEST_ARGS=
     command: ["bash", "-lc", "ln -sfn /opt/app/.vscode-test .vscode-test; xvfb-run -a -s '-screen 0 1024x768x24' npm test"]
 
   jb-build:
@@ -83,6 +95,18 @@ services:
       - PYTHONPATH=/work
       - COVERAGE_WARN_FILTER=1
     command: bash -lc "scripts/verify-all.sh"
+
+  dev-agent-once:
+    build: .
+    working_dir: /work
+    volumes:
+      - .:/work
+    environment:
+      - PYTEST_DISABLE_PLUGIN_AUTOLOAD=1
+      - PYTHONUNBUFFERED=1
+      - PYTHONPATH=/work
+      - DEV_AGENT_MAX_CYCLES=1
+    command: bash -lc "python -m mcp_rules_assistant.dev_agent --interval 1 --max-cycles 1"
 
 volumes:
   gradle-cache:
