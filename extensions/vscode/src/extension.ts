@@ -247,6 +247,15 @@ export function activate(context: vscode.ExtensionContext) {
           <ul id="covWeak"></ul>
           <h4>CSV 预览</h4>
           <pre id="csvPreview" style="white-space:pre-wrap; background:#f7f7f7; padding:4px; font-size:11px;"></pre>
+          <div>
+            <label>切换预览：</label>
+            <select id="csvSelect">
+              <option value="weak_top.csv">weak_top.csv</option>
+              <option value="near_top.csv">near_top.csv</option>
+              <option value="groups.csv">groups.csv</option>
+            </select>
+            <button id="btnCsvReload">重新加载预览</button>
+          </div>
         </div>
         <div>
           <h3>覆盖率目录树（弱项）</h3>
@@ -312,6 +321,13 @@ export function activate(context: vscode.ExtensionContext) {
                 await (navigator as any).clipboard.writeText(text);
                 vscode.postMessage({ t: 'info', text: '已复制 CSV 预览到剪贴板' });
               }
+            } catch {}
+          };
+          (document.getElementById('btnCsvReload') as HTMLButtonElement).onclick = () => {
+            try {
+              const sel = document.getElementById('csvSelect') as HTMLSelectElement;
+              const which = sel && sel.value ? sel.value : 'weak_top.csv';
+              vscode.postMessage({ t: 'csvPreviewPick', which });
             } catch {}
           };
           const btnMd = document.createElement('button'); btnMd.id = 'btnCopyCsvAsMd'; btnMd.textContent = '复制为 Markdown 表格';
@@ -1139,6 +1155,44 @@ export function activate(context: vscode.ExtensionContext) {
             }
           } catch (e:any) {
             vscode.window.showWarningMessage('Coverage 导出失败：' + String(e));
+          }
+        } else if (msg.t === 'csvPreviewPick') {
+          try {
+            const ws = getWorkspaceRoot(); if (!ws) throw new Error('no workspace');
+            const which = String(msg.which || 'weak_top.csv');
+            const path = ws + '/.mcp/dashboard/' + which;
+            const uri = vscode.Uri.file(path);
+            const data = await vscode.workspace.fs.readFile(uri);
+            const text = Buffer.from(data).toString('utf8');
+            const raw = text.split(/\r?\n/).slice(0, 4).filter(Boolean);
+            const out: string[] = [];
+            if (raw.length >= 1) {
+              out.push(raw[0]);
+              for (const row of raw.slice(1)) {
+                const parts = row.split(',');
+                if (which === 'weak_top.csv' || which === 'near_top.csv') {
+                  if (parts.length >= 4) {
+                    const file = parts[0];
+                    const cov = Number(parts[1]||0)*100;
+                    const thr = Number(parts[2]||0)*100;
+                    const delt = Number(parts[3]||0)*100;
+                    out.push(`${file},${cov.toFixed(1)}%,${Math.round(thr)}%,${delt.toFixed(1)}%`);
+                  } else { out.push(row); }
+                } else if (which === 'groups.csv') {
+                  if (parts.length >= 5) {
+                    const pref = parts[0];
+                    const cov = Number(parts[1]||0)*100;
+                    const thr = Number(parts[2]||0)*100;
+                    const wc = parts[3];
+                    const fc = parts[4];
+                    out.push(`${pref},${cov.toFixed(1)}%,${Math.round(thr)}%,${wc},${fc}`);
+                  } else { out.push(row); }
+                } else { out.push(row); }
+              }
+            }
+            panel.webview.postMessage({ t: 'csvPreview', which, head: out });
+          } catch (e:any) {
+            vscode.window.showWarningMessage('读取 CSV 失败：' + String(e));
           }
         } else if (msg.t === 'loadSugg') {
           const resList = await client.request('resources/list', {});

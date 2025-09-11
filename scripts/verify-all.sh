@@ -79,4 +79,27 @@ if [ -f .mcp/dashboard/jb_groups.md ]; then
   echo "[verify] jb_groups.md (Top 10):" && head -n 20 .mcp/dashboard/jb_groups.md || true
 fi
 
+echo "[verify] Suggestions (tuning guide)"
+python3 - << 'PY'
+import json, os
+from pathlib import Path
+root=Path('.')
+dash=root/'.mcp'/'dashboard'
+p = dash/'jb_verify.json'
+if not p.exists():
+    print('[verify] jb_verify.json not found; run jb-ui-verify.sh')
+else:
+    D=json.loads(p.read_text(encoding='utf-8'))
+    groups = (D.get('coverage') or {}).get('groups_top') or []
+    near = (D.get('coverage') or {}).get('near_top') or []
+    if groups:
+        print('[verify] 建议：为以下前缀考虑分层阈值或集中补测（按弱项数降序）')
+        for g in groups:
+            print(' -', g.get('prefix',''), f"cov={g.get('coverage',0)}% th={g.get('threshold',0)}% weak={g.get('weak',0)}/{g.get('files',0)}")
+    if near:
+        print('[verify] 建议：优先补齐以下 nearTop 文件（微调即可达标）')
+        for n in near:
+            print(' -', n.get('file',''), f"cov={n.get('coverage',0)}% th={n.get('threshold',0)}%")
+PY
+
 echo "[verify] OK"

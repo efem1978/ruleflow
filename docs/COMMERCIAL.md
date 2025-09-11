@@ -31,3 +31,21 @@
 说明：
 - 许可：`license.required=true` 用于专业/企业；演示可使用 `hs256`，生产建议 `rs256/ed25519`（仅分发公钥）。
 - 构件：CI/Nightly 上传 `coverage-export`（CSV/JSON）与 `jb-verify`（JSON），便于审阅。
+
+许可绑定模式（建议）
+- 主机绑定（machine）：在 license JSON 的 `machine` 字段记录主机指纹（见 `license-generate --machine`），适合单机/CI 节点；
+- 用户绑定（user）：在 `issued_to` 中标注用户并在企业 IdP 建档；
+- 项目绑定（project）：在 `note` 字段注明项目/仓库 slug，服务端校验时联动项目配置。
+
+离线激活（示例）
+1) 生成试用/付费 license（服务端或离线工具）
+   - `python -m mcp_rules_assistant.cli license-generate --issued-to Alice --expires 2026-01-01 --alg rs256 --private-key private.pem --out alice.json`
+2) 用户在本机激活
+   - `python -m mcp_rules_assistant.cli license-activate --file alice.json`
+3) 校验
+   - `python -m mcp_rules_assistant.cli license-verify`
+
+回滚与撤销
+- 撤销：删除 `~/.mcp/license.json` 或下发新版覆盖；
+- CI 强化：开启 `license.required=true` 后，敏感工具（rules.enforce/ci.*）在无效/过期时拒绝执行；
+- 风险提示：建议配合 JB/VS Code “许可状态”查看命令，便于多 IDE 一致体验。
