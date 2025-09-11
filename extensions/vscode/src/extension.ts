@@ -458,8 +458,20 @@ export function activate(context: vscode.ExtensionContext) {
             if (msg.t === 'csvPreview') {
               const el = document.getElementById('csvPreview');
               if (el) {
-                const which = msg.which || 'weak';
-                const lines = (msg.head || []).join('\n');
+                const which = msg.which || 'weak_top.csv';
+                const arr: string[] = (msg.head || []);
+                const mapHeader = (h: string) => {
+                  const m = h.trim().toLowerCase();
+                  if (which === 'weak_top.csv' || which === 'near_top.csv') {
+                    return '文件,覆盖率%,阈值%,差值%';
+                  }
+                  if (which === 'groups.csv') {
+                    return '前缀,覆盖率%,阈值%,弱项,文件数';
+                  }
+                  return h;
+                };
+                if (arr.length) arr[0] = mapHeader(String(arr[0] || ''));
+                const lines = arr.join('\n');
                 (el as any).textContent = '[' + which + ']\n' + lines;
               }
             }

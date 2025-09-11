@@ -106,6 +106,31 @@ try:
 except Exception:
   pass
 try:
+  import csv
+  gp = dash/'groups.csv'
+  if gp.exists():
+      rows = list(csv.DictReader(gp.open('r', encoding='utf-8')))
+      # Normalize and sort by weak_count desc
+      norm = []
+      for r in rows:
+          try:
+              cov = round(float(r.get('coverage',0.0))*100,1)
+              thr = int(float(r.get('threshold',0.0))*100)
+              wk = int(r.get('weak_count',0) or 0)
+              fc = int(r.get('files_count',0) or 0)
+              norm.append({'prefix': r.get('prefix',''), 'coverage': cov, 'threshold': thr, 'weak': wk, 'files': fc})
+          except Exception:
+              pass
+      norm.sort(key=lambda x: x.get('weak',0), reverse=True)
+      out.setdefault('coverage',{})['groups_top'] = norm[:5]
+      # Write markdown table (top 10)
+      md_lines = ['| prefix | coverage | threshold | weak/files |', '|---|---:|---:|---:|']
+      for g in norm[:10]:
+          md_lines.append(f"| {g['prefix']} | {g['coverage']:.1f}% | {g['threshold']}% | {g['weak']}/{g['files']} |")
+      (dash/'jb_groups.md').write_text('\n'.join(md_lines), encoding='utf-8')
+except Exception:
+  pass
+try:
   RC = json.loads((root/'.mcp'/'rules_compiled.json').read_text(encoding='utf-8'))
   out['rules']['conflicts'] = len(RC.get('conflicts') or [])
   out['rules']['suggestions'] = len(RC.get('suggestions') or [])
