@@ -23,7 +23,7 @@
 文件与目录
 - 开发代理：`mcp_rules_assistant/dev_agent.py`（可独立运行：`python -m mcp_rules_assistant.dev_agent --interval 60`）。
 - 状态目录：`.mcp/dashboard/`（写入 `status.json`、`history.json`、`fail_counters.json`）。
-- Compose：`compose.yml`（服务名 `dev-agent`）。
+- Compose：`compose.yml`（服务：`dev-agent`/`dev-agent-once`/`verify`/`vscode-test`/`jb-*`）。
 
 自定义
 - 刷新间隔：`--interval <秒>`（默认 60）。
@@ -62,6 +62,15 @@
 - 通过 compose 运行完整预检 + 测试 + 覆盖率门禁 + dev-agent smoke：
   - `docker compose run --rm verify`
   - 该命令内部等价于执行 `make verify`，输出 near/weak 摘要与 dev-agent 快照结果（status.json）。
+
+批处理（容器内全流程）
+- `make docker-batch`
+  - 顺序执行：verify → dev-agent-once → JetBrains 构建/无头 UI smoke → VS Code 无头测试。
+  - 说明：VS Code 无头测试在某些环境下可能受 Electron 依赖影响较易超时；compose 已增加 `timeout 900` 与失败容忍（不中断后续步骤）。如需严格门禁建议在 CI 或本机独立运行。
+
+诊断与重启（辅助脚本）
+- `sh scripts/dev-agent-diag.sh`：输出 docker ps/健康状态/最近 2 分钟日志、本地状态快照。
+- `sh scripts/dev-agent-restart.sh`：重启 dev-agent 并打印最近日志与状态快照。
 
 可选：过滤 coverage 非阻断提示
 - 某些路径映射场景下，coverage 在终端报告中可能打印“Couldn't parse '/work/…'”警告（不影响统计与门禁）。
