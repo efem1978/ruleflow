@@ -39,6 +39,7 @@ jobs:
             .mcp/dashboard/weak_top.csv
             .mcp/dashboard/near_top.csv
             .mcp/dashboard/groups.csv
+            .mcp/dashboard/jb_verify.json
       - name: Preflight
         run: |
           sh scripts/preflight.sh

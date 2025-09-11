@@ -105,6 +105,7 @@ jobs:
             .mcp/dashboard/weak_top.csv
             .mcp/dashboard/near_top.csv
             .mcp/dashboard/groups.csv
+            .mcp/dashboard/jb_verify.json
       - name: Skip/XFail Summary (non-blocking)
         run: |
           python3 scripts/pytest-skipxfail-summary.py pytest-junit.xml || true

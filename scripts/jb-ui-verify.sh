@@ -66,4 +66,48 @@ else:
     print(f"[jb-ui-verify] suggestions(md): must={must} warn={warn} info={info}")
 PY
 
+# Write consolidated JSON snapshot for artifacts
+python3 - << 'PY'
+import json, os
+from pathlib import Path
+root = Path(os.getcwd())
+dash = root/'.mcp'/'dashboard'
+out = {
+  'plan': {},
+  'coverage': {},
+  'rules': {},
+  'suggestions': {}
+}
+try:
+  S = json.loads((dash/'status.json').read_text(encoding='utf-8'))
+  out['plan'] = S.get('plan') or {}
+  out['coverage']['weak_count'] = len(((S.get('coverage') or {}).get('weak') or []))
+  out['coverage']['count'] = (S.get('coverage') or {}).get('count')
+except Exception:
+  pass
+try:
+  C = json.loads((dash/'coverage_summary.json').read_text(encoding='utf-8'))
+  out['coverage']['weak'] = len(C.get('weak') or [])
+  out['coverage']['near'] = len(C.get('near') or [])
+except Exception:
+  pass
+try:
+  RC = json.loads((root/'.mcp'/'rules_compiled.json').read_text(encoding='utf-8'))
+  out['rules']['conflicts'] = len(RC.get('conflicts') or [])
+  out['rules']['suggestions'] = len(RC.get('suggestions') or [])
+except Exception:
+  pass
+try:
+  import re
+  text = (root/'.mcp'/'rules_suggestions.md').read_text(encoding='utf-8')
+  out['suggestions']['must'] = len(re.findall(r'(^|\n)\s*Severity\s*:\s*must\b', text, re.I))
+  out['suggestions']['warn'] = len(re.findall(r'(^|\n)\s*Severity\s*:\s*warn\b', text, re.I))
+  out['suggestions']['info'] = len(re.findall(r'(^|\n)\s*Severity\s*:\s*info\b', text, re.I))
+except Exception:
+  pass
+dash.mkdir(parents=True, exist_ok=True)
+(dash/'jb_verify.json').write_text(json.dumps(out, ensure_ascii=False, indent=2), encoding='utf-8')
+print('[jb-ui-verify] wrote', dash/'jb_verify.json')
+PY
+
 echo "[jb-ui-verify] done"

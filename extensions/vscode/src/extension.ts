@@ -244,6 +244,8 @@ export function activate(context: vscode.ExtensionContext) {
           <button id="btnOpenNearCsv">打开 near_top.csv</button>
           <button id="btnOpenGroupsCsv">打开 groups.csv</button>
           <ul id="covWeak"></ul>
+          <h4>CSV 预览</h4>
+          <pre id="csvPreview" style="white-space:pre-wrap; background:#f7f7f7; padding:4px; font-size:11px;"></pre>
         </div>
         <div>
           <h3>覆盖率目录树（弱项）</h3>
@@ -418,6 +420,14 @@ export function activate(context: vscode.ExtensionContext) {
             if (msg.t === 'info') {
               const inf = document.getElementById('info');
               if (inf) inf.textContent = msg.text || '';
+            }
+            if (msg.t === 'csvPreview') {
+              const el = document.getElementById('csvPreview');
+              if (el) {
+                const which = msg.which || 'weak';
+                const lines = (msg.head || []).join('\n');
+                (el as any).textContent = '[' + which + ']\n' + lines;
+              }
             }
             if (msg.t === 'project') {
               const el = document.getElementById('curProject');
@@ -1003,6 +1013,17 @@ export function activate(context: vscode.ExtensionContext) {
           try {
             const out = await client.request('tools/call', { name: 'coverage.export', arguments: {} });
             vscode.window.showInformationMessage('Coverage 导出完成: ' + (out.out_dir || ''));
+            // 预览 weak_top.csv 前 3 行
+            const ws = getWorkspaceRoot();
+            if (ws) {
+              const uri = vscode.Uri.file(ws + '/.mcp/dashboard/weak_top.csv');
+              try {
+                const data = await vscode.workspace.fs.readFile(uri);
+                const text = Buffer.from(data).toString('utf8');
+                const head = text.split(/\r?\n/).slice(0, 4);
+                panel.webview.postMessage({ t: 'csvPreview', which: 'weak_top.csv', head });
+              } catch {}
+            }
           } catch (e:any) {
             vscode.window.showWarningMessage('Coverage 导出失败：' + String(e));
           }
@@ -1372,9 +1393,21 @@ export function activate(context: vscode.ExtensionContext) {
           vscode.commands.executeCommand('mcpRulesAssistant.openPanel');
           break;
         case 'covExport':
-          vscode.commands.executeCommand('mcpRulesAssistant.openPanel');
-          // The panel will be ready; send message to trigger export
-          // Rely on message route in openPanel handler
+          try {
+            await client.request('tools/call', { name: 'coverage.export', arguments: {} });
+            const ws2 = getWorkspaceRoot();
+            if (ws2) {
+              const uri2 = vscode.Uri.file(ws2 + '/.mcp/dashboard/weak_top.csv');
+              try {
+                await vscode.workspace.fs.stat(uri2);
+                const doc2 = await vscode.workspace.openTextDocument(uri2);
+                await vscode.window.showTextDocument(doc2, { preview: false });
+              } catch {}
+            }
+            vscode.window.showInformationMessage('Coverage 导出完成 (.mcp/dashboard)');
+          } catch (e:any) {
+            vscode.window.showWarningMessage('Coverage 导出失败：' + String(e));
+          }
           break;
       }
     } catch (e:any) {

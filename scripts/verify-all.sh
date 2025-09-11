@@ -72,5 +72,8 @@ PY
 
 echo "[verify] JetBrains UI verify (optional)"
 bash scripts/jb-ui-verify.sh || true
+if [ -f .mcp/dashboard/jb_verify.json ]; then
+  echo "[verify] jb_verify.json summary:" && head -n 50 .mcp/dashboard/jb_verify.json || true
+fi
 
 echo "[verify] OK"
