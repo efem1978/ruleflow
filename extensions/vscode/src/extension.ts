@@ -1417,6 +1417,9 @@ export function activate(context: vscode.ExtensionContext) {
       { label: '校验 CI / Validate CI', action: 'ciValidate' },
       { label: '导出覆盖率 / Export Coverage', action: 'covExport' },
       { label: '打开 JB 验证 / Open JB Verify', action: 'openJbVerify' },
+      { label: '打开 weak_top.csv', action: 'openWeakCsv' },
+      { label: '打开 near_top.csv', action: 'openNearCsv' },
+      { label: '打开 groups.csv', action: 'openGroupsCsv' },
     ], { title: 'RuleFlow: Quick Actions' });
     if (!pick) { return; }
     try { client.start(context); } catch {}
@@ -1467,6 +1470,15 @@ export function activate(context: vscode.ExtensionContext) {
           } catch (e:any) {
             vscode.window.showWarningMessage('未找到 jb_verify.json：' + String(e));
           }
+          break;
+        case 'openWeakCsv':
+          try { const ws = getWorkspaceRoot(); if (!ws) throw new Error('no workspace'); const u=vscode.Uri.file(ws + '/.mcp/dashboard/weak_top.csv'); await vscode.workspace.fs.stat(u); const d=await vscode.workspace.openTextDocument(u); await vscode.window.showTextDocument(d,{preview:false}); } catch {}
+          break;
+        case 'openNearCsv':
+          try { const ws = getWorkspaceRoot(); if (!ws) throw new Error('no workspace'); const u=vscode.Uri.file(ws + '/.mcp/dashboard/near_top.csv'); await vscode.workspace.fs.stat(u); const d=await vscode.workspace.openTextDocument(u); await vscode.window.showTextDocument(d,{preview:false}); } catch {}
+          break;
+        case 'openGroupsCsv':
+          try { const ws = getWorkspaceRoot(); if (!ws) throw new Error('no workspace'); const u=vscode.Uri.file(ws + '/.mcp/dashboard/groups.csv'); await vscode.workspace.fs.stat(u); const d=await vscode.workspace.openTextDocument(u); await vscode.window.showTextDocument(d,{preview:false}); } catch {}
           break;
       }
     } catch (e:any) {

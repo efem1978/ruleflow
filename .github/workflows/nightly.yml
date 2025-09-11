@@ -33,6 +33,25 @@ jobs:
         run: |
           bash scripts/jb-ui-verify.sh || true
           if [ -f .mcp/dashboard/jb_verify.json ]; then echo "[jb] summary"; head -n 80 .mcp/dashboard/jb_verify.json; fi
+      - name: JB Groups Top (from jb_verify.json)
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('.mcp/dashboard/jb_verify.json')
+          if not p.exists():
+              print('[jb] jb_verify.json missing')
+          else:
+              D=json.loads(p.read_text(encoding='utf-8'))
+              top=D.get('coverage',{}).get('groups_top') or []
+              if not top:
+                  print('[jb] groups_top empty')
+              else:
+                  print('| prefix | coverage | threshold | weak/files |')
+                  print('|---|---:|---:|---:|')
+                  for g in top:
+                      print(f"| {g.get('prefix','')} | {g.get('coverage',0):.1f}% | {g.get('threshold',0)}% | {g.get('weak',0)}/{g.get('files',0)} |")
+          PY
       - name: Coverage Groups Table (Top 5)
         run: |
           python - <<'PY'
