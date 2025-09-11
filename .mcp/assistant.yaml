@@ -31,7 +31,7 @@ coverage:
     dev_agent.py: 0.95
     license_utils.py: 0.95
   near:
-    within: 0.01
+    within: 0.008
     top: 50
 tests:
   quick_fail_decay:
