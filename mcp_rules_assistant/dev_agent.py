@@ -1040,9 +1040,6 @@ def main(argv: Optional[list[str]] = None) -> None:
     agent.run(interval=args.interval, max_cycles=max_cycles)
 
 
-if __name__ == "__main__":
-    main()
-
 # --------------------------------------------------------------------------------------
 # Module-level helper functions kept for backward-compat with tests and external scripts
 # These mirror DevAgent methods but operate with an explicit project_root argument.
@@ -1490,3 +1487,8 @@ def compute_status(project_root: Path) -> Dict[str, object]:
         },
         "tasks": {"pending": pending_tasks[:20], "done": done_tasks[:20]},
     }
+
+
+if __name__ == "__main__":
+    # Ensure helper functions are defined before starting the agent when executed with `-m`.
+    main()

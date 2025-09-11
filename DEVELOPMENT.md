@@ -167,7 +167,8 @@ Release Note（0.2.5，维护性更新）
 - 文档：新增 `docs/IDE_SCAFFOLD.md`（VS Code/Cursor/JetBrains/Neovim）；README 增加“快速入口”与 IDE 文档链接。
 - Neovim：在 `ide.scaffold` 输出 Lua 示例（保留 Vimscript）。
 - CI/Hooks：生成器固定 semgrep 1.91.x；CI 新增 Python 覆盖率上传至 Codecov（保留 VS Code lcov 上传）。
-- 清理：确保样例/临时工件未入库（`.github/workflows/ci.yml.bak`、`bad.py`、`ok2.py`、`docs/b.txt` 等已由 `.gitignore` 屏蔽），并在 `make clean` 中提供清理项。
+- 清理：确保样例/临时工件未入库（`.github/workflows/ci.yml.bak`、`bad.py`、`ok2.py`、`docs/b.txt` 等已由 `.gitignore` 屏蔽）。
+  - 本地若仍存在未跟踪样例，请执行：`make clean` 或 `sh scripts/workspace-clean.sh`。
 - 配置：`coverage.min_core` 统一为 0.98；在 `coverage.policy` 增补“核心≥98%”注释。
 - 许可文档：`docs/LICENSE.md` 明确根 `LICENSE` 为法律文本，本页为生成/校验演示。
 

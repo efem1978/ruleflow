@@ -95,6 +95,7 @@ Phase E — 集成与 CLI
    - [ ] CLI 合同测试：文档示例命令存在性与失败路径覆盖
 3) 清理与一致性
    - [ ] 清理无用样例（docs/link.py、bad.py/ok2.py/ok.txt、docs/b.txt）；Makefile/scripts 增补清理
+   - 说明：如本地仍存在未跟踪的样例/工件，请执行 `make clean` 或 `sh scripts/workspace-clean.sh`。
    - [ ] README 增补 coverage.policy “后缀匹配”小贴士
    - [ ] docs/CI_HEALTH_CHECK.md 改为健康检查说明文档
 4) JetBrains P3（本轮落地）
