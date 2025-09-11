@@ -48,6 +48,8 @@ extensions/vscode/*.vsix
 extensions/jetbrains/screenshots/jb_*.json
 extensions/jetbrains/screenshots/jb_*.md
 extensions/jetbrains/ui_smoke.log
+# JetBrains Gradle cache (do not track)
+extensions/jetbrains/.gradle/
 
 # pytest cache
 .pytest_cache/
