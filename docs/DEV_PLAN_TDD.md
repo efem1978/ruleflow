@@ -62,8 +62,8 @@ Phase E — 集成与 CLI
 - 接口层（mcp_server）
   - [x] initialize/capabilities & 基础 tools/resources 的错误路径
   - [x] fs.apply_patch(strict) 拒绝路径
-- 扩展层（VS Code）
-  - [ ] 无头测试 & 近阈值/覆盖率交互回归
+ - 扩展层（VS Code）
+  - [x] 无头测试 & 近阈值/覆盖率交互回归（已纳入 CI：默认告警≥90%，可选硬门禁；提供 near/worst 文件清单）
 
 验收准则 Definition of Done
 - 覆盖率：总体 ≥95%；核心模块 ≥98%；其余 ≥95%；`coverage-report` 的 `weak` 为空。
