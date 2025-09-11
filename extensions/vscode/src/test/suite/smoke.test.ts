@@ -49,7 +49,7 @@ suite('VS Code Extension Smoke', () => {
   });
 
   test('bundle contains view status strings', async () => {
-    const ext = vscode.extensions.getExtension('your-team.mcp-rules-assistant');
+    const ext = vscode.extensions.getExtension('ruleflow.mcp-rules-assistant');
     assert.ok(ext, 'Extension not found');
     const outJs = path.resolve(ext!.extensionPath, 'out', 'extension.js');
     const js = fs.readFileSync(outJs, 'utf-8');
