@@ -38,7 +38,8 @@ MCP 规则与上下文助手 / MCP Rules & Context Assistant
 - 状态刷新：`mcp-rules-assistant status-update`（写入 `.mcp/dashboard/status.json`）
 - 诊断打包：`mcp-rules-assistant diagnose-bundle`（收集 coverage/pytest/near/.mcp 状态与规则/计划 → 生成 tar.gz）
 - VS Code 面板：命令 `RuleFlow: Open Panel`；自然语言 `RuleFlow: Natural Command`
- - JetBrains 插件：见 `extensions/jetbrains/README.md`（工具窗口最小直连 MCP：启动/停止/Ping/资源/计划/摄取/覆盖率/CI/受控写入）
+- JetBrains 插件：见 `extensions/jetbrains/README.md`（工具窗口最小直连 MCP：启动/停止/Ping/资源/计划/摄取/覆盖率/CI/受控写入）
+  - 最小路径：在仓库根先生成 `coverage.xml` 与 `.mcp/dashboard/*`（见 `docs/USAGE.md`），然后在 JetBrains 运行 `gradle runIde` 打开工具窗口“RuleFlow”加载资源；`scripts/jb-ui-verify.sh` 可生成 `jb_verify.json` 并由 CI/Nightly 上传为 `jb-verify` 构件。
 
 本地安装验证（不发布）
 - 可编辑安装：`pip install -e .`，验证：`mcp-rules-assistant version`

@@ -302,6 +302,16 @@ export function activate(context: vscode.ExtensionContext) {
           (document.getElementById('btnOpenNearCsv') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'open', path: '.mcp/dashboard/near_top.csv', line: 1 });
           (document.getElementById('btnOpenGroupsCsv') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'open', path: '.mcp/dashboard/groups.csv', line: 1 });
           (document.getElementById('btnCovExport') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'covExport' });
+          (document.getElementById('btnCopyCsvPreview') as HTMLButtonElement).onclick = async () => {
+            try {
+              const el = document.getElementById('csvPreview');
+              const text = (el && (el as any).textContent) ? String((el as any).textContent) : '';
+              if (text && (navigator as any).clipboard) {
+                await (navigator as any).clipboard.writeText(text);
+                vscode.postMessage({ t: 'info', text: '已复制 CSV 预览到剪贴板' });
+              }
+            } catch {}
+          };
           (document.getElementById('btnIdeScaffold') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'ideScaffold' });
           (document.getElementById('btnCompliance') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'compliance' });
           (document.getElementById('btnOpenCompliance') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'openCompliance' });

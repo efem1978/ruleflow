@@ -39,6 +39,20 @@
 - Gradle 面板运行 `Run Plugin`；或使用 `./gradlew runIde`
 - 在新启动的 IDE 实例中打开目标仓库，打开工具窗口“RuleFlow”，即可使用上述按钮
 
+快速最小路径（无需打包即可验证）
+1) 在仓库根生成必要工件：
+   - 覆盖率：`PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q -p pytest_cov --cov=mcp_rules_assistant --cov-report=xml:coverage.xml`
+   - 刷新状态：`python -m mcp_rules_assistant.cli status-update`
+   - 可选导出：`python -m mcp_rules_assistant.cli coverage-export --out-dir .mcp/dashboard`
+2) 在 IntelliJ IDEA 打开本仓库 → 运行 `gradle runIde`（或 Gradle 面板 Run Plugin）
+3) 在新启动的 IDE：打开工具窗口“RuleFlow”→
+   - 启动 MCP → Ping → 资源列表
+   - 加载计划/记忆/覆盖率
+   - 受控写入（dry-run）体验（与 `fs.apply_patch` 一致）
+4) 无人值守快照（可选）：
+   - 执行 `sh scripts/jb-ui-verify.sh` 生成 `.mcp/dashboard/jb_verify.json`
+   - CI/Nightly 会上传 `jb-verify` 构件，便于审阅（含 plan/coverage 摘要与建议严重度统计）
+
 输出与便捷操作
 - JSON 美化：勾选“JSON 美化”开关，美化 resources/read 与 tools/call 输出
 - 复制输出：点击“复制输出”复制当前文本到剪贴板

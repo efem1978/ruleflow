@@ -40,6 +40,14 @@ jobs:
             .mcp/dashboard/near_top.csv
             .mcp/dashboard/groups.csv
             .mcp/dashboard/jb_verify.json
+          if-no-files-found: ignore
+      - name: Upload JB Verify artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jb-verify
+          path: .mcp/dashboard/jb_verify.json
+          if-no-files-found: ignore
       - name: Preflight
         run: |
           sh scripts/preflight.sh
