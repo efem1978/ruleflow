@@ -18,10 +18,13 @@ PY
   fi
 fi
 if [ "${COVERAGE_WARN_FILTER:-0}" = "1" ] && [ -x scripts/coverage-warn-filter.sh ]; then
-  PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 "$PY" -m pytest -q -p pytest_cov --maxfail=1 --disable-warnings -W error --strict-markers --cov=mcp_rules_assistant --cov-report=xml:coverage.xml --cov-report=term-missing 2> >(bash scripts/coverage-warn-filter.sh 1>&2)
+  PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 "$PY" -m pytest -q -p pytest_cov --maxfail=1 --disable-warnings -W error --strict-markers --cov=mcp_rules_assistant --cov-report=xml:coverage.xml --cov-report=term-missing --junitxml=pytest-junit.xml 2> >(bash scripts/coverage-warn-filter.sh 1>&2)
 else
-  PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 "$PY" -m pytest -q -p pytest_cov --maxfail=1 --disable-warnings -W error --strict-markers --cov=mcp_rules_assistant --cov-report=xml:coverage.xml --cov-report=term-missing
+  PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 "$PY" -m pytest -q -p pytest_cov --maxfail=1 --disable-warnings -W error --strict-markers --cov=mcp_rules_assistant --cov-report=xml:coverage.xml --cov-report=term-missing --junitxml=pytest-junit.xml
 fi
+
+echo "[verify] Skip/XFail Summary (non-blocking)"
+"$PY" scripts/pytest-skipxfail-summary.py pytest-junit.xml || true
 
 echo "[verify] 3/4 Coverage Gate"
 "$PY" -m mcp_rules_assistant.cli coverage-report --json > /tmp/coverage_report.json

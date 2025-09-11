@@ -76,7 +76,7 @@ maintenance-all:
 	sh scripts/maintenance-all.sh
 
 verify:
-	sh scripts/verify-all.sh
+	bash scripts/verify-all.sh
 
 .PHONY: release-harden-verify
 release-harden-verify:

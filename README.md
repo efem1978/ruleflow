@@ -66,6 +66,14 @@ MCP 规则与上下文助手 / MCP Rules & Context Assistant
 
 ![Panel Overview](docs/assets/panel_overview.svg)
 
+无法查看或提供截图？请使用“文本替代方案（无图）”：
+- 生成 JetBrains 文本版 Storyboard（计划/记忆/覆盖率/受控写入示例）：`sh scripts/jb-storyboard.sh`，详见 `docs/IDE_JB_STORYBOARD.md`
+- 输出覆盖率报告（弱项/分组/近阈值，JSON）：`python3 -m mcp_rules_assistant.cli coverage-report --json | jq .`
+- 查看当前窗口的记忆与计划：
+  - 记忆：`python3 -m mcp_rules_assistant.cli status-update && cat .mcp/dashboard/status.json`
+  - 计划：`cat .mcp/plan.md`
+以上文本与 JSON 即面板/截图所展示的核心信息，可直接在任何终端与 IDE 中复现与审阅。
+
 JetBrains 截图（预览）
 
 ![JetBrains ToolWindow](extensions/jetbrains/screenshots/jetbrains-toolwindow-plan.png)
@@ -85,6 +93,10 @@ JetBrains 头less UI Smoke（可选）
 - CI 作业：`jetbrains-ui-smoke`（非阻断），自动上传 smoke 日志工件
 
 ![Coverage Flow](docs/assets/coverage_flow.svg)
+
+文本替代（无图）：
+- `python3 -m mcp_rules_assistant.cli coverage`、`coverage-groups`、`coverage-near --within 3 --top 20` 查看流程中各步的关键信息
+- `python3 -m mcp_rules_assistant.cli diagnose-bundle` 一键打包 coverage/pytest/near/.mcp 状态，供审阅/归档
 
 覆盖率门禁 Coverage Gate
 - Python（门槛与策略）：核心≥98%，其余≥95%；coverage-report 弱项清零（weak 列表为空）。

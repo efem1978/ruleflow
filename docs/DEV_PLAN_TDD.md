@@ -87,26 +87,26 @@ Phase E — 集成与 CLI
 
 本轮（不得延后）
 1) 覆盖率抛光（核心路径）
-   - [ ] dev_agent.py：冻结/解冻/旁路/失败分支补齐（目标 ≥96%）
-   - [ ] mcp_server.py：env/coverage/resources 边界异常与极值分支（目标 ≥99.0%）
-   - [ ] rules_ingest.py：上限/区间/异常 YAML/JSON 分支（目标 ≥98.0%）
+   - [x] dev_agent.py：冻结/解冻/旁路/失败分支补齐（目标 ≥96%）
+   - [x] mcp_server.py：env/coverage/resources 边界异常与极值分支（目标 ≥99.0%）
+   - [x] rules_ingest.py：上限/区间/异常 YAML/JSON 分支（目标 ≥98.0%）
 2) 门禁强化
-   - [ ] CI 扫描测试输出中的 skip/xfail 统计（仅报警，不误伤用例标记）
-   - [ ] CLI 合同测试：文档示例命令存在性与失败路径覆盖
+   - [x] CI 扫描测试输出中的 skip/xfail 统计（仅报警，不误伤用例标记）
+   - [x] CLI 合同测试：文档示例命令存在性与失败路径覆盖
 3) 清理与一致性
-   - [ ] 清理无用样例（docs/link.py、bad.py/ok2.py/ok.txt、docs/b.txt）；Makefile/scripts 增补清理
+   - [x] 清理无用样例（docs/link.py、bad.py/ok2.py/ok.txt、docs/b.txt）；Makefile/scripts 增补清理
    - 说明：如本地仍存在未跟踪的样例/工件，请执行 `make clean` 或 `sh scripts/workspace-clean.sh`。
-   - [ ] README 增补 coverage.policy “后缀匹配”小贴士
-   - [ ] docs/CI_HEALTH_CHECK.md 改为健康检查说明文档
+   - [x] README 增补 coverage.policy “后缀匹配”小贴士
+   - [x] docs/CI_HEALTH_CHECK.md 改为健康检查说明文档
 4) JetBrains P3（本轮落地）
-   - [ ] `scripts/jb-package.sh` 完成并在文档指引
-   - [ ] 最小 E2E：读取 `.mcp/dashboard/status.json` 的 smoke；CI 作业输出工件
+   - [x] `scripts/jb-package.sh` 完成并在文档指引
+   - [x] 最小 E2E：读取 `.mcp/dashboard/status.json` 的 smoke；CI 作业输出工件
    - [ ] 后续：实拍 PNG 替换 SVG（允许暂缓，不阻断本轮 DoD）
 5) 统一子进程封装与开关
-   - [ ] checks.py 委托 run_cmd 的 on/off 回归测试（保持历史桩兼容）
+   - [x] checks.py 委托 run_cmd 的 on/off 回归测试（保持历史桩兼容）
 6) 文档入口同步
-   - [ ] 更新 `DEVELOPMENT.md` 当前 Sprint 任务为本轮内容
-   - [ ] 同步 `.mcp/plan.md` 与本文件清单（以 `.mcp/plan.md` 为权威）
+   - [x] 更新 `DEVELOPMENT.md` 当前 Sprint 任务为本轮内容
+   - [x] 同步 `.mcp/plan.md` 与本文件清单（以 `.mcp/plan.md` 为权威）
 
 执行批次（完整）
 批次 A（已完成）
