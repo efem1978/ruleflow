@@ -55,4 +55,14 @@ suite('VS Code Extension Smoke', () => {
     const js = fs.readFileSync(outJs, 'utf-8');
     assert.ok(js.includes('当前视图') || js.includes('Show Near'), 'Expected view status strings in bundle');
   });
+
+  test('openPanelLite + simulate open message works', async () => {
+    const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '';
+    assert.ok(ws, 'workspace required for test');
+    // ensure README exists to open
+    const readme = path.resolve(ws, 'README.md');
+    assert.ok(fs.existsSync(readme), 'README.md should exist');
+    await vscode.commands.executeCommand('mcpRulesAssistant._test_openPanelLite');
+    await vscode.commands.executeCommand('mcpRulesAssistant._test_simulateWebviewMessage', { t: 'open', path: 'README.md', line: 1 });
+  });
 });

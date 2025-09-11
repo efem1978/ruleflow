@@ -82,6 +82,32 @@ class McpClient {
 }
 
 const client = new McpClient();
+// ---- test hooks (non-public commands register below) ----
+let __testWebviewHandler: ((msg: any) => Promise<void> | void) | null = null;
+
+async function handleOpenMessage(msg: any) {
+  if (msg && msg.t === 'open' && msg.path) {
+    try {
+      const wsRoot = getWorkspaceRoot() || '';
+      let filePath = String(msg.path);
+      if (!filePath.match(/^\w:\\|^\//)) {
+        filePath = require('path').join(wsRoot, filePath);
+      }
+      if (wsRoot && !String(filePath).startsWith(wsRoot)) {
+        vscode.window.showErrorMessage('无法打开文件：不在当前工作区内');
+        return;
+      }
+      const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(filePath));
+      const editor = await vscode.window.showTextDocument(doc, { preview: false });
+      const line = Math.max(0, (msg.line || 1) - 1);
+      const pos = new vscode.Position(line, 0);
+      editor.selection = new vscode.Selection(pos, pos);
+      editor.revealRange(new vscode.Range(pos, pos), vscode.TextEditorRevealType.InCenter);
+    } catch (e:any) {
+      vscode.window.showErrorMessage('无法打开文件：' + String(e));
+    }
+  }
+}
 
 export function activate(context: vscode.ExtensionContext) {
   vscode.window.showInformationMessage('RuleFlow Extension is now active!');
@@ -782,6 +808,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     panel.webview.onDidReceiveMessage(async (msg) => {
       try {
+        __testWebviewHandler = async (m:any) => { await handleOpenMessage(m); };
         if (msg.t === 'statusUpdate') {
           const pyBin = process.env.MCP_PYTHON_BIN && process.env.MCP_PYTHON_BIN.trim()
             ? process.env.MCP_PYTHON_BIN.trim()
@@ -1131,29 +1158,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     // 处理从 webview 的“打开源文件”请求
     panel.webview.onDidReceiveMessage(async (msg) => {
-      if (msg && msg.t === 'open' && msg.path) {
-        try {
-          const wsRoot = getWorkspaceRoot() || '';
-          let filePath = String(msg.path);
-          // If relative, resolve to workspace root
-          if (!filePath.match(/^\w:\\|^\//)) {
-            filePath = require('path').join(wsRoot, filePath);
-          }
-          // Ensure inside workspace
-          if (wsRoot && !String(filePath).startsWith(wsRoot)) {
-            vscode.window.showErrorMessage('无法打开文件：不在当前工作区内');
-            return;
-          }
-          const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(filePath));
-          const editor = await vscode.window.showTextDocument(doc, { preview: false });
-          const line = Math.max(0, (msg.line || 1) - 1);
-          const pos = new vscode.Position(line, 0);
-          editor.selection = new vscode.Selection(pos, pos);
-          editor.revealRange(new vscode.Range(pos, pos), vscode.TextEditorRevealType.InCenter);
-        } catch (e:any) {
-          vscode.window.showErrorMessage('无法打开文件：' + String(e));
-        }
-      }
+      await handleOpenMessage(msg);
       if (msg && msg.t === 'nl') {
         try {
           const text = String(msg.text || '').trim();
@@ -1352,6 +1357,19 @@ export function activate(context: vscode.ExtensionContext) {
   }));
 
   context.subscriptions.push(disposable);
+
+  // --- test-only helper commands (not contributed) ---
+  context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant._test_openPanelLite', async () => {
+    const panel = vscode.window.createWebviewPanel('mcpRulesAssistantTest', 'RuleFlow Test Panel', vscode.ViewColumn.Beside, { enableScripts: true });
+    panel.webview.html = '<html><body><h3>Test Panel</h3></body></html>';
+    panel.webview.onDidReceiveMessage(async (msg) => { await handleOpenMessage(msg); });
+    __testWebviewHandler = async (m:any) => { await handleOpenMessage(m); };
+    return true;
+  }));
+  context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant._test_simulateWebviewMessage', async (msg:any) => {
+    if (__testWebviewHandler) { await __testWebviewHandler(msg); }
+    return true;
+  }));
 
   // 轻量保存拦截：不做重操作，仅后续可扩展（保持性能）
   context.subscriptions.push(vscode.workspace.onWillSaveTextDocument(async (_e) => {
