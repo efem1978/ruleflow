@@ -33,6 +33,25 @@ jobs:
         run: |
           bash scripts/jb-ui-verify.sh || true
           if [ -f .mcp/dashboard/jb_verify.json ]; then echo "[jb] summary"; head -n 80 .mcp/dashboard/jb_verify.json; fi
+      - name: Coverage Groups Table (Top 5)
+        run: |
+          python - <<'PY'
+          import csv
+          from pathlib import Path
+          p=Path('.mcp/dashboard/groups.csv')
+          if not p.exists():
+              print('[groups] missing .mcp/dashboard/groups.csv')
+          else:
+              rows=list(csv.DictReader(p.open('r',encoding='utf-8')))
+              rows.sort(key=lambda r: int(r.get('weak_count',0)), reverse=True)
+              print('[groups] Top 5 by weak_count:')
+              print('| prefix | coverage | threshold | weak/files |')
+              print('|---|---:|---:|---:|')
+              for r in rows[:5]:
+                  cov=float(r.get('coverage',0))*100
+                  thr=int(float(r.get('threshold',0))*100)
+                  print(f"| {r.get('prefix','')} | {cov:.1f}% | {thr}% | {r.get('weak_count','0')}/{r.get('files_count','0')} |")
+          PY
       - name: Upload Coverage Export artifacts
         if: always()
         uses: actions/upload-artifact@v4

@@ -1404,6 +1404,7 @@ export function activate(context: vscode.ExtensionContext) {
       { label: '生成 CI / Generate CI', action: 'ciGen' },
       { label: '校验 CI / Validate CI', action: 'ciValidate' },
       { label: '导出覆盖率 / Export Coverage', action: 'covExport' },
+      { label: '打开 JB 验证 / Open JB Verify', action: 'openJbVerify' },
     ], { title: 'RuleFlow: Quick Actions' });
     if (!pick) { return; }
     try { client.start(context); } catch {}
@@ -1441,6 +1442,18 @@ export function activate(context: vscode.ExtensionContext) {
             vscode.window.showInformationMessage('Coverage 导出完成 (.mcp/dashboard)');
           } catch (e:any) {
             vscode.window.showWarningMessage('Coverage 导出失败：' + String(e));
+          }
+          break;
+        case 'openJbVerify':
+          try {
+            const ws3 = getWorkspaceRoot();
+            if (!ws3) throw new Error('no workspace');
+            const uri3 = vscode.Uri.file(ws3 + '/.mcp/dashboard/jb_verify.json');
+            await vscode.workspace.fs.stat(uri3);
+            const doc3 = await vscode.workspace.openTextDocument(uri3);
+            await vscode.window.showTextDocument(doc3, { preview: false });
+          } catch (e:any) {
+            vscode.window.showWarningMessage('未找到 jb_verify.json：' + String(e));
           }
           break;
       }
