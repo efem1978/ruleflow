@@ -46,7 +46,8 @@ services:
       - FORCE_COLOR=0
       - ELECTRON_DISABLE_SECURITY_WARNINGS=1
       - NO_AT_BRIDGE=1
-      - MCP_VSCODE_TEST_ARGS=--disable-extensions,--disable-gpu,--no-sandbox,--disable-dev-shm-usage
+      # 加入工作区路径，确保测试可获取 workspaceFolders[0]
+      - MCP_VSCODE_TEST_ARGS=--disable-extensions,--disable-gpu,--no-sandbox,--disable-dev-shm-usage,/work
     command: ["bash", "-lc", "ln -sfn /opt/app/.vscode-test .vscode-test; timeout 900 dbus-run-session -- xvfb-run -a -s '-screen 0 1024x768x24' npm test"]
 
   jb-build:
