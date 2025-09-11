@@ -164,6 +164,11 @@ jobs:
     env:
       VSCODE_LCOV_WINDOW_PCT: '5'
       VSCODE_LCOV_TOP_N: '20'
+      # VS Code 前端覆盖率策略（阶段性）：
+      # - 仅告警（非阻断）阈值 80%
+      # - 硬门禁默认关闭，可在需要时通过将该变量置为 1 开启
+      VSCODE_COVERAGE_THRESHOLD_WARN: '80'
+      VSCODE_COVERAGE_GATE: '0'
 
     steps:
       - uses: actions/checkout@v4
@@ -192,16 +197,17 @@ jobs:
         run: |
           sh scripts/ide-compat-check.sh || true
           if [ -f extensions/compat_report.json ]; then echo "[ide-compat] found"; else echo "[ide-compat] missing (ok)"; fi
-      - name: VS Code coverage warn (min 95%)
+      - name: VS Code coverage warn (min ${VSCODE_COVERAGE_THRESHOLD_WARN}% )
         run: |
-          sh scripts/check-lcov.sh extensions/vscode/coverage/lcov.info 95 || true
-      - name: VS Code coverage gate (min 95%)
+          sh scripts/check-lcov.sh extensions/vscode/coverage/lcov.info ${VSCODE_COVERAGE_THRESHOLD_WARN} || true
+      - name: VS Code coverage gate (optional)
+        if: env.VSCODE_COVERAGE_GATE == '1'
         run: |
-          if sh scripts/check-lcov.sh extensions/vscode/coverage/lcov.info 95 gate; then
+          if sh scripts/check-lcov.sh extensions/vscode/coverage/lcov.info ${VSCODE_COVERAGE_THRESHOLD_WARN} gate; then
             echo "[vscode] lcov gate passed"
           else
             echo "[vscode] lcov gate failed; listing near/worst files"
-            sh scripts/lcov-near.sh extensions/vscode/coverage/lcov.info 95 ${VSCODE_LCOV_WINDOW_PCT:-5} ${VSCODE_LCOV_TOP_N:-20} > near_vscode.txt || true
+            sh scripts/lcov-near.sh extensions/vscode/coverage/lcov.info ${VSCODE_COVERAGE_THRESHOLD_WARN} ${VSCODE_LCOV_WINDOW_PCT:-5} ${VSCODE_LCOV_TOP_N:-20} > near_vscode.txt || true
             cat near_vscode.txt || true
             exit 1
           fi

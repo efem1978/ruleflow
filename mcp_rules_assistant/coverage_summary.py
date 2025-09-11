@@ -93,8 +93,12 @@ def _read_classes_with_cache(project_root: Path, coverage_xml: str) -> List[Clas
                 if lines_valid is not None and lines_covered is not None:
                     row["lines_valid"] = int(float(lines_valid))
                     row["lines_covered"] = int(float(lines_covered))
-            except Exception:  # pragma: no cover (defensive parsing)
-                pass
+            except Exception as e:  # pragma: no cover (defensive parsing)
+                import logging
+
+                logging.getLogger(__name__).debug(
+                    "[coverage] class item lines conversion skipped: %r", e
+                )
             items.append(row)
         # write cache
         try:

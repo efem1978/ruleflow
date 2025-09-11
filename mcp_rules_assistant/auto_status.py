@@ -177,6 +177,8 @@ def generate_status(project_root: Optional[Path] = None) -> Dict[str, Any]:
         hist_p.write_text(
             json.dumps(hist, ensure_ascii=False, indent=2), encoding="utf-8"
         )
-    except Exception:
-        pass
+    except Exception as e:
+        import logging
+
+        logging.getLogger(__name__).debug("[auto_status] history write skipped: %r", e)
     return payload

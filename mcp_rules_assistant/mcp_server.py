@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import logging
 import os
 import platform
 import shutil
@@ -319,8 +318,12 @@ class JsonRpcServer:
                 # 在旧项目记忆中记录“切换到”链接
                 try:
                     self.mm.add_link(p.name or str(p), "switched_to", str(p))
-                except Exception:
-                    pass
+                except Exception as e:
+                    import logging
+
+                    logging.getLogger(__name__).debug(
+                        "[mcp] add_link switched_to failed: %r", e
+                    )
                 # 切换项目根
                 self.project_root = p
                 # Rebind per-project helpers
@@ -334,8 +337,12 @@ class JsonRpcServer:
                         "switched_from",
                         str(old_root),
                     )
-                except Exception:
-                    pass
+                except Exception as e:
+                    import logging
+
+                    logging.getLogger(__name__).debug(
+                        "[mcp] add_link switched_from failed: %r", e
+                    )
             return {"ok": True, "root": str(self.project_root)}
         if name == "project.link":
             target = str(args.get("project", "")).strip()
@@ -455,9 +462,13 @@ class JsonRpcServer:
                                         "[fs.apply_patch] disallow_patterns hit (soft): path=%s",
                                         f.get("path", ""),
                                     )
-                    except Exception:
+                    except Exception as e:
                         # 忽略解析错误，但在严格模式下仍保持 skip/xfail 拒绝
-                        pass
+                        import logging
+
+                        logging.getLogger(__name__).debug(
+                            "[mcp] disallow_patterns parse skipped: %r", e
+                        )
                 # 路径安全：禁止绝对路径与越权（必须在项目根内）
                 if "path" not in f:
                     raise ValueError("缺少文件路径字段 'path'")
@@ -501,7 +512,12 @@ class JsonRpcServer:
                     # 严格模式下升级为错误（使用外层 exec_cfg_eff，以避免本地变量未绑定）
                     try:
                         strict_on = bool((exec_cfg_eff or {}).get("fs_guard_strict", False))  # type: ignore[union-attr]
-                    except Exception:
+                    except Exception as e:
+                        import logging
+
+                        logging.getLogger(__name__).debug(
+                            "[mcp] exec_cfg strict flag parse: %r", e
+                        )
                         strict_on = False
                     if strict_on:
                         raise
@@ -947,8 +963,12 @@ class JsonRpcServer:
                     complexity = "medium"
                 else:
                     complexity = "small"
-        except Exception:
-            pass
+        except Exception as e:
+            import logging
+
+            logging.getLogger(__name__).debug(
+                "[mcp] project size heuristic failed: %r", e
+            )
         from .rules import Complexity, Scenario, choose_thresholds, explain_thresholds
 
         try:

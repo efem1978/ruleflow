@@ -18,7 +18,7 @@
 1) M0 内测（当前阶段）
 - [x] 构建 Python 包（dist/*.whl, *.tar.gz）
 - [x] 构建 VS Code 扩展（extensions/vscode/*.vsix）
-- [ ] 本机安装验证（CLI + 面板）
+- [x] 本机安装验证（CLI + 面板）
   - 步骤（参考）：
     1) 安装：`pip install -e .`
     2) 生成配置与钩子：`mcp-rules-assistant init && mcp-rules-assistant install-hooks`

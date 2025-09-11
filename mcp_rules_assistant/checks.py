@@ -83,9 +83,13 @@ def _run(
                 "reason": f"{cmd[0]} not found",
                 "cmd": cmd,
             }
-        except Exception:
+        except Exception as e:
             # 回退到本地实现，保证兼容性
-            pass
+            import logging
+
+            logging.getLogger(__name__).debug(
+                "[checks] delegate run_cmd fallback: %r", e
+            )
     # 兼容旧实现：直接 subprocess.run，并从原生 subprocess 模块获取 PIPE
     try:
         try:

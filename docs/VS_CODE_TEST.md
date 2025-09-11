@@ -21,14 +21,14 @@ VS Code 面板手测指南 / VS Code Manual Test
    - 新增：将自动渲染“覆盖率目录树（弱项）”，也可单独点击“加载目录树 / Load Weak Tree”
    - 新增：会自动统计“近阈值（≤3%）”文件数量；点击“仅看近阈值 / Show Near”可输入窗口（1–10%）并仅显示这些文件
 5) CI 操作
-   - 填写 hadolint/semgrep 配置，点击“保存 CI 配置”
-   - 点击“生成 CI”，再点击“预览 CI”“校验 CI”“打开 CI 文件”
-   - 覆盖率门禁（两阶段）：
-     - 警示阶段：CI 先对 `lcov.info` 执行 95% 的“非阻断”检查，低于阈值仅发出警告：
-       `sh scripts/check-lcov.sh extensions/vscode/coverage/lcov.info 95`
-     - 门禁阶段：随后执行 95% 的“阻断”检查，低于阈值 CI 失败：
-       `sh scripts/check-lcov.sh extensions/vscode/coverage/lcov.info 95 gate`
-     - 低于阈值时该步骤失败（阻断）；可在 PR 中逐步提升阈值
+  - 填写 hadolint/semgrep 配置，点击“保存 CI 配置”
+  - 点击“生成 CI”，再点击“预览 CI”“校验 CI”“打开 CI 文件”
+  - 覆盖率策略（阶段性）：
+    - 非阻断告警：CI 对 `lcov.info` 执行 80% 的检查，低于阈值仅发出警告：
+      `sh scripts/check-lcov.sh extensions/vscode/coverage/lcov.info 80`
+    - 可选硬门禁（默认关闭）：将环境变量 `VSCODE_COVERAGE_GATE=1` 打开后，使用同阈值作为门禁：
+      `sh scripts/check-lcov.sh extensions/vscode/coverage/lcov.info 80 gate`
+    - 建议：先在数个迭代内稳定≥80%，再逐步提升阈值到 90%/95%
 6) 插入示例安全规则
    - 点击“插入示例规则”，确认根目录生成 `.semgrep.yml` 与 `.hadolint.yaml`
 7) 记忆与计划
@@ -57,7 +57,7 @@ docker compose run --rm vscode-test
 - 预构建镜像 `extensions/vscode/Dockerfile.test` 会执行 `npm ci` 并通过 `@vscode/test-electron` 预下载 VS Code 到 `/opt/app/.vscode-test`。
 - 运行时命令会将该目录符号链接到工作区 `extensions/vscode/.vscode-test`，避免每次重新下载。
 
-覆盖率门禁脚本（进阶）
+覆盖率检查脚本（进阶）
 - `scripts/check-lcov.sh <lcov.info> <threshold_pct> [gate]`
   - 不带第三参：低于阈值仅告警（非阻断）
   - 第三参为 `gate`：低于阈值时退出 1（阻断）

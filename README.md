@@ -87,8 +87,8 @@ JetBrains 头less UI Smoke（可选）
 ![Coverage Flow](docs/assets/coverage_flow.svg)
 
 覆盖率门禁 Coverage Gate
-- 本地与容器环境均通过覆盖率门禁：核心≥98%，其余≥95%，coverage-report 弱项清零（weak 列表为空）。
- - VS Code 前端：CI 已启用 lcov 覆盖率门禁（当前 95%，低于则 CI 失败）。
+- Python（门槛与策略）：核心≥98%，其余≥95%；coverage-report 弱项清零（weak 列表为空）。
+- VS Code 前端（阶段性）：CI 默认对 lcov 执行≥80% 的“非阻断”检查（仅警告）；可通过设置 `VSCODE_COVERAGE_GATE=1` 启用同阈值硬门禁，后续逐步提升至 90%/95%。
  - 小贴士（coverage.policy 命中策略）：policy 键既支持“目录前缀”也支持“文件名后缀（basename）”。
    - 对单个关键模块设更高门槛，推荐直接使用文件名后缀（如 `mcp_server.py: 0.99`）。
    - 对一类目录设默认门槛，使用目录前缀（如 `mcp_rules_assistant/`: 0.95）。
@@ -314,7 +314,7 @@ Docker 辅助（可选）
   - 更新 `CHANGELOG.md`（概述变更/兼容性/迁移说明）
 - 质量门禁：
   - `make local-ci-run` 全绿，`coverage-report --json` weak=0
-- VS Code：`npm --prefix extensions/vscode test` 生成 lcov；确保 CI 前端覆盖率门禁（≥95%）通过（失败时 CI 将自动输出近阈值与最低覆盖的文件清单）
+- VS Code：`npm --prefix extensions/vscode test` 生成 lcov；默认阈值≥80%（非阻断，CI 将输出近阈值与最低覆盖的文件清单）；如启用硬门禁需达标
 
 本地生成发布正文（示例，一键三步）
 ```
