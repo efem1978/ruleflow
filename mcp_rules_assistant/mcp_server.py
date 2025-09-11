@@ -71,7 +71,16 @@ class JsonRpcServer:
                 else {}
             )
             return bool(lic_cfg.get("required", False))
-        except Exception:
+        except Exception as e:
+            # 保持默认回退为 False，仅记录调试信息
+            try:
+                import logging  # pragma: no cover
+
+                logging.getLogger(__name__).debug(
+                    "[mcp] license.required parse failed: %r", e
+                )  # pragma: no cover
+            except Exception:  # pragma: no cover
+                pass
             return False
 
     def _ensure_license(self) -> None:
@@ -80,7 +89,16 @@ class JsonRpcServer:
         res = {}
         try:
             res = _verify_license()
-        except Exception:
+        except Exception as e:
+            # 许可校验失败路径：仅记录调试信息，不泄露具体异常
+            try:
+                import logging  # pragma: no cover
+
+                logging.getLogger(__name__).debug(
+                    "[mcp] license verify exception: %r", e
+                )  # pragma: no cover
+            except Exception:  # pragma: no cover
+                pass
             res = {"ok": False}
         if not bool(res.get("ok")):
             raise ValueError("license required or invalid")
@@ -100,16 +118,32 @@ class JsonRpcServer:
                     else {}
                 )
                 max_bytes = int(exec_cfg.get("max_request_bytes", 256 * 1024))
-            except Exception:
+            except Exception as e:
                 max_bytes = 256 * 1024
+                try:
+                    import logging  # pragma: no cover
+
+                    logging.getLogger(__name__).debug(
+                        "[mcp] exec.max_request_bytes parse: %r", e
+                    )  # pragma: no cover
+                except Exception:  # pragma: no cover
+                    pass
             try:
                 rps = int(exec_cfg.get("rate_limit_rps", 20))  # type: ignore[name-defined]
             except Exception:  # pragma: no cover - defensive
                 rps = 20
             try:
                 sz = len(json.dumps(params, ensure_ascii=False).encode("utf-8"))
-            except Exception:
+            except Exception as e:
                 sz = 0
+                try:
+                    import logging  # pragma: no cover
+
+                    logging.getLogger(__name__).debug(
+                        "[mcp] request size calc failed: %r", e
+                    )  # pragma: no cover
+                except Exception:  # pragma: no cover
+                    pass
             if max_bytes >= 0 and sz > max_bytes:
                 raise ValueError("request too large")
             now = time.monotonic()
