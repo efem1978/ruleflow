@@ -480,7 +480,27 @@ class DevAgent:
         try:
             status.update(self.compute_status())
         except Exception as e:
-            status["error"] = f"status compute failed: {e}"
+            # Fallback: best-effort snapshot via auto_status (never raise),
+            # to avoid stale error fields when core compute path hits a NameError.
+            try:
+                from .auto_status import generate_status as _gen  # local import
+
+                alt = _gen(self.project_root)
+                if isinstance(alt, dict):
+                    status.update(
+                        {
+                            k: v
+                            for k, v in alt.items()
+                            if k in ("plan", "coverage", "memory", "progress", "tasks")
+                        }
+                    )
+                    status.setdefault(
+                        "error", f"status compute failed (fallback used): {e}"
+                    )
+                else:
+                    status["error"] = f"status compute failed: {e}"
+            except Exception:
+                status["error"] = f"status compute failed: {e}"
         status["bypass"] = bypass
         status["interval"] = interval
         status["checks"] = {
