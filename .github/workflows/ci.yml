@@ -168,7 +168,7 @@ jobs:
       # - 仅告警（非阻断）阈值 90%
       # - 硬门禁默认关闭，可在需要时通过将该变量置为 1 开启
       VSCODE_COVERAGE_THRESHOLD_WARN: '90'
-      VSCODE_COVERAGE_GATE: '0'
+      VSCODE_COVERAGE_GATE: '1'
 
     steps:
       - uses: actions/checkout@v4
