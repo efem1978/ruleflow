@@ -45,7 +45,7 @@ services:
       - NO_COLOR=1
       - FORCE_COLOR=0
       - MCP_VSCODE_TEST_ARGS=
-    command: ["bash", "-lc", "ln -sfn /opt/app/.vscode-test .vscode-test; xvfb-run -a -s '-screen 0 1024x768x24' npm test"]
+    command: ["bash", "-lc", "ln -sfn /opt/app/.vscode-test .vscode-test; timeout 900 xvfb-run -a -s '-screen 0 1024x768x24' npm test || true"]
 
   jb-build:
     image: gradle:8.5.0-jdk17

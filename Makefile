@@ -153,3 +153,33 @@ ide-compat:
 preflight-quick:
 	PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 $(PYTHON) -m pytest -q tests/docs/test_docs_anchors.py
 	$(PYTHON) -c "from pathlib import Path; text=Path('README.md').read_text(encoding='utf-8'); print('[quick] README length =', len(text))"
+
+# ---------------- Docker helpers ----------------
+.PHONY: docker-verify docker-dev-agent-once docker-jb build-vscode-test docker-vscode-test docker-batch
+
+docker-verify:
+	docker compose run --rm verify
+
+docker-dev-agent-once:
+	docker compose run --rm dev-agent-once
+
+docker-jb:
+	docker compose run --rm jb-package || true
+	docker compose run --rm jb-ui-smoke || true
+
+build-vscode-test:
+	docker compose build vscode-test
+
+docker-vscode-test:
+	sh scripts/vscode-test-once.sh || true
+
+docker-batch:
+	@echo "[docker-batch] verify"
+	$(MAKE) docker-verify || true
+	@echo "[docker-batch] dev-agent-once"
+	$(MAKE) docker-dev-agent-once || true
+	@echo "[docker-batch] jetbrains"
+	$(MAKE) docker-jb || true
+	@echo "[docker-batch] vscode-test"
+	$(MAKE) build-vscode-test docker-vscode-test || true
+	@echo "[docker-batch] done"
