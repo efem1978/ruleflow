@@ -243,6 +243,7 @@ export function activate(context: vscode.ExtensionContext) {
           <button id="btnOpenWeakCsv">打开 weak_top.csv</button>
           <button id="btnOpenNearCsv">打开 near_top.csv</button>
           <button id="btnOpenGroupsCsv">打开 groups.csv</button>
+          <button id="btnOpenGroupsMd">打开 jb_groups.md</button>
           <ul id="covWeak"></ul>
           <h4>CSV 预览</h4>
           <pre id="csvPreview" style="white-space:pre-wrap; background:#f7f7f7; padding:4px; font-size:11px;"></pre>
@@ -301,6 +302,7 @@ export function activate(context: vscode.ExtensionContext) {
           (document.getElementById('btnOpenWeakCsv') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'open', path: '.mcp/dashboard/weak_top.csv', line: 1 });
           (document.getElementById('btnOpenNearCsv') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'open', path: '.mcp/dashboard/near_top.csv', line: 1 });
           (document.getElementById('btnOpenGroupsCsv') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'open', path: '.mcp/dashboard/groups.csv', line: 1 });
+          (document.getElementById('btnOpenGroupsMd') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'open', path: '.mcp/dashboard/jb_groups.md', line: 1 });
           (document.getElementById('btnCovExport') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'covExport' });
           (document.getElementById('btnCopyCsvPreview') as HTMLButtonElement).onclick = async () => {
             try {
@@ -1109,6 +1111,31 @@ export function activate(context: vscode.ExtensionContext) {
                   panel.webview.postMessage({ t: 'csvPreview', which: 'near_top.csv', head: out2 });
                 }
               } catch {}
+              // 预览 groups.csv 前 3 行
+              try {
+                const uri3 = vscode.Uri.file(ws + '/.mcp/dashboard/groups.csv');
+                const data3 = await vscode.workspace.fs.readFile(uri3);
+                const text3 = Buffer.from(data3).toString('utf8');
+                const raw3 = text3.split(/\r?\n/).slice(0, 4).filter(Boolean);
+                if (raw3.length >= 1) {
+                  const out3: string[] = [];
+                  out3.push(raw3[0]); // header: prefix,coverage,threshold,weak_count,files_count
+                  for (const row of raw3.slice(1)) {
+                    const parts = row.split(',');
+                    if (parts.length >= 5) {
+                      const pref = parts[0];
+                      const cov = Number(parts[1]||0)*100;
+                      const thr = Number(parts[2]||0)*100;
+                      const wc = parts[3];
+                      const fc = parts[4];
+                      out3.push(`${pref},${cov.toFixed(1)}%,${Math.round(thr)}%,${wc},${fc}`);
+                    } else {
+                      out3.push(row);
+                    }
+                  }
+                  panel.webview.postMessage({ t: 'csvPreview', which: 'groups.csv', head: out3 });
+                }
+              } catch {}
             }
           } catch (e:any) {
             vscode.window.showWarningMessage('Coverage 导出失败：' + String(e));
@@ -1457,6 +1484,7 @@ export function activate(context: vscode.ExtensionContext) {
       { label: '校验 CI / Validate CI', action: 'ciValidate' },
       { label: '导出覆盖率 / Export Coverage', action: 'covExport' },
       { label: '打开 JB 验证 / Open JB Verify', action: 'openJbVerify' },
+      { label: '打开 jb_groups.md', action: 'openJbGroupsMd' },
       { label: '打开 weak_top.csv', action: 'openWeakCsv' },
       { label: '打开 near_top.csv', action: 'openNearCsv' },
       { label: '打开 groups.csv', action: 'openGroupsCsv' },
@@ -1519,6 +1547,9 @@ export function activate(context: vscode.ExtensionContext) {
           break;
         case 'openGroupsCsv':
           try { const ws = getWorkspaceRoot(); if (!ws) throw new Error('no workspace'); const u=vscode.Uri.file(ws + '/.mcp/dashboard/groups.csv'); await vscode.workspace.fs.stat(u); const d=await vscode.workspace.openTextDocument(u); await vscode.window.showTextDocument(d,{preview:false}); } catch {}
+          break;
+        case 'openJbGroupsMd':
+          try { const ws = getWorkspaceRoot(); if (!ws) throw new Error('no workspace'); const u=vscode.Uri.file(ws + '/.mcp/dashboard/jb_groups.md'); await vscode.workspace.fs.stat(u); const d=await vscode.workspace.openTextDocument(u); await vscode.window.showTextDocument(d,{preview:false}); } catch {}
           break;
       }
     } catch (e:any) {

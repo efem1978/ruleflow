@@ -75,5 +75,8 @@ bash scripts/jb-ui-verify.sh || true
 if [ -f .mcp/dashboard/jb_verify.json ]; then
   echo "[verify] jb_verify.json summary:" && head -n 50 .mcp/dashboard/jb_verify.json || true
 fi
+if [ -f .mcp/dashboard/jb_groups.md ]; then
+  echo "[verify] jb_groups.md (Top 10):" && head -n 20 .mcp/dashboard/jb_groups.md || true
+fi
 
 echo "[verify] OK"
