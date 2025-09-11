@@ -957,8 +957,13 @@ class DevAgent:
                     # keep minimal set
                     evt["cmd"] = " ".join([str(x) for x in (evt.get("cmd") or [])])
                     cmd_events.append(evt)
-                except Exception:
-                    pass
+                except Exception as e:
+                    # 保持无副作用：仅记录调试日志，不中断循环
+                    try:
+                        self._log.debug("[agent] on_event append skipped: %r", e)
+                    except Exception:
+                        # 极端情况下 logger 也不可用时静默
+                        pass
 
             # 1. Run tests and checks
             tests = self._run_impacted_or_full(
