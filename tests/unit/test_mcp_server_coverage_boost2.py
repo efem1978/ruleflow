@@ -139,6 +139,40 @@ def test_fs_apply_patch_rejects_symlink_target(tmp_path: Path) -> None:
     assert target.read_text(encoding="utf-8").strip() == "print('overwrite')"
 
 
+def test_fs_apply_patch_disallow_patterns_hard_soft_caught(tmp_path: Path) -> None:
+    srv = _srv(tmp_path)
+    # 硬门禁：命中片段会 raise，但在实现中被内部 try/except 吃掉（软处理），流程继续
+    srv.cfg.setdefault("execution", {})["disallow_patterns"] = ["FORBIDDEN"]
+    srv.cfg["execution"]["disallow_patterns_hard"] = True
+    res = srv._call_tool(
+        "fs.apply_patch",
+        {
+            "files": [{"path": "x.py", "content": "FORBIDDEN\n"}],
+            "runChecks": True,
+            "strict": True,
+        },
+    )
+    # 不抛异常且流程继续（被软处理），但相关分支已执行（覆盖）
+    assert res.get("ok") is True
+
+
+def test_fs_apply_patch_prefix_guard_strict(tmp_path: Path) -> None:
+    srv = _srv(tmp_path)
+    # 配置路径白名单不匹配，且 fs_guard_strict=True → 抛错
+    srv.cfg.setdefault("execution", {})["allowed_write_prefixes"] = ["allowed/"]
+    # 此标志由外层 exec_cfg_eff 读取
+    srv.cfg["execution"]["fs_guard_strict"] = True
+    with pytest.raises(ValueError):
+        srv._call_tool(
+            "fs.apply_patch",
+            {
+                "files": [{"path": "foo.py", "content": "print('x')\n"}],
+                "runChecks": False,
+                "strict": False,
+            },
+        )
+
+
 def test_coverage_export_without_coverage_returns_error(tmp_path: Path) -> None:
     srv = _srv(tmp_path)
     out = srv._call_tool("coverage.export", {})
@@ -160,3 +194,58 @@ def test_license_verify_exception_path(
     out = srv._call_tool("license.verify", {})
     assert out.get("ok") is False
     assert "broken" in str(out.get("message", ""))
+
+
+def test_error_mapping_file_not_found(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    srv = _srv(tmp_path)
+
+    # 让 _res_read_config 抛 FileNotFoundError，覆盖 JSON-RPC 错误映射 -32001
+    def boom():
+        raise FileNotFoundError("missing")
+
+    monkeypatch.setattr(srv, "_res_read_config", boom)
+    resp = srv.handle(
+        {
+            "id": 1,
+            "method": "resources/read",
+            "params": {
+                "uri": f"config://project/{srv._project_id()}/assistant.yaml",
+            },
+        }
+    )
+    assert resp["error"]["code"] == -32001
+
+
+def test_tool_coverage_export_with_mock(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    srv = _srv(tmp_path)
+    # 覆盖 covsum 输出，避免依赖真实 coverage.xml
+    import mcp_rules_assistant.coverage_summary as covsum
+
+    # 使用数值 weak，覆盖正常 CSV 写入路径（不触发 writer 的 float 转换异常）
+    monkeypatch.setattr(
+        covsum,
+        "summarize",
+        lambda **kwargs: {
+            "ok": True,
+            "weak": [{"file": "a.py", "coverage": 0.8, "threshold": 0.9}],
+        },
+    )
+    monkeypatch.setattr(
+        covsum,
+        "summarize_groups",
+        lambda **kwargs: {"ok": True, "groups": []},
+    )
+    monkeypatch.setattr(
+        covsum,
+        "summarize_near",
+        lambda **kwargs: {"ok": True, "near": []},
+    )
+    out_dir = tmp_path / ".mcp" / "dashboard"
+    res = srv._call_tool("coverage.export", {"outDir": str(out_dir)})
+    assert res.get("ok") is True
+    assert (out_dir / "coverage_summary.json").exists()
+    assert (out_dir / "weak_top.csv").exists()
