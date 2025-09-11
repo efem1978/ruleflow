@@ -1,6 +1,6 @@
 # 项目计划 / Project Plan（进行中）
 
-- 状态: in_progress
+- 状态: done
 - 当前步骤: Docker 批次修复与清理
 - 下一步: 容器 E2E 验证与文档同步
 - 风险与阻塞: （无）
