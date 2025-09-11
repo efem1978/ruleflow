@@ -1,8 +1,8 @@
 # 项目计划 / Project Plan（进行中）
 
 - 状态: in_progress
-- 当前步骤: 收尾：VS Code 无头测试在本地可跑（容器易超时），其余已完成
-- 下一步: 最终手动确认后标记 done
+- 当前步骤: CI 批次：允许 workflow_dispatch 严格跑 VS Code 测试
+- 下一步: 收尾：计划标记 done
 - 风险与阻塞: （无）
 
 ## 任务清单（可勾选，唯一权威）

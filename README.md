@@ -56,7 +56,7 @@ MCP 规则与上下文助手 / MCP Rules & Context Assistant
 （Codecov 说明：公共仓库默认无需 token；私有仓库需在 CI 配置 `CODECOV_TOKEN`，本仓库工作流已在无 token 时降级为“尽力而为，不阻断”。）
 ![PyPI](https://img.shields.io/pypi/v/mcp-rules-assistant?label=pypi)
 
-提示：`docs/CI_HEALTH_CHECK.md` 为 CI 健康检查说明文档（包含必备检查、触发方式与常见失败定位）。
+提示：`docs/CI_HEALTH_CHECK.md` 为 CI 健康检查说明文档（包含必备检查、触发方式与常见失败定位）。CI 工作流支持 `workflow_dispatch`，可在 GitHub Actions 页面手动触发一次完整构建（包含 VS Code 无头测试与门禁）。
 
 近阈值窗口（near）与 CI 说明
 - 默认示例使用 3% 窗口；本仓库为抛光核心模块将 `coverage.near.within` 覆盖为 1.0%（0.01）。可用命令快速调整：`mcp-rules-assistant coverage-near-set --within 3 --top 20`。
