@@ -108,6 +108,9 @@ execution:
     - ".mcp/"
   # checks 委托到统一 process runner（可选，默认关闭；也可用环境变量 MCP_CHECKS_PROCESS_RUNNER=1 开启）
   checks_delegate_run_cmd: false
+  # 可选：禁用片段命中时升级为硬门禁（默认 false；命中 disallow_patterns 直接拒绝写入）
+  # disallow_patterns: ['import pdb', 'os.system(']
+  disallow_patterns_hard: false
 
 组合建议（只读/严格/限制）
 - 只读保护：`execution.readonly: true` 时，`fs.apply_patch` 在非 dry-run 下将被拒绝（可用于冻结窗口）。
@@ -117,7 +120,8 @@ execution:
 
 注意与实践建议
 - 符号链接：fs.apply_patch 默认拒绝写入符号链接目标（避免路径混淆）。
-- disallow_patterns：命中仅“软拦截”（记录/提示），严格阻断仅针对 `pytest.mark.skip/xfail`（保持保存轻、推送/CI 重的原则）。
+- disallow_patterns：默认“软拦截”（记录/提示）。如需将其提升为硬门禁，请设置 `execution.disallow_patterns_hard: true`；
+  仍保持 `pytest.mark.skip/xfail` 在 strict 情况下的硬阻断语义不变。
 
 license:
   # 是否启用许可硬门禁：开启后，部分敏感操作（rules.enforce / ci.generate / ci.validate / ci.autofix / git.install_hooks）

@@ -73,6 +73,10 @@
       {
         "command": "mcpRulesAssistant.nlCommand",
         "title": "RuleFlow: Natural Command"
+      },
+      {
+        "command": "mcpRulesAssistant.licenseStatus",
+        "title": "RuleFlow: License Status"
       }
     ]
   },

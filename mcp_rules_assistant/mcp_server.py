@@ -462,6 +462,17 @@ class JsonRpcServer:
                                         "[fs.apply_patch] disallow_patterns hit (soft): path=%s",
                                         f.get("path", ""),
                                     )
+                                # 可选硬门禁：当 execution.disallow_patterns_hard 为真时直接拒绝
+                                try:
+                                    hard_gate = bool(
+                                        ex_cfg2.get("disallow_patterns_hard", False)
+                                    )
+                                except Exception:
+                                    hard_gate = False
+                                if hard_gate:
+                                    raise ValueError(
+                                        "检测到受禁内容片段，按配置 execution.disallow_patterns_hard 拒绝写入"
+                                    )
                     except Exception as e:
                         # 忽略解析错误，但在严格模式下仍保持 skip/xfail 拒绝
                         import logging
@@ -564,6 +575,8 @@ class JsonRpcServer:
             return self._tool_nl_command(args)
         if name == "license.activate":
             return self._tool_license_activate(args)
+        if name == "license.verify":
+            return self._tool_license_verify()
         if name == "plan.update":
             return self._tool_plan_update(args)
         if name == "plan.set":
@@ -812,6 +825,14 @@ class JsonRpcServer:
         shutil.copyfile(str(src), str(dst))
         # refresh config not needed; diagnose reads from disk
         return {"ok": True, "path": str(dst)}
+
+    def _tool_license_verify(self) -> Dict[str, Any]:
+        """Verify local license (if present) and return status JSON."""
+        try:
+            lic = _verify_license()
+        except Exception as e:
+            return {"ok": False, "message": str(e)}
+        return {"ok": True, "license": lic}
 
     # ---- rules tool helpers ----
     def _tool_rules_ingest(self, args: Dict[str, Any]) -> Dict[str, Any]:

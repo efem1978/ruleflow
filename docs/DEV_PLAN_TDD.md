@@ -52,16 +52,16 @@ Phase E — 集成与 CLI
   - [ ] 通过后重构（去重/提取），保证对外行为不变
   - [ ] 覆盖率：核心≥98%，其余≥95%
 - 组件层（checks/hooks/fs_wrapper）
-  - [ ] 工具缺失降级（ruff/mypy/pytest 缺失 → skipped）
-  - [ ] 最近失败优先的受影响测试策略
-  - [ ] 生成的 CI/Hooks 与配置一致性快照
+  - [x] 工具缺失降级（ruff/mypy/pytest 缺失 → skipped）
+  - [x] 最近失败优先的受影响测试策略
+  - [x] 生成的 CI/Hooks 与配置一致性快照
 - 集成层（cli/dev_agent）
-  - [ ] CLI 烟雾与参数校验
-  - [ ] dev_agent 单循环：写入 status.json/history/fail_counters
-  - [ ] 冻结/解冻阈值与逻辑路径覆盖
+  - [x] CLI 烟雾与参数校验
+  - [x] dev_agent 单循环：写入 status.json/history/fail_counters
+  - [x] 冻结/解冻阈值与逻辑路径覆盖
 - 接口层（mcp_server）
-  - [ ] initialize/capabilities & 基础 tools/resources 的错误路径
-  - [ ] fs.apply_patch(strict) 拒绝路径
+  - [x] initialize/capabilities & 基础 tools/resources 的错误路径
+  - [x] fs.apply_patch(strict) 拒绝路径
 - 扩展层（VS Code）
   - [ ] 无头测试 & 近阈值/覆盖率交互回归
 

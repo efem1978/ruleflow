@@ -864,6 +864,153 @@ def coverage_report(
         )
 
 
+@app.command("coverage-export")
+def coverage_export(
+    out_dir: str = typer.Option(
+        ".mcp/dashboard", help="输出目录（默认 .mcp/dashboard）"
+    ),
+    weak_top: int = typer.Option(20, help="导出弱项 Top N（默认 20）"),
+    near_top: int = typer.Option(
+        50, help="导出近阈值 Top N（默认 50，受 within 限制）"
+    ),
+    within: Optional[float] = typer.Option(
+        None, help="近阈值窗口（百分比），留空使用配置 coverage.near.within"
+    ),
+) -> None:
+    """导出覆盖率汇总与 CSV：weak_top.csv / near_top.csv / groups.csv / coverage_summary.json。
+
+    - weak_top.csv: file, coverage, threshold, delta（threshold-coverage，降序）
+    - near_top.csv: file, coverage, threshold, delta_up（距阈值上方差值，升序）
+    - groups.csv: prefix, coverage, threshold, weak_count, files_count
+    - coverage_summary.json: 等同 `coverage-report --json` 输出
+    """
+    outp = Path(out_dir).expanduser().resolve()
+    outp.mkdir(parents=True, exist_ok=True)
+
+    cfg = load_config()
+    perf = (
+        cfg.get("performance", {})
+        if isinstance(cfg.get("performance", {}), dict)
+        else {}
+    )
+    min_module = float(
+        (perf.get("on_push", {}) or {}).get("coverage", {}).get("min_module", 0.9)
+    )
+    policy = (
+        (cfg.get("coverage", {}) or {}).get("policy", None)
+        if isinstance(cfg.get("coverage", {}), dict)
+        else None
+    )
+    near_cfg = (
+        (cfg.get("coverage", {}) or {}).get("near", {})
+        if isinstance(cfg.get("coverage", {}), dict)
+        else {}
+    )
+    within_pct = (
+        float(near_cfg.get("within", 0.03) * 100.0) if within is None else float(within)
+    )
+    within_pct = max(1.0, min(10.0, within_pct))
+
+    res_sum = cov_summary(policy=policy, min_module=min_module)
+    if not res_sum.get("ok"):
+        rprint(f"[yellow]{res_sum.get('message', 'coverage.xml 不存在')}[/]")
+        raise typer.Exit(1)
+    res_grp = cov_groups(policy=policy, min_module=min_module)
+    res_near = cov_near(
+        policy=policy, min_module=min_module, within=within_pct / 100.0, top=near_top
+    )
+
+    # JSON summary
+    import json as _json
+
+    payload = {
+        "weak": res_sum.get("weak", []) or [],
+        "groups": res_grp.get("groups", []) or [],
+        "near": res_near.get("near", []) or [],
+        "min_module": min_module,
+    }
+    (outp / "coverage_summary.json").write_text(
+        _json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+
+    # weak_top.csv
+    import csv
+
+    weak_list: list[dict] = (
+        list(payload["weak"]) if isinstance(payload["weak"], list) else []
+    )
+    for it in weak_list:
+        try:
+            it["delta"] = float(it.get("threshold", 0.0)) - float(
+                it.get("coverage", 0.0)
+            )
+        except Exception:
+            it["delta"] = 0.0
+    weak_sorted = sorted(weak_list, key=lambda x: x.get("delta", 0.0), reverse=True)[
+        :weak_top
+    ]
+    with (outp / "weak_top.csv").open("w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow(["file", "coverage", "threshold", "delta"])
+        for it in weak_sorted:
+            w.writerow(
+                [
+                    it.get("file", ""),
+                    float(it.get("coverage", 0.0)),
+                    float(it.get("threshold", 0.0)),
+                    float(it.get("delta", 0.0)),
+                ]
+            )
+
+    # near_top.csv
+    near_list: list[dict] = (
+        list(payload["near"]) if isinstance(payload["near"], list) else []
+    )
+    with (outp / "near_top.csv").open("w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow(["file", "coverage", "threshold", "delta_up"])
+        for it in near_list[:near_top]:
+            w.writerow(
+                [
+                    it.get("file", ""),
+                    float(it.get("coverage", 0.0)),
+                    float(it.get("threshold", 0.0)),
+                    float(it.get("delta_up", 0.0)),
+                ]
+            )
+
+    # groups.csv
+    groups_list: list[dict] = (
+        list(payload["groups"]) if isinstance(payload["groups"], list) else []
+    )
+    with (outp / "groups.csv").open("w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow(["prefix", "coverage", "threshold", "weak_count", "files_count"])
+        for g in groups_list:
+            w.writerow(
+                [
+                    g.get("prefix", ""),
+                    float(g.get("coverage", 0.0)),
+                    float(g.get("threshold", 0.0)),
+                    int(g.get("weak_count", 0)),
+                    int(g.get("files_count", 0)),
+                ]
+            )
+
+    rprint(
+        {
+            "ok": True,
+            "out_dir": str(outp),
+            "files": [
+                str(outp / "coverage_summary.json"),
+                str(outp / "weak_top.csv"),
+                str(outp / "near_top.csv"),
+                str(outp / "groups.csv"),
+            ],
+        }
+    )
+
+
 @app.command("diagnose")
 def diagnose(
     json_out: bool = typer.Option(

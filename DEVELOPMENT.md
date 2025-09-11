@@ -34,6 +34,7 @@
   - 运行测试：
     - `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q -p pytest_cov --maxfail=1 --disable-warnings -W error --strict-markers --cov=mcp_rules_assistant --cov-report=xml:coverage.xml`
 - 本地一键 CI：`make local-ci-run`
+- 导出覆盖率追踪报表到 `.mcp/dashboard/`：`mcp-rules-assistant coverage-export`
 - 安装 Git hooks（commit-msg / pre-push）：`make hooks` 或 `python -m mcp_rules_assistant.cli install-hooks`
   - 无 Python 环境的回退：`make hooks-sh`（安装最小 commit-msg 与 pre-push）
 - 一键维护（安装 hooks + 自修复 CI）：`python -m mcp_rules_assistant.cli maintenance`
@@ -56,33 +57,33 @@
   - [ ] 为每个公开函数补齐失败用例（含边界/异常分支；禁止警告与跳过）
   - [ ] 实现最小通过代码；保持幂等与错误信息可诊断
   - [ ] 重构：去重/提取公共逻辑；不改变对外行为
-  - [ ] 覆盖率：核心文件≥98%，其余≥95%
+  - [x] 覆盖率：核心文件≥98%，其余≥95%
 
 2) 组件层（Behaviors & Gates）
 - 目标：`checks.py`（受影响测试/降级）、`hooks.py`（钩子生成）
 - 步骤：
-  - [ ] 构造工具缺失与异常分支的替身/桩（ruff/mypy/pytest 缺失时返回 skipped）
-  - [ ] 失败历史缓存与优先级选择（最近失败优先）用例
-  - [ ] 生成的钩子/CI 与配置一致性快照测试
+  - [x] 构造工具缺失与异常分支的替身/桩（ruff/mypy/pytest 缺失时返回 skipped）
+  - [x] 失败历史缓存与优先级选择（最近失败优先）用例
+  - [x] 生成的钩子/CI 与配置一致性快照测试
 
 3) 集成层（CLI & Dev Agent）
 - 目标：`cli.py` 子命令、`dev_agent.py` 循环与状态文件
 - 步骤：
-  - [ ] CLI 烟雾测试：init/ingest-rules/coverage/coverage-groups/coverage-report
-  - [ ] Dev Agent 单循环：写入 `status.json`/`history.json`/`fail_counters.json` 的端到端用例
-  - [ ] 失败计数/冻结与解冻路径覆盖（阈值 1 的快速分支）
-  - [ ] 自动提交/推送/打标签开关分支：默认 0，显式置 1 时覆盖对应路径
+  - [x] CLI 烟雾测试：init/ingest-rules/coverage/coverage-groups/coverage-report
+  - [x] Dev Agent 单循环：写入 `status.json`/`history.json`/`fail_counters.json` 的端到端用例
+  - [x] 失败计数/冻结与解冻路径覆盖（阈值 1 的快速分支）
+  - [x] 自动提交/推送/打标签开关分支：默认 0，显式置 1 时覆盖对应路径
 
 4) 接口层（MCP Server）
 - 目标：`mcp_server.py` methods/resources（stdio 模式）
 - 步骤：
-  - [ ] initialize/capabilities 与核心 tools/resources 的正向与错误路径
-  - [ ] fs.apply_patch(strict) 的拒绝路径与后置检查回退
+  - [x] initialize/capabilities 与核心 tools/resources 的正向与错误路径
+  - [x] fs.apply_patch(strict) 的拒绝路径与后置检查回退
 
 5) 扩展层（VS Code Extension）
 - 目标：交互与 Webview 消息桥
 - 步骤：
-  - [ ] Node 无头测试（`npm --prefix extensions/vscode test`；必要时 `MCP_VSCODE_TEST_ARGS=""`）
+  - [x] Node 无头测试（`npm --prefix extensions/vscode test`；必要时 `MCP_VSCODE_TEST_ARGS=""`）
   - [ ] 覆盖规则摄取/覆盖率加载/近阈值/CI 配置保存
 
 完成标准（DoD）

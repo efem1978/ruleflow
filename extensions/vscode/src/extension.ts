@@ -1358,6 +1358,17 @@ export function activate(context: vscode.ExtensionContext) {
     }
   }));
 
+  // 许可状态（只读）：调用 license.verify 并展示结果
+  context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant.licenseStatus', async () => {
+    try { client.start(context); } catch {}
+    try {
+      const out = await client.request('tools/call', { name: 'license.verify', arguments: {} });
+      vscode.window.showInformationMessage('License: ' + JSON.stringify(out));
+    } catch (e:any) {
+      vscode.window.showErrorMessage('License verify failed: ' + String(e));
+    }
+  }));
+
   context.subscriptions.push(disposable);
 
   // --- test-only helper commands (not contributed) ---

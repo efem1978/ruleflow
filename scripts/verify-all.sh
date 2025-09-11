@@ -48,6 +48,9 @@ if near:
     print(' -', f"{round((it.get('coverage',0)*100),1)}% ≥ {int((it.get('threshold',0))*100)}% —", it.get('file',''))
 PY
 
+echo "[verify] Coverage Export (CSV/JSON)"
+"$PY" -m mcp_rules_assistant.cli coverage-export --out-dir .mcp/dashboard --weak-top 50 --near-top 50 --within 3 || true
+
 echo "[verify] 4/4 dev_agent smoke (local)"
 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 DEV_AGENT_MAX_CYCLES=1 "$PY" -m mcp_rules_assistant.dev_agent --interval 1 >/dev/null 2>&1 || true
 "$PY" - << 'PY'
@@ -66,5 +69,8 @@ if not ok or weak:
   print('[verify] FAIL: dev_agent smoke indicates failing tests or weak coverage')
   sys.exit(1)
 PY
+
+echo "[verify] JetBrains UI verify (optional)"
+bash scripts/jb-ui-verify.sh || true
 
 echo "[verify] OK"

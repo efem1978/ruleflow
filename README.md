@@ -174,6 +174,7 @@ coverage:
 - docs/SECURITY_TOOLS.md：安全工具示例（hadolint/semgrep）
  - extensions/vscode/README.md：插件说明
 - PRICING：`docs/PRICING.md`（定价与许可、试用政策）
+- COMMERCIAL：`docs/COMMERCIAL.md`（开源/闭源边界、授权与发行物料）
 - 商业化与结算：采用 MoR（Lemon Squeezy / Paddle），USD 计价、自动本地化与税务处理
 - IDE 集成指南：
 - 多 IDE 最小集成：`mcp-rules-assistant ide-scaffold --editor <vscode|cursor|jetbrains|neovim>`（生成至 `.mcp/ide/<editor>/`）

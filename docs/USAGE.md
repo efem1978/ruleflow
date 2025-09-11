@@ -19,6 +19,8 @@
 - mcp-rules-assistant coverage
 - mcp-rules-assistant coverage-groups
 - mcp-rules-assistant coverage-report --json > coverage_report.json
+- 导出追踪报表（CSV/JSON 到 .mcp/dashboard）：
+- mcp-rules-assistant coverage-export --out-dir .mcp/dashboard --weak-top 20 --near-top 50 --within 3
 - mcp-rules-assistant coverage-clean-cache  # 如遇到缓存不一致
 
 4) 建议导出

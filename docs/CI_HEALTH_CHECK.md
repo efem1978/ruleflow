@@ -9,6 +9,8 @@ CI 健康检查 / CI Health Check
 - Tests + Coverage：
   - Python 测试全绿；生成 coverage.xml。
   - Coverage Policy Gate：弱项 weak=0；若失败，日志中列出文件与差值；同时打印近阈值 TopN 作为补测建议。
+  - 构件导出：CI/Nightly 自动运行 `mcp-rules-assistant coverage-export --out-dir .mcp/dashboard`，生成：
+    `.mcp/dashboard/coverage_summary.json`、`weak_top.csv`、`near_top.csv`、`groups.csv`（便于下载与审阅）。
 - Forbid skip/xfail（包内）：包代码中不允许出现 pytest.skip/xfail 标记。
 - Security（bandit 高级别扫描）：无高危问题。
 - SAST（semgrep 固定版本）：无阻断问题（策略可调）。
@@ -19,6 +21,10 @@ CI 健康检查 / CI Health Check
 - 覆盖率 Gate 失败：
   - 查看 `Coverage Policy Gate` 步骤输出的 weak 列表与 `near.txt`/`near.csv`/`near.json` 工件。
   - 按 `coverage.policy` 或 `.mcp/assistant.yaml` 的阈值，优先补测近阈值文件（Top 10）。
+  - 从构件到行动（Artifacts → Actions）：下载 `coverage-export` 构件，打开 `weak_top.csv` 与 `near_top.csv`：
+    - `weak_top.csv`：优先为 delta 最大的前 5–10 个文件补测或提升阈值策略（如核心与非核心分层）。
+    - `near_top.csv`：用例微调即可达标的候选，先补齐这些“临门一脚”的文件。
+    - `groups.csv`：若某前缀整体偏低，考虑为该前缀集中补测或下调策略阈值（经规则建议评估）。
 - VS Code lcov 低于阈值：
   - 查看 `near_vscode.txt` 输出；优先为“消息路由/命令处理/核心交互”补测，降低不必要 UI 分支复杂度。
 - 类型检查失败：

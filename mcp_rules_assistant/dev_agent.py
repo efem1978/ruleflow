@@ -998,8 +998,9 @@ class DevAgent:
                 prev: List[Dict[str, Any]] = []
                 if ce_path.exists():
                     try:
+                        # 容忍历史/并发导致的临时损坏或空文件
                         prev = json.loads(ce_path.read_text(encoding="utf-8")) or []
-                    except Exception:
+                    except (ValueError, OSError):  # JSON 无效或文件读错误
                         prev = []
                 merged = (prev + cmd_events)[-200:]
                 atomic_write_text(ce_path, json.dumps(merged, ensure_ascii=False))
@@ -1012,9 +1013,9 @@ class DevAgent:
                             "a", encoding="utf-8"
                         ) as jf:
                             jf.write(jlines)
-                except Exception as e:
+                except (OSError, IOError) as e:
                     self._log.debug("[agent] persist cmd_events.jsonl skipped: %r", e)
-            except Exception as e:
+            except (OSError, IOError, ValueError, TypeError) as e:
                 self._log.debug("[agent] persist cmd_events skipped: %r", e)
 
             # 7. Wait for next cycle
