@@ -1066,8 +1066,48 @@ export function activate(context: vscode.ExtensionContext) {
               try {
                 const data = await vscode.workspace.fs.readFile(uri);
                 const text = Buffer.from(data).toString('utf8');
-                const head = text.split(/\r?\n/).slice(0, 4);
-                panel.webview.postMessage({ t: 'csvPreview', which: 'weak_top.csv', head });
+                const raw = text.split(/\r?\n/).slice(0, 4).filter(Boolean);
+                if (raw.length >= 1) {
+                  const outLines: string[] = [];
+                  outLines.push(raw[0]); // header: file,coverage,threshold,delta
+                  for (const row of raw.slice(1)) {
+                    const parts = row.split(',');
+                    if (parts.length >= 4) {
+                      const file = parts[0];
+                      const cov = Number(parts[1]||0)*100;
+                      const thr = Number(parts[2]||0)*100;
+                      const delt = Number(parts[3]||0)*100;
+                      outLines.push(`${file},${cov.toFixed(1)}%,${Math.round(thr)}%,${delt.toFixed(1)}%`);
+                    } else {
+                      outLines.push(row);
+                    }
+                  }
+                  panel.webview.postMessage({ t: 'csvPreview', which: 'weak_top.csv', head: outLines });
+                }
+              } catch {}
+              // 预览 near_top.csv 前 3 行
+              try {
+                const uri2 = vscode.Uri.file(ws + '/.mcp/dashboard/near_top.csv');
+                const data2 = await vscode.workspace.fs.readFile(uri2);
+                const text2 = Buffer.from(data2).toString('utf8');
+                const raw2 = text2.split(/\r?\n/).slice(0, 4).filter(Boolean);
+                if (raw2.length >= 1) {
+                  const out2: string[] = [];
+                  out2.push(raw2[0]); // header: file,coverage,threshold,delta_up
+                  for (const row of raw2.slice(1)) {
+                    const parts = row.split(',');
+                    if (parts.length >= 4) {
+                      const file = parts[0];
+                      const cov = Number(parts[1]||0)*100;
+                      const thr = Number(parts[2]||0)*100;
+                      const delt = Number(parts[3]||0)*100;
+                      out2.push(`${file},${cov.toFixed(1)}%,${Math.round(thr)}%,${delt.toFixed(1)}%`);
+                    } else {
+                      out2.push(row);
+                    }
+                  }
+                  panel.webview.postMessage({ t: 'csvPreview', which: 'near_top.csv', head: out2 });
+                }
               } catch {}
             }
           } catch (e:any) {
