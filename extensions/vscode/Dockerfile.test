@@ -10,7 +10,8 @@ RUN set -eux; \
       libgtk-3-0 libasound2 libnss3 libxss1 libxshmfence1 \
       libgbm1 libdrm2 libxdamage1 libxfixes3 libxcomposite1 \
       libxi6 libxrandr2 libatk-bridge2.0-0 libx11-xcb1 libxext6 \
-      libxkbfile1 libxkbcommon0 libwayland-client0 libxrender1 \
+      libxkbfile1 libxkbcommon0 libxkbcommon-x11-0 libwayland-client0 libxrender1 \
+      libxtst6 libsecret-1-0 libnotify4 dbus \
       ca-certificates >/dev/null; \
     rm -rf /var/lib/apt/lists/*
 
