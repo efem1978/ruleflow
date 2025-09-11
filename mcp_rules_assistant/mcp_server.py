@@ -393,6 +393,8 @@ class JsonRpcServer:
             return self._tool_coverage_near(args)
         if name == "coverage.report":
             return self._tool_coverage_report(args)
+        if name == "coverage.export":
+            return self._tool_coverage_export(args)
         if name == "rules.maxima":
             return self._tool_rules_maxima()
         if name == "ide.scaffold":
@@ -664,6 +666,125 @@ class JsonRpcServer:
             "groups": res_grp.get("groups", []),
             "near": res_near.get("near", []),
             "min_module": min_module,
+        }
+
+    def _tool_coverage_export(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        """Export coverage summary and CSVs to .mcp/dashboard (or provided dir).
+
+        Args:
+          outDir: optional output directory (default .mcp/dashboard)
+          weakTop: optional int (default 20)
+          nearTop: optional int (default from config coverage.near.top, fallback 50)
+          within: optional float (0..1, default from config coverage.near.within)
+        """
+        import csv as _csv
+        import json as _json
+        from pathlib import Path as _P
+
+        out_dir = args.get("outDir") or str(self.project_root / ".mcp" / "dashboard")
+        weak_top = int(args.get("weakTop", 20))
+        # near defaults
+        cfg_now = load_config(self.project_root)
+        near_cfg = (
+            (cfg_now.get("coverage", {}) or {}).get("near", {})
+            if isinstance(cfg_now.get("coverage", {}), dict)
+            else {}
+        )
+        within = float(args.get("within", near_cfg.get("within", 0.03)))
+        near_top = int(args.get("nearTop", near_cfg.get("top", 50)))
+        outp = _P(out_dir)
+        outp.mkdir(parents=True, exist_ok=True)
+
+        min_module, policy = self._coverage_config_basics()
+        res_sum = covsum.summarize(
+            project_root=self.project_root, policy=policy, min_module=min_module
+        )
+        if not res_sum.get("ok"):
+            return {
+                "ok": False,
+                "message": res_sum.get("message", "coverage.xml missing"),
+            }
+        res_grp = covsum.summarize_groups(
+            project_root=self.project_root, policy=policy, min_module=min_module
+        )
+        res_near = covsum.summarize_near(
+            project_root=self.project_root,
+            policy=policy,
+            min_module=min_module,
+            within=within,
+            top=near_top,
+        )
+
+        payload = {
+            "weak": res_sum.get("weak", []) or [],
+            "groups": res_grp.get("groups", []) or [],
+            "near": res_near.get("near", []) or [],
+            "min_module": min_module,
+        }
+        (outp / "coverage_summary.json").write_text(
+            _json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        weak_list = list(payload["weak"]) if isinstance(payload["weak"], list) else []
+        for it in weak_list:
+            try:
+                it["delta"] = float(it.get("threshold", 0.0)) - float(
+                    it.get("coverage", 0.0)
+                )
+            except Exception:
+                it["delta"] = 0.0
+        weak_sorted = sorted(
+            weak_list, key=lambda x: x.get("delta", 0.0), reverse=True
+        )[:weak_top]
+        with (outp / "weak_top.csv").open("w", newline="", encoding="utf-8") as f:
+            w = _csv.writer(f)
+            w.writerow(["file", "coverage", "threshold", "delta"])
+            for it in weak_sorted:
+                w.writerow(
+                    [
+                        it.get("file", ""),
+                        float(it.get("coverage", 0.0)),
+                        float(it.get("threshold", 0.0)),
+                        float(it.get("delta", 0.0)),
+                    ]
+                )
+        near_list = list(payload["near"]) if isinstance(payload["near"], list) else []
+        with (outp / "near_top.csv").open("w", newline="", encoding="utf-8") as f:
+            w = _csv.writer(f)
+            w.writerow(["file", "coverage", "threshold", "delta_up"])
+            for it in near_list[:near_top]:
+                w.writerow(
+                    [
+                        it.get("file", ""),
+                        float(it.get("coverage", 0.0)),
+                        float(it.get("threshold", 0.0)),
+                        float(it.get("delta_up", 0.0)),
+                    ]
+                )
+        groups_list = (
+            list(payload["groups"]) if isinstance(payload["groups"], list) else []
+        )
+        with (outp / "groups.csv").open("w", newline="", encoding="utf-8") as f:
+            w = _csv.writer(f)
+            w.writerow(["prefix", "coverage", "threshold", "weak_count", "files_count"])
+            for g in groups_list:
+                w.writerow(
+                    [
+                        g.get("prefix", ""),
+                        float(g.get("coverage", 0.0)),
+                        float(g.get("threshold", 0.0)),
+                        int(g.get("weak_count", 0)),
+                        int(g.get("files_count", 0)),
+                    ]
+                )
+        return {
+            "ok": True,
+            "out_dir": str(outp),
+            "files": [
+                str(outp / "coverage_summary.json"),
+                str(outp / "weak_top.csv"),
+                str(outp / "near_top.csv"),
+                str(outp / "groups.csv"),
+            ],
         }
 
     def _tool_rules_maxima(self) -> Dict[str, Any]:

@@ -31,4 +31,23 @@ else:
     print('[jb-ui-verify] summary: not found (ok)')
 PY
 
+# Optional: compiled rules & suggestions counts
+python3 - << 'PY'
+import json, sys, os
+from pathlib import Path
+root = Path(os.getcwd())
+rc = root/'.mcp'/'rules_compiled.json'
+if not rc.exists():
+    print('[jb-ui-verify] rules_compiled.json missing (ok)')
+    sys.exit(0)
+try:
+    D = json.loads(rc.read_text(encoding='utf-8'))
+except Exception as e:
+    print('[jb-ui-verify] WARN: parse rules_compiled.json failed:', e)
+    sys.exit(0)
+conf = D.get('conflicts') or []
+sugg = D.get('suggestions') or []
+print('[jb-ui-verify] rules: conflicts =', len(conf), 'suggestions =', len(sugg))
+PY
+
 echo "[jb-ui-verify] done"

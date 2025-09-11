@@ -211,6 +211,7 @@ export function activate(context: vscode.ExtensionContext) {
           <button id="btnShowWeak">仅看弱项 / Show Weak</button>
           <button id="btnCovTree">加载目录树 / Load Weak Tree</button>
           <button id="btnCovNear">仅看近阈值 / Show Near</button>
+          <button id="btnCovExport">导出覆盖率报表 / Export Coverage</button>
           <button id="btnPrepareEnvDry">准备环境(预览) / Prepare Env (dry-run)</button>
           <button id="btnPrepareEnvInstall">准备并安装环境 / Prepare & Install</button>
         </div>
@@ -291,6 +292,7 @@ export function activate(context: vscode.ExtensionContext) {
           document.getElementById('btnLoadSugg').onclick = () => vscode.postMessage({ t: 'loadSugg' });
           document.getElementById('btnCoverage').onclick = () => vscode.postMessage({ t: 'coverage' });
           document.getElementById('btnCovTree').onclick = () => vscode.postMessage({ t: 'coverageTree' });
+          (document.getElementById('btnCovExport') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'covExport' });
           (document.getElementById('btnIdeScaffold') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'ideScaffold' });
           (document.getElementById('btnCompliance') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'compliance' });
           (document.getElementById('btnOpenCompliance') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'openCompliance' });
@@ -987,6 +989,13 @@ export function activate(context: vscode.ExtensionContext) {
             } catch {
               panel.webview.postMessage({ t: 'info', text: '解析规则 JSON 失败。' });
             }
+          }
+        } else if (msg.t === 'covExport') {
+          try {
+            const out = await client.request('tools/call', { name: 'coverage.export', arguments: {} });
+            vscode.window.showInformationMessage('Coverage 导出完成: ' + (out.out_dir || ''));
+          } catch (e:any) {
+            vscode.window.showWarningMessage('Coverage 导出失败：' + String(e));
           }
         } else if (msg.t === 'loadSugg') {
           const resList = await client.request('resources/list', {});

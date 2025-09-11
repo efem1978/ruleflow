@@ -30,6 +30,14 @@ Path(sys.argv[1]).joinpath('jb_memory.json').write_text(
 )
 PY
 
+# copy compiled rules & suggestions if present
+if [ -f .mcp/rules_compiled.json ]; then
+  cp -f .mcp/rules_compiled.json "$OUT_DIR/jb_rules_compiled.json"
+fi
+if [ -f .mcp/rules_suggestions.md ]; then
+  cp -f .mcp/rules_suggestions.md "$OUT_DIR/jb_rules_suggestions.md"
+fi
+
 echo "[jb-storyboard] simulating fs.apply_patch (dry-run, strict) ..."
 python3 - "$OUT_DIR" <<'PY'
 import json, sys
@@ -50,4 +58,3 @@ Path(sys.argv[1]).joinpath('jb_fs_apply_patch_dry.json').write_text(
 PY
 
 echo "[jb-storyboard] done. Outputs in $OUT_DIR"
-
