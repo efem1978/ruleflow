@@ -165,9 +165,9 @@ jobs:
       VSCODE_LCOV_WINDOW_PCT: '5'
       VSCODE_LCOV_TOP_N: '20'
       # VS Code 前端覆盖率策略（阶段性）：
-      # - 仅告警（非阻断）阈值 80%
+      # - 仅告警（非阻断）阈值 90%
       # - 硬门禁默认关闭，可在需要时通过将该变量置为 1 开启
-      VSCODE_COVERAGE_THRESHOLD_WARN: '80'
+      VSCODE_COVERAGE_THRESHOLD_WARN: '90'
       VSCODE_COVERAGE_GATE: '0'
 
     steps:

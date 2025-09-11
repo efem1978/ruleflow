@@ -14,8 +14,8 @@ if [ ! -f "$LCOV_FILE" ]; then
 fi
 
 # Sum all LF (lines found) and LH (lines hit)
-LF_TOTAL=$(rg -n "^LF:" -r "$1" -N 2>/dev/null | awk -F: '{s+=$2} END{print s+0}')
-LH_TOTAL=$(rg -n "^LH:" -r "$1" -N 2>/dev/null | awk -F: '{s+=$2} END{print s+0}')
+LF_TOTAL=$(grep -E "^LF:" "$LCOV_FILE" | awk -F: '{s+=$2} END{print s+0}')
+LH_TOTAL=$(grep -E "^LH:" "$LCOV_FILE" | awk -F: '{s+=$2} END{print s+0}')
 
 if [ -z "$LF_TOTAL" ] || [ "$LF_TOTAL" -eq 0 ]; then
   echo "[lcov] no lines found in $LCOV_FILE"

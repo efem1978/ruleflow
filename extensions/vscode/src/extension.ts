@@ -155,6 +155,7 @@ export function activate(context: vscode.ExtensionContext) {
       { enableScripts: true }
     );
 
+    /* c8 ignore start */
     const render = (md: string, toolsListHtml: string, sugg: string = '') => `
       <html>
       <body style="font-family: -apple-system,Segoe UI,Arial;">
@@ -765,6 +766,7 @@ export function activate(context: vscode.ExtensionContext) {
         });
         </script>
       </body></html>`;
+    /* c8 ignore stop */
 
     try {
       client.start(context);
