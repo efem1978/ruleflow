@@ -29,6 +29,10 @@ jobs:
         run: |
           python -m pip install -e .
           python -m mcp_rules_assistant.cli coverage-export --out-dir .mcp/dashboard --weak-top 50 --near-top 50 --within 3 || true
+      - name: JB Verify Summary (optional)
+        run: |
+          bash scripts/jb-ui-verify.sh || true
+          if [ -f .mcp/dashboard/jb_verify.json ]; then echo "[jb] summary"; head -n 80 .mcp/dashboard/jb_verify.json; fi
       - name: Upload Coverage Export artifacts
         if: always()
         uses: actions/upload-artifact@v4

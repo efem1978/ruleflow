@@ -89,6 +89,20 @@ try:
   C = json.loads((dash/'coverage_summary.json').read_text(encoding='utf-8'))
   out['coverage']['weak'] = len(C.get('weak') or [])
   out['coverage']['near'] = len(C.get('near') or [])
+  # TopN (up to 5) for quick glance
+  weak = C.get('weak') or []
+  near = C.get('near') or []
+  def _fmt_w(it):
+      try:
+          return {
+              'file': it.get('file',''),
+              'coverage': round(float(it.get('coverage',0.0))*100, 1),
+              'threshold': int(float(it.get('threshold',0.0))*100),
+          }
+      except Exception:
+          return {'file': str(it)}
+  out['coverage']['weak_top'] = list(map(_fmt_w, weak[:5]))
+  out['coverage']['near_top'] = list(map(_fmt_w, near[:5]))
 except Exception:
   pass
 try:

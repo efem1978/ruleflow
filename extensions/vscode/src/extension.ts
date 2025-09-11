@@ -312,6 +312,30 @@ export function activate(context: vscode.ExtensionContext) {
               }
             } catch {}
           };
+          const btnMd = document.createElement('button'); btnMd.id = 'btnCopyCsvAsMd'; btnMd.textContent = '复制为 Markdown 表格';
+          const weakBox = document.getElementById('covWeak');
+          if (weakBox) { weakBox.parentElement?.insertBefore(btnMd, weakBox.nextSibling); }
+          btnMd.onclick = async () => {
+            try {
+              const el = document.getElementById('csvPreview');
+              const text = (el && (el as any).textContent) ? String((el as any).textContent) : '';
+              const lines = text.split(/\r?\n/).filter(Boolean);
+              if (lines.length >= 2) {
+                const head = lines[0].replace(/^\[[^\]]*\]\s*/, '');
+                const data = lines.slice(1);
+                const cols = (head.split(',').map(s=>s.trim()));
+                const tbl = [
+                  '| ' + cols.join(' | ') + ' |',
+                  '| ' + cols.map(()=> '---').join(' | ') + ' |',
+                  ...data.map(row => '| ' + row.split(',').map(s=>s.trim()).join(' | ') + ' |')
+                ].join('\n');
+                if ((navigator as any).clipboard) {
+                  await (navigator as any).clipboard.writeText(tbl);
+                  vscode.postMessage({ t: 'info', text: '已复制 Markdown 表格到剪贴板' });
+                }
+              }
+            } catch {}
+          };
           (document.getElementById('btnIdeScaffold') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'ideScaffold' });
           (document.getElementById('btnCompliance') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'compliance' });
           (document.getElementById('btnOpenCompliance') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'openCompliance' });
