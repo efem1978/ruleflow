@@ -16,14 +16,16 @@ suite('Coverage bad/Tree no-resource (fake)', () => {
     fs.mkdirSync(path.dirname(bad), { recursive: true });
     fs.writeFileSync(bad, '1');
     await vscode.commands.executeCommand('mcpRulesAssistant.openPanel');
+    await new Promise(r => setTimeout(r, 300));
     await vscode.commands.executeCommand('mcpRulesAssistant._test_sendPanelMessage', { t: 'coverage' });
+    await new Promise(r => setTimeout(r, 150));
     // sentinel: notree
     const nt = path.resolve(ws, '.mcp/dashboard/notree');
     fs.writeFileSync(nt, '1');
     await vscode.commands.executeCommand('mcpRulesAssistant._test_sendPanelMessage', { t: 'coverageTree' });
+    await new Promise(r => setTimeout(r, 150));
     // clean sentinels
     try { fs.unlinkSync(bad); } catch {}
     try { fs.unlinkSync(nt); } catch {}
   });
 });
-

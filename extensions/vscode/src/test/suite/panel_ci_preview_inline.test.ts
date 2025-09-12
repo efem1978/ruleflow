@@ -15,8 +15,10 @@ suite('Panel CI preview inline/preview (fake mode)', () => {
     if (!fs.existsSync(path.dirname(yml))) fs.mkdirSync(path.dirname(yml), { recursive: true });
     fs.writeFileSync(yml, 'name: CI\n', 'utf-8');
     await vscode.commands.executeCommand('mcpRulesAssistant.openPanel');
+    await new Promise(r => setTimeout(r, 300));
     await vscode.commands.executeCommand('mcpRulesAssistant._test_sendPanelMessage', { t: 'ciPreviewInline' });
+    await new Promise(r => setTimeout(r, 150));
     await vscode.commands.executeCommand('mcpRulesAssistant._test_sendPanelMessage', { t: 'ciPreview' });
+    await new Promise(r => setTimeout(r, 150));
   });
 });
-
