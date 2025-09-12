@@ -66,6 +66,20 @@ def test_memory_namespace_invalid_and_missing(tmp_path: Path) -> None:
     assert err.get("code") in (-32001, -32602)
 
 
+def test_memory_namespace_invalid_json(tmp_path: Path) -> None:
+    srv = JsonRpcServer()
+    srv.project_root = tmp_path
+    (tmp_path / ".mcp").mkdir(parents=True, exist_ok=True)
+    (tmp_path / ".mcp" / "memory.bad.json").write_text("{not json}", encoding="utf-8")
+    pid = srv._project_id()
+    out = srv.handle(_req("resources/read", {"uri": f"memory://{pid}/rollup?ns=bad"}))
+    txt = out.get("result", {}).get("text", "{}")
+    import json as _json
+
+    data = _json.loads(txt)
+    assert isinstance(data.get("turns", []), list)
+
+
 def test_resources_read_unknown_uri(tmp_path: Path) -> None:
     srv = JsonRpcServer()
     srv.project_root = tmp_path
