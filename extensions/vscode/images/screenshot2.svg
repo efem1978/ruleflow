@@ -7,6 +7,6 @@
   <rect x="60" y="300" width="400" height="160" rx="6" fill="#0f1628" stroke="#27406d"/>
   <text x="80" y="330" fill="#cfe2ff" font-family="Arial" font-size="16">Weak groups (policy)</text>
   <rect x="480" y="120" width="440" height="340" rx="6" fill="#0f1628" stroke="#27406d"/>
-  <text x="500" y="150" fill="#cfe2ff" font-family="Arial" font-size="16">CI & Hooks (generate/validate/install)</text>
+  <text x="500" y="150" fill="#cfe2ff" font-family="Arial" font-size="16">CI &amp; Hooks (generate/validate/install)</text>
   <text x="60" y="510" fill="#7aa5ff" font-family="Arial" font-size="14">Textual mock for Marketplace screenshot (no sensitive data)</text>
 </svg>

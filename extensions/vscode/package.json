@@ -85,9 +85,10 @@
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "test": "npm run compile && c8 --reporter=lcov --reporter=text node ./out/test/runTest.js",
+    "test": "node scripts/prep-workspace.js && npm run compile && c8 --reporter=lcov --reporter=text node ./out/test/runTest.js",
     "package": "vsce package --no-dependencies",
-    "img:png": "node scripts/svg2png.js"
+    "img:png": "node scripts/svg2png.js",
+    "img:shots": "node scripts/svgshots.js"
   },
   "keywords": [
     "mcp",
@@ -104,11 +105,11 @@
   },
   "screenshots": [
     {
-      "path": "images/screenshot1.svg",
+      "path": "images/screenshot1.png",
       "label": "Panel Overview"
     },
     {
-      "path": "images/screenshot2.svg",
+      "path": "images/screenshot2.png",
       "label": "Coverage & CI"
     }
   ],
