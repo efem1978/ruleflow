@@ -79,21 +79,21 @@
 - [x] 运行 `make distcheck`（build + twine check 通过）
 
 批次N2 — 多项目记忆隔离增强（可选，体验提升）
-- [ ] 记忆按子目录/projectId 分区写入；`memory.toggle_auto` 支持 `scope/project` 参数
-- [ ] `resources/list` 枚举多条 `memory://…/rollup`
+- [x] 记忆按子目录/projectId 分区写入；`memory.toggle_auto` 支持 `scope/project` 参数
+- [x] `resources/list` 枚举多条 `memory://…/rollup`
 - [ ] 增补多项目切换与跨项目 links 测试
 
 批次N3 — 许可门禁覆盖扩展（可选，商业化强化）
 - [x] 扩展 gated：`rules.onboard` 受 `license.required` 约束（默认 false 不影响现有流程）
-- [ ] 评估/实现对 `config.update` 中关键 CI 字段的门禁（仅在 required=true 时）
+- [x] 对 `config.update` 中关键 CI 字段的门禁（required=true 时）
 - [ ] CI 在未激活且 required 时，对 `ci.validate` 输出明确错误并导出摘要
 
 批次N4 — VS Code 覆盖率阈值提升路线（建议，质量迭代）
-- [ ] 阶段性从 80% → 90% → 95%（先预警再门禁）
+- [x] 阶段性从 80% → 90% → 95%（先预警再门禁）
 - [ ] 近阈值 TopN 报表与文档说明完善
 
 批次N5 — 规则包扩充与表征测试（可选，稳健性）
-- [ ] 丰富 `docs/RULESETS.md` 场景/复杂度样例
+- [x] 丰富 `docs/RULESETS.md` 场景/复杂度样例
 - [ ] 扩充 `rules_ingest` 表征测试样本与边界
 
 批次N6 — JetBrains 实拍与最小 E2E 强化（可选，材料完善）
@@ -101,11 +101,11 @@
 
 批次N7 — 可观测性与诊断增强（可选，运维友好）
 - [x] 将 `process.run_cmd` 事件（按需，通过 `MCP_RUN_CMD_EVENTS=1`）追加写入 `.mcp/dashboard/cmd_events.jsonl`（滚动 ~200 条）
-- [ ] 追加“近 24 小时失败比/平均耗时”摘要至 `status.json`
+- [x] 追加“近 24 小时失败比/平均耗时”摘要至 `status.json`
 
 当前阶段（进行中）
 - 状态: in_progress
-- 当前步骤: 批次N3 — 许可门禁覆盖扩展
+- 当前步骤: 批次N2 — 多项目记忆隔离增强
 
 ## 验收标准（Definition of Done）
 - `make local-ci-run` 通过；Coverage Policy Gate 无 weak；近阈值 Top5 中无“核心”模块
