@@ -1040,6 +1040,8 @@ export function activate(context: vscode.ExtensionContext) {
     }
 
     const __panelDispatch = async (msg: any) => {
+      // mark in-flight for tests to await idle
+      try { __panelInFlight = new Promise<void>((res)=>{ __panelInFlightResolve = res; }); } catch {}
       try {
         __testWebviewHandler = async (m:any) => { await handleOpenMessage(m); };
         if (msg.t === 'statusUpdate') {
@@ -1507,6 +1509,10 @@ export function activate(context: vscode.ExtensionContext) {
         }
       } catch (e: any) {
         vscode.window.showErrorMessage('操作失败：' + String(e));
+      } finally {
+        try { if (__panelInFlightResolve) { __panelInFlightResolve(); } } catch {}
+        __panelInFlightResolve = null;
+        __panelInFlight = null;
       }
     };
     panel.webview.onDidReceiveMessage(async (msg) => { await __panelDispatch(msg); });
@@ -1788,6 +1794,15 @@ export function activate(context: vscode.ExtensionContext) {
       let done = false;
       const t = new Promise<void>((res)=>setTimeout(res, 2500));
       await Promise.race([p.then(()=>{ done = true; }), t]);
+      return true;
+    } catch { return true; }
+  }));
+  context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant._test_waitIdle', async () => {
+    try {
+      const p = __panelInFlight;
+      if (!p) return true;
+      const t = new Promise<void>((res)=>setTimeout(res, 2500));
+      await Promise.race([p, t]);
       return true;
     } catch { return true; }
   }));

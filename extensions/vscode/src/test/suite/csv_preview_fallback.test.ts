@@ -19,6 +19,6 @@ suite('CSV preview fallback formatting', () => {
     await vscode.commands.executeCommand('mcpRulesAssistant.openPanel');
     await vscode.commands.executeCommand('mcpRulesAssistant._test_waitReady');
     await vscode.commands.executeCommand('mcpRulesAssistant._test_sendPanelMessage', { t: 'csvPreviewPick', which: 'groups.csv' });
-    await new Promise(r => setTimeout(r, 150));
+    await vscode.commands.executeCommand('mcpRulesAssistant._test_waitIdle');
   });
 });

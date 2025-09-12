@@ -13,7 +13,7 @@ suite('Panel more message paths (fake, split)', () => {
   await vscode.commands.executeCommand('mcpRulesAssistant.openPanel');
   await vscode.commands.executeCommand('mcpRulesAssistant._test_waitReady');
   await vscode.commands.executeCommand('mcpRulesAssistant._test_sendPanelMessage', { t: 'memory' });
-  await new Promise(r => setTimeout(r, 150));
+  await vscode.commands.executeCommand('mcpRulesAssistant._test_waitIdle');
   });
 
   test('ciFetch/ciSave only', async () => {
@@ -23,9 +23,9 @@ suite('Panel more message paths (fake, split)', () => {
   await vscode.commands.executeCommand('mcpRulesAssistant.openPanel');
   await vscode.commands.executeCommand('mcpRulesAssistant._test_waitReady');
   await vscode.commands.executeCommand('mcpRulesAssistant._test_sendPanelMessage', { t: 'ciFetch' });
-  await new Promise(r => setTimeout(r, 150));
+  await vscode.commands.executeCommand('mcpRulesAssistant._test_waitIdle');
   await vscode.commands.executeCommand('mcpRulesAssistant._test_sendPanelMessage', { t: 'ciSave', data: { mutation_gate_strict: false } });
-  await new Promise(r => setTimeout(r, 150));
+  await vscode.commands.executeCommand('mcpRulesAssistant._test_waitIdle');
   });
 
   test('prepare env only', async () => {
@@ -35,8 +35,8 @@ suite('Panel more message paths (fake, split)', () => {
   await vscode.commands.executeCommand('mcpRulesAssistant.openPanel');
   await vscode.commands.executeCommand('mcpRulesAssistant._test_waitReady');
   await vscode.commands.executeCommand('mcpRulesAssistant._test_sendPanelMessage', { t: 'prepareEnvDry' });
-  await new Promise(r => setTimeout(r, 150));
+  await vscode.commands.executeCommand('mcpRulesAssistant._test_waitIdle');
   await vscode.commands.executeCommand('mcpRulesAssistant._test_sendPanelMessage', { t: 'prepareEnvInstall' });
-  await new Promise(r => setTimeout(r, 150));
+  await vscode.commands.executeCommand('mcpRulesAssistant._test_waitIdle');
   });
 });

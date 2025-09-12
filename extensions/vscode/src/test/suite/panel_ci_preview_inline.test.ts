@@ -19,8 +19,8 @@ suite('Panel CI preview inline/preview (fake mode)', () => {
     await vscode.commands.executeCommand('mcpRulesAssistant.openPanel');
     await vscode.commands.executeCommand('mcpRulesAssistant._test_waitReady');
     await vscode.commands.executeCommand('mcpRulesAssistant._test_sendPanelMessage', { t: 'ciPreviewInline' });
-    await new Promise(r => setTimeout(r, 150));
+    await vscode.commands.executeCommand('mcpRulesAssistant._test_waitIdle');
     await vscode.commands.executeCommand('mcpRulesAssistant._test_sendPanelMessage', { t: 'ciPreview' });
-    await new Promise(r => setTimeout(r, 150));
+    await vscode.commands.executeCommand('mcpRulesAssistant._test_waitIdle');
   });
 });

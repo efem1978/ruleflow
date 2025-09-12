@@ -24,7 +24,7 @@ suite('Panel dispatch common paths (fake mode, split)', () => {
     await vscode.commands.executeCommand('mcpRulesAssistant.openPanel');
     await vscode.commands.executeCommand('mcpRulesAssistant._test_waitReady');
     await vscode.commands.executeCommand('mcpRulesAssistant._test_sendPanelMessage', { t: 'loadRules' });
-    await new Promise(r => setTimeout(r, 150));
+    await vscode.commands.executeCommand('mcpRulesAssistant._test_waitIdle');
   });
 
   test('coverage summary/groups/near (single message)', async () => {
@@ -41,7 +41,7 @@ suite('Panel dispatch common paths (fake mode, split)', () => {
     await vscode.commands.executeCommand('mcpRulesAssistant.openPanel');
     await vscode.commands.executeCommand('mcpRulesAssistant._test_waitReady');
     await vscode.commands.executeCommand('mcpRulesAssistant._test_sendPanelMessage', { t: 'coverage' });
-    await new Promise(r => setTimeout(r, 150));
+    await vscode.commands.executeCommand('mcpRulesAssistant._test_waitIdle');
   });
 
   test('csvPreviewPick weak_top only', async () => {
@@ -58,7 +58,7 @@ suite('Panel dispatch common paths (fake mode, split)', () => {
     await vscode.commands.executeCommand('mcpRulesAssistant.openPanel');
     await vscode.commands.executeCommand('mcpRulesAssistant._test_waitReady');
     await vscode.commands.executeCommand('mcpRulesAssistant._test_sendPanelMessage', { t: 'csvPreviewPick', which: 'weak_top.csv' });
-    await new Promise(r => setTimeout(r, 150));
+    await vscode.commands.executeCommand('mcpRulesAssistant._test_waitIdle');
   });
 
   test('ciCheck only', async () => {
@@ -75,6 +75,6 @@ suite('Panel dispatch common paths (fake mode, split)', () => {
     await vscode.commands.executeCommand('mcpRulesAssistant.openPanel');
     await vscode.commands.executeCommand('mcpRulesAssistant._test_waitReady');
     await vscode.commands.executeCommand('mcpRulesAssistant._test_sendPanelMessage', { t: 'ciCheck' });
-    await new Promise(r => setTimeout(r, 150));
+    await vscode.commands.executeCommand('mcpRulesAssistant._test_waitIdle');
   });
 });
