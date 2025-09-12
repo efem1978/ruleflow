@@ -229,6 +229,10 @@ let __testWebviewHandler: ((msg: any) => Promise<void> | void) | null = null;
 let __testPanelHandler: ((msg: any) => Promise<void> | void) | null = null;
 let __panelReadyResolve: (() => void) | null = null;
 let __panelReady: Promise<void> | null = null;
+let __panelInFlightResolve: (() => void) | null = null;
+let __panelInFlight: Promise<void> | null = null;
+const __ready2Resolvers = new Map<string, () => void>();
+const __ready2Promises = new Map<string, Promise<void>>();
 
 async function handleOpenMessage(msg: any) {
   if (msg && msg.t === 'open' && msg.path) {
@@ -995,6 +999,7 @@ export function activate(context: vscode.ExtensionContext) {
               const det = document.getElementById('licDetail');
               if (det) { try { (det as any).textContent = JSON.stringify(L, null, 2); (det as any).style = 'display:block'; } catch { (det as any).textContent=''; (det as any).style='display:none'; } }
             }
+            try { vscode.postMessage({ t: 'ready2', topic: String(msg.t||'any') }); } catch {}
         });
         </script>
       </body></html>`;
@@ -1518,10 +1523,17 @@ export function activate(context: vscode.ExtensionContext) {
     panel.webview.onDidReceiveMessage(async (msg) => { await __panelDispatch(msg); });
     __testPanelHandler = __panelDispatch;
 
-    // 处理从 webview 的“打开源文件”请求
+    // 处理从 webview 的“打开源文件/ready/ready2”请求
     panel.webview.onDidReceiveMessage(async (msg) => {
       await handleOpenMessage(msg);
       if (msg && msg.t === 'ready') { try { if (__panelReadyResolve) { __panelReadyResolve(); __panelReadyResolve = null; } } catch {} }
+      if (msg && msg.t === 'ready2') {
+        try {
+          const key = String((msg.topic||'any'));
+          const r = __ready2Resolvers.get(key) || __ready2Resolvers.get('any');
+          if (r) r();
+        } catch {}
+      }
       if (msg && msg.t === 'nl') {
         try {
           const text = String(msg.text || '').trim();

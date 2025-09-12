@@ -25,6 +25,7 @@ suite('Panel dispatch common paths (fake mode, split)', () => {
     await vscode.commands.executeCommand('mcpRulesAssistant._test_waitReady');
     await vscode.commands.executeCommand('mcpRulesAssistant._test_sendPanelMessage', { t: 'loadRules' });
     await vscode.commands.executeCommand('mcpRulesAssistant._test_waitIdle');
+    await vscode.commands.executeCommand('mcpRulesAssistant._test_waitReady2', 'rules');
   });
 
   test('coverage summary/groups/near (single message)', async () => {
@@ -42,6 +43,7 @@ suite('Panel dispatch common paths (fake mode, split)', () => {
     await vscode.commands.executeCommand('mcpRulesAssistant._test_waitReady');
     await vscode.commands.executeCommand('mcpRulesAssistant._test_sendPanelMessage', { t: 'coverage' });
     await vscode.commands.executeCommand('mcpRulesAssistant._test_waitIdle');
+    await vscode.commands.executeCommand('mcpRulesAssistant._test_waitReady2', 'covWeak');
   });
 
   test('csvPreviewPick weak_top only', async () => {
@@ -59,6 +61,7 @@ suite('Panel dispatch common paths (fake mode, split)', () => {
     await vscode.commands.executeCommand('mcpRulesAssistant._test_waitReady');
     await vscode.commands.executeCommand('mcpRulesAssistant._test_sendPanelMessage', { t: 'csvPreviewPick', which: 'weak_top.csv' });
     await vscode.commands.executeCommand('mcpRulesAssistant._test_waitIdle');
+    await vscode.commands.executeCommand('mcpRulesAssistant._test_waitReady2', 'csvPreview');
   });
 
   test('ciCheck only', async () => {
@@ -76,5 +79,6 @@ suite('Panel dispatch common paths (fake mode, split)', () => {
     await vscode.commands.executeCommand('mcpRulesAssistant._test_waitReady');
     await vscode.commands.executeCommand('mcpRulesAssistant._test_sendPanelMessage', { t: 'ciCheck' });
     await vscode.commands.executeCommand('mcpRulesAssistant._test_waitIdle');
+    await vscode.commands.executeCommand('mcpRulesAssistant._test_waitReady2', 'ciStatus');
   });
 });
