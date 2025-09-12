@@ -16,7 +16,18 @@
 - pro+medium/large → 92/96，不启用变异
 - enterprise/institution + medium/large → 95/97，启用变异
 
+示例矩阵（建议起点，可按项目调整）
+- 场景 x 复杂度（基于后端 Python 服务）：
+  - 个人+小型：min_module=0.90，min_core=0.95，no skip/xfail，-W error
+  - 专业+中型：min_module=0.92，min_core=0.96，no skip/xfail，-W error
+  - 企业/机构+大型：min_module=0.95，min_core=0.97，no skip/xfail，-W error，变异测试（非阻断→严格时门禁）
+
+扩展键示例（与 config.update / rules.enforce 对齐）
+- ci.hadolint: true|false（容器项目建议开启）
+- ci.semgrep_config: auto|p/ci|p/security-audit（固定版本）
+- ci.vscode_required: true|false（是否将前端测试纳入 CI 必跑）
+- ci.mutation_gate_strict: true|false（严格时开启变异门禁）
+
 文件组织 Files
 - rulesets/general/python_backend_tdd_standard.md
 - rulesets/general/python_backend_tdd_strict.md
-

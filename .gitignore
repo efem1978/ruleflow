@@ -33,6 +33,7 @@ coverage_report.json
 /bad.py
 /ok2.py
 /ok.txt
+foo.py
 docs/b.txt
 diagnostics-*.tar.gz
 

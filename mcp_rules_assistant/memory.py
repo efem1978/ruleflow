@@ -23,11 +23,16 @@ class MemoryManager:
         project_root: Optional[Path] = None,
         window: int = 20,
         max_bytes: int = 64 * 1024,
+        file_override: Optional[Path] = None,
     ) -> None:
         self.project_root = project_root or Path.cwd()
         self.window = window
         self.max_bytes = max(1024, int(max_bytes))
-        self.path = self.project_root / DEFAULT_MEMORY_FILE
+        self.path = (
+            file_override
+            if isinstance(file_override, Path)
+            else self.project_root / DEFAULT_MEMORY_FILE
+        )
         self._ensure_file()
 
     def _ensure_file(self) -> None:

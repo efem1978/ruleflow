@@ -55,6 +55,7 @@ class JsonRpcServer:
     def __init__(self) -> None:
         setup_default_tools()
         self.project_root = Path.cwd()
+        self._mem_ns: str | None = None
         self.mm = MemoryManager(self.project_root)
         self.fs = FSGuard(self.project_root)
         self.settings: Dict[str, Any] = {"memory_auto": False}
@@ -62,6 +63,23 @@ class JsonRpcServer:
         # very light rate limiter (per-process): window 1s
         self._rl_window_start: float = 0.0
         self._rl_count: int = 0
+
+    # ---- small internal helpers (testability without behavior change) ----
+    def _get_exec_flag(self, key: str, default: Any) -> Any:
+        """Fetch an execution flag from config.
+
+        Separated for testability so edge branches can be exercised by
+        monkeypatching this helper in unit tests without altering runtime behavior.
+        """
+        try:
+            ex_cfg = (
+                self.cfg.get("execution", {})
+                if isinstance(self.cfg.get("execution", {}), dict)
+                else {}
+            )
+            return (ex_cfg or {}).get(key, default)
+        except Exception:
+            return default
 
     def _license_required(self) -> bool:
         try:
@@ -241,6 +259,20 @@ class JsonRpcServer:
                         "name": "CI workflow (YAML)",
                     },
                 ]
+                # 附加命名空间 memory 资源：memory.<ns>.json → memory://<id>/rollup?ns=<ns>
+                try:
+                    for p in (self.project_root / ".mcp").glob("memory.*.json"):
+                        ns = p.name.replace("memory.", "").replace(".json", "")
+                        if ns:
+                            resources_list.insert(
+                                1,
+                                {
+                                    "uri": f"memory://{self._project_id()}/rollup?ns={ns}",
+                                    "name": f"Last 20 turns & summary ({ns})",
+                                },
+                            )
+                except Exception:
+                    pass
                 result = {"resources": resources_list}
             elif method == "resources/read":
                 uri = params.get("uri", "")
@@ -254,7 +286,7 @@ class JsonRpcServer:
                             "text": json.dumps({"links": links}, ensure_ascii=False),
                         }
                     else:
-                        result = self._res_read_memory()
+                        result = self._res_read_memory(uri)
                 elif uri.startswith("rules://"):
                     result = self._res_read_rules(uri)
                 elif uri.startswith("coverage://"):
@@ -330,6 +362,7 @@ class JsonRpcServer:
         # 许可门禁：对敏感工具启用软硬门禁（受配置 license.required 控制）
         gated = {
             "rules.enforce",
+            "rules.onboard",
             "ci.generate",
             "ci.validate",
             "ci.autofix",
@@ -388,8 +421,18 @@ class JsonRpcServer:
             return {"ok": True}
         if name == "memory.toggle_auto":
             on = bool(args.get("on", True))
+            ns = args.get("project") or args.get("scope")
+            ns_str = str(ns).strip() if isinstance(ns, str) else ""
+            # 绑定命名空间（可选）：.mcp/memory.<ns>.json
+            if ns_str:
+                safe_ns = "".join(ch for ch in ns_str if ch.isalnum() or ch in "_-.")
+                if not safe_ns:
+                    raise ValueError("invalid memory namespace")
+                self._mem_ns = safe_ns
+                f = self.project_root / ".mcp" / f"memory.{safe_ns}.json"
+                self.mm = MemoryManager(self.project_root, file_override=f)
             self.settings["memory_auto"] = on
-            return {"ok": True, "auto": on}
+            return {"ok": True, "auto": on, "namespace": self._mem_ns or "default"}
         if name == "memory.snapshot":
             return self.mm.snapshot()
         if name == "memory.append_turn":
@@ -501,7 +544,9 @@ class JsonRpcServer:
                                 # 可选硬门禁：当 execution.disallow_patterns_hard 为真时直接拒绝
                                 try:
                                     hard_gate = bool(
-                                        ex_cfg2.get("disallow_patterns_hard", False)
+                                        self._get_exec_flag(
+                                            "disallow_patterns_hard", False
+                                        )
                                     )
                                 except Exception:
                                     hard_gate = False
@@ -556,9 +601,9 @@ class JsonRpcServer:
                         ]:
                             raise ValueError("受控写入文件扩展名不在允许清单内")
                 except Exception as _e:
-                    # 严格模式下升级为错误（使用外层 exec_cfg_eff，以避免本地变量未绑定）
+                    # 严格模式下升级为错误（使用外层设置），解析异常时降级为 False
                     try:
-                        strict_on = bool((exec_cfg_eff or {}).get("fs_guard_strict", False))  # type: ignore[union-attr]
+                        strict_on = bool(self._get_exec_flag("fs_guard_strict", False))
                     except Exception as e:
                         import logging
 
@@ -632,15 +677,31 @@ class JsonRpcServer:
         raise ValueError(f"Unknown tool: {name}")
 
     # ---- resources/read helpers ----
-    def _res_read_memory(self) -> Dict[str, Any]:
+    def _res_read_memory(self, uri: str | None = None) -> Dict[str, Any]:
         """Read in-memory conversation snapshot as JSON resource.
 
         For uri variants:\n
         - memory://<id>/rollup → full snapshot (turns/summary/links)
+        - memory://<id>/rollup?ns=<ns> → snapshot of namespaced memory file
         - memory://<id>/links → { links: [...] }
         """
-        # We do not receive uri here directly in current call path; the caller
-        # dispatches by startswith. Keep simple and always return full snapshot.
+        # 可选解析命名空间参数
+        ns = None
+        try:
+            u = str(uri or "")
+            if "?ns=" in u:
+                ns = u.split("?ns=", 1)[1].strip()
+        except Exception:
+            ns = None
+        if ns:
+            p = self.project_root / ".mcp" / f"memory.{ns}.json"
+            if not p.exists():
+                raise FileNotFoundError("memory namespace not found")
+            try:
+                data = json.loads(p.read_text(encoding="utf-8"))
+            except Exception:
+                data = {"turns": [], "summary": "", "links": []}
+            return {"mimeType": MIME_JSON, "text": json.dumps(data, ensure_ascii=False)}
         snap = self.mm.snapshot()
         return {"mimeType": MIME_JSON, "text": json.dumps(snap, ensure_ascii=False)}
 
@@ -1473,6 +1534,36 @@ English summary:
             payload = dict(args)
         if not isinstance(payload, dict):
             raise ValueError("data must be object or provide flattened keys")
+        # 许可硬门禁：当修改 CI 关键项且 license.required=true 时，需先通过许可校验
+        try:
+            touched: set[str] = set()
+            pf = payload
+            for k in (
+                "hadolint",
+                "hadolint_image",
+                "hadolint_args",
+                "semgrep_config",
+                "mutation_gate_strict",
+                "vscode_required",
+            ):
+                if k in pf:
+                    touched.add(k)
+            if isinstance(pf.get("ci"), dict):
+                for k in pf["ci"].keys():
+                    if k in {
+                        "hadolint",
+                        "hadolint_image",
+                        "hadolint_args",
+                        "semgrep_config",
+                        "mutation_gate_strict",
+                        "vscode_required",
+                    }:
+                        touched.add(k)
+            if touched and self._license_required():
+                self._ensure_license()
+        except Exception:
+            # 容错：解析失败不阻断（具体 CI 工具调用仍受门禁保护）
+            pass
         cfg_path = self.project_root / DEFAULT_PROJECT_CONFIG_PATH
         ensure_project_config(cfg_path)
         try:
@@ -1486,6 +1577,7 @@ English summary:
             "hadolint_args",
             "semgrep_config",
             "mutation_gate_strict",
+            "vscode_required",
         ]:
             if k in payload:
                 ci[k] = payload[k]

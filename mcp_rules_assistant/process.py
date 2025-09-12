@@ -34,27 +34,77 @@ def run_cmd(
     delay = max(0.0, float(backoff))
     do_log = log or os.environ.get("MCP_RUN_CMD_LOG", "0") in ("1", "true", "True")
     logger = logging.getLogger("mcp.run_cmd")
+
+    def _emit(evt: Dict[str, Any]) -> None:
+        try:
+            if on_event:
+                on_event(evt)
+        finally:
+            if do_log:
+                phase = evt.get("phase")
+                if phase == "start":
+                    logger.info(
+                        "run_cmd start attempt=%s cwd=%s cmd=%s",
+                        evt.get("attempt"),
+                        evt.get("cwd"),
+                        " ".join(cmd),
+                    )
+                elif phase == "end":
+                    logger.info(
+                        "run_cmd end rc=%s elapsed=%.3fs cmd=%s",
+                        evt.get("returncode"),
+                        evt.get("elapsed", 0.0),
+                        " ".join(cmd),
+                    )
+                elif phase == "error":
+                    logger.warning(
+                        "run_cmd error attempt=%s err=%r cmd=%s",
+                        evt.get("attempt"),
+                        evt.get("exception"),
+                        " ".join(cmd),
+                    )
+        # 可选：将事件追加落盘，默认关闭；通过 MCP_RUN_CMD_EVENTS=1 开启
+        try:
+            if os.environ.get("MCP_RUN_CMD_EVENTS", "0") in ("1", "true", "True"):
+                root = Path.cwd()
+                out_dir = root / ".mcp" / "dashboard"
+                out_dir.mkdir(parents=True, exist_ok=True)
+                jl = out_dir / "cmd_events.jsonl"
+                import json as _json
+
+                jl.write_text(
+                    (jl.read_text("utf-8") if jl.exists() else "")
+                    + _json.dumps(evt, ensure_ascii=False)
+                    + "\n",
+                    encoding="utf-8",
+                )
+                # 简易滚动：超过 200 行时仅保留末尾 200 行
+                try:
+                    lines = jl.read_text("utf-8").splitlines()
+                    if len(lines) > 200:
+                        jl.write_text("\n".join(lines[-200:]) + "\n", encoding="utf-8")
+                except Exception:
+                    pass
+        except Exception:
+            # 不影响主流程
+            pass
+
     while True:
         try:
             t0 = time.time()
-            if on_event or do_log:
-                evt = {
-                    "phase": "start",
-                    "cmd": cmd,
-                    "cwd": str(cwd),
-                    "attempt": attempt,
-                }
-                try:
-                    if on_event:
-                        on_event(evt)
-                finally:
-                    if do_log:
-                        logger.info(
-                            "run_cmd start attempt=%s cwd=%s cmd=%s",
-                            attempt,
-                            cwd,
-                            " ".join(cmd),
-                        )
+            if (
+                on_event
+                or do_log
+                or os.environ.get("MCP_RUN_CMD_EVENTS", "0") in ("1", "true", "True")
+            ):
+                _emit(
+                    {
+                        "phase": "start",
+                        "cmd": cmd,
+                        "cwd": str(cwd),
+                        "attempt": attempt,
+                    }
+                )
             if (
                 not capture_stdout
                 and env is None
@@ -84,48 +134,38 @@ def run_cmd(
                         p.stderr = p.stderr[-8000:]
                 except Exception:
                     pass
-            if on_event or do_log:
+            if (
+                on_event
+                or do_log
+                or os.environ.get("MCP_RUN_CMD_EVENTS", "0") in ("1", "true", "True")
+            ):
                 elapsed = max(0.0, time.time() - t0)
-                evt = {
-                    "phase": "end",
-                    "cmd": cmd,
-                    "cwd": str(cwd),
-                    "attempt": attempt,
-                    "returncode": getattr(p, "returncode", None),
-                    "elapsed": elapsed,
-                }
-                try:
-                    if on_event:
-                        on_event(evt)
-                finally:
-                    if do_log:
-                        logger.info(
-                            "run_cmd end rc=%s elapsed=%.3fs cmd=%s",
-                            getattr(p, "returncode", None),
-                            elapsed,
-                            " ".join(cmd),
-                        )
+                _emit(
+                    {
+                        "phase": "end",
+                        "cmd": cmd,
+                        "cwd": str(cwd),
+                        "attempt": attempt,
+                        "returncode": getattr(p, "returncode", None),
+                        "elapsed": elapsed,
+                    }
+                )
             return p
         except Exception as e:  # noqa: BLE001 - deliberate broad retry boundary
-            if on_event or do_log:
-                evt = {
-                    "phase": "error",
-                    "cmd": cmd,
-                    "cwd": str(cwd),
-                    "attempt": attempt,
-                    "exception": repr(e),
-                }
-                try:
-                    if on_event:
-                        on_event(evt)
-                finally:
-                    if do_log:
-                        logger.warning(
-                            "run_cmd error attempt=%s err=%r cmd=%s",
-                            attempt,
-                            e,
-                            " ".join(cmd),
-                        )
+            if (
+                on_event
+                or do_log
+                or os.environ.get("MCP_RUN_CMD_EVENTS", "0") in ("1", "true", "True")
+            ):
+                _emit(
+                    {
+                        "phase": "error",
+                        "cmd": cmd,
+                        "cwd": str(cwd),
+                        "attempt": attempt,
+                        "exception": repr(e),
+                    }
+                )
             if attempt >= int(retries):
                 raise
             if retry_on_timeout_only and not isinstance(e, subprocess.TimeoutExpired):

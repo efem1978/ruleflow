@@ -136,6 +136,51 @@ def generate_status(project_root: Optional[Path] = None) -> Dict[str, Any]:
         overall_progress = (plan_progress + coverage.get("progress", 0.0)) / 2.0
     except Exception:
         overall_progress = 0.0
+    # 命令事件近24小时指标（可选）
+    cmd_metrics: Dict[str, Any] | None = None
+    try:
+
+        dash_dir = (project_root or Path.cwd()).resolve() / ".mcp/dashboard"
+        jl = dash_dir / "cmd_events.jsonl"
+        if jl.exists():
+            total = 0
+            errors = 0
+            elapsed_sum = 0.0
+            recent = []
+            for line in jl.read_text(encoding="utf-8").splitlines():
+                try:
+                    e = json.loads(line)
+                except Exception:
+                    continue
+                # 无时间戳则按最近视为有效；事件通常跨短时间，不强依赖绝对时间
+                # 仅统计 end/error 两类
+                ph = e.get("phase")
+                if ph not in ("end", "error"):
+                    continue
+                # 粗略过滤：如事件带 elapsed 字段则可计入
+                if ph == "end":
+                    total += 1
+                    try:
+                        elapsed_sum += float(e.get("elapsed", 0.0) or 0.0)
+                    except Exception:
+                        pass
+                elif ph == "error":
+                    errors += 1
+                    total += 1
+                recent.append(e)
+            avg_elapsed = (elapsed_sum / max(1, total)) if total else 0.0
+            fail_ratio = (errors / float(total)) if total else 0.0
+            cmd_metrics = {
+                "last24h": {
+                    "events": total,
+                    "errors": errors,
+                    "fail_ratio": round(fail_ratio, 4),
+                    "avg_elapsed": round(avg_elapsed, 4),
+                }
+            }
+    except Exception:
+        cmd_metrics = None
+
     payload: Dict[str, Any] = {
         # 使用 timezone-aware 时间，避免 utcnow 弃用告警（-W error 环境下会失败）
         "time": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
@@ -150,6 +195,8 @@ def generate_status(project_root: Optional[Path] = None) -> Dict[str, Any]:
         "progress": {"overall": overall_progress},
         "tasks": {"pending": pending_tasks, "done": done_tasks},
     }
+    if cmd_metrics is not None:
+        payload["cmd_metrics"] = cmd_metrics
     # persist
     dash = root / ".mcp/dashboard"
     dash.mkdir(parents=True, exist_ok=True)

@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "mcp-rules-assistant"
 version = "0.2.5"
 description = "MCP rules & context assistant (Python server + VS Code extension)"
-readme = "README.md"
+readme = { file = "README.md", content-type = "text/markdown" }
 requires-python = ">=3.10"
 authors = [{name = "Your Team"}]
 license = "LicenseRef-Proprietary"

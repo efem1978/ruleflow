@@ -1,6 +1,8 @@
 RuleFlow: Open Panel
 MCP 规则与上下文助手 / MCP Rules & Context Assistant
 
+重要：唯一权威任务清单来源是 `.mcp/plan.md`。任何任务推进、提交门禁与面板/CLI 状态均以该文件为准（本页与其他文档仅作指引）。
+
 以“插件 + MCP Server”模式，提供跨 IDE 的上下文滚动记忆、编程规则强约束、
 包裹式改动门禁与性能优先的开发体验。默认启用“快速内环（Fast Inner Loop）”，
 将重型检查后移到推送/CI，尽量把保存和小步迭代的开销压到最低。
@@ -60,7 +62,7 @@ MCP 规则与上下文助手 / MCP Rules & Context Assistant
 提示：`docs/CI_HEALTH_CHECK.md` 为 CI 健康检查说明文档（包含必备检查、触发方式与常见失败定位）。CI 工作流支持 `workflow_dispatch`，可在 GitHub Actions 页面手动触发一次完整构建（包含 VS Code 无头测试与门禁）。
 
 近阈值窗口（near）与 CI 说明
-- 默认示例使用 3% 窗口；本仓库为抛光核心模块将 `coverage.near.within` 覆盖为 1.0%（0.01）。可用命令快速调整：`mcp-rules-assistant coverage-near-set --within 3 --top 20`。
+- 默认示例使用 3% 窗口；本仓库为抛光核心模块将 `coverage.near.within` 覆盖为 0.8%（0.008）。可用命令快速调整：`mcp-rules-assistant coverage-near-set --within 3 --top 20`。
 - CI 已包含 JetBrains 最小 smoke：读取 `.mcp/dashboard/status.json` 并校验关键字段；对应工件会随构建上传（见 `jetbrains-storyboard` 作业）。
 
 示意图 / Screenshots
@@ -105,7 +107,7 @@ JetBrains 头less UI Smoke（可选）
  - 小贴士（coverage.policy 命中策略）：policy 键既支持“目录前缀”也支持“文件名后缀（basename）”。
    - 对单个关键模块设更高门槛，推荐直接使用文件名后缀（如 `mcp_server.py: 0.99`）。
    - 对一类目录设默认门槛，使用目录前缀（如 `mcp_rules_assistant/`: 0.95）。
- - 小贴士（近阈值 near 窗口）：文档示例为 3%，本仓库覆盖为 1.0%（`coverage.near.within=0.01`）。可用 `mcp-rules-assistant coverage-near-set --within 3 --top 20` 调整。
+ - 小贴士（近阈值 near 窗口）：文档示例为 3%，本仓库覆盖为 0.8%（`coverage.near.within=0.008`）。可用 `mcp-rules-assistant coverage-near-set --within 3 --top 20` 调整。
 
 覆盖率策略（示例）
 ```yaml
