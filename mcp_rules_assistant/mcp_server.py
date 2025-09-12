@@ -85,18 +85,26 @@ class JsonRpcServer:
     def _license_required(self) -> bool:
         try:
             # 若项目根变化，重新加载；否则优先尊重内存中的显式注入（测试用）
-            if getattr(self, "_cfg_root", None) != self.project_root:
-                cfg_src = load_config(self.project_root)
-                self.cfg = cfg_src
-                self._cfg_root = self.project_root
-            else:
-                cfg_src = self.cfg
+            # 1) 优先使用当前内存配置（允许测试注入 cfg）
+            cfg_src = self.cfg if isinstance(self.cfg, dict) else {}
             lic_cfg = (
                 cfg_src.get("license", {})
                 if isinstance(cfg_src.get("license", {}), dict)
                 else {}
             )
-            return bool(lic_cfg.get("required", False))
+            required = bool(lic_cfg.get("required", False))
+            # 2) 若内存未开启，再从磁盘读取最新配置（允许外部更新 assistant.yaml 生效）
+            if not required:
+                fresh = load_config(self.project_root)
+                self.cfg = fresh
+                self._cfg_root = self.project_root
+                lic_cfg = (
+                    fresh.get("license", {})
+                    if isinstance(fresh.get("license", {}), dict)
+                    else {}
+                )
+                required = bool(lic_cfg.get("required", False))
+            return required
         except Exception as e:
             # 保持默认回退为 False，仅记录调试信息
             try:
