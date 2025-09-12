@@ -48,7 +48,7 @@ P2 发布与合规（按需）
 - [x] 许可硬门禁演练自动化：`scripts/release-harden-verify.sh` 已在容器内跑通，结果入库 `.mcp/dashboard/release_check.md`
 - [x] Python 包本地构建与校验：`python -m build && twine check` 通过，产物位于 `dist/`
 - [x] VS Code VSIX 本地打包：`npm --prefix extensions/vscode run package` 产物 `extensions/vscode/*.vsix`
-- [ ] 发布脚本与素材完善：发行说明模板（已有）、商店截图/图标（待补）
+- [x] 发布脚本与素材完善：发行说明模板（已有）、商店截图/图标（已补：`extensions/vscode/images/*`，`package.json` 已配置）
 
 记录与状态
 - 近阈值策略: within=0.8%（0.008），用于清理 near 列表，聚焦真正弱项
