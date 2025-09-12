@@ -29,6 +29,11 @@ function main() {
   ensureDir(path.join(ws, '.github', 'workflows'));
   // fake mode sentinel to avoid backend
   try { fs.writeFileSync(path.join(ws, '.mcp', 'dashboard', 'fake_mode'), '1'); } catch {}
+  // ensure README exists for smoke test
+  try {
+    const readme = path.join(ws, 'README.md');
+    if (!fs.existsSync(readme)) fs.writeFileSync(readme, '# Fixture README\n', 'utf-8');
+  } catch {}
   console.log('[prep-workspace] workspace =', ws);
 }
 main();

@@ -1818,6 +1818,21 @@ export function activate(context: vscode.ExtensionContext) {
       return true;
     } catch { return true; }
   }));
+  context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant._test_waitReady2', async (topic?: string) => {
+    try {
+      const key = String(topic||'any');
+      let p = __ready2Promises.get(key);
+      if (!p) {
+        p = new Promise<void>((res)=>{ __ready2Resolvers.set(key, res); });
+        __ready2Promises.set(key, p);
+      }
+      const t = new Promise<void>((res)=>setTimeout(res, 2500));
+      await Promise.race([p, t]);
+      __ready2Promises.delete(key);
+      __ready2Resolvers.delete(key);
+      return true;
+    } catch { return true; }
+  }));
   context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant._test_simulateWebviewMessage', async (msg:any) => {
     if (__testWebviewHandler) { await __testWebviewHandler(msg); }
     return true;
