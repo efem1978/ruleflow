@@ -197,3 +197,42 @@ dash.mkdir(parents=True, exist_ok=True)
 outp.write_text(json.dumps(out, ensure_ascii=False, indent=2), encoding='utf-8')
 print('[jb-ui-verify] exec/ci snapshot appended to', outp)
 PY
+
+# Roundtrip: toggle execution.fs_guard_* flags in assistant.yaml (best-effort, no YAML deps)
+python3 - << 'PY'
+from pathlib import Path
+import re
+root = Path('.')
+assist = root/'.mcp'/'assistant.yaml'
+assist.parent.mkdir(parents=True, exist_ok=True)
+text = ''
+if assist.exists():
+    text = assist.read_text(encoding='utf-8')
+if not text.strip():
+    text = 'execution:\n  fs_guard_post_checks: true\n  fs_guard_strict: true\n'
+
+def set_or_flip(s: str, key: str) -> str:
+    # if key exists, flip true<->false; else insert under execution:
+    pat = re.compile(rf'^(\s*){re.escape(key)}\s*:\s*(true|false)\s*$', re.M)
+    m = pat.search(s)
+    if m:
+        indent = m.group(1)
+        val = m.group(2)
+        new = 'false' if val.lower() == 'true' else 'true'
+        return s[:m.start()] + f"{indent}{key}: {new}" + s[m.end():]
+    # ensure execution: block exists
+    if 'execution:' not in s:
+        s += '\nexecution:\n'
+    # find execution: line and its indent
+    em = re.search(r'^(\s*)execution:\s*$', s, re.M)
+    if em:
+        indent = em.group(1) + '  '
+        insert_pos = em.end()
+        return s[:insert_pos] + f"\n{indent}{key}: true" + s[insert_pos:]
+    return s + f"\n{key}: true\n"
+
+text = set_or_flip(text, 'fs_guard_post_checks')
+text = set_or_flip(text, 'fs_guard_strict')
+assist.write_text(text, encoding='utf-8')
+print('[jb-ui-verify] toggled fs_guard_* in assistant.yaml')
+PY
