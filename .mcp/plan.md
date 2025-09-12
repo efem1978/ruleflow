@@ -36,8 +36,9 @@ P1 改进（当前）
 - [x] JetBrains：CI 工件验证（Storyboard + UI smoke）
   - 已在 Docker 中运行 `jb-package` 与 `jb-ui-smoke`，产出并校验 `jb_verify.json`
   - 后续增强：细化断言，补充更全面 UI smoke 路径（可选）
-- [ ] JetBrains：受控写入入口与严格/后置检查 UI 映射
-  - 将 fs.apply_patch 严格/后置检查开关在插件 UI 显式可控（待实现）
+- [x] JetBrains：受控写入入口与严格/后置检查 UI 映射
+  - 工具窗口新增复选框与“应用受控写入配置”按钮，映射到 MCP `config.update`（execution.fs_guard_post_checks / fs_guard_strict）
+  - 需在真实 IDE 内验证交互（容器 smoke 已覆盖读取 plan/coverage）
 - [x] VS Code 95% 硬门禁脚本与阈值保持（CI）
   - 脚本：`scripts/check-lcov.sh` / `scripts/lcov-near.sh` 已接入
   - CI 变量：`VSCODE_COVERAGE_GATE=1`、`VSCODE_COVERAGE_THRESHOLD_WARN=95` 已在工作流配置
