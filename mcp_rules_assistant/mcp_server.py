@@ -1658,7 +1658,7 @@ English summary:
             if k in payload:
                 ci[k] = payload[k]
         data["ci"] = ci
-        # Optional: update execution.checks_delegate_run_cmd
+        # Optional: update execution.* flags
         if "execution" in payload and isinstance(payload["execution"], dict):
             ex = (
                 data.get("execution", {})
@@ -1666,7 +1666,16 @@ English summary:
                 else {}
             )
             if "checks_delegate_run_cmd" in payload["execution"]:
-                ex["checks_delegate_run_cmd"] = bool(payload["execution"]["checks_delegate_run_cmd"])  # type: ignore[truthy-bool]
+                ex["checks_delegate_run_cmd"] = bool(
+                    payload["execution"]["checks_delegate_run_cmd"]
+                )  # type: ignore[truthy-bool]
+            # fs.apply_patch / FSGuard related toggles
+            if "fs_guard_post_checks" in payload["execution"]:
+                ex["fs_guard_post_checks"] = bool(
+                    payload["execution"]["fs_guard_post_checks"]
+                )
+            if "fs_guard_strict" in payload["execution"]:
+                ex["fs_guard_strict"] = bool(payload["execution"]["fs_guard_strict"])  # type: ignore[truthy-bool]
             data["execution"] = ex
         cfg_path.parent.mkdir(parents=True, exist_ok=True)
         atomic_write_text(

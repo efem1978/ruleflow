@@ -43,6 +43,9 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
         val btnMcpCovReport = JButton("MCP: 覆盖率报告")
         val btnFsDry = JButton("MCP: 受控写入(dry-run)")
         val btnFsWrite = JButton("MCP: 受控写入(严格写入)")
+        val cbFsPost = JCheckBox("写入后检查(fs_guard_post_checks)", false)
+        val cbFsStrict = JCheckBox("严格(fs_guard_strict)", false)
+        val btnFsApplyCfg = JButton("应用受控写入配置")
         val btnFsDryMulti = JButton("MCP: 多文件(dry-run)")
         val btnFsWriteMulti = JButton("MCP: 多文件(严格)")
         val btnOpenPlan = JButton("在编辑器打开计划")
@@ -64,6 +67,9 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
         top.add(btnHooks)
         top.add(btnCfgYaml)
         top.add(btnCiYaml)
+        top.add(cbFsPost)
+        top.add(cbFsStrict)
+        top.add(btnFsApplyCfg)
         top.add(btnFsDry)
         top.add(btnFsWrite)
         top.add(btnFsDryMulti)
@@ -204,6 +210,18 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
             try {
                 if (!mcp.isRunning()) mcp.start(project)
                 val out = mcp.request("resources/list")
+                text.text = if (chkPretty.isSelected) prettyJson(out) else out
+            } catch (e: Exception) {
+                text.text = "MCP 请求失败: ${e.message}"
+            }
+        }
+
+        // 受控写入：将 UI 勾选映射到项目配置（execution.fs_guard_post_checks / fs_guard_strict）
+        btnFsApplyCfg.addActionListener {
+            try {
+                if (!mcp.isRunning()) mcp.start(project)
+                val payload = "{\"data\":{\"execution\":{\"fs_guard_post_checks\":" + (if (cbFsPost.isSelected) "true" else "false") + ",\"fs_guard_strict\":" + (if (cbFsStrict.isSelected) "true" else "false") + "}}}"
+                val out = mcp.request("tools/call", "{\"name\":\"config.update\",\"arguments\":$payload}", 8000)
                 text.text = if (chkPretty.isSelected) prettyJson(out) else out
             } catch (e: Exception) {
                 text.text = "MCP 请求失败: ${e.message}"
