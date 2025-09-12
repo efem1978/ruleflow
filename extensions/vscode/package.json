@@ -86,7 +86,8 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "test": "npm run compile && c8 --reporter=lcov --reporter=text node ./out/test/runTest.js",
-    "package": "vsce package --no-dependencies"
+    "package": "vsce package --no-dependencies",
+    "img:png": "node scripts/svg2png.js"
   },
   "keywords": [
     "mcp",
@@ -96,14 +97,20 @@
     "gate",
     "ci"
   ],
-  "icon": "images/icon.svg",
+  "icon": "images/icon-128.png",
   "galleryBanner": {
     "color": "#0b5fff",
     "theme": "dark"
   },
   "screenshots": [
-    { "path": "images/screenshot1.svg", "label": "Panel Overview" },
-    { "path": "images/screenshot2.svg", "label": "Coverage & CI" }
+    {
+      "path": "images/screenshot1.svg",
+      "label": "Panel Overview"
+    },
+    {
+      "path": "images/screenshot2.svg",
+      "label": "Coverage & CI"
+    }
   ],
   "devDependencies": {
     "@types/mocha": "^10.0.1",
@@ -112,6 +119,7 @@
     "@vscode/test-electron": "^2.3.4",
     "c8": "^9.1.0",
     "mocha": "^10.2.0",
+    "sharp": "^0.33.5",
     "typescript": "^5.4.0",
     "vsce": "^2.15.0"
   }
