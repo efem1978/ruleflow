@@ -175,6 +175,13 @@ build-vscode-test:
 docker-vscode-test:
 	sh scripts/vscode-test-once.sh || true
 
+.PHONY: jb-verify vscode-test-smoke
+jb-verify:
+	bash scripts/jb-ui-verify.sh
+
+vscode-test-smoke:
+	$(MAKE) docker-vscode-test
+
 docker-batch:
 	@echo "[docker-batch] verify"
 	$(MAKE) docker-verify || true

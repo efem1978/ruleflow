@@ -13,6 +13,14 @@ if [ ! -f "$LCOV_FILE" ]; then
   exit 0
 fi
 
+# Print quick totals (lines found/hit) and coverage
+LF_TOTAL=$(awk -F: '/^LF:/{s+=$2} END{print s+0}' "$LCOV_FILE")
+LH_TOTAL=$(awk -F: '/^LH:/{s+=$2} END{print s+0}' "$LCOV_FILE")
+if [ "$LF_TOTAL" -gt 0 ]; then
+  PCT=$(awk "BEGIN { printf \"%.1f\", ($LH_TOTAL*100)/$LF_TOTAL }")
+  echo "[lcov-near] VS Code coverage: $PCT% (LF=$LF_TOTAL, LH=$LH_TOTAL)"
+fi
+
 awk -v TH="$THRESHOLD" -v WIN="$WINDOW" -v TOPN="$TOP" '
 BEGIN{FS=":"}
   /^SF:/ { if (cur!="") { files[cur]=cov; } cur=$2; lf=0; lh=0; cov=-1 }
@@ -59,4 +67,3 @@ END{
   }
 }
 ' "$LCOV_FILE"
-

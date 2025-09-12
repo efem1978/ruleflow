@@ -158,6 +158,10 @@
 - 请以 `.mcp/plan.md` 作为唯一权威任务清单；VS Code 面板与 Dev Agent 仅读取该文件的清单。
 - CLI 刷新状态：`mcp-rules-assistant status-update` 会将计划/覆盖率/记忆与任务列表写入 `.mcp/dashboard/status.json`（任务仅来源于 `.mcp/plan.md`）。
 
+## 快速验证 / Quick Checks（容器优先）
+- VS Code 无头测试（带夹具与降噪）：`make docker-vscode-test`
+- JetBrains UI 验证汇总：`bash scripts/jb-ui-verify.sh`（输出 `/.mcp/dashboard/jb_verify.json` 和 `jb_groups.md`）
+
 ## 任务清单（当前 Sprint）
 - 本轮目标（以 `.mcp/plan.md` 为权威，当前已完成）
 - [x] 覆盖率抛光：dev_agent.py（≥96.5%）、mcp_server.py（≥99.0%）、rules_ingest.py（≥98.0%）
