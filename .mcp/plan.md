@@ -44,8 +44,10 @@ P1 改进（当前）
   - 说明：本地容器无头测试存在 14 项超时失败，属环境/参数差异；CI 继续维持阈值与 near/worst 报告（后续在兼容脚本中迭代修复）
 
 P2 发布与合规（按需）
-- [ ] 发布脚本与素材完善：PyPI/VSIX、发行说明模板、商店截图/图标
-- [ ] 许可硬门禁演练自动化：`make release-harden-verify` 结果入库至 `.mcp/dashboard/release_check.md`
+- [x] 许可硬门禁演练自动化：`scripts/release-harden-verify.sh` 已在容器内跑通，结果入库 `.mcp/dashboard/release_check.md`
+- [x] Python 包本地构建与校验：`python -m build && twine check` 通过，产物位于 `dist/`
+- [x] VS Code VSIX 本地打包：`npm --prefix extensions/vscode run package` 产物 `extensions/vscode/*.vsix`
+- [ ] 发布脚本与素材完善：发行说明模板（已有）、商店截图/图标（待补）
 
 记录与状态
 - 近阈值策略: within=0.8%（0.008），用于清理 near 列表，聚焦真正弱项
