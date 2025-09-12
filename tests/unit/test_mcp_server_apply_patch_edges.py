@@ -30,9 +30,7 @@ def test_fs_apply_patch_disallow_flag_parse_exception(
     out = srv._call_tool(
         "fs.apply_patch",
         {
-            "files": [
-                {"path": "mcp_rules_assistant/x.py", "content": "print('FORBIDDEN')"}
-            ],
+            "files": [{"path": "pkg_x/x.py", "content": "print('FORBIDDEN')"}],
             "runChecks": False,
             "strict": True,
         },
