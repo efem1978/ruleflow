@@ -53,8 +53,8 @@ def test_run_cmd_events_trim(tmp_path: Path, monkeypatch) -> None:
 
     def fake_read(self, *a, **kw):  # type: ignore[override]
         state["n"] += 1
-        # after first call (append existing), raise during trimming
-        if self == jl and state["n"] > 1:
+        # Raise exactly once on the second read of this file (during trimming)
+        if self == jl and state["n"] == 2:
             raise RuntimeError("boom")
         return orig_read(self, *a, **kw)
 
