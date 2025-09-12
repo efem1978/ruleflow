@@ -66,7 +66,7 @@ def run_cmd(
         # 可选：将事件追加落盘，默认关闭；通过 MCP_RUN_CMD_EVENTS=1 开启
         try:
             if os.environ.get("MCP_RUN_CMD_EVENTS", "0") in ("1", "true", "True"):
-                root = Path.cwd()
+                root = Path(str(cwd))
                 out_dir = root / ".mcp" / "dashboard"
                 out_dir.mkdir(parents=True, exist_ok=True)
                 jl = out_dir / "cmd_events.jsonl"
