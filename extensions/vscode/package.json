@@ -96,6 +96,15 @@
     "gate",
     "ci"
   ],
+  "icon": "images/icon.svg",
+  "galleryBanner": {
+    "color": "#0b5fff",
+    "theme": "dark"
+  },
+  "screenshots": [
+    { "path": "images/screenshot1.svg", "label": "Panel Overview" },
+    { "path": "images/screenshot2.svg", "label": "Coverage & CI" }
+  ],
   "devDependencies": {
     "@types/mocha": "^10.0.1",
     "@types/node": "^20.10.0",

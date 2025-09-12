@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540">
+  <rect width="960" height="540" fill="#0b0f1a"/>
+  <rect x="40" y="40" width="880" height="460" rx="8" fill="#11182a" stroke="#1f2d4d"/>
+  <text x="60" y="90" fill="#9ec1ff" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700">RuleFlow Panel — Overview</text>
+  <rect x="60" y="120" width="380" height="340" rx="6" fill="#0f1628" stroke="#27406d"/>
+  <text x="80" y="150" fill="#cfe2ff" font-family="Arial" font-size="16">Plan (.mcp/plan.md)</text>
+  <rect x="460" y="120" width="440" height="160" rx="6" fill="#0f1628" stroke="#27406d"/>
+  <text x="480" y="150" fill="#cfe2ff" font-family="Arial" font-size="16">Coverage Summary (weak/near/groups)</text>
+  <rect x="460" y="300" width="440" height="160" rx="6" fill="#0f1628" stroke="#27406d"/>
+  <text x="480" y="330" fill="#cfe2ff" font-family="Arial" font-size="16">CI/Rules Actions</text>
+  <text x="60" y="510" fill="#7aa5ff" font-family="Arial" font-size="14">Textual mock for Marketplace screenshot (no sensitive data)</text>
+</svg>
