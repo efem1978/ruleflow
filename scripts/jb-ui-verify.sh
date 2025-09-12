@@ -150,3 +150,50 @@ print('[jb-ui-verify] wrote', dash/'jb_verify.json')
 PY
 
 echo "[jb-ui-verify] done"
+
+# Append execution/CI snapshot from assistant.yaml (best-effort)
+python3 - << 'PY'
+import json
+from pathlib import Path
+root = Path('.')
+dash = root/'.mcp'/'dashboard'
+assist = root/'.mcp'/'assistant.yaml'
+outp = dash/'jb_verify.json'
+try:
+    out = json.loads(outp.read_text(encoding='utf-8'))
+except Exception:
+    out = {}
+ex = {}
+ci = {}
+try:
+    txt = assist.read_text(encoding='utf-8')
+    def find_bool(key: str) -> bool|None:
+        for line in txt.splitlines():
+            if key in line:
+                if any(t in line for t in (': true', ': True', ': 1')):
+                    return True
+                if any(t in line for t in (': false', ': False', ': 0')):
+                    return False
+        return None
+    ex['fs_guard_post_checks'] = find_bool('fs_guard_post_checks')
+    ex['fs_guard_strict'] = find_bool('fs_guard_strict')
+    ex['checks_delegate_run_cmd'] = find_bool('checks_delegate_run_cmd')
+    ci['hadolint'] = find_bool('hadolint:')
+    ci['vscode_required'] = find_bool('vscode_required')
+    ci['mutation_gate_strict'] = find_bool('mutation_gate_strict')
+    # semgrep_config: try to read string value
+    sem = None
+    for line in txt.splitlines():
+        if 'semgrep_config:' in line:
+            sem = line.split(':',1)[1].strip().strip('"')
+            break
+    if sem:
+        ci['semgrep_config'] = sem
+except Exception:
+    pass
+out['execution'] = ex
+out['ci'] = ci
+dash.mkdir(parents=True, exist_ok=True)
+outp.write_text(json.dumps(out, ensure_ascii=False, indent=2), encoding='utf-8')
+print('[jb-ui-verify] exec/ci snapshot appended to', outp)
+PY
