@@ -796,10 +796,12 @@ export function activate(context: vscode.ExtensionContext) {
               const el = document.getElementById('ciStatus');
               if (el) el.textContent = msg.exist ? 'CI: 已生成' : 'CI: 未生成';
               if (el) el.style.color = msg.exist ? '#2a2' : '#d33';
+              try { vscode.postMessage({ t: 'ready2', topic: 'ciStatusReady' }); } catch {}
             }
             if (msg.t === 'ciPreviewContent') {
               const pv = document.getElementById('ciPreviewBox');
               if (pv) pv.textContent = msg.text || '';
+              try { vscode.postMessage({ t: 'ready2', topic: 'ciPreviewReady' }); } catch {}
             }
             if (msg.t === 'ciChecks') {
               const ul = document.getElementById('ciChecks');
