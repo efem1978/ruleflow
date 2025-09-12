@@ -2,6 +2,8 @@ import * as assert from 'assert';
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as fs from 'fs';
+import * as path from 'path';
 
 suite('Coverage bad/Tree no-resource (fake)', () => {
   test('coverage summary ok=false and coverageTree no resource', async () => {
@@ -11,6 +13,9 @@ suite('Coverage bad/Tree no-resource (fake)', () => {
     await ext!.activate();
     const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '';
     assert.ok(ws, 'workspace required');
+    const sentinel = path.resolve(ws, '.mcp/dashboard/fake_mode');
+    fs.mkdirSync(path.dirname(sentinel), { recursive: true });
+    fs.writeFileSync(sentinel, '1', 'utf-8');
     // sentinel: coverage_bad
     const bad = path.resolve(ws, '.mcp/dashboard/coverage_bad');
     fs.mkdirSync(path.dirname(bad), { recursive: true });

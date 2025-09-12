@@ -11,12 +11,15 @@ function ensureFile(p: string, content: string) {
 
 suite('Panel dispatch common paths (fake mode, split)', () => {
   test('loadRules (compiled+json fallback)', async () => {
-    process.env.RULEFLOW_TEST_FAKE = '1';
     const ext = vscode.extensions.getExtension('ruleflow.mcp-rules-assistant');
     assert.ok(ext);
     await ext!.activate();
     const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '';
     assert.ok(ws);
+    const fs = require('fs'); const path = require('path');
+    const sentinel = path.resolve(ws, '.mcp/dashboard/fake_mode');
+    fs.mkdirSync(path.dirname(sentinel), { recursive: true });
+    fs.writeFileSync(sentinel, '1', 'utf-8');
     ensureFile(path.resolve(ws, '.mcp/rules_compiled.md'), '# Rules\n');
     await vscode.commands.executeCommand('mcpRulesAssistant.openPanel');
     await new Promise(r => setTimeout(r, 300));
@@ -25,12 +28,15 @@ suite('Panel dispatch common paths (fake mode, split)', () => {
   });
 
   test('coverage summary/groups/near (single message)', async () => {
-    process.env.RULEFLOW_TEST_FAKE = '1';
     const ext = vscode.extensions.getExtension('ruleflow.mcp-rules-assistant');
     assert.ok(ext);
     await ext!.activate();
     const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '';
     assert.ok(ws);
+    const fs = require('fs'); const path = require('path');
+    const sentinel = path.resolve(ws, '.mcp/dashboard/fake_mode');
+    fs.mkdirSync(path.dirname(sentinel), { recursive: true });
+    fs.writeFileSync(sentinel, '1', 'utf-8');
     ensureFile(path.resolve(ws, '.mcp/dashboard/weak_top.csv'), 'file,coverage,threshold,weak_count,files_count\nmod.py,0.90,0.95,1,1\n');
     await vscode.commands.executeCommand('mcpRulesAssistant.openPanel');
     await new Promise(r => setTimeout(r, 300));
@@ -39,12 +45,15 @@ suite('Panel dispatch common paths (fake mode, split)', () => {
   });
 
   test('csvPreviewPick weak_top only', async () => {
-    process.env.RULEFLOW_TEST_FAKE = '1';
     const ext = vscode.extensions.getExtension('ruleflow.mcp-rules-assistant');
     assert.ok(ext);
     await ext!.activate();
     const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '';
     assert.ok(ws);
+    const fs = require('fs'); const path = require('path');
+    const sentinel = path.resolve(ws, '.mcp/dashboard/fake_mode');
+    fs.mkdirSync(path.dirname(sentinel), { recursive: true });
+    fs.writeFileSync(sentinel, '1', 'utf-8');
     ensureFile(path.resolve(ws, '.mcp/dashboard/weak_top.csv'), 'file,coverage,threshold,weak_count,files_count\nmod.py,0.90,0.95,1,1\n');
     await vscode.commands.executeCommand('mcpRulesAssistant.openPanel');
     await new Promise(r => setTimeout(r, 300));
@@ -53,12 +62,15 @@ suite('Panel dispatch common paths (fake mode, split)', () => {
   });
 
   test('ciCheck only', async () => {
-    process.env.RULEFLOW_TEST_FAKE = '1';
     const ext = vscode.extensions.getExtension('ruleflow.mcp-rules-assistant');
     assert.ok(ext);
     await ext!.activate();
     const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '';
     assert.ok(ws);
+    const fs = require('fs'); const path = require('path');
+    const sentinel = path.resolve(ws, '.mcp/dashboard/fake_mode');
+    fs.mkdirSync(path.dirname(sentinel), { recursive: true });
+    fs.writeFileSync(sentinel, '1', 'utf-8');
     ensureFile(path.resolve(ws, '.github/workflows/ci.yml'), 'name: CI\n');
     await vscode.commands.executeCommand('mcpRulesAssistant.openPanel');
     await new Promise(r => setTimeout(r, 300));

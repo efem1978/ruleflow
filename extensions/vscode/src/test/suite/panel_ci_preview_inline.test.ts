@@ -5,12 +5,14 @@ import * as path from 'path';
 
 suite('Panel CI preview inline/preview (fake mode)', () => {
   test('ciPreviewInline / ciPreview run without backend', async () => {
-    process.env.RULEFLOW_TEST_FAKE = '1';
     const ext = vscode.extensions.getExtension('ruleflow.mcp-rules-assistant');
     assert.ok(ext, 'Extension not found');
     await ext!.activate();
     const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '';
     assert.ok(ws, 'workspace required');
+    const sentinel = path.resolve(ws, '.mcp/dashboard/fake_mode');
+    fs.mkdirSync(path.dirname(sentinel), { recursive: true });
+    fs.writeFileSync(sentinel, '1', 'utf-8');
     const yml = path.resolve(ws, '.github/workflows/ci.yml');
     if (!fs.existsSync(path.dirname(yml))) fs.mkdirSync(path.dirname(yml), { recursive: true });
     fs.writeFileSync(yml, 'name: CI\n', 'utf-8');

@@ -35,7 +35,18 @@ class McpClient {
   private pending = new Map<number, (res: any) => void>();
   private fakeMode = ((process.env.RULEFLOW_TEST_FAKE || '').trim() === '1');
 
+  private updateFakeMode() {
+    try {
+      if ((process.env.RULEFLOW_TEST_FAKE || '').trim() === '1') { this.fakeMode = true; return; }
+      const ws = getWorkspaceRoot() || process.cwd();
+      const p = require('path').join(ws, '.mcp', 'dashboard', 'fake_mode');
+      const fs = require('fs');
+      if (fs.existsSync(p)) this.fakeMode = true;
+    } catch { /* ignore */ }
+  }
+
   start(context: vscode.ExtensionContext) {
+    this.updateFakeMode();
     if (this.proc || this.fakeMode) return;
     // 尽量不影响性能：按需启动，面板打开或首次请求时才启动
     const pyBin = process.env.MCP_PYTHON_BIN && process.env.MCP_PYTHON_BIN.trim()
@@ -72,6 +83,7 @@ class McpClient {
   }
 
   request(method: string, params?: any): Promise<any> {
+    this.updateFakeMode();
     if (this.fakeMode) {
       return this._fakeRequest(method, params || {});
     }
