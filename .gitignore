@@ -37,6 +37,7 @@ coverage_report.json
 foo.py
 docs/b.txt
 diagnostics-*.tar.gz
+pkg_x/
 
 # Test reports (do not commit)
 pytest-junit.xml

@@ -41,7 +41,7 @@ VS Code 面板手测指南 / VS Code Manual Test
 9) 受限环境的 VS Code 测试
    - 建议优先：清空默认参数后重试：`export MCP_VSCODE_TEST_ARGS="" && npm --prefix extensions/vscode test`
    - 若仍失败，可改用自定义启动参数（逗号分隔）：`export MCP_VSCODE_TEST_ARGS="--disable-extensions"`
-   - 或使用容器路径（更稳定）：`docker compose run --rm vscode-test`
+ - 或使用容器路径（更稳定）：`docker compose run --rm vscode-test`
 
 通过 Docker Compose 运行（推荐缓存）
 --------------------------------
@@ -55,7 +55,13 @@ docker compose run --rm vscode-test
 
 说明：
 - 预构建镜像 `extensions/vscode/Dockerfile.test` 会执行 `npm ci` 并通过 `@vscode/test-electron` 预下载 VS Code 到 `/opt/app/.vscode-test`。
-- 运行时命令会将该目录符号链接到工作区 `extensions/vscode/.vscode-test`，避免每次重新下载。
+ - 运行时命令会将该目录符号链接到工作区 `extensions/vscode/.vscode-test`，避免每次重新下载。
+
+快速命令（容器优先）
+- 无头测试并生成 lcov：`docker compose run --rm vscode-test`
+- 导出阈值与 near/worst 清单：
+  - `sh scripts/check-lcov.sh extensions/vscode/coverage/lcov.info 95 || true`
+  - `sh scripts/lcov-near.sh extensions/vscode/coverage/lcov.info 95 5 20 > near_vscode.txt || true`
 
 覆盖率检查脚本（进阶）
 - `scripts/check-lcov.sh <lcov.info> <threshold_pct> [gate]`

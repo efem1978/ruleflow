@@ -142,6 +142,8 @@ coverage:
 2) 生成并校验 CI：`mcp-rules-assistant generate-ci && mcp-rules-assistant ci-validate`
 3) 加载覆盖率与状态：`PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q -p pytest_cov --cov=mcp_rules_assistant --cov-report=xml:coverage.xml && mcp-rules-assistant status-update`
 
+- 打开权威任务计划：`mcp-rules-assistant plan-open`（唯一来源：`.mcp/plan.md`）
+
 （五步快速上手）
 - 初始化与规则摄取：`mcp-rules-assistant init && mcp-rules-assistant ingest-rules README.md docs/`
 - 安装本地钩子：`mcp-rules-assistant install-hooks`
@@ -179,6 +181,7 @@ coverage:
 - docs/HOOKS.md：Git hooks 与 CI 生成
 - docs/RULES_INGEST.md：规则摄取与校验
 - docs/SECURITY_TOOLS.md：安全工具示例（hadolint/semgrep）
+ - docs/PRIVACY.md：隐私政策（默认无遥测；仅本地 `.mcp/` 产物）
  - extensions/vscode/README.md：插件说明
 - PRICING：`docs/PRICING.md`（定价与许可、试用政策）
 - COMMERCIAL：`docs/COMMERCIAL.md`（开源/闭源边界、授权与发行物料）
@@ -388,3 +391,4 @@ sh scripts/release-compose-body.sh
 - 其他临时目录：`.mypy_cache/`、`.ruff_cache/`、`.pytest_cache/`、`dist/`、`build/`
 （仓库已在 `.gitignore` 与 `scripts/preflight.sh` 做了兜底）
 - CI 注释：Bandit 对高严重度或常见规则（B101/B404/B603/B110/B112）自动输出 GitHub Actions 警告注释（文件/行/标题/摘要）。
+ - 本地样例/占位目录：`pkg_x/`（不应提交到仓库）

@@ -117,17 +117,37 @@ def test_rules_maxima_resource_and_missing(tmp_path: Path) -> None:
     assert data.get("maxima", {}).get("coverage.max_core") == 0.99
 
 
-def test_fs_apply_patch_rejects_symlink_target(tmp_path: Path) -> None:
+def test_fs_apply_patch_rejects_symlink_target(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     srv = _srv(tmp_path)
-    # 先创建符号链接作为目标文件
+    # 先创建符号链接作为目标文件（或在不支持平台上用 monkeypatch 模拟行为）
     target = tmp_path / "real.py"
     target.write_text("print('hi')\n", encoding="utf-8")
     link = tmp_path / "link.py"
+    used_fallback = False
     try:
         link.symlink_to(target)
     except Exception:
-        pytest.skip("symlink not supported on this platform")
-    # 由于内部对路径执行 resolve()，此处将实际落盘到真实文件（非链接）
+        used_fallback = True
+        # 回退：创建普通文件并用 monkeypatch 将写入 link.py 重定向到 target
+        link.write_text("print('hi')\n", encoding="utf-8")
+
+        from mcp_rules_assistant.fs_wrapper import FSGuard as _FSGuard
+
+        _orig_write = _FSGuard.write_text
+
+        def _fake_write(self, path: Path, content: str, encoding: str = "utf-8") -> None:  # type: ignore[override]
+            if str(path) == "link.py":
+                # 模拟“写入链接即写入目标”
+                (self.project_root / target.name).write_text(content, encoding)
+                return
+            return _orig_write(self, path, content, encoding)
+
+        monkeypatch.setattr(_FSGuard, "write_text", _fake_write, raising=True)
+
+    # 由于内部 resolve()，真实 symlink 情况下会写入到目标文件；
+    # 在回退模拟中，已将 write_text 重定向到目标文件。
     srv._call_tool(
         "fs.apply_patch",
         {

@@ -3,6 +3,7 @@
   "displayName": "RuleFlow: Rules & Memory (MCP)",
   "publisher": "ruleflow",
   "version": "0.2.5",
+  "description": "Rules enforcement + rolling context memory across IDEs (VS Code + MCP server). No telemetry.",
   "repository": {
     "type": "git",
     "url": "https://github.com/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool.git"
@@ -87,6 +88,14 @@
     "test": "npm run compile && c8 --reporter=lcov --reporter=text node ./out/test/runTest.js",
     "package": "vsce package --no-dependencies"
   },
+  "keywords": [
+    "mcp",
+    "coverage",
+    "rules",
+    "memory",
+    "gate",
+    "ci"
+  ],
   "devDependencies": {
     "@types/mocha": "^10.0.1",
     "@types/node": "^20.10.0",

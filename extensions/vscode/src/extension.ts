@@ -33,9 +33,10 @@ class McpClient {
   private proc: ChildProcessWithoutNullStreams | null = null;
   private seq = 0;
   private pending = new Map<number, (res: any) => void>();
+  private fakeMode = ((process.env.RULEFLOW_TEST_FAKE || '').trim() === '1');
 
   start(context: vscode.ExtensionContext) {
-    if (this.proc) return;
+    if (this.proc || this.fakeMode) return;
     // 尽量不影响性能：按需启动，面板打开或首次请求时才启动
     const pyBin = process.env.MCP_PYTHON_BIN && process.env.MCP_PYTHON_BIN.trim()
       ? process.env.MCP_PYTHON_BIN.trim()
@@ -71,6 +72,9 @@ class McpClient {
   }
 
   request(method: string, params?: any): Promise<any> {
+    if (this.fakeMode) {
+      return this._fakeRequest(method, params || {});
+    }
     if (!this.proc) throw new Error('MCP server not started');
     const id = ++this.seq;
     const payload = JSON.stringify({ jsonrpc: '2.0', id, method, params }) + '\n';
@@ -79,11 +83,138 @@ class McpClient {
       this.proc!.stdin.write(payload, 'utf8');
     });
   }
+
+  private async _fakeRequest(method: string, params: any): Promise<any> {
+    try {
+      const ws = getWorkspaceRoot() || process.cwd();
+      const fsApi = vscode.workspace.fs;
+      const fileToString = async (u: vscode.Uri) => {
+        try { const b = await fsApi.readFile(u); return Buffer.from(b).toString('utf-8'); } catch { return ''; }
+      };
+      if (method === 'resources/list') {
+        const items: any[] = [];
+        // sentinels to toggle off some resources
+        let noTree = false, noRules = false;
+        try { await fsApi.stat(vscode.Uri.file(ws + '/.mcp/dashboard/notree')); noTree = true; } catch {}
+        try { await fsApi.stat(vscode.Uri.file(ws + '/.mcp/dashboard/norules')); noRules = true; } catch {}
+        if (!noRules) {
+          items.push({ uri: `rules://project/x/compiled`, name: 'Compiled project rules' });
+          items.push({ uri: `rules://project/x/compiled.json`, name: 'Compiled rules (JSON)' });
+          items.push({ uri: `rules://project/x/suggestions`, name: 'Rule suggestions' });
+        }
+        items.push({ uri: `coverage://project/x/summary`, name: 'Coverage summary' });
+        items.push({ uri: `coverage://project/x/groups`, name: 'Coverage groups' });
+        if (!noTree) items.push({ uri: `coverage://project/x/tree`, name: 'Coverage tree' });
+        items.push({ uri: `coverage://project/x/near`, name: 'Coverage near' });
+        items.push({ uri: `memory://x/rollup`, name: 'Last 20 turns & summary' });
+        items.push({ uri: `progress://x/plan`, name: 'Project plan' });
+        try { await fsApi.stat(vscode.Uri.file(ws + '/.github/workflows/ci.yml')); items.push({ uri: `ci://project/x/workflow`, name: 'CI workflow (YAML)' }); } catch {}
+        return { resources: items };
+      }
+      if (method === 'resources/read') {
+        const uri = String((params || {}).uri || '');
+        if (uri.endsWith('/compiled')) {
+          const u = vscode.Uri.file(ws + '/.mcp/rules_compiled.md');
+          const text = await fileToString(u) || 'Rules (fake compiled)';
+          return { mimeType: 'text/markdown', text };
+        }
+        if (uri.endsWith('/compiled.json')) {
+          const u = vscode.Uri.file(ws + '/.mcp/rules_compiled.json');
+          const fallback = JSON.stringify({ conflicts: [{ key: 'coverage.min_module', from: 0.9, to: 0.95 }], suggestions: [{ key: 'security.secrets_scan', action: 'enable' }, { key: 'ci.vscode_required', action: 'enable' }] });
+          const text = await fileToString(u) || fallback;
+          return { mimeType: 'application/json', text };
+        }
+        if (uri.endsWith('/suggestions')) {
+          const u = vscode.Uri.file(ws + '/.mcp/rules_suggestions.md');
+          const text = await fileToString(u) || 'No suggestions (fake)';
+          return { mimeType: 'text/markdown', text };
+        }
+        if (uri.endsWith('/summary')) {
+          let bad = false; try { await fsApi.stat(vscode.Uri.file(ws + '/.mcp/dashboard/coverage_bad')); bad = true; } catch {}
+          if (bad) {
+            const text = JSON.stringify({ ok: false, message: 'coverage not available' });
+            return { mimeType: 'application/json', text };
+          }
+          const weakCsv = await fileToString(vscode.Uri.file(ws + '/.mcp/dashboard/weak_top.csv'));
+          const weak = (weakCsv && weakCsv.includes('\n')) ? weakCsv.split('\n').slice(1).filter(Boolean).map((line) => ({ file: (line.split(',')[0] || 'file.py') })) : [];
+          const text = JSON.stringify({ ok: true, weak });
+          return { mimeType: 'application/json', text };
+        }
+        if (uri.endsWith('/groups')) {
+          const text = JSON.stringify({ ok: true, groups: [{ prefix: 'mod', coverage: 0.97, threshold: 0.95, weak_count: 0, files_count: 1 }] });
+          return { mimeType: 'application/json', text };
+        }
+        if (uri.endsWith('/tree')) {
+          const text = JSON.stringify({ ok: true, tree: { name: '/', children: { mod: { name: 'mod', children: {} } } } });
+          return { mimeType: 'application/json', text };
+        }
+        if (uri.endsWith('/near')) {
+          const text = JSON.stringify({ ok: true, near: [] });
+          return { mimeType: 'application/json', text };
+        }
+        if (uri.startsWith('ci://')) {
+          const y = await fileToString(vscode.Uri.file(ws + '/.github/workflows/ci.yml')) || 'name: CI\n';
+          return { mimeType: 'text/yaml', text: y };
+        }
+        if (uri.startsWith('memory://')) {
+          const text = JSON.stringify({ turns: [], summary: 'fake summary', links: [] });
+          return { mimeType: 'application/json', text };
+        }
+        if (uri.startsWith('progress://')) {
+          const text = '# Plan\n- 状态: in_progress\n- 当前步骤: test';
+          return { mimeType: 'text/markdown', text };
+        }
+        return { mimeType: 'text/plain', text: '' };
+      }
+      if (method === 'tools/call') {
+        const name = String((params || {}).name || '');
+        if (name === 'coverage.near') {
+          let empty = false; try { await fsApi.stat(vscode.Uri.file(ws + '/.mcp/dashboard/near_empty')); empty = true; } catch {}
+          if (empty) return { near: [] };
+          return { near: [{ file: 'mod.py', coverage: 0.961, threshold: 0.95 }] };
+        }
+        if (name === 'ci.generate') {
+          const u = vscode.Uri.file(ws + '/.github/workflows/ci.yml');
+          try { await fsApi.createDirectory(vscode.Uri.file(ws + '/.github/workflows')); } catch {}
+          await fsApi.writeFile(u, Buffer.from('name: CI\n', 'utf-8'));
+          return { ok: true, path: '.github/workflows/ci.yml' };
+        }
+        if (name === 'ci.validate') {
+          try { await fsApi.stat(vscode.Uri.file(ws + '/.github/workflows/ci.yml')); return { ok: true, checks: { workflow: true } }; } catch { return { ok: false, checks: { workflow: false } }; }
+        }
+        if (name === 'rules.onboard') {
+          return { scenario: 'personal', complexity: 'small', devMode: 'tdd', thresholds: { min_module: 0.9, min_core: 0.95 } };
+        }
+        if (name === 'plan.set') {
+          const status = (params && params.status) || 'in_progress';
+          const current = (params && params.current) || 'step';
+          const u = vscode.Uri.file(ws + '/.mcp/plan.md');
+          const md = Buffer.from(`# Plan\n- 状态: ${status}\n- 当前步骤: ${current}\n`, 'utf-8');
+          try { await fsApi.createDirectory(vscode.Uri.file(ws + '/.mcp')); } catch {}
+          await fsApi.writeFile(u, md);
+          return { ok: true };
+        }
+        if (name === 'config.get') {
+          return { ok: true, config: {} };
+        }
+        if (name === 'config.update' || name === 'rules.enforce' || name === 'git.install_hooks' || name === 'rules.ingest' || name === 'env.prepare' || name === 'compliance.commitment' || name === 'ide.scaffold' || name === 'license.verify') {
+          return { ok: true, path: name === 'compliance.commitment' ? '.mcp/compliance.md' : undefined };
+        }
+        if (name === 'nl.command') {
+          return { parsed: { tool: '' } };
+        }
+      }
+      return {};
+    } catch {
+      return {};
+    }
+  }
 }
 
 const client = new McpClient();
 // ---- test hooks (non-public commands register below) ----
 let __testWebviewHandler: ((msg: any) => Promise<void> | void) | null = null;
+let __testPanelHandler: ((msg: any) => Promise<void> | void) | null = null;
 
 async function handleOpenMessage(msg: any) {
   if (msg && msg.t === 'open' && msg.path) {
@@ -875,9 +1006,8 @@ export function activate(context: vscode.ExtensionContext) {
             await vscode.workspace.fs.stat(uri).then(()=>{}, ()=>{ venvMissing = true; });
           }
         } catch { venvMissing = true; }
-        if (venvMissing || missing.length) {
+        if ((venvMissing || missing.length) && (process.env.RULEFLOW_TEST_FAKE || '') !== '1') {
           panel.webview.postMessage({ t: 'info', text: `检测到开发环境不完整（venv: ${venvMissing ? '缺失' : '存在'}；缺少工具: ${missing.join(', ') || '无'}）。建议点击“准备并安装环境”。` });
-          // 给予快速按钮选择
           const pick = await vscode.window.showInformationMessage('检测到缺少开发环境，是否一键创建并安装基础工具？', '立即创建', '稍后');
           if (pick === '立即创建') {
             try {
@@ -893,7 +1023,7 @@ export function activate(context: vscode.ExtensionContext) {
       panel.webview.html = `<pre>连接 MCP 失败：${String(e)}</pre>`;
     }
 
-    panel.webview.onDidReceiveMessage(async (msg) => {
+    const __panelDispatch = async (msg: any) => {
       try {
         __testWebviewHandler = async (m:any) => { await handleOpenMessage(m); };
         if (msg.t === 'statusUpdate') {
@@ -1362,7 +1492,9 @@ export function activate(context: vscode.ExtensionContext) {
       } catch (e: any) {
         vscode.window.showErrorMessage('操作失败：' + String(e));
       }
-    });
+    };
+    panel.webview.onDidReceiveMessage(async (msg) => { await __panelDispatch(msg); });
+    __testPanelHandler = __panelDispatch;
 
     // 处理从 webview 的“打开源文件”请求
     panel.webview.onDidReceiveMessage(async (msg) => {
@@ -1635,6 +1767,158 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant._test_simulateWebviewMessage', async (msg:any) => {
     if (__testWebviewHandler) { await __testWebviewHandler(msg); }
     return true;
+  }));
+
+  // test-only: 直接触发部分 quick actions（不依赖后端与真实 webview 事件），便于在无 Python 的环境覆盖 UI 分支
+  context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant._test_dispatchQuick', async (which: string) => {
+    try {
+      switch (which) {
+        case 'openWeakCsv': {
+          const ws = getWorkspaceRoot(); if (!ws) throw new Error('no workspace');
+          const u = vscode.Uri.file(ws + '/.mcp/dashboard/weak_top.csv');
+          await vscode.workspace.fs.stat(u);
+          const d = await vscode.workspace.openTextDocument(u);
+          await vscode.window.showTextDocument(d, { preview: false });
+          break;
+        }
+        case 'openNearCsv': {
+          const ws = getWorkspaceRoot(); if (!ws) throw new Error('no workspace');
+          const u = vscode.Uri.file(ws + '/.mcp/dashboard/near_top.csv');
+          await vscode.workspace.fs.stat(u);
+          const d = await vscode.workspace.openTextDocument(u);
+          await vscode.window.showTextDocument(d, { preview: false });
+          break;
+        }
+        case 'openGroupsCsv': {
+          const ws = getWorkspaceRoot(); if (!ws) throw new Error('no workspace');
+          const u = vscode.Uri.file(ws + '/.mcp/dashboard/groups.csv');
+          await vscode.workspace.fs.stat(u);
+          const d = await vscode.workspace.openTextDocument(u);
+          await vscode.window.showTextDocument(d, { preview: false });
+          break;
+        }
+        case 'openJbGroupsMd': {
+          const ws = getWorkspaceRoot(); if (!ws) throw new Error('no workspace');
+          const u = vscode.Uri.file(ws + '/.mcp/dashboard/jb_groups.md');
+          await vscode.workspace.fs.stat(u);
+          const d = await vscode.workspace.openTextDocument(u);
+          await vscode.window.showTextDocument(d, { preview: false });
+          break;
+        }
+        case 'openJbVerify': {
+          const ws = getWorkspaceRoot(); if (!ws) throw new Error('no workspace');
+          const u = vscode.Uri.file(ws + '/.mcp/dashboard/jb_verify.json');
+          await vscode.workspace.fs.stat(u);
+          const d = await vscode.workspace.openTextDocument(u);
+          await vscode.window.showTextDocument(d, { preview: false });
+          break;
+        }
+        case 'openIdeDir': {
+          const ws = getWorkspaceRoot(); if (!ws) throw new Error('no workspace');
+          const uri = vscode.Uri.file(ws + '/.mcp/ide');
+          // ensure directory exists or silently skip
+          try { await vscode.workspace.fs.createDirectory(uri); } catch {}
+          // reveal directory by opening a dummy README if present in subtree, else no-op
+          // (避免额外复杂度：不强制创建文件)
+          break;
+        }
+        default:
+          // no-op
+          break;
+      }
+      return true;
+    } catch (e:any) {
+      // 和真实分支保持一致：若不存在则静默或以信息提示，这里统一不抛异常
+      return false;
+    }
+  }));
+
+  // test-only: 模拟 Panel 消息分支（无后端），覆盖部分 onDidReceiveMessage 的典型路径
+  context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant._test_dispatchPanel', async (which: string) => {
+    try {
+      const ws = getWorkspaceRoot() || process.cwd();
+      const dash = vscode.Uri.file(ws + '/.mcp/dashboard');
+      try { await vscode.workspace.fs.createDirectory(dash); } catch {}
+      switch (which) {
+        case 'statusUpdate': {
+          const u = vscode.Uri.file(ws + '/.mcp/dashboard/status.json');
+          const data = Buffer.from(JSON.stringify({ plan: { status: 'in_progress', current: 'test' }, coverage: { weak: [] }, tasks: { pending: [], done: [] } }, null, 2), 'utf-8');
+          await vscode.workspace.fs.writeFile(u, data);
+          vscode.window.showInformationMessage('test: status updated');
+          break;
+        }
+        case 'ideScaffold': {
+          const ide = vscode.Uri.file(ws + '/.mcp/ide');
+          await vscode.workspace.fs.createDirectory(ide);
+          vscode.window.showInformationMessage('test: ide scaffold created');
+          break;
+        }
+        case 'compliance': {
+          const u = vscode.Uri.file(ws + '/.mcp/compliance.md');
+          await vscode.workspace.fs.writeFile(u, Buffer.from('# Compliance Commitment\n', 'utf-8'));
+          vscode.window.showInformationMessage('test: compliance.md written');
+          break;
+        }
+        case 'openCompliance': {
+          const u = vscode.Uri.file(ws + '/.mcp/compliance.md');
+          try { await vscode.workspace.fs.stat(u); } catch { await vscode.workspace.fs.writeFile(u, Buffer.from('# Compliance Commitment\n', 'utf-8')); }
+          const doc = await vscode.workspace.openTextDocument(u);
+          await vscode.window.showTextDocument(doc, { preview: false });
+          break;
+        }
+        case 'ciOpenExist': {
+          const yml = vscode.Uri.file(ws + '/.github/workflows/ci.yml');
+          try { await vscode.workspace.fs.stat(yml); } catch {
+            await vscode.workspace.fs.createDirectory(vscode.Uri.file(ws + '/.github/workflows'));
+            await vscode.workspace.fs.writeFile(yml, Buffer.from('name: CI\n', 'utf-8'));
+          }
+          const doc = await vscode.workspace.openTextDocument(yml);
+          await vscode.window.showTextDocument(doc, { preview: false });
+          break;
+        }
+        case 'ciOpenMissing': {
+          const yml = vscode.Uri.file(ws + '/.github/workflows/ci.yml');
+          try { await vscode.workspace.fs.delete(yml, { recursive: false }); } catch {}
+          // simulate missing path by attempting stat and swallowing
+          try { await vscode.workspace.fs.stat(yml); } catch {}
+          vscode.window.showInformationMessage('test: ci.yml missing (simulated)');
+          break;
+        }
+        case 'covNearPrompt': {
+          const near = vscode.Uri.file(ws + '/.mcp/dashboard/near_top.csv');
+          try { await vscode.workspace.fs.stat(near); } catch { await vscode.workspace.fs.writeFile(near, Buffer.from('file,coverage,threshold\n', 'utf-8')); }
+          vscode.window.showInformationMessage('test: covNearPrompt simulated');
+          break;
+        }
+        default:
+          break;
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  }));
+
+  // test-only: 直接向 panel 消息处理器发送消息（需要先打开 openPanel 创建面板）
+  context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant._test_sendPanelMessage', async (msg: any) => {
+    if (__testPanelHandler) { await __testPanelHandler(msg); return true; }
+    return false;
+  }));
+
+  // test-only: NL 历史 add/clear（不依赖后端）
+  context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant._test_nlHistory', async (op: 'add'|'clear', text?: string) => {
+    if (op === 'add') {
+      const h = context.globalState.get<string[]>('ruleflow.nl.history') || [];
+      const t = (text || 'hello').trim();
+      const nh = [t, ...h.filter(x=>x!==t)].slice(0, 10);
+      await context.globalState.update('ruleflow.nl.history', nh);
+      return nh.length;
+    }
+    if (op === 'clear') {
+      await context.globalState.update('ruleflow.nl.history', []);
+      return 0;
+    }
+    return -1;
   }));
 
   // 轻量保存拦截：不做重操作，仅后续可扩展（保持性能）

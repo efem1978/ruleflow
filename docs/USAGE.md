@@ -43,3 +43,17 @@
 - 命令面板自然语言：`RuleFlow: Natural Command`
 - Copilot 集成（可选）：按 `docs/COPILOT_MCP.md` 使其出现在 Copilot 的 MCP 面板
 - 受限环境：`export MCP_VSCODE_TEST_ARGS="" && npm --prefix extensions/vscode test`
+
+8) 多项目记忆（命名空间）
+- 开启并绑定到子项目/命名空间：
+  - `tools/call name="memory.toggle_auto" {"on": true, "project": "pkgA"}`
+  - 或 `tools/call name="memory.toggle_auto" {"on": true, "scope": "experiments"}`
+- 作用：在 `.mcp/` 生成独立的命名空间文件（例如 `.mcp/memory.pkgA.json`），避免多个子项目的对话记忆混淆，同时保留跨项目“链接”。
+- 读取命名空间记忆：
+  - 资源：`memory://<projectId>/rollup?ns=pkgA`（等价于读取 `.mcp/memory.pkgA.json` 的聚合快照）
+  - 链接列表：`memory://<projectId>/links`
+- 关闭自动记忆：`tools/call name="memory.toggle_auto" {"on": false}`
+- 提示：也可使用 `project.switch`/`project.link` 记录项目切换与跨项目关联；面板“加载记忆/加载计划”会读取上述资源以保持 AI 与人类可读的一致视图。
+ - 快速切换/关联（示例）：
+   - `tools/call name="project.switch" {"path": "./packages/pkgA"}`
+   - `tools/call name="project.link" {"project": "pkgB", "task": "integration", "note": "pkgA -> pkgB"}`

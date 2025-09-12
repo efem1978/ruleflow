@@ -1,142 +1,51 @@
-# 项目计划 / Project Plan（进行中）
+# 项目审计与整改计划（权威唯一）
 
 - 状态: in_progress
-- 当前步骤: 批次N6 — JetBrains 实拍与最小 E2E 强化
-- 下一步: （无）
-- 风险与阻塞: （无）
+- 当前步骤: P0 收尾与文档整理
+- 下一步: P1 质量与集成增强
+- 说明: 本文件为唯一权威任务清单来源。面板/CLI/钩子与任何自动化均以此为准。
 
-## 任务清单（可勾选，唯一权威）
+审计结论（基于代码与构建产物，非文档口径）
+- 覆盖率: 核心模块≥98%，非核心≥95% 已达标（coverage.xml 实测；weak=0；near 窗口=0.8%）。
+- 质量门禁: pre-commit/commit-msg/pre-push/CI 全链路有效；包内禁止 skip/xfail；安全扫描与 VS Code lcov 门槛已接入。
+- 目录结构: 包结构清晰（mcp_rules_assistant/*），扩展与脚本分区合理；未发现错误归置。
+- 文档体系: README/DEVELOPMENT 与 docs/* 完整，且已将 `.mcp/plan.md` 标注为唯一权威来源。
 
-批次A — 覆盖率抛光与门禁强化
-- [x] dev_agent.py：补齐冻结/解冻/旁路与失败分支各 1–2 条用例，使覆盖率≥96.0%
-- [x] mcp_server.py：补齐 env/coverage/resources 边界异常与大小/速率极端值用例，使覆盖率≥99.0%
-- [x] rules_ingest.py：补齐“上限/区间/异常 YAML/JSON”用例，覆盖率≥98.0%
-- [x] CLI 合同测试：文档示例命令存在性校验（抽样）与失败路径（如 rules-explain 无文件）
-- [x] CI “禁止 skip/xfail（包内）”规则增强：额外扫描测试输出统计（仅报警，不误伤测试用例标记）
+P0 必做（当前迭代）
+- [x] 清理工作区未跟踪/生成物（保持仓库干净）
+  - 执行: `make clean` 或 `sh scripts/workspace-clean.sh`
+  - 目标: 移除 `bad.py/ok*.py/ok.txt/near_vscode.txt/coverage*.xml/.coverage*` 等本地样例与产物
+- [x] Python 测试“零跳过”稳定性复核（CI Linux/macOS 均为 0 skipped）
+  - 关注文件（仅在平台不支持 symlink 时会触发 skip — CI/Linux 下不跳过）:
+    - `tests/unit/test_mcp_server_security_limits.py`
+    - `tests/unit/test_mcp_server_more_margins.py`
+    - `tests/unit/test_mcp_server_coverage_boost2.py`
+    - `tests/unit/test_mcp_server_edges_batch2.py`
+  - 如在非 Linux 环境需要“零跳过”，方案: 用 monkeypatch 模拟 symlink 行为或以临时文件替代，移除 pytest.skip 分支
+- [x] 一键导出覆盖率追踪构件到 `.mcp/dashboard/`（便于审阅与留档）
+  - 执行: `mcp-rules-assistant coverage-export --out-dir .mcp/dashboard`
+  - DoD: 产出 `coverage_summary.json/weak_top.csv/near_top.csv/groups.csv`
+- [x] 入口指南复核（已就绪）
+  - README 与 DEVELOPMENT.md 顶部“Authority Notice”与“plan-open”指引一致且可用
+  - 若新贡献者首次进入：在 README“快速开始”小节增补“打开计划”的一句提示（非功能性）
 
-批次B — 清理与一致性（含占位项收敛）
-- [x] 清理无用样例：docs/link.py、bad.py/ok2.py/ok.txt、docs/b.txt（并在 Makefile clean 与脚本中覆盖）
-- [x] README 覆盖率策略说明：补充“policy 键可后缀匹配文件名”的最佳实践小贴士
-- [x] docs/CI_HEALTH_CHECK.md：由占位改为“健康检查操作说明 + 触发方式 + 常见失败定位”
-- [x] scripts/workspace-clean.sh：覆盖上述样例与临时工件的清理
+P1 改进（下一迭代）
+- [ ] checks 统一委托 process.run_cmd（便于观察/重试/日志统一）
+  - 打开: 在 `.mcp/assistant.yaml` 设置 `execution.checks_delegate_run_cmd: true`
+  - 用例: 保持现有桩兼容；必要时对 `process.run_cmd` 打桩
+- [ ] JetBrains 插件增强（从 smoke 到可交互写入）
+  - 受控写入入口与“写入后检查”开关映射到 MCP（strict + post_checks）
+  - 提交 Storyboard + UI smoke 到 CI 工件（已有基础，补充断言与日志）
+- [ ] VS Code 覆盖率长期阈值 95% 保持（near/worst 导出脚本已接入）
 
-批次B2 — 文档入口与权威计划标注（AI 友好）
-- [x] 在 README 顶部文档入口处清晰标注“任务计划（唯一权威）：.mcp/plan.md”
-- [x] 在 `DEVELOPMENT.md` 顶部强调仅以 `.mcp/plan.md` 为权威计划来源
-- [x] 在 `docs/DOCS_MAP.md` 增补“权威计划来源”说明，避免歧义
+P2 发布与合规（按需）
+- [ ] 发布脚本与素材完善：PyPI/VSIX、发行说明模板、商店截图/图标
+- [ ] 许可硬门禁演练自动化：`make release-harden-verify` 结果入库至 `.mcp/dashboard/release_check.md`
 
-批次C — JetBrains P3：打包与最小 E2E（本轮落地）
-- [x] 脚本：`scripts/jb-package.sh` 完成 & 文档化（执行 `./gradlew buildPlugin`）
-- [x] 最小 E2E：在 CI 新增 smoke（读取 `.mcp/dashboard/status.json` 并校验关键字段）
-- [x] README/DEV_PLAN 增补 JB 打包与 E2E 说明
+记录与状态
+- 近阈值策略: within=0.8%（0.008），用于清理 near 列表，聚焦真正弱项
+- 覆盖率政策: 核心≥0.98；非核心≥0.95；`dev_agent.py ≥0.95`、`license_utils.py ≥0.95`
 
-批次D — 统一子进程封装与开关验证
-- [x] checks.py 委托 `process.run_cmd` 的配置开关回归测试（on/off 两路，保持历史桩兼容）
-
-批次E — 文档与入口指南同步
-- [x] `DEVELOPMENT.md`：更新“任务清单（当前 Sprint）”为本批次内容；保留锚点不变
-- [x] `docs/DEV_PLAN_TDD.md`：更新“近期待办/执行批次”与阈值目标，纳入本轮清单
-
-批次F — 商业化与出货演练
-- [x] 许可门禁 E2E 小结：`release-harden-verify` 的摘要输出写入 `.mcp/dashboard/release_check.md`
-- [x] PR 检查清单（贡献指南补充）：覆盖率 Gate/近阈值提示/许可门禁切换步骤
-
-（允许暂缓项 — 仅图片）
-- [x] 将 JetBrains 占位 SVG 替换为实拍 PNG（已替换为高分辨率 PNG 预览；后续可换为实拍）
-
-批次G — 预发布验证（不发布）
-- [x] Python 打包：`python -m build`（wheel/sdist）
-- [x] 产物校验：`python -m twine check dist/*`
-- [x] CI 侧（可选）：添加 build/twine check 作业（非阻断）
-
-批次H — 精确覆盖率收尾（可测性优先，不改语义）
-- [x] mcp_server：补充可达分支用例至表格 99%，弱项=0；近阈值窗口调至 0.8% 清空 near（仅报告，不改门槛）
-
-批次I — 规则治理（规则→配置/CI 一致性）
-- [x] 运行 rules.validate / rules.enforce，使 `.mcp/assistant.yaml` 与已编译规则对齐
-
-批次J — CI 强化（阶段性）
-- [x] VS Code 覆盖率门禁为硬门禁（本仓库工作流已启用），保留阈值 80% 并在后续逐步提升
-
-批次K — 商业化出货准备
-- [x] 启用 `license.required=true` 并通过本地 `release-harden-verify` 验证摘要
-
-批次L — 文档沉淀与经验回写
-- [x] 在 `docs/CI_HEALTH_CHECK.md` 与 `DEVELOPMENT.md` 记录 near 窗口调优与实操小贴士
-
-批次M — 入门与文档一致性/清理（本次）
-- [x] README 近阈值窗口示例从 1.0%（0.01）更正为 0.8%（0.008），与 `.mcp/assistant.yaml` 对齐
-- [x] 在 README 与 DEVELOPMENT 顶部加入“Authority Notice”：唯一权威任务清单为 `.mcp/plan.md`
-- [x] 清理根目录样例文件：删除 `bad.py`、`ok2.py`、`ok.txt`、`foo.py` 与 `docs/b.txt`；并在 `.gitignore` 补充忽略 `foo.py`
-- [x] 修复 CI 许可校验摘要：当 `license.required=true` 且项目未激活许可证时，`ci.validate` 现优先读取项目级许可证 `.mcp/license.json`（忽略全局 `~/.mcp/license.json`），并在失败时写出 `.mcp/dashboard/release_check.md` 摘要；避免因全局许可证导致测试/CI 非确定性
-
----
-
-下一阶段（批次N）— 待办与执行顺序（以本清单为准）
-
-批次N1 — 包发布元数据对齐（发布前必做）
-- [x] PEP 639 合规：保持 `license = "LicenseRef-Proprietary"` 与 `license-files = ["LICENSE"]`（已存在）
-- [x] 将 `readme` 指定为表格形式并设置 `content-type: text/markdown`
-- [x] 运行 `make distcheck`（build + twine check 通过）
-
-批次N2 — 多项目记忆隔离增强（可选，体验提升）
-- [x] 记忆按子目录/projectId 分区写入；`memory.toggle_auto` 支持 `scope/project` 参数
-- [x] `resources/list` 枚举多条 `memory://…/rollup`
- - [x] 增补多项目切换与跨项目 links 测试
-
-批次N3 — 许可门禁覆盖扩展（可选，商业化强化）
-- [x] 扩展 gated：`rules.onboard` 受 `license.required` 约束（默认 false 不影响现有流程）
-- [x] 对 `config.update` 中关键 CI 字段的门禁（required=true 时）
- - [x] CI 在未激活且 required 时，对 `ci.validate` 输出明确错误并导出摘要
-
-批次N4 — VS Code 覆盖率阈值提升路线（建议，质量迭代）
-- [x] 阶段性从 80% → 90% → 95%（先预警再门禁）
-- [x] 近阈值 TopN 报表与文档说明完善
-
-批次N5 — 规则包扩充与表征测试（可选，稳健性）
-- [x] 丰富 `docs/RULESETS.md` 场景/复杂度样例
-- [x] 扩充 `rules_ingest` 表征测试样本与边界
-
-批次N6 — JetBrains 实拍与最小 E2E 强化（可选，材料完善）
-- [x] 生成“替代截图”与脚本说明（`jb_ui_snapshot.md` + storyboard 工件），CI 上传 md/log 工件
-- [x] CI `jb-ui-smoke` 扩大覆盖：产出 `jb_ui_snapshot.md` 并上传
-
-批次N7 — 可观测性与诊断增强（可选，运维友好）
-- [x] 将 `process.run_cmd` 事件（按需，通过 `MCP_RUN_CMD_EVENTS=1`）追加写入 `.mcp/dashboard/cmd_events.jsonl`（滚动 ~200 条）
-- [x] 追加“近 24 小时失败比/平均耗时”摘要至 `status.json`
-
-批次N8 — 审计整改（本次）
-- [x] 全量遍历 README.md / DEVELOPMENT.md 与 docs/* 文档，确认一致性与入口指引
-- [x] 运行测试与覆盖率统计：630 通过，Coverage Policy Gate weak=0（见 `coverage.xml` 与 `coverage-report`）
-- [x] 清理无用文件：删除空文件 `docs/b.txt`，与既有文档“清理占位文件”一致
-- [x] 配置示例矫正：在 `docs/CONFIG.md` 中将 `hadolint_image` 示例改为固定版本 `hadolint/hadolint:2.12.0`
-- [x] 文档一致性小修：在 VS Code 覆盖率文档处补充注记“本仓库 CI 已开启 95% 硬门禁（变量 VSCODE_COVERAGE_GATE=1）”，与工作流保持一致
-- [x] 根目录样例评估：移除 `pkg_x/x.py`（不影响测试与打包）
-- [x] README “VS Code 95% 硬门禁（本仓库）”段落补充“快速排障”提示（清空 MCP_VSCODE_TEST_ARGS 或使用 docker 运行）
-- [x] VS Code 测试文档注明 `near_vscode.txt/lcov.info` 仅用于诊断并建议忽略；在 `.gitignore` 忽略 `near_vscode.txt`
- - [x] README 补充“本地 near/worst 清单”步骤与 near_vscode.txt 说明；VS Code 测试文档将“清空参数后重试”置为首要建议并补充容器路径
-
-批次N9 — 差异修正与清理（本次新增）
-- [x] 根目录清理：物理移除误留样例与临时文件（`bad.py`、`ok2.py`、`ok.txt`、`pkg_x/`）。已在 `Makefile clean` 与 `scripts/workspace-clean.sh` 加入删除规则，执行一次 `make clean` 完成落地。
-- [x] 文档入口强化：
-  - README 与 DEVELOPMENT 已新增“快捷打开计划”指引（`mcp-rules-assistant plan-open`）。
-  - 确认 IDE 面板“Open Plan/打开计划”按钮可用（后续人工手测）。
-- [x] 文档一致性巡检：
-  - `docs/DEV_PLAN_TDD.md` 中“JetBrains 实拍 PNG”项当前标注为“允许暂缓”；与 `extensions/jetbrains/screenshots/*.png` 的替代图一致，后续若获得实拍可更新该勾选状态与 README 引用。
-  - 复核各文档对“唯一权威计划来源”的表述已指向 `.mcp/plan.md`（已对齐）。
-
-当前阶段（进行中）
-- 状态: in_progress
-- 当前步骤: 批次N6 — JetBrains 实拍与最小 E2E 强化
-
-## 验收标准（Definition of Done）
-- `make local-ci-run` 通过；Coverage Policy Gate 无 weak；近阈值 Top5 中无“核心”模块
-- 关键模块覆盖率：mcp_server≥99%、dev_agent≥96.5%、rules_ingest≥98%
-- 清理项可在 `make clean` 与 `scripts/workspace-clean.sh` 一键完成
-- CI 健康检查文档可按步骤复现；JB 打包脚本可用；E2E smoke 绿
-- VS Code 覆盖率（阶段性）：≥80%，已启用硬门禁；随后逐步提升阈值至 90%/95%
-
-## 说明
-- 任务清单为单一权威：所有更新以本文件为准。
-- 提交门禁：需保证本文件处于 in_progress，且提交消息包含 `[step:当前步骤]`。
- - 文档一致性：README/DEVELOPMENT/Docs 已统一指向本文件作为唯一任务来源；若有不一致，以此文件为准。
+执行小贴士
+- 打开本计划: `mcp-rules-assistant plan-open`
+- 标记当前步骤: `mcp-rules-assistant plan-set --status in_progress --current "P0 清理与复核" --next-step "P1 统一执行器与 IDE 增强"`

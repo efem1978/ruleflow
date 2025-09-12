@@ -30,6 +30,9 @@ Pre-commit
 - 安装并启用：`pip install pre-commit && pre-commit install && pre-commit install --hook-type commit-msg && pre-commit install --hook-type pre-push`
 - 推送时将运行覆盖率门槛与安全检查（见 `.pre-commit-config.yaml`）
 
+提交门禁快速核验
+- 建议随机一次最小改动并以当前步骤提交，提交消息包含 `[step:<当前步骤>]`，验证本地 commit‑msg gate 放行；若被拒，检查 `.mcp/plan.md` 的状态是否为 in_progress 且“当前步骤”是否正确。
+
 GitHub 设置建议
 - Branch protection：保护 `main`，要求 CI 通过（含覆盖率 ≥95%）
 - Secrets（可选）：

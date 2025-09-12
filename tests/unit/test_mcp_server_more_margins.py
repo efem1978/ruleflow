@@ -9,7 +9,9 @@ from mcp_rules_assistant.mcp_server import JsonRpcServer
 from mcp_rules_assistant.memory import MemoryManager
 
 
-def test_fs_apply_patch_rejects_symlink(tmp_path: Path) -> None:
+def test_fs_apply_patch_rejects_symlink(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     # Prepare a symlink destination inside project
     proj = tmp_path
     docs = proj / "docs"
@@ -21,7 +23,18 @@ def test_fs_apply_patch_rejects_symlink(tmp_path: Path) -> None:
     try:
         link.symlink_to(real)
     except Exception:
-        pytest.skip("symlink not supported on this platform")
+        # 平台不支持 symlink：创建普通文件并用 monkeypatch 模拟 is_symlink
+        link.write_text("orig", encoding="utf-8")
+        import pathlib as _pl
+
+        _real_is_symlink = _pl.Path.is_symlink
+
+        def _fake_is_symlink(self: Path) -> bool:  # type: ignore[override]
+            if str(self) == str(link):
+                return True
+            return _real_is_symlink(self)
+
+        monkeypatch.setattr(_pl.Path, "is_symlink", _fake_is_symlink, raising=True)
 
     # Write strict config before server init so FSGuard picks it up
     (proj / ".mcp").mkdir(parents=True, exist_ok=True)

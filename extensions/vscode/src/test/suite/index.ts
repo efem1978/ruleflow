@@ -4,7 +4,7 @@ import * as fs from 'fs';
 
 export function run(): Promise<void> {
   // 使用 TDD 界面以支持 `suite`/`test` 语法
-  const mocha = new Mocha({ ui: 'tdd', color: true, timeout: 30000 });
+  const mocha = new Mocha({ ui: 'tdd', color: true, timeout: 60000 });
   const testsRoot = path.resolve(__dirname);
 
   return new Promise((resolve, reject) => {

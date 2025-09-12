@@ -17,6 +17,7 @@ Git Hooks 与门禁（性能优先）
     - 切换为进行中：`mcp-rules-assistant plan-set --status in_progress --current "<步骤>"`
     - 带标记提交：`git commit -m "chore: ... [step:<步骤>]"`
     - 完成后关闭：`mcp-rules-assistant plan-done`
+  - 快速核验建议：随机执行一次最小改动并以当前步骤提交（包含 `[step:<步骤>]`），验证本地 `commit-msg` gate 是否正确拦截/放行；若失败，优先检查 `.mcp/plan.md` 的状态与“当前步骤”字段。
 - 分支命名（提交阶段）：默认要求分支名匹配 `main|master|develop|dev|feat/*|fix/*|chore/*|docs/*|test/*|refactor/*|release/*|hotfix/*`；
   - 可用环境变量覆盖：`MCP_BRANCH_REGEX`；或通过 `MCP_BRANCH_IGNORE=1` 临时跳过
 - pre-push（推送阶段，经 pre-commit 触发）：

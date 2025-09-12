@@ -8,7 +8,7 @@ version = "0.2.5"
 description = "MCP rules & context assistant (Python server + VS Code extension)"
 readme = { file = "README.md", content-type = "text/markdown" }
 requires-python = ">=3.10"
-authors = [{name = "Your Team"}]
+authors = [{name = "RuleFlow Team", email = "support@ruleflow.app"}]
 license = "LicenseRef-Proprietary"
 license-files = ["LICENSE"]
 keywords = ["mcp", "rules", "coverage", "cli", "vscode"]
@@ -21,13 +21,20 @@ classifiers = [
   "Intended Audience :: Developers",
   "Topic :: Software Development :: Build Tools",
 ]
-urls = {"Homepage" = "https://github.com/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool", "Repository" = "https://github.com/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool.git"}
 dependencies = [
   "typer>=0.9",
   "PyYAML>=6.0",
   "rich>=13.7",
   "defusedxml>=0.7.1"
 ]
+
+[project.urls]
+Homepage = "https://github.com/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool"
+Repository = "https://github.com/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool.git"
+Documentation = "https://github.com/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool#readme"
+Support = "https://github.com/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool/issues"
+Privacy = "https://github.com/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool/blob/main/docs/PRIVACY.md"
+ 
 
 [project.scripts]
 mcp-rules-assistant = "mcp_rules_assistant.cli:app"
