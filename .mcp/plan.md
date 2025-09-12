@@ -81,7 +81,7 @@
 批次N2 — 多项目记忆隔离增强（可选，体验提升）
 - [x] 记忆按子目录/projectId 分区写入；`memory.toggle_auto` 支持 `scope/project` 参数
 - [x] `resources/list` 枚举多条 `memory://…/rollup`
-- [ ] 增补多项目切换与跨项目 links 测试
+ - [x] 增补多项目切换与跨项目 links 测试
 
 批次N3 — 许可门禁覆盖扩展（可选，商业化强化）
 - [x] 扩展 gated：`rules.onboard` 受 `license.required` 约束（默认 false 不影响现有流程）
