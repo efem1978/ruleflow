@@ -60,6 +60,7 @@ class JsonRpcServer:
         self.fs = FSGuard(self.project_root)
         self.settings: Dict[str, Any] = {"memory_auto": False}
         self.cfg = load_config(self.project_root)
+        self._cfg_root = self.project_root
         # very light rate limiter (per-process): window 1s
         self._rl_window_start: float = 0.0
         self._rl_count: int = 0
@@ -83,13 +84,13 @@ class JsonRpcServer:
 
     def _license_required(self) -> bool:
         try:
-            # 优先使用内存中的显式配置（便于测试注入），否则读取最新配置文件
-            cfg_src = (
-                self.cfg
-                if isinstance(self.cfg, dict) and "license" in (self.cfg or {})
-                else load_config(self.project_root)
-            )
-            self.cfg = cfg_src
+            # 若项目根变化，重新加载；否则优先尊重内存中的显式注入（测试用）
+            if getattr(self, "_cfg_root", None) != self.project_root:
+                cfg_src = load_config(self.project_root)
+                self.cfg = cfg_src
+                self._cfg_root = self.project_root
+            else:
+                cfg_src = self.cfg
             lic_cfg = (
                 cfg_src.get("license", {})
                 if isinstance(cfg_src.get("license", {}), dict)
