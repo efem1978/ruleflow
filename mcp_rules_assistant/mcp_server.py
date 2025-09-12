@@ -83,6 +83,8 @@ class JsonRpcServer:
 
     def _license_required(self) -> bool:
         try:
+            # 每次读取最新配置，避免外部更新 assistant.yaml 后本进程的缓存滞后
+            self.cfg = load_config(self.project_root)
             lic_cfg = (
                 self.cfg.get("license", {})
                 if isinstance(self.cfg.get("license", {}), dict)
