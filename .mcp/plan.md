@@ -97,7 +97,8 @@
 - [x] 扩充 `rules_ingest` 表征测试样本与边界
 
 批次N6 — JetBrains 实拍与最小 E2E 强化（可选，材料完善）
-- [ ] 生成实拍 PNG 替换示意图；CI `jb-ui-smoke` 覆盖更多资源
+- [ ] 生成实拍 PNG 替换示意图（需真实环境）
+- [x] CI `jb-ui-smoke` 扩大覆盖：产出 `jb_ui_snapshot.md` 并上传
 
 批次N7 — 可观测性与诊断增强（可选，运维友好）
 - [x] 将 `process.run_cmd` 事件（按需，通过 `MCP_RUN_CMD_EVENTS=1`）追加写入 `.mcp/dashboard/cmd_events.jsonl`（滚动 ~200 条）

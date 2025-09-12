@@ -25,3 +25,10 @@ JetBrains 插件替代方案（无需安装） / JetBrains Storyboard (No-IDE)
 后续（可选）
 - 当获取到 JetBrains 实拍截图后，可将现有 SVG 示意图替换为 PNG 并更新 README 引用。
 - CI 已包含 JetBrains Storyboard 生成作业（生成 jb_*.json/md 工件，见 `jetbrains-storyboard` job）。Gradle 编译作业（compile-only）可按需添加。
+
+替代截图方案（无实拍环境）
+- 使用脚本 `scripts/jb-ui-smoke.sh` 生成轻量快照作为“替代截图”，产出：
+  - `extensions/jetbrains/ui_smoke.log`：时间盒 runIde 的日志与摘要
+  - `extensions/jetbrains/screenshots/jb_ui_snapshot.md`：从 `.mcp/dashboard/status.json` 提取的关键信息（计划状态/当前步骤/覆盖率摘要）
+- 同时可结合 `scripts/jb-storyboard.sh` 生成的 `jb_*.json/md`（计划/记忆/覆盖率/受控写入 dry-run）作为“画面替代物料”。
+- CI 会上传上述 md/log 工件，便于在无 IDE 的情况下审阅 UI 近似状态与关键信息。
