@@ -60,5 +60,6 @@ execution:
   - .md
   - .yaml
   - .yml
+  checks_delegate_run_cmd: true
 license:
   required: false
