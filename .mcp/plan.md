@@ -105,7 +105,7 @@
 
 当前阶段（进行中）
 - 状态: in_progress
-- 当前步骤: 批次N2 — 多项目记忆隔离增强
+- 当前步骤: 批次N3 — 许可门禁覆盖扩展
 
 ## 验收标准（Definition of Done）
 - `make local-ci-run` 通过；Coverage Policy Gate 无 weak；近阈值 Top5 中无“核心”模块
