@@ -22,7 +22,7 @@ suite('Panel dispatch common paths (fake mode, split)', () => {
     fs.writeFileSync(sentinel, '1', 'utf-8');
     ensureFile(path.resolve(ws, '.mcp/rules_compiled.md'), '# Rules\n');
     await vscode.commands.executeCommand('mcpRulesAssistant.openPanel');
-    await new Promise(r => setTimeout(r, 300));
+    await vscode.commands.executeCommand('mcpRulesAssistant._test_waitReady');
     await vscode.commands.executeCommand('mcpRulesAssistant._test_sendPanelMessage', { t: 'loadRules' });
     await new Promise(r => setTimeout(r, 150));
   });
@@ -39,7 +39,7 @@ suite('Panel dispatch common paths (fake mode, split)', () => {
     fs.writeFileSync(sentinel, '1', 'utf-8');
     ensureFile(path.resolve(ws, '.mcp/dashboard/weak_top.csv'), 'file,coverage,threshold,weak_count,files_count\nmod.py,0.90,0.95,1,1\n');
     await vscode.commands.executeCommand('mcpRulesAssistant.openPanel');
-    await new Promise(r => setTimeout(r, 300));
+    await vscode.commands.executeCommand('mcpRulesAssistant._test_waitReady');
     await vscode.commands.executeCommand('mcpRulesAssistant._test_sendPanelMessage', { t: 'coverage' });
     await new Promise(r => setTimeout(r, 150));
   });
@@ -56,7 +56,7 @@ suite('Panel dispatch common paths (fake mode, split)', () => {
     fs.writeFileSync(sentinel, '1', 'utf-8');
     ensureFile(path.resolve(ws, '.mcp/dashboard/weak_top.csv'), 'file,coverage,threshold,weak_count,files_count\nmod.py,0.90,0.95,1,1\n');
     await vscode.commands.executeCommand('mcpRulesAssistant.openPanel');
-    await new Promise(r => setTimeout(r, 300));
+    await vscode.commands.executeCommand('mcpRulesAssistant._test_waitReady');
     await vscode.commands.executeCommand('mcpRulesAssistant._test_sendPanelMessage', { t: 'csvPreviewPick', which: 'weak_top.csv' });
     await new Promise(r => setTimeout(r, 150));
   });
@@ -73,7 +73,7 @@ suite('Panel dispatch common paths (fake mode, split)', () => {
     fs.writeFileSync(sentinel, '1', 'utf-8');
     ensureFile(path.resolve(ws, '.github/workflows/ci.yml'), 'name: CI\n');
     await vscode.commands.executeCommand('mcpRulesAssistant.openPanel');
-    await new Promise(r => setTimeout(r, 300));
+    await vscode.commands.executeCommand('mcpRulesAssistant._test_waitReady');
     await vscode.commands.executeCommand('mcpRulesAssistant._test_sendPanelMessage', { t: 'ciCheck' });
     await new Promise(r => setTimeout(r, 150));
   });

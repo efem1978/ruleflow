@@ -227,6 +227,8 @@ const client = new McpClient();
 // ---- test hooks (non-public commands register below) ----
 let __testWebviewHandler: ((msg: any) => Promise<void> | void) | null = null;
 let __testPanelHandler: ((msg: any) => Promise<void> | void) | null = null;
+let __panelReadyResolve: (() => void) | null = null;
+let __panelReady: Promise<void> | null = null;
 
 async function handleOpenMessage(msg: any) {
   if (msg && msg.t === 'open' && msg.path) {
@@ -297,6 +299,7 @@ export function activate(context: vscode.ExtensionContext) {
       vscode.ViewColumn.Beside,
       { enableScripts: true }
     );
+    __panelReady = new Promise<void>((res) => { __panelReadyResolve = res; });
 
     /* c8 ignore start */
     const render = (md: string, toolsListHtml: string, sugg: string = '') => `
@@ -442,6 +445,7 @@ export function activate(context: vscode.ExtensionContext) {
         </div>
         <script>
           const vscode = acquireVsCodeApi();
+          try { vscode.postMessage({ t: 'ready' }); } catch {}
           document.getElementById('btnLoad').onclick = () => vscode.postMessage({ t: 'loadRules' });
           document.getElementById('btnStatusUpdate').onclick = () => vscode.postMessage({ t: 'statusUpdate' });
           (document.getElementById('btnSelectProject') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'selectProject' });
@@ -1511,6 +1515,7 @@ export function activate(context: vscode.ExtensionContext) {
     // 处理从 webview 的“打开源文件”请求
     panel.webview.onDidReceiveMessage(async (msg) => {
       await handleOpenMessage(msg);
+      if (msg && msg.t === 'ready') { try { if (__panelReadyResolve) { __panelReadyResolve(); __panelReadyResolve = null; } } catch {} }
       if (msg && msg.t === 'nl') {
         try {
           const text = String(msg.text || '').trim();
@@ -1775,6 +1780,16 @@ export function activate(context: vscode.ExtensionContext) {
     panel.webview.onDidReceiveMessage(async (msg) => { await handleOpenMessage(msg); });
     __testWebviewHandler = async (m:any) => { await handleOpenMessage(m); };
     return true;
+  }));
+  context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant._test_waitReady', async () => {
+    try {
+      const p = __panelReady;
+      if (!p) return true;
+      let done = false;
+      const t = new Promise<void>((res)=>setTimeout(res, 2500));
+      await Promise.race([p.then(()=>{ done = true; }), t]);
+      return true;
+    } catch { return true; }
   }));
   context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant._test_simulateWebviewMessage', async (msg:any) => {
     if (__testWebviewHandler) { await __testWebviewHandler(msg); }

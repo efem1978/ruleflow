@@ -2,8 +2,7 @@ import * as assert from 'assert';
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
-import * as fs from 'fs';
-import * as path from 'path';
+// de-duplicate accidental re-imports
 
 suite('Coverage bad/Tree no-resource (fake)', () => {
   test('coverage summary ok=false and coverageTree no resource', async () => {
@@ -21,7 +20,7 @@ suite('Coverage bad/Tree no-resource (fake)', () => {
     fs.mkdirSync(path.dirname(bad), { recursive: true });
     fs.writeFileSync(bad, '1');
     await vscode.commands.executeCommand('mcpRulesAssistant.openPanel');
-    await new Promise(r => setTimeout(r, 300));
+    await vscode.commands.executeCommand('mcpRulesAssistant._test_waitReady');
     await vscode.commands.executeCommand('mcpRulesAssistant._test_sendPanelMessage', { t: 'coverage' });
     await new Promise(r => setTimeout(r, 150));
     // sentinel: notree

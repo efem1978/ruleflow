@@ -17,7 +17,7 @@ suite('CSV preview fallback formatting', () => {
     fs.mkdirSync(path.dirname(p), { recursive: true });
   fs.writeFileSync(p, 'prefix,coverage\nmod,0.97\n', 'utf-8');
     await vscode.commands.executeCommand('mcpRulesAssistant.openPanel');
-    await new Promise(r => setTimeout(r, 300));
+    await vscode.commands.executeCommand('mcpRulesAssistant._test_waitReady');
     await vscode.commands.executeCommand('mcpRulesAssistant._test_sendPanelMessage', { t: 'csvPreviewPick', which: 'groups.csv' });
     await new Promise(r => setTimeout(r, 150));
   });
