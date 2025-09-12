@@ -14,9 +14,18 @@ def test_auto_status_cmd_metrics(tmp_path: Path) -> None:
     recs = [
         {"phase": "start", "cwd": str(tmp_path), "attempt": 0},
         {"phase": "end", "cwd": str(tmp_path), "attempt": 0, "elapsed": 0.12},
+        {
+            "phase": "end",
+            "cwd": str(tmp_path),
+            "attempt": 0,
+            "elapsed": "bad",
+        },  # trigger except when parsing elapsed
         {"phase": "error", "cwd": str(tmp_path), "attempt": 0, "exception": "X"},
     ]
+    # add an invalid JSON line to trigger json.loads except path
     jl.write_text("\n".join(json.dumps(r) for r in recs) + "\n", encoding="utf-8")
+    with jl.open("a", encoding="utf-8") as f:
+        f.write("{not json}\n")
     out = generate_status(project_root=tmp_path)
     cm = out.get("cmd_metrics") or {}
     last = (cm.get("last24h") or {}) if isinstance(cm, dict) else {}

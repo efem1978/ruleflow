@@ -45,6 +45,20 @@ def test_run_cmd_events_trim(tmp_path: Path, monkeypatch) -> None:
     jl.write_text(
         "\n".join('{"phase":"end"}' for _ in range(205)) + "\n", encoding="utf-8"
     )
+    # Monkeypatch Path.read_text to raise once during trimming to cover exception branch
+    from pathlib import Path as _P
+
+    orig_read = _P.read_text
+    state = {"n": 0}
+
+    def fake_read(self, *a, **kw):  # type: ignore[override]
+        state["n"] += 1
+        # after first call (append existing), raise during trimming
+        if self == jl and state["n"] > 1:
+            raise RuntimeError("boom")
+        return orig_read(self, *a, **kw)
+
+    monkeypatch.setattr(_P, "read_text", fake_read)
     run_cmd([sys.executable, "-c", "print('ok')"], cwd=tmp_path)
     # ensure file trims to <= 200 lines
     lines = jl.read_text(encoding="utf-8").splitlines()
