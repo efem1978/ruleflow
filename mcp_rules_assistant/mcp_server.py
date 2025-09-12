@@ -370,6 +370,25 @@ class JsonRpcServer:
         }
         try:
             if name in gated:
+                # 对 ci.validate 提供更友好的摘要输出
+                if name == "ci.validate" and self._license_required():
+                    ok = False
+                    try:
+                        res = _verify_license()
+                        ok = bool(res.get("ok"))
+                    except Exception:
+                        ok = False
+                    if not ok:
+                        # 写出摘要，供 CI/人工审阅
+                        dash = self.project_root / ".mcp" / "dashboard"
+                        dash.mkdir(parents=True, exist_ok=True)
+                        (dash / "release_check.md").write_text(
+                            "License required or invalid — ci.validate gated\n",
+                            encoding="utf-8",
+                        )
+                        # 仍按硬门禁阻断
+                        raise ValueError("license required or invalid")
+                # 其他 gated 正常校验
                 self._ensure_license()
         except Exception:
             # 保守：直接抛出以阻断敏感调用
