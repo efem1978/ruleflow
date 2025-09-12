@@ -49,3 +49,15 @@ def test_run_cmd_events_trim(tmp_path: Path, monkeypatch) -> None:
     # ensure file trims to <= 200 lines
     lines = jl.read_text(encoding="utf-8").splitlines()
     assert len(lines) <= 200
+
+
+def test_run_cmd_minimal_kwargs_path(tmp_path: Path) -> None:
+    # when capture_stdout=False and env=None and timeout=None, use minimal subprocess.run path
+    p = run_cmd(
+        [sys.executable, "-c", "print('x')"],
+        cwd=tmp_path,
+        capture_stdout=False,
+        env=None,
+        timeout=None,
+    )
+    assert p.returncode == 0

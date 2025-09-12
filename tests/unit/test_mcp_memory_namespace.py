@@ -64,3 +64,12 @@ def test_memory_namespace_invalid_and_missing(tmp_path: Path) -> None:
     err = out.get("error", {})
     # custom code for resource not found
     assert err.get("code") in (-32001, -32602)
+
+
+def test_resources_read_unknown_uri(tmp_path: Path) -> None:
+    srv = JsonRpcServer()
+    srv.project_root = tmp_path
+    out = srv.handle(_req("resources/read", {"uri": "unknown://x"}))
+    err = out.get("error", {})
+    # -32000: Unknown resource uri (custom mapping)
+    assert err.get("code") == -32000
