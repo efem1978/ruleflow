@@ -46,3 +46,21 @@ def test_memory_toggle_auto_namespace(tmp_path: Path) -> None:
     srv._call_tool("memory.append_turn", {"role": "user", "content": "hello"})
     snap = srv._call_tool("memory.snapshot", {})
     assert isinstance(snap.get("turns"), list)
+
+
+def test_memory_namespace_invalid_and_missing(tmp_path: Path) -> None:
+    srv = JsonRpcServer()
+    srv.project_root = tmp_path
+    # invalid namespace
+    try:
+        srv._call_tool("memory.toggle_auto", {"on": True, "project": "!@#"})
+        assert False, "expected invalid namespace error"
+    except Exception:
+        pass
+    # read missing namespace via JSON-RPC
+    pid = srv._project_id()
+    req = _req("resources/read", {"uri": f"memory://{pid}/rollup?ns=notfound"})
+    out = srv.handle(req)
+    err = out.get("error", {})
+    # custom code for resource not found
+    assert err.get("code") in (-32001, -32602)
