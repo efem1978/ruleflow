@@ -30,6 +30,7 @@ coverage_report.json
 /near.txt
 /near.csv
 /near.json
+/near_vscode.txt
 /bad.py
 /ok2.py
 /ok.txt

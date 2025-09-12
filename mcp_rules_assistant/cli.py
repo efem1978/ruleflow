@@ -1411,7 +1411,25 @@ def ci_validate() -> None:
         "has_tests": "pytest -q" in content,
         "has_bandit": "bandit -q" in content,
     }
+    # 输出检查结果
     rprint(checks)
+    # 写入机器可读摘要（成功路径为 exists=True；否则标记为缺失）
+    try:
+        dash = Path(".mcp") / "dashboard"
+        dash.mkdir(parents=True, exist_ok=True)
+        ok = bool(exists)
+        summary = {
+            "ok": ok,
+            "code": "OK" if ok else "CI_MISSING",
+            "message": "ci.validate ok" if ok else "ci.yml missing",
+            "timestamp": int(time.time()),
+            "checks": checks,
+        }
+        (dash / "release_check.json").write_text(
+            _json.dumps(summary, ensure_ascii=False), encoding="utf-8"
+        )
+    except Exception:
+        pass
 
 
 @app.command("ci-autofix")

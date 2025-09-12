@@ -2,6 +2,7 @@ RuleFlow: Open Panel
 MCP 规则与上下文助手 / MCP Rules & Context Assistant
 
 重要：唯一权威任务清单来源是 `.mcp/plan.md`。任何任务推进、提交门禁与面板/CLI 状态均以该文件为准（本页与其他文档仅作指引）。
+快捷入口：使用 `mcp-rules-assistant plan-open` 直接打开该计划文件；或在 IDE 面板点击“Open Plan/打开计划”。
 
 以“插件 + MCP Server”模式，提供跨 IDE 的上下文滚动记忆、编程规则强约束、
 包裹式改动门禁与性能优先的开发体验。默认启用“快速内环（Fast Inner Loop）”，
@@ -105,6 +106,7 @@ JetBrains 头less UI Smoke（可选）
 覆盖率门禁 Coverage Gate
 - Python（门槛与策略）：核心≥98%，其余≥95%；coverage-report 弱项清零（weak 列表为空）。
 - VS Code 前端（阶段性）：CI 默认对 lcov 执行≥80% 的“非阻断”检查（仅警告）；可通过设置 `VSCODE_COVERAGE_GATE=1` 启用同阈值硬门禁，后续逐步提升至 90%/95%。
+  - 本仓库说明：当前 CI 已启用硬门禁且阈值为 95%（`VSCODE_COVERAGE_GATE=1` 且 `VSCODE_COVERAGE_THRESHOLD_WARN=95`）。参见下方“VS Code 95% 硬门禁（本仓库）”。
  - 小贴士（coverage.policy 命中策略）：policy 键既支持“目录前缀”也支持“文件名后缀（basename）”。
    - 对单个关键模块设更高门槛，推荐直接使用文件名后缀（如 `mcp_server.py: 0.99`）。
    - 对一类目录设默认门槛，使用目录前缀（如 `mcp_rules_assistant/`: 0.95）。
@@ -333,7 +335,23 @@ Docker 辅助（可选）
   - 更新 `CHANGELOG.md`（概述变更/兼容性/迁移说明）
 - 质量门禁：
   - `make local-ci-run` 全绿，`coverage-report --json` weak=0
-- VS Code：`npm --prefix extensions/vscode test` 生成 lcov；默认阈值≥80%（非阻断，CI 将输出近阈值与最低覆盖的文件清单）；如启用硬门禁需达标
+- VS Code：`npm --prefix extensions/vscode test` 生成 lcov；默认阈值≥80%（非阻断，CI 将输出近阈值与最低覆盖的文件清单）；如启用硬门禁需达标。
+  - 本仓库说明：CI 已启用硬门禁且阈值为 95%（见“VS Code 95% 硬门禁（本仓库）”）。
+
+<a id="vscode-95-gate"></a>
+## VS Code 95% 硬门禁（本仓库）
+
+- 目的：对前端扩展核心路径持续抛光，保持与 Python 端质量门禁一致的严苛标准。
+- CI 设置：`VSCODE_COVERAGE_GATE=1`、`VSCODE_COVERAGE_THRESHOLD_WARN=95`。
+- 近阈值/最低覆盖：失败时会在 CI 输出 near/worst 清单，便于快速补测（脚本 `scripts/lcov-near.sh`）。
+- 调优：如需过渡，先将阈值设为 80–90%，稳定后逐步提升至 95%。
+- 快速排障：本机无头测试报错时，先清空参数再测：`export MCP_VSCODE_TEST_ARGS="" && npm --prefix extensions/vscode test`；或使用容器运行：`docker compose run --rm vscode-test`。
+ - 本地 near/worst 清单：
+   - 生成覆盖率：`npm --prefix extensions/vscode test`
+   - 检查阈值并导出 near/worst：
+     - `sh scripts/check-lcov.sh extensions/vscode/coverage/lcov.info 95 || true`
+     - `sh scripts/lcov-near.sh extensions/vscode/coverage/lcov.info 95 5 20 > near_vscode.txt || true`
+   - 产出：`extensions/vscode/coverage/lcov.info` 与根目录 `near_vscode.txt`（已在 `.gitignore` 忽略）。
 
 本地生成发布正文（示例，一键三步）
 ```
@@ -356,6 +374,7 @@ sh scripts/release-compose-body.sh
 许可证与商业化
 - 预留本地授权/离线激活能力接口（见 docs/ARCHITECTURE.md）。
 - 默认不开启任何遥测；所有数据本地优先存储。
+ - CI 许可门禁：当 `license.required=true` 时，`ci.validate` 优先读取项目内 `.mcp/license.json`；若未激活，将在 `.mcp/dashboard/release_check.md` 写出摘要并阻断（忽略全局 `~/.mcp/license.json` 以确保可复现）。
 
 调试与可观测性 Debug & Observability
 - 统一执行器：所有外部命令通过 `process.run_cmd` 调用（默认超时 300s，支持 retries/backoff）。

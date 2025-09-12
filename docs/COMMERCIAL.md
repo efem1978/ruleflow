@@ -45,6 +45,11 @@
 3) 校验
    - `python -m mcp_rules_assistant.cli license-verify`
 
+注意（项目级 vs 全局许可证）
+- 为确保 CI/测试的可复现性，CI 校验工具 `ci.validate` 在 `license.required=true` 时优先读取“项目级许可证” `.mcp/license.json`；
+- 如项目未提供该文件，将视为未激活并写出摘要到 `.mcp/dashboard/release_check.md`；
+- 全局许可证 `~/.mcp/license.json` 仍可用于 CLI 命令的授权校验，但不会影响 `ci.validate` 的项目内门禁行为。
+
 回滚与撤销
 - 撤销：删除 `~/.mcp/license.json` 或下发新版覆盖；
 - CI 强化：开启 `license.required=true` 后，敏感工具（rules.enforce/ci.*）在无效/过期时拒绝执行；

@@ -29,6 +29,7 @@ VS Code 面板手测指南 / VS Code Manual Test
     - 可选硬门禁（默认关闭）：将环境变量 `VSCODE_COVERAGE_GATE=1` 打开后，使用同阈值作为门禁：
       `sh scripts/check-lcov.sh extensions/vscode/coverage/lcov.info 80 gate`
     - 建议：先在数个迭代内稳定≥80%，再逐步提升阈值到 90%/95%
+    - 本仓库说明：CI 已启用硬门禁且阈值为 95%（`VSCODE_COVERAGE_GATE=1` 与 `VSCODE_COVERAGE_THRESHOLD_WARN=95`）。
 6) 插入示例安全规则
    - 点击“插入示例规则”，确认根目录生成 `.semgrep.yml` 与 `.hadolint.yaml`
 7) 记忆与计划
@@ -38,10 +39,9 @@ VS Code 面板手测指南 / VS Code Manual Test
    - CI 中也会包含 `prepare` 作业，使用 `.mcp/venv` 执行 pytest + 覆盖率
    - 面板快速预览：点击“准备环境(预览) / Prepare Env (dry-run)”按钮，弹出 env.prepare 计划（不实际执行）
 9) 受限环境的 VS Code 测试
-   - 若 `npm --prefix extensions/vscode test` 在本机失败，可尝试：
-     - 移除默认参数（不传任何启动参数）：`export MCP_VSCODE_TEST_ARGS=""`
-     - 或自定义启动参数（逗号分隔）：`export MCP_VSCODE_TEST_ARGS="--disable-extensions"`
- - 再运行：`npm --prefix extensions/vscode test`
+   - 建议优先：清空默认参数后重试：`export MCP_VSCODE_TEST_ARGS="" && npm --prefix extensions/vscode test`
+   - 若仍失败，可改用自定义启动参数（逗号分隔）：`export MCP_VSCODE_TEST_ARGS="--disable-extensions"`
+   - 或使用容器路径（更稳定）：`docker compose run --rm vscode-test`
 
 通过 Docker Compose 运行（推荐缓存）
 --------------------------------
@@ -61,6 +61,20 @@ docker compose run --rm vscode-test
 - `scripts/check-lcov.sh <lcov.info> <threshold_pct> [gate]`
   - 不带第三参：低于阈值仅告警（非阻断）
   - 第三参为 `gate`：低于阈值时退出 1（阻断）
+  - 提交建议：`near_vscode.txt` 与 `lcov.info` 仅用于 CI/本地诊断，请勿提交到仓库（根 `.gitignore` 已忽略 near.*，并建议忽略 `near_vscode.txt`）。
+
+示例输出（near/worst 摘录）
+```
+[lcov-near] threshold: 95% window: 5% top: 20
+
+[lcov-near] Near-below (within window, below threshold):
+ (none)
+
+[lcov-near] Worst files (lowest coverage):
+ - 92.0% — extensions/vscode/src/extension.ts
+ - 90.5% — extensions/vscode/src/panel.ts
+ ...
+```
 
 Copilot 集成（可选）
 - 工作区 `.vscode/settings.json` 已登记：

@@ -145,6 +145,8 @@ clean:
 	rm -f extensions/vscode/*.vsix || true
 	# 清理本地样例/临时工件（未追踪但建议移除）
 	rm -f bad.py ok2.py ok.txt docs/b.txt docs/link.py || true
+	# 清理误留的样例包目录
+	rm -rf pkg_x || true
 jb-storyboard:
 	sh scripts/jb-storyboard.sh
 ide-compat:

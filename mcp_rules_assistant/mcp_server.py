@@ -390,18 +390,40 @@ class JsonRpcServer:
                 if name == "ci.validate" and self._license_required():
                     ok = False
                     try:
-                        res = _verify_license()
+                        # Prefer project-scoped license for CI validation to avoid
+                        # interference from any user-level global license.
+                        proj_lic = self.project_root / ".mcp" / "license.json"
+                        if proj_lic.exists():
+                            res = _verify_license(proj_lic)
+                        else:
+                            # No project license present → treat as not ok
+                            res = {"ok": False}
                         ok = bool(res.get("ok"))
                     except Exception:
                         ok = False
                     if not ok:
-                        # 写出摘要，供 CI/人工审阅
+                        # 写出摘要（Markdown + JSON），供 CI/人工审阅/机器消费
                         dash = self.project_root / ".mcp" / "dashboard"
                         dash.mkdir(parents=True, exist_ok=True)
                         (dash / "release_check.md").write_text(
                             "License required or invalid — ci.validate gated\n",
                             encoding="utf-8",
                         )
+                        try:
+                            (dash / "release_check.json").write_text(
+                                json.dumps(
+                                    {
+                                        "ok": False,
+                                        "code": "LICENSE_REQUIRED",
+                                        "message": "license required or invalid",
+                                        "timestamp": int(time.time()),
+                                    },
+                                    ensure_ascii=False,
+                                ),
+                                encoding="utf-8",
+                            )
+                        except Exception:
+                            pass
                         # 仍按硬门禁阻断
                         raise ValueError("license required or invalid")
                 # 其他 gated 正常校验
@@ -1538,6 +1560,25 @@ English summary:
             ),
             "has_combined_artifact_zip": "tests-artifacts.tar.gz" in content,
         }
+        # 写入机器可读摘要（成功路径）
+        try:
+            dash = self.project_root / ".mcp" / "dashboard"
+            dash.mkdir(parents=True, exist_ok=True)
+            (dash / "release_check.json").write_text(
+                json.dumps(
+                    {
+                        "ok": True,
+                        "code": "OK",
+                        "message": "ci.validate ok",
+                        "timestamp": int(time.time()),
+                        "checks": checks,
+                    },
+                    ensure_ascii=False,
+                ),
+                encoding="utf-8",
+            )
+        except Exception:
+            pass
         return {"ok": True, "checks": checks}
 
     def _tool_ci_autofix(self) -> Dict[str, Any]:

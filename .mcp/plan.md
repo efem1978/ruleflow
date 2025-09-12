@@ -68,6 +68,7 @@
 - [x] README 近阈值窗口示例从 1.0%（0.01）更正为 0.8%（0.008），与 `.mcp/assistant.yaml` 对齐
 - [x] 在 README 与 DEVELOPMENT 顶部加入“Authority Notice”：唯一权威任务清单为 `.mcp/plan.md`
 - [x] 清理根目录样例文件：删除 `bad.py`、`ok2.py`、`ok.txt`、`foo.py` 与 `docs/b.txt`；并在 `.gitignore` 补充忽略 `foo.py`
+- [x] 修复 CI 许可校验摘要：当 `license.required=true` 且项目未激活许可证时，`ci.validate` 现优先读取项目级许可证 `.mcp/license.json`（忽略全局 `~/.mcp/license.json`），并在失败时写出 `.mcp/dashboard/release_check.md` 摘要；避免因全局许可证导致测试/CI 非确定性
 
 ---
 
@@ -103,6 +104,26 @@
 批次N7 — 可观测性与诊断增强（可选，运维友好）
 - [x] 将 `process.run_cmd` 事件（按需，通过 `MCP_RUN_CMD_EVENTS=1`）追加写入 `.mcp/dashboard/cmd_events.jsonl`（滚动 ~200 条）
 - [x] 追加“近 24 小时失败比/平均耗时”摘要至 `status.json`
+
+批次N8 — 审计整改（本次）
+- [x] 全量遍历 README.md / DEVELOPMENT.md 与 docs/* 文档，确认一致性与入口指引
+- [x] 运行测试与覆盖率统计：630 通过，Coverage Policy Gate weak=0（见 `coverage.xml` 与 `coverage-report`）
+- [x] 清理无用文件：删除空文件 `docs/b.txt`，与既有文档“清理占位文件”一致
+- [x] 配置示例矫正：在 `docs/CONFIG.md` 中将 `hadolint_image` 示例改为固定版本 `hadolint/hadolint:2.12.0`
+- [x] 文档一致性小修：在 VS Code 覆盖率文档处补充注记“本仓库 CI 已开启 95% 硬门禁（变量 VSCODE_COVERAGE_GATE=1）”，与工作流保持一致
+- [x] 根目录样例评估：移除 `pkg_x/x.py`（不影响测试与打包）
+- [x] README “VS Code 95% 硬门禁（本仓库）”段落补充“快速排障”提示（清空 MCP_VSCODE_TEST_ARGS 或使用 docker 运行）
+- [x] VS Code 测试文档注明 `near_vscode.txt/lcov.info` 仅用于诊断并建议忽略；在 `.gitignore` 忽略 `near_vscode.txt`
+ - [x] README 补充“本地 near/worst 清单”步骤与 near_vscode.txt 说明；VS Code 测试文档将“清空参数后重试”置为首要建议并补充容器路径
+
+批次N9 — 差异修正与清理（本次新增）
+- [x] 根目录清理：物理移除误留样例与临时文件（`bad.py`、`ok2.py`、`ok.txt`、`pkg_x/`）。已在 `Makefile clean` 与 `scripts/workspace-clean.sh` 加入删除规则，执行一次 `make clean` 完成落地。
+- [x] 文档入口强化：
+  - README 与 DEVELOPMENT 已新增“快捷打开计划”指引（`mcp-rules-assistant plan-open`）。
+  - 确认 IDE 面板“Open Plan/打开计划”按钮可用（后续人工手测）。
+- [x] 文档一致性巡检：
+  - `docs/DEV_PLAN_TDD.md` 中“JetBrains 实拍 PNG”项当前标注为“允许暂缓”；与 `extensions/jetbrains/screenshots/*.png` 的替代图一致，后续若获得实拍可更新该勾选状态与 README 引用。
+  - 复核各文档对“唯一权威计划来源”的表述已指向 `.mcp/plan.md`（已对齐）。
 
 当前阶段（进行中）
 - 状态: in_progress

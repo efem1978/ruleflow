@@ -15,6 +15,7 @@ CI 健康检查 / CI Health Check
 - Security（bandit 高级别扫描）：无高危问题。
 - SAST（semgrep 固定版本）：无阻断问题（策略可调）。
 - VS Code 扩展（阶段性策略）：默认仅警告阈值为 ≥80%（非阻断）；可通过设置 `VSCODE_COVERAGE_GATE=1` 启用硬门禁（同阈值）。失败时输出近阈值/最低覆盖文件。
+  - 本仓库说明：CI 已启用硬门禁且阈值为 95%（见工作流 `vscode` job 的 `VSCODE_COVERAGE_THRESHOLD_WARN=95` 与 `VSCODE_COVERAGE_GATE=1`）。
 - JetBrains Storyboard（可选）：产出 jb_*.json/md 工件，便于审阅。
 
 常见失败与定位
@@ -48,4 +49,4 @@ CI 健康检查 / CI Health Check
 - Nightly：`nightly.yml`（UTC 03:00）。
 
 通过标准（DoD）
-- 所有 Job 成功；Coverage Policy Gate 无 weak；VS Code 覆盖率≥80%（默认仅警告；若启用门禁则需达标）。
+- 所有 Job 成功；Coverage Policy Gate 无 weak；VS Code 覆盖率≥80%（默认仅警告；若启用门禁则需达标）。本仓库当前 CI 已启用 95% 硬门禁。

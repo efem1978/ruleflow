@@ -1,6 +1,7 @@
 # 开发指南总览 / Development Guide
 
 重要说明（Authority Notice）：唯一权威的任务清单来源为 `.mcp/plan.md`。本文件与任何专题文档仅作导引与背景说明；如有不一致，以 `.mcp/plan.md` 为准。
+快捷：在终端运行 `mcp-rules-assistant plan-open` 可直接打开并维护该计划。
 
 本指南是本仓库的开发入口，面向人类与 AI 协作者，提供：
 - 统一的开发约束与协作规则（AI 编程约束）
@@ -102,6 +103,8 @@
 - 本地钩子：`mcp-rules-assistant install-hooks`（含 commit-msg/pre-push），推送前运行全量门禁
 - 覆盖率门槛：由 `.mcp/assistant.yaml` 的 `performance.on_push.coverage.min_module` 与 `coverage.policy` 同步控制
 
+- CI 许可门禁（确定性）：当 `license.required=true` 时，`ci.validate` 仅读取项目级许可证 `.mcp/license.json`；若未激活，将写入 `.mcp/dashboard/release_check.md` 并阻断（忽略全局 `~/.mcp/license.json` 以保证 CI/测试可复现）
+
 ## 无人值守（AI 自主运行）/ Unattended AI Autopilot
 - 容器侧（默认安全）：`DEV_AGENT_AUTOCOMMIT=0`、`DEV_AGENT_AUTOPUSH=0`、`DEV_AGENT_AUTOTAG=0`、`DEV_AGENT_BYPASS_COMMIT=0`
 - 显式开启时：
@@ -119,7 +122,7 @@
 
 ## 文档维护与同步 / Documentation Maintenance
 - 变更伴随更新：改动功能/流程时，需同步调整 `DEVELOPMENT.md` 与对应专题文档
-- 许可激活：`mcp-rules-assistant license-status` 查看本地状态；`mcp-rules-assistant license-activate --file <path>` 将许可文件复制到 `~/.mcp/license.json`
+- 许可激活：`mcp-rules-assistant license-status` 查看本地状态；`mcp-rules-assistant license-activate --file <path>` 可将许可文件复制到 `~/.mcp/license.json`（全局）。注意：CI 校验工具 `ci.validate` 只认项目级 `.mcp/license.json`，如需通过门禁请将许可证放置于项目 `.mcp/` 目录。
 - 参考：版本全面审查结论请参考近期审计输出；历史 `FULL_PROJECT_REVIEW.md` 已移除，后续按需在 PR 中附带审计纪要
 - 自检脚本（建议本地执行）：
   - 禁止引用：避免在文档中出现旧式 Compose/本地端口/UI 静态资源等字样（例如 legacy compose 文件名、开发端口和前端文件名等），以免误导（预检会自动扫描并报错）

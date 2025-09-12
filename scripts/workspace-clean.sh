@@ -6,6 +6,7 @@ rm -f coverage.xml cov.json cov_cli.json pytest-junit.xml || true
 rm -f near.txt near.csv near.json || true
 rm -rf htmlcov || true
 rm -f bad.py ok2.py ok.txt docs/b.txt || true
+# stray sample package (should not exist in repo)
+rm -rf pkg_x || true
 rm -f extensions/vscode/*.vsix || true
 echo "[workspace-clean] done"
-

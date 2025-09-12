@@ -37,7 +37,8 @@ tests:
     history_limit: 400
 ci:
   hadolint: false            # 在 CI 中启用 hadolint（Dockerfile lint），默认关闭
-  hadolint_image: "hadolint/hadolint:latest"  # 运行用的容器镜像
+  # 建议固定镜像标签以确保可重复性（本仓库与生成器使用 2.12.0）
+  hadolint_image: "hadolint/hadolint:2.12.0"  # 运行用的容器镜像（固定版本）
   hadolint_args: ""          # 额外参数（可留空）
   semgrep_config: "auto"     # SAST 配置（规则集），如：p/ci, p/security-audit 等
   vscode_required: true       # VS Code 扩展测试是否必跑（默认 true；true 时不再使用 if: hashFiles 条件）
