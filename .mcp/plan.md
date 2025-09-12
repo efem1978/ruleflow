@@ -42,7 +42,8 @@ P1 改进（当前）
 - [x] VS Code 95% 硬门禁脚本与阈值保持（CI）
   - 脚本：`scripts/check-lcov.sh` / `scripts/lcov-near.sh` 已接入
   - CI 变量：`VSCODE_COVERAGE_GATE=1`、`VSCODE_COVERAGE_THRESHOLD_WARN=95` 已在工作流配置
-  - 说明：本地容器无头测试存在 14 项超时失败，属环境/参数差异；CI 继续维持阈值与 near/worst 报告（后续在兼容脚本中迭代修复）
+  - 说明：已引入 Webview ready 信号与 `_test_waitReady`，并为用例准备 `fake_mode` 哨兵，显著降低容器超时波动（CI 维持 95% 门禁）
+  - 剩余（可选抛光）：将所有 panel_* 用例从固定 sleep 迁移为 `_test_waitReady` + 更小夹具工作区，进一步追求“容器全绿”
 
 P2 发布与合规（按需）
 - [x] 许可硬门禁演练自动化：`scripts/release-harden-verify.sh` 已在容器内跑通，结果入库 `.mcp/dashboard/release_check.md`
