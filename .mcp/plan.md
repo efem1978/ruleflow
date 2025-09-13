@@ -1,9 +1,9 @@
 # 项目审计与整改计划（唯一权威）
 
 - 状态: in_progress
-- 当前步骤: Onboard 问答深化与模板分层
+- 当前步骤: NL 别名与受控写入 UX
 - Status: in_progress
-- Current step: Onboard 问答深化与模板分层
+- Current step: NL 别名与受控写入 UX
 - 下一步: NL 别名与受控写入 UX
 - 说明: 本文件为唯一权威任务清单来源。面板/CLI/钩子与 CI 均以此为准。
 
@@ -50,11 +50,11 @@ Batch 2（JetBrains 采集与 GUI 完善）
 - [x] 提交门禁：`[step:JB 事件采集与 GUI]`
 
 Batch 3（Onboard 问答深化与模板分层）
-- [ ] rules.onboard：增加安全/容器/许可/门禁强度/测试分级的引导问题与默认解释
-- [ ] 模板分层：按语言/框架/阶段生成建议门禁（Python/Node/Rust 起步）
-- [ ] 面板：展示“将启用的规则摘要”，一键采纳回写
-- [ ] 测试：onboard 选择组合 → 配置回写的契约测试
-- [ ] 提交门禁：`[step:Onboard 深化]`
+- [x] rules.onboard：增加安全/容器/许可/门禁强度/测试分级的引导问题与默认解释
+- [x] 模板分层：按语言/框架/阶段生成建议门禁（Python/Node/Rust 起步）
+- [x] 面板：展示“将启用的规则摘要”，一键采纳回写
+- [x] 测试：onboard 选择组合 → 配置回写的契约测试
+- [x] 提交门禁：`[step:Onboard 深化]`
 
 Batch 4（NL 别名与受控写入 UX）
 - [ ] NL：为受控写入/计划设置/规则摘要等再增中文/英文别名
