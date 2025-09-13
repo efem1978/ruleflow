@@ -1,8 +1,8 @@
 # 项目审计与整改计划（唯一权威）
 
 - 状态: done
-- 当前步骤: （已完成）
-- 下一步: （下轮计划待定）
+- 当前步骤: 文档一致性微调（HOOKS 阈值来源说明）
+- 下一步: （完成后切回 done）
 - 说明: 本文件为唯一权威任务清单来源。面板/CLI/钩子与 CI 均以此为准。
 
 本轮审计基于真实代码与测试产物（coverage.xml 与 CLI 解析），不依赖任何文档描述。
@@ -32,6 +32,7 @@ P1 质量与发布（已完成）
 - `make local-ci-run` 全绿；`coverage-report --json` 的 weak 为空；`.mcp/assistant.yaml` 与 README/docs 的阈值描述一致。
 
 跟进清单（当前 Sprint）
+- [ ] HOOKS 文档补充说明：pre-push 阶段的 `--cov-fail-under` 由生成器根据 `.mcp/assistant.yaml` 的 `performance.on_push.coverage.min_module` 渲染（如手工改动，请执行 `mcp-rules-assistant install-hooks` 重新对齐）。
 - [x] 临时目录 `tmp_dbg_dir/` 用途确认：如无用则删除；如保留请加入 `.gitignore` 并在 `DEVELOPMENT.md` 备注用途（避免混淆）
 - [x] 覆盖率临时工件（`cov*.json`）保持未追踪；在 `make clean` 中已包含清理，已在 DEVELOPMENT.md 补充注释
 - [x] 计划冻结约定：当前不启用只读冻结（`execution.readonly=false`），保留指引与演练说明；若需冻结再开启并在本文件标注时段
