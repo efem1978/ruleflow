@@ -1,8 +1,8 @@
 # 项目审计与整改计划（唯一权威）
 
 - 状态: in_progress
-- 当前步骤: 评估并（如需）启用 CI 的 hadolint/semgrep 步骤
-- 下一步: 夜间本地回归（make nightly-local）并审阅 .mcp/dashboard 产物
+- 当前步骤: 抛光 near TopN（优先 auto_status.py/process.py/rules_ingest.py/dev_agent.py 少量分支）
+- 下一步: 发布前一次本地 Verify（make verify）与离线摘要复核
 - 说明: 本文件为唯一权威任务清单来源。面板/CLI/钩子与 CI 均以此为准。
 
 本轮审计基于真实代码与测试执行（pytest+coverage），不依赖任何文档描述。
@@ -20,6 +20,8 @@ P0 必做（本轮）
   - 命令: `make clean` 或 `sh scripts/workspace-clean.sh`
   - 范围: `coverage*.xml/.coverage*`, `near*.{txt,csv,json}`, `extensions/vscode/coverage/` 等
 - [x] 复核 CI 健康检查：本地执行 `make local-ci-run` 与 `mcp-rules-assistant ci-validate`，固化 near/weak 导出与门禁日志
+- [x] 评估并启用 CI 的 hadolint/semgrep 步骤（已执行 ci-autofix，含 `hadolint 2.12.0` 与 `semgrep 1.91.x`）
+- [x] 夜间本地回归（make nightly-local）并审阅 .mcp/dashboard 产物（VS Code 无头在本机缺少 xvfb 跳过属预期）
 
 P1 质量与发布（建议）
 - [ ] 将 `.mcp/assistant.yaml` 的 near 窗口参数与实际期望一致（当前 within=0.008 可保留）
