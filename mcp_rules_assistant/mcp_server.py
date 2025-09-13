@@ -9,7 +9,7 @@ import time
 import uuid
 from dataclasses import asdict
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import yaml
 
@@ -1298,6 +1298,51 @@ class JsonRpcServer:
             th = choose_thresholds(Scenario(scenario), Complexity(complexity))
         except Exception:
             th = choose_thresholds(Scenario.PERSONAL, Complexity.SMALL)
+        # Build recommended profile (language/complexity aware, minimal & opinionated)
+        # Security defaults on; strict SAST for enterprise/large; container baseline for >= medium
+        sec_sast_strict = (complexity in ("large",)) or (
+            scenario.lower() in ("enterprise", "org", "enterprise_org")
+        )
+        cont_baseline = complexity in ("medium", "large")
+        cont_required = False
+        lic_required = scenario.lower() in ("enterprise", "org", "enterprise_org")
+        prof: Dict[str, Any] = {
+            "coverage": {"min_module": th.coverage_min_module, "min_core": 0.95},
+            "test": {
+                "warnings_as_errors": True,
+                "no_skip_xfail": True,
+                "levels": dev_mode,
+            },
+            "security": {"secrets_scan": True, "sast_strict": bool(sec_sast_strict)},
+            "container": {
+                "baseline": bool(cont_baseline),
+                "required": bool(cont_required),
+            },
+            "license": {"required": bool(lic_required)},
+        }
+        # CI helpers derived from profile
+        ci_hadolint: bool = bool(
+            bool(prof["container"]["baseline"]) or bool(prof["container"]["required"])
+        )
+        ci_semgrep: Optional[str] = (
+            "auto" if bool(prof["security"]["sast_strict"]) else None
+        )
+        prof["ci"] = {
+            "hadolint": ci_hadolint,
+            **({"semgrep_config": ci_semgrep} if ci_semgrep else {}),
+        }
+
+        # Human summary (brief)
+        def _yn(b: bool) -> str:
+            return "on" if b else "off"
+
+        summary = (
+            f"Coverage min_module={th.coverage_min_module:.2f}, mutation_test={_yn(th.mutation_required)}\n"
+            f"Security: secrets_scan={_yn(True)}, sast_strict={_yn(prof['security']['sast_strict'])}\n"
+            f"Container: baseline={_yn(prof['container']['baseline'])}, required={_yn(prof['container']['required'])}\n"
+            f"License: required={_yn(prof['license']['required'])}"
+        )
+
         apply = bool(args.get("apply", True))
         applied = False
         if apply:
@@ -1332,6 +1377,21 @@ class JsonRpcServer:
             on_push["mutation_test"] = bool(th.mutation_required)
             perf["on_push"] = on_push
             data["performance"] = perf
+            # license
+            lic = (
+                data.get("license", {})
+                if isinstance(data.get("license", {}), dict)
+                else {}
+            )
+            lic["required"] = bool(lic_required)
+            data["license"] = lic
+            # CI suggestions
+            ci = data.get("ci", {}) if isinstance(data.get("ci", {}), dict) else {}
+            if ci_hadolint:
+                ci["hadolint"] = True
+            if ci_semgrep:
+                ci["semgrep_config"] = ci_semgrep
+            data["ci"] = ci
             try:
                 cfg_path.write_text(
                     yaml.safe_dump(data, sort_keys=False, allow_unicode=True),
@@ -1348,6 +1408,8 @@ class JsonRpcServer:
             "complexity": complexity,
             "devMode": dev_mode,
             "thresholds": explain_thresholds(th),
+            "profile": prof,
+            "summary": summary,
             "applied": applied,
         }
 

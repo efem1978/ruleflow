@@ -571,6 +571,14 @@ export function activate(context: vscode.ExtensionContext) {
           <pre id="sugg" style="white-space:pre-wrap; background:#1111; padding:8px;">${sugg || '暂无建议 / No suggestions'}</pre>
         </div>
         <div>
+          <h3>规则引导（Onboard）</h3>
+          <div style="margin:6px 0;">
+            <button id="btnOnboardPreview">预览推荐 / Preview</button>
+            <button id="btnOnboardApply">一键采纳 / Apply</button>
+          </div>
+          <pre id="onboardSummary" style="white-space:pre-wrap; background:#f7f7f7; padding:8px; font-size:12px; color:#333;">（点击“预览推荐”查看将启用的规则摘要）</pre>
+        </div>
+        <div>
           <h3>覆盖率分组</h3>
           <ul id="covGroups"></ul>
         </div>
@@ -702,6 +710,8 @@ export function activate(context: vscode.ExtensionContext) {
           const btnIS = document.getElementById('btnOpenIdeSupport') as HTMLButtonElement | null;
           if (btnIS) btnIS.onclick = () => vscode.postMessage({ t: 'open', path: 'docs/IDE_SUPPORT.md' });
           (document.getElementById('btnPrepareEnvInstall') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'prepareEnvInstall' });
+          (document.getElementById('btnOnboardPreview') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'onboardPreview' });
+          (document.getElementById('btnOnboardApply') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'onboardApply' });
           (document.getElementById('btnShowWeak') as HTMLButtonElement).onclick = () => {
             const all = (window as any).__weakAll || [];
             const ulw = document.getElementById('covWeak');
@@ -815,6 +825,10 @@ export function activate(context: vscode.ExtensionContext) {
             if (msg.t === 'info') {
               const inf = document.getElementById('info');
               if (inf) inf.textContent = msg.text || '';
+            }
+            if (msg.t === 'onboardShow') {
+              const el = document.getElementById('onboardSummary');
+              if (el) { (el as any).textContent = String(msg.text || ''); }
             }
             if (msg.t === 'csvPreview') {
               const el = document.getElementById('csvPreview');
@@ -1733,6 +1747,37 @@ export function activate(context: vscode.ExtensionContext) {
             panel.webview.postMessage({ t: 'info', text: '已切换至项目：' + pick.label });
           } catch (e:any) {
             vscode.window.showErrorMessage('切换项目失败：' + String(e));
+          }
+        }
+        else if (msg.t === 'onboardPreview') {
+          try {
+            const out = await client.request('tools/call', { name: 'rules.onboard', arguments: { apply: false } });
+            const ob = out || {};
+            const lines: string[] = [];
+            if (typeof ob.summary === 'string' && ob.summary) lines.push(String(ob.summary));
+            try {
+              const p = ob.profile || {};
+              const cov = p.coverage || {}; const sec = p.security || {}; const cont = p.container || {}; const lic = p.license || {}; const ci = p.ci || {};
+              lines.push('— coverage.min_module=' + (cov.min_module!==undefined? String(cov.min_module):'-'));
+              lines.push('— security: secrets_scan=' + String(!!sec.secrets_scan) + ', sast_strict=' + String(!!sec.sast_strict));
+              lines.push('— container: baseline=' + String(!!cont.baseline) + ', required=' + String(!!cont.required));
+              lines.push('— license.required=' + String(!!lic.required));
+              if (ci && (ci.hadolint || ci.semgrep_config)) {
+                lines.push('— ci: hadolint=' + String(!!ci.hadolint) + (ci.semgrep_config? (', semgrep_config=' + String(ci.semgrep_config)) : ''));
+              }
+            } catch {}
+            panel.webview.postMessage({ t: 'onboardShow', text: lines.join('\n') });
+            panel.webview.postMessage({ t: 'info', text: 'Onboard 预览完成' });
+          } catch (e:any) {
+            panel.webview.postMessage({ t: 'info', text: 'Onboard 预览失败：' + String(e) });
+          }
+        } else if (msg.t === 'onboardApply') {
+          try {
+            const out = await client.request('tools/call', { name: 'rules.onboard', arguments: { apply: true } });
+            vscode.window.showInformationMessage('Onboard 已采纳：' + JSON.stringify({ applied: out && out.applied }));
+            try { await client.request('tools/call', { name: 'memory.append_turn', arguments: { role: 'assistant', content: 'Onboard applied', meta: { source: 'vscode', action: 'rules.onboard' } } }); } catch {}
+          } catch (e:any) {
+            vscode.window.showErrorMessage('Onboard 采纳失败：' + String(e));
           }
         }
       } catch (e: any) {
