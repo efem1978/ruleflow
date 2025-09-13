@@ -52,7 +52,7 @@ repos:
         stages: [push]
       - id: pytest-with-coverage
         name: pytest with coverage (push)
-        entry: sh -c 'pytest -q --maxfail=1 --disable-warnings -W error --strict-markers --cov --cov-report=xml:coverage.xml --cov-report=term-missing --cov-fail-under=96'
+        entry: sh -c 'pytest -q --maxfail=1 --disable-warnings -W error --strict-markers --cov --cov-report=xml:coverage.xml --cov-report=term-missing --cov-fail-under=99'
         language: system
         pass_filenames: false
         stages: [push]

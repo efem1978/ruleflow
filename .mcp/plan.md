@@ -1,8 +1,10 @@
 # 项目审计与整改计划（唯一权威）
 
-- 状态: done
-- 当前步骤: 文档一致性微调（HOOKS 阈值来源说明）
-- 下一步: （完成后切回 done）
+- 状态: in_progress
+- 当前步骤: NL 事件采集与自动滚动记忆（VS Code 首批）
+- Status: in_progress
+- Current step: NL 事件采集与自动滚动记忆（VS Code 首批）
+- 下一步: JetBrains 按钮采集与计划设置/受控写入 GUI 完善
 - 说明: 本文件为唯一权威任务清单来源。面板/CLI/钩子与 CI 均以此为准。
 
 本轮审计基于真实代码与测试产物（coverage.xml 与 CLI 解析），不依赖任何文档描述。
@@ -31,11 +33,40 @@ P1 质量与发布（已完成）
 完成定义（DoD）
 - `make local-ci-run` 全绿；`coverage-report --json` 的 weak 为空；`.mcp/assistant.yaml` 与 README/docs 的阈值描述一致。
 
-跟进清单（当前 Sprint）
-- [ ] HOOKS 文档补充说明：pre-push 阶段的 `--cov-fail-under` 由生成器根据 `.mcp/assistant.yaml` 的 `performance.on_push.coverage.min_module` 渲染（如手工改动，请执行 `mcp-rules-assistant install-hooks` 重新对齐）。
-- [x] 临时目录 `tmp_dbg_dir/` 用途确认：如无用则删除；如保留请加入 `.gitignore` 并在 `DEVELOPMENT.md` 备注用途（避免混淆）
-- [x] 覆盖率临时工件（`cov*.json`）保持未追踪；在 `make clean` 中已包含清理，已在 DEVELOPMENT.md 补充注释
-- [x] 计划冻结约定：当前不启用只读冻结（`execution.readonly=false`），保留指引与演练说明；若需冻结再开启并在本文件标注时段
+跟进清单（严格 TDD 批次，最大单批次 ≤ 6 项）
+
+Batch 1（VS Code 事件采集与文档入口）
+- [ ] VS Code：在 NL/Quick Actions/Panel“加载覆盖率”/Plan Set/CI/Hooks/受控写入等动作后，统一调用 memory.append_turn（含摘要）
+- [ ] VS Code：USER_GUIDE/IDE_SUPPORT 入口挂接到面板（帮助/文档一键打开）
+- [ ] 文档：完善 USER_GUIDE/NATURAL_LANGUAGE/IDE_SUPPORT 索引（README/DEVELOPMENT.md 更新链接）
+- [ ] 测试：补 NL 路由与 append_turn 的契约测试；保持全绿与覆盖率门禁
+- [ ] 提交门禁：以 `[step:VS Code 事件采集]` 提交；本批完成后更新“当前步骤/下一步”
+
+Batch 2（JetBrains 采集与 GUI 完善）
+- [ ] JetBrains：按钮与 NL 执行后统一 append_turn（覆盖率/摄取/CI/Hooks/Env/PlanSet）
+- [ ] JetBrains：受控写入 GUI（多文件、dry‑run、strict 开关）
+- [ ] JetBrains：Plan Set 对话增强（预设选项 + 校验）
+- [ ] 测试：JB UI 验证脚本扩展（jb-ui-verify 增加 turn 计数断言）
+- [ ] 提交门禁：`[step:JB 事件采集与 GUI]`
+
+Batch 3（Onboard 问答深化与模板分层）
+- [ ] rules.onboard：增加安全/容器/许可/门禁强度/测试分级的引导问题与默认解释
+- [ ] 模板分层：按语言/框架/阶段生成建议门禁（Python/Node/Rust 起步）
+- [ ] 面板：展示“将启用的规则摘要”，一键采纳回写
+- [ ] 测试：onboard 选择组合 → 配置回写的契约测试
+- [ ] 提交门禁：`[step:Onboard 深化]`
+
+Batch 4（NL 别名与受控写入 UX）
+- [ ] NL：为受控写入/计划设置/规则摘要等再增中文/英文别名
+- [ ] VS Code：Guarded Write 支持多文件 + diff 预览（dry‑run 阶段）
+- [ ] 测试：fs.apply_patch UI 合同与安全分支
+- [ ] 提交门禁：`[step:NL&Write UX]`
+
+Batch 5（容器与 Chat 集成可选项）
+- [ ] 容器：dev-agent 增加自动 append_turn（最小摘要），频率与上限受控
+- [ ] VS Code Chat（可选）：如启用 Chat API，追加“上一轮问答摘要”
+- [ ] 文档：在 USER_GUIDE 附“可选功能”与隐私/性能说明
+- [ ] 提交门禁：`[step:容器与Chat可选]`
 
 审计附注
 - 未发现需删除的重复/弃用文档；docs/CONTRIBUTING.md 为根文档的本地化补充且已标注权威来源；docs/LICENSE.md 仅为演示说明，法律文本以根 LICENSE 为准。
