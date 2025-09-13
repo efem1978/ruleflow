@@ -23,12 +23,15 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
         val panel = JPanel(BorderLayout())
         val top = JPanel(FlowLayout(FlowLayout.LEFT))
-        val lblStatus = JLabel("RuleFlow MCP (Preview) — plan/memory")
+        val lblStatus = JLabel("RuleFlow MCP — 状态: 初始化中…")
         top.add(lblStatus)
 
         val btnPlan = JButton("加载计划 / Load Plan")
         val btnMemory = JButton("加载记忆 / Load Memory")
         val btnCoverage = JButton("加载覆盖率摘要 / Load Coverage Summary")
+        val btnStatus = JButton("刷新状态 / Refresh Status")
+        val tfNL = javax.swing.JTextField(28)
+        val btnNL = JButton("自然语言 / NL")
         val btnMcpStart = JButton("启动 MCP")
         val btnMcpStop = JButton("停止 MCP")
         val btnMcpPing = JButton("MCP: Ping")
@@ -41,6 +44,9 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
         val btnHooks = JButton("Git: 安装 hooks")
         val btnMcpIngest = JButton("MCP: 规则摄取")
         val btnMcpCovReport = JButton("MCP: 覆盖率报告")
+        val btnEnvDry = JButton("环境：预览 / Dry-run")
+        val btnEnvInstall = JButton("环境：创建并安装")
+        val btnPlanSet = JButton("计划设置 / Plan Set")
         val btnFsDry = JButton("MCP: 受控写入(dry-run)")
         val btnFsWrite = JButton("MCP: 受控写入(严格写入)")
         val cbFsPost = JCheckBox("写入后检查(fs_guard_post_checks)", false)
@@ -53,8 +59,11 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
         top.add(btnPlan)
         top.add(btnMemory)
         top.add(btnCoverage)
+        top.add(btnStatus)
         top.add(btnOpenPlan)
         top.add(btnOpenMemory)
+        top.add(tfNL)
+        top.add(btnNL)
         top.add(btnMcpStart)
         top.add(btnMcpList)
         top.add(btnMcpPlan)
@@ -67,6 +76,9 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
         top.add(btnHooks)
         top.add(btnCfgYaml)
         top.add(btnCiYaml)
+        top.add(btnEnvDry)
+        top.add(btnEnvInstall)
+        top.add(btnPlanSet)
         top.add(cbFsPost)
         top.add(cbFsStrict)
         top.add(btnFsApplyCfg)
@@ -132,6 +144,27 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
             return null
         }
 
+        fun updateStatusLabelFromFile() {
+            val raw = readFile(".mcp/dashboard/status.json")
+            try {
+                val w = Regex("\\\"weak\\\"\\s*:\\s*\\[").find(raw)?.let { match ->
+                    val idx = match.range.first
+                    val sub = raw.substring(idx)
+                    val end = sub.indexOf(']')
+                    if (end > 0) sub.substring(0, end).count { it == '{' } else 0
+                } ?: 0
+                val near = Regex("\\\"near\\\"\\s*:\\s*\\[").find(raw)?.let { match ->
+                    val idx = match.range.first
+                    val sub = raw.substring(idx)
+                    val end = sub.indexOf(']')
+                    if (end > 0) sub.substring(0, end).count { it == '{' } else 0
+                } ?: 0
+                lblStatus.text = "RuleFlow MCP — weak=${'$'}{w}, near=${'$'}{near}"
+            } catch (_: Exception) {
+                lblStatus.text = "RuleFlow MCP — 状态: 就绪"
+            }
+        }
+
         btnCoverage.addActionListener {
             val raw = readFile(".mcp/dashboard/status.json")
             try {
@@ -164,6 +197,121 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
             } catch (e: Exception) {
                 text.text = raw
             }
+            updateStatusLabelFromFile()
+        }
+
+        btnStatus.addActionListener {
+            try {
+                val rep = readFile(".mcp/dashboard/status.json")
+                text.text = rep
+            } catch (e: Exception) {
+                text.text = "状态刷新失败: ${'$'}{e.message}"
+            }
+            updateStatusLabelFromFile()
+        }
+
+        // NL command: route common phrases via MCP server
+        fun appendTurn(mcp: McpClient, content: String, meta: String = "{}") {
+            try {
+                if (!mcp.isRunning()) mcp.start(project)
+                val cEsc = content.replace("\\", "\\\\").replace("\"", "\\\"")
+                val req = "{\"name\":\"memory.append_turn\",\"arguments\":{\"role\":\"assistant\",\"content\":\"" + cEsc + "\",\"meta\":" + meta + "}}"
+                mcp.request("tools/call", req, 4000)
+            } catch (_: Exception) { /* best effort, ignore */ }
+        }
+
+        btnNL.addActionListener {
+            val txt = tfNL.text.trim()
+            if (txt.isEmpty()) return@addActionListener
+            try {
+                if (!mcp.isRunning()) mcp.start(project)
+                val arg = "{\"text\":\"" + txt.replace("\\", "\\\\").replace("\"", "\\\"") + "\"}"
+                val parsed = mcp.request("tools/call", "{\"name\":\"nl.command\",\"arguments\":$arg}", 8000)
+                text.text = parsed
+                val low = txt.lowercase()
+                fun showToast(msg: String) { com.intellij.notification.NotificationGroupManager.getInstance().getNotificationGroup("RuleFlow").createNotification(msg, com.intellij.notification.NotificationType.INFORMATION).notify(project) }
+                if (low.contains("覆盖率") || low.contains("coverage")) {
+                    val rep = mcp.request("tools/call", "{\"name\":\"coverage.report\",\"arguments\":{}}", 8000)
+                    text.text = rep
+                    showToast("Coverage loaded (see output)")
+                    appendTurn(mcp, "Coverage loaded via NL")
+                } else if (low.contains("摄取") || low.contains("ingest")) {
+                    // default paths
+                    val args = "{\"paths\":[\"README.md\",\"docs/\"]}"
+                    val r = mcp.request("tools/call", "{\"name\":\"rules.ingest\",\"arguments\":$args}", 12000)
+                    text.text = r
+                    showToast("Rules ingested")
+                    appendTurn(mcp, "Rules ingested via NL")
+                } else if (low.contains("生成 ci") || low.contains("generate ci")) {
+                    val r = mcp.request("tools/call", "{\"name\":\"ci.generate\",\"arguments\":{}}", 8000)
+                    text.text = r
+                    showToast("CI generated")
+                    appendTurn(mcp, "CI generated via NL")
+                } else if (low.contains("校验 ci") || low.contains("validate ci")) {
+                    val r = mcp.request("tools/call", "{\"name\":\"ci.validate\",\"arguments\":{}}", 8000)
+                    text.text = r
+                    showToast("CI validated")
+                    appendTurn(mcp, "CI validated via NL")
+                } else if (low.contains("安装钩子") || low.contains("install hooks")) {
+                    val r = mcp.request("tools/call", "{\"name\":\"git.install_hooks\",\"arguments\":{}}", 8000)
+                    text.text = r
+                    showToast("Hooks installed")
+                    appendTurn(mcp, "Git hooks installed via NL")
+                }
+            } catch (e: Exception) {
+                text.text = "NL failed: ${e.message}"
+            }
+        }
+
+        // env.prepare quick actions
+        btnEnvDry.addActionListener {
+            try {
+                if (!mcp.isRunning()) mcp.start(project)
+                val out = mcp.request("tools/call", "{\"name\":\"env.prepare\",\"arguments\":{\"create\":false,\"install\":false}}", 10000)
+                text.text = out
+                com.intellij.notification.NotificationGroupManager.getInstance().getNotificationGroup("RuleFlow").createNotification("env.prepare dry-run 完成", com.intellij.notification.NotificationType.INFORMATION).notify(project)
+                appendTurn(mcp, "env.prepare dry-run")
+            } catch (e: Exception) { text.text = "env.prepare 失败: ${'$'}{e.message}" }
+        }
+        btnEnvInstall.addActionListener {
+            try {
+                if (!mcp.isRunning()) mcp.start(project)
+                val out = mcp.request("tools/call", "{\"name\":\"env.prepare\",\"arguments\":{\"create\":true,\"install\":true}}", 20000)
+                text.text = out
+                com.intellij.notification.NotificationGroupManager.getInstance().getNotificationGroup("RuleFlow").createNotification("env.prepare 安装完成", com.intellij.notification.NotificationType.INFORMATION).notify(project)
+                appendTurn(mcp, "env.prepare install")
+            } catch (e: Exception) { text.text = "env.prepare 失败: ${'$'}{e.message}" }
+        }
+
+        // plan.set quick dialog
+        btnPlanSet.addActionListener {
+            val statuses = arrayOf("in_progress", "done", "planned")
+            val selected = javax.swing.JOptionPane.showInputDialog(null, "选择状态 / Pick status", "in_progress", javax.swing.JOptionPane.QUESTION_MESSAGE, null, statuses, statuses[0])
+            val status = (selected as? String) ?: "in_progress"
+            val current = javax.swing.JOptionPane.showInputDialog(null, "current (可留空)", "") ?: ""
+            val next = javax.swing.JOptionPane.showInputDialog(null, "next (可留空)", "") ?: ""
+            val args = buildString {
+                append("{")
+                append("\"name\":\"plan.set\",\"arguments\":{")
+                var first = true
+                fun addKV(k:String, v:String) { if (v.isNotEmpty()) { if (!first) append(",") else first=false; append("\"").append(k).append("\":\"").append(v.replace("\\","\\\\").replace("\"","\\\"")).append("\"") } }
+                addKV("status", status)
+                addKV("current", current)
+                addKV("next", next)
+                append("}}")
+            }
+            try {
+                if (!mcp.isRunning()) mcp.start(project)
+                val out = mcp.request("tools/call", args, 8000)
+                text.text = out
+                com.intellij.notification.NotificationGroupManager.getInstance().getNotificationGroup("RuleFlow").createNotification("计划已更新", com.intellij.notification.NotificationType.INFORMATION).notify(project)
+                val summary = listOf(
+                    if (status.isNotEmpty()) "status=$status" else "",
+                    if (current.isNotEmpty()) "current=$current" else "",
+                    if (next.isNotEmpty()) "next=$next" else ""
+                ).filter { it.isNotEmpty() }.joinToString(", ")
+                appendTurn(mcp, "plan.set: $summary")
+            } catch (e: Exception) { text.text = "plan.set 失败: ${'$'}{e.message}" }
         }
 
         fun openInEditor(rel: String) {
@@ -192,6 +340,7 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
         btnMcpStart.addActionListener {
             if (!mcp.isRunning()) mcp.start(project)
             lblStatus.text = if (mcp.isRunning()) "MCP 运行中" else "MCP 启动失败"
+            updateStatusLabelFromFile()
         }
         btnMcpStop.addActionListener {
             mcp.stop()
@@ -251,6 +400,7 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
                 if (!mcp.isRunning()) mcp.start(project)
                 val out = mcp.request("tools/call", "{\"name\":\"ci.generate\",\"arguments\":{}}", 12000)
                 text.text = if (chkPretty.isSelected) prettyJson(out) else out
+                appendTurn(mcp, "CI generated")
             } catch (e: Exception) {
                 text.text = "MCP 请求失败: ${e.message}"
             }
@@ -260,6 +410,7 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
                 if (!mcp.isRunning()) mcp.start(project)
                 val out = mcp.request("tools/call", "{\"name\":\"ci.validate\",\"arguments\":{}}", 8000)
                 text.text = if (chkPretty.isSelected) prettyJson(out) else out
+                appendTurn(mcp, "CI validated")
             } catch (e: Exception) {
                 text.text = "MCP 请求失败: ${e.message}"
             }
@@ -269,6 +420,7 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
                 if (!mcp.isRunning()) mcp.start(project)
                 val out = mcp.request("tools/call", "{\"name\":\"git.install_hooks\",\"arguments\":{}}", 12000)
                 text.text = prettyJson(out)
+                appendTurn(mcp, "Git hooks installed")
             } catch (e: Exception) {
                 text.text = "MCP 请求失败: ${e.message}"
             }
@@ -288,6 +440,7 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
                 val params = "{\"name\":\"rules.ingest\",\"arguments\":{\"paths\":[" + pathsJson + "]}}"
                 val out = mcp.request("tools/call", params, 15000)
                 text.text = prettyJson(out)
+                appendTurn(mcp, "Rules ingested")
             } catch (e: Exception) {
                 text.text = "MCP 请求失败: ${e.message}"
             }
@@ -335,6 +488,7 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
                     mcp.request("tools/call", "{\"name\":\"coverage.report\",\"arguments\":{}}", 10000)
                 }
                 text.text = maybePrettyAndFold(out, chkPretty.isSelected, chkFold.isSelected)
+                appendTurn(mcp, "Coverage loaded")
             } catch (e: Exception) {
                 text.text = "MCP 请求失败: ${e.message}"
             }
@@ -360,6 +514,8 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
                 val req = "{\"name\":\"fs.apply_patch\",\"arguments\":$argsJson}"
                 val out = mcp.request("tools/call", req, if (dryRun) 8000 else 15000)
                 text.text = out
+                val sum = "fs.apply_patch: " + (if (dryRun) "dry-run" else "write") + ", strict=" + (if (strict) "true" else "false")
+                appendTurn(mcp, sum)
             } catch (e: Exception) {
                 text.text = "MCP 请求失败: ${e.message}"
             }
@@ -377,6 +533,8 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
                 val req = "{\"name\":\"fs.apply_patch\",\"arguments\":$argsJson}"
                 val out = mcp.request("tools/call", req, if (params.dryRun) 8000 else 15000)
                 text.text = maybePrettyAndFold(out, chkPretty.isSelected, chkFold.isSelected)
+                val sum = "fs.apply_patch: " + (if (params.dryRun) "dry-run" else "write") + ", strict=" + (if (params.strict) "true" else "false")
+                appendTurn(mcp, sum)
             } catch (e: Exception) {
                 text.text = "MCP 请求失败: ${e.message}"
             }
@@ -393,6 +551,8 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
                 val req = "{\"name\":\"fs.apply_patch\",\"arguments\":$argsJson}"
                 val out = mcp.request("tools/call", req, if (params.dryRun) 8000 else 15000)
                 text.text = maybePrettyAndFold(out, chkPretty.isSelected, chkFold.isSelected)
+                val sum = "fs.apply_patch: " + (if (params.dryRun) "dry-run" else "write") + ", strict=" + (if (params.strict) "true" else "false")
+                appendTurn(mcp, sum)
             } catch (e: Exception) {
                 text.text = "MCP 请求失败: ${e.message}"
             }
@@ -423,6 +583,8 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
                 val req = "{\"name\":\"fs.apply_patch\",\"arguments\":$argsJson}"
                 val out = mcp.request("tools/call", req, if (dryRun) 8000 else 15000)
                 text.text = maybePrettyAndFold(out, chkPretty.isSelected, chkFold.isSelected)
+                val sum = "fs.apply_patch: " + (if (dryRun) "dry-run" else "write") + ", strict=true, files=" + files.size
+                appendTurn(mcp, sum)
             } catch (e: Exception) {
                 text.text = "MCP 请求失败: ${e.message}"
             }

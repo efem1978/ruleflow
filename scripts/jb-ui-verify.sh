@@ -76,13 +76,22 @@ out = {
   'plan': {},
   'coverage': {},
   'rules': {},
-  'suggestions': {}
+  'suggestions': {},
+  'memory': {}
 }
 try:
   S = json.loads((dash/'status.json').read_text(encoding='utf-8'))
   out['plan'] = S.get('plan') or {}
   out['coverage']['weak_count'] = len(((S.get('coverage') or {}).get('weak') or []))
   out['coverage']['count'] = (S.get('coverage') or {}).get('count')
+except Exception:
+  pass
+try:
+  import json
+  M = json.loads((root/'.mcp'/'memory.json').read_text(encoding='utf-8'))
+  turns = M.get('turns') or []
+  out['memory']['turns_count'] = len(turns)
+  out['memory']['has_summary'] = bool((M.get('summary') or '').strip())
 except Exception:
   pass
 try:
