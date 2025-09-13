@@ -1,10 +1,10 @@
 # 项目审计与整改计划（唯一权威）
 
 - 状态: in_progress
-- 当前步骤: NL 事件采集与自动滚动记忆（VS Code 首批）
+- 当前步骤: JetBrains 按钮采集与计划设置/受控写入 GUI 完善
 - Status: in_progress
-- Current step: NL 事件采集与自动滚动记忆（VS Code 首批）
-- 下一步: JetBrains 按钮采集与计划设置/受控写入 GUI 完善
+- Current step: JetBrains 按钮采集与计划设置/受控写入 GUI 完善
+- 下一步: Onboard 问答深化与模板分层
 - 说明: 本文件为唯一权威任务清单来源。面板/CLI/钩子与 CI 均以此为准。
 
 本轮审计基于真实代码与测试产物（coverage.xml 与 CLI 解析），不依赖任何文档描述。
@@ -36,11 +36,11 @@ P1 质量与发布（已完成）
 跟进清单（严格 TDD 批次，最大单批次 ≤ 6 项）
 
 Batch 1（VS Code 事件采集与文档入口）
-- [ ] VS Code：在 NL/Quick Actions/Panel“加载覆盖率”/Plan Set/CI/Hooks/受控写入等动作后，统一调用 memory.append_turn（含摘要）
-- [ ] VS Code：USER_GUIDE/IDE_SUPPORT 入口挂接到面板（帮助/文档一键打开）
-- [ ] 文档：完善 USER_GUIDE/NATURAL_LANGUAGE/IDE_SUPPORT 索引（README/DEVELOPMENT.md 更新链接）
-- [ ] 测试：补 NL 路由与 append_turn 的契约测试；保持全绿与覆盖率门禁
-- [ ] 提交门禁：以 `[step:VS Code 事件采集]` 提交；本批完成后更新“当前步骤/下一步”
+- [x] VS Code：在 NL/Quick Actions/Panel“加载覆盖率”/Plan Set/CI/Hooks/受控写入等动作后，统一调用 memory.append_turn（含摘要）
+- [x] VS Code：USER_GUIDE/IDE_SUPPORT 入口挂接到面板（帮助/文档一键打开）
+- [x] 文档：完善 USER_GUIDE/NATURAL_LANGUAGE/IDE_SUPPORT 索引（README/DEVELOPMENT.md 更新链接）
+- [x] 测试：补 NL 路由与 append_turn 的契约测试；保持全绿与覆盖率门禁
+- [x] 提交门禁：以 `[step:NL 事件采集与自动滚动记忆（VS Code 首批）]` 提交；本批完成后更新“当前步骤/下一步”
 
 Batch 2（JetBrains 采集与 GUI 完善）
 - [ ] JetBrains：按钮与 NL 执行后统一 append_turn（覆盖率/摄取/CI/Hooks/Env/PlanSet）
