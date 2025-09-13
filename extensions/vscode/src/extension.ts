@@ -49,9 +49,23 @@ class McpClient {
     this.updateFakeMode();
     if (this.proc || this.fakeMode) return;
     // 尽量不影响性能：按需启动，面板打开或首次请求时才启动
-    const pyBin = process.env.MCP_PYTHON_BIN && process.env.MCP_PYTHON_BIN.trim()
-      ? process.env.MCP_PYTHON_BIN.trim()
-      : (process.platform === 'win32' ? 'python' : 'python3');
+    const ws = getWorkspaceRoot() || process.cwd();
+    const path = require('path');
+    const fs = require('fs');
+    // 1) 优先使用工作区内 .mcp/venv 的 Python（真正开箱即用）
+    const venvPy = process.platform === 'win32'
+      ? path.join(ws, '.mcp', 'venv', 'Scripts', 'python.exe')
+      : path.join(ws, '.mcp', 'venv', 'bin', 'python');
+    let pyBin = venvPy;
+    if (!fs.existsSync(venvPy)) {
+      // 2) 其次使用环境变量 MCP_PYTHON_BIN
+      if (process.env.MCP_PYTHON_BIN && process.env.MCP_PYTHON_BIN.trim()) {
+        pyBin = process.env.MCP_PYTHON_BIN.trim();
+      } else {
+        // 3) 最后回退到系统 python/python3
+        pyBin = (process.platform === 'win32' ? 'python' : 'python3');
+      }
+    }
     this.proc = spawn(pyBin, ['-m', 'mcp_rules_assistant.cli', 'start'], {
       cwd: getWorkspaceRoot(),
       stdio: ['pipe', 'pipe', 'pipe']
@@ -263,10 +277,34 @@ export function activate(context: vscode.ExtensionContext) {
   // 在状态栏放一个快捷入口，点击即可打开面板
   const sb = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
   sb.text = 'RuleFlow';
-  sb.tooltip = 'Open RuleFlow Panel';
-  sb.command = 'mcpRulesAssistant.openPanel';
+  sb.tooltip = 'Quick Actions';
+  sb.command = 'mcpRulesAssistant.quickActions';
   sb.show();
   context.subscriptions.push(sb);
+
+  // 轻量状态栏刷新：从 coverage.report 获取摘要并更新状态显示
+  const updateStatusBar = async () => {
+    try {
+      client.start(context);
+      const rep = await client.request('tools/call', { name: 'coverage.report', arguments: {} });
+      if (rep && rep.ok) {
+        const w = Array.isArray(rep.weak) ? rep.weak.length : 0;
+        const n = Array.isArray(rep.near) ? rep.near.length : 0;
+        sb.text = `RuleFlow $(check) w${w}/n${n}`;
+        const g = Array.isArray(rep.groups) ? rep.groups.length : 0;
+        const mm = typeof rep.min_module === 'number' ? `${(rep.min_module*100).toFixed(0)}%` : '-';
+        sb.tooltip = `Coverage: weak=${w}, near=${n}, groups=${g}, min_module=${mm}`;
+      } else {
+        sb.text = 'RuleFlow $(alert)';
+        sb.tooltip = 'Coverage not available. Run tests to produce coverage.xml';
+      }
+    } catch {
+      sb.text = 'RuleFlow';
+      sb.tooltip = 'Open RuleFlow Panel';
+    }
+  };
+  // 首次尝试刷新一次
+  updateStatusBar().then(()=>{});
 
   // 快捷命令：快速打开计划与记忆文件
   context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant.openPlan', async () => {
@@ -280,6 +318,152 @@ export function activate(context: vscode.ExtensionContext) {
     } catch {
       vscode.window.showInformationMessage('.mcp/plan.md not found');
     }
+  }));
+  // 主动加载覆盖率：调用 MCP 工具 coverage.report，并给出摘要提示
+  context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant.loadCoverage', async () => {
+    try { client.start(context); } catch {}
+    try {
+      const res = await client.request('tools/call', { name: 'coverage.report', arguments: {} });
+      const weak = Array.isArray(res?.weak) ? res.weak.length : 0;
+      const near = Array.isArray(res?.near) ? res.near.length : 0;
+      const groups = Array.isArray(res?.groups) ? res.groups.length : 0;
+      const mm = typeof res?.min_module === 'number' ? res.min_module : undefined;
+      if (res && res.ok) {
+        vscode.window.showInformationMessage(`Coverage loaded: weak=${weak}, near=${near}, groups=${groups}` + (mm !== undefined ? `, min_module=${(mm*100).toFixed(0)}%` : ''));
+        try { await updateStatusBar(); } catch {}
+        try {
+          const content = `Coverage loaded: weak=${weak}, near=${near}, groups=${groups}` + (mm !== undefined ? `, min_module=${(mm*100).toFixed(0)}%` : '');
+          await client.request('tools/call', { name: 'memory.append_turn', arguments: { role: 'assistant', content, meta: { source: 'vscode', action: 'loadCoverage' } } });
+        } catch {}
+      } else {
+        const msg = (res && (res.message || res.error)) || 'coverage.xml not found or unavailable';
+        vscode.window.showWarningMessage(`Coverage not available: ${String(msg)}`);
+        try {
+          const content = `Coverage not available: ${String(msg)}`;
+          await client.request('tools/call', { name: 'memory.append_turn', arguments: { role: 'assistant', content, meta: { source: 'vscode', action: 'loadCoverage' } } });
+        } catch {}
+      }
+    } catch (e:any) {
+      vscode.window.showErrorMessage(`Load Coverage failed: ${String(e)}`);
+    }
+  }));
+
+  // 快速动作（状态栏入口）
+  context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant.quickActions', async () => {
+    try { client.start(context); } catch {}
+    const choice = await vscode.window.showQuickPick([
+      'Open Panel',
+      'Load Coverage',
+      'Open Plan',
+      'Open Status',
+      'Ingest Rules (Quick)',
+      'Status Update',
+      'Generate CI',
+      'Validate CI',
+      'Install Hooks',
+      'Natural Command',
+    ], { placeHolder: 'RuleFlow Quick Actions' });
+    if (!choice) return;
+    if (choice === 'Open Panel') { await vscode.commands.executeCommand('mcpRulesAssistant.openPanel'); return; }
+    if (choice === 'Load Coverage') { await vscode.commands.executeCommand('mcpRulesAssistant.loadCoverage'); return; }
+    if (choice === 'Open Plan') { await vscode.commands.executeCommand('mcpRulesAssistant.openPlan'); return; }
+    if (choice === 'Open Status') { await vscode.commands.executeCommand('mcpRulesAssistant.openStatus'); return; }
+    if (choice === 'Ingest Rules (Quick)') { await vscode.commands.executeCommand('mcpRulesAssistant.ingestQuick'); return; }
+    if (choice === 'Status Update') { await vscode.commands.executeCommand('mcpRulesAssistant.statusUpdate'); return; }
+    if (choice === 'Generate CI') { await client.request('tools/call', { name: 'ci.generate', arguments: {} }); vscode.window.showInformationMessage('CI 已生成'); try { await client.request('tools/call', { name: 'memory.append_turn', arguments: { role: 'assistant', content: 'CI generated', meta: { source: 'vscode', action: 'ci.generate' } } }); } catch {} return; }
+    if (choice === 'Validate CI') { await client.request('tools/call', { name: 'ci.validate', arguments: {} }); vscode.window.showInformationMessage('CI 校验完成'); try { await client.request('tools/call', { name: 'memory.append_turn', arguments: { role: 'assistant', content: 'CI validated', meta: { source: 'vscode', action: 'ci.validate' } } }); } catch {} return; }
+    if (choice === 'Install Hooks') { await client.request('tools/call', { name: 'git.install_hooks', arguments: {} }); vscode.window.showInformationMessage('Git hooks 已安装'); try { await client.request('tools/call', { name: 'memory.append_turn', arguments: { role: 'assistant', content: 'Git hooks installed', meta: { source: 'vscode', action: 'git.install_hooks' } } }); } catch {} return; }
+    if (choice === 'Natural Command') { await vscode.commands.executeCommand('mcpRulesAssistant.nlCommand'); return; }
+  }));
+
+  // 状态刷新（显示摘要 + 刷新状态栏）
+  context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant.statusUpdate', async () => {
+    try {
+      client.start(context);
+      const pyBin = process.env.MCP_PYTHON_BIN && process.env.MCP_PYTHON_BIN.trim() ? process.env.MCP_PYTHON_BIN.trim() : (process.platform === 'win32' ? 'python' : 'python3');
+      const cwd = getWorkspaceRoot() || process.cwd();
+      const { execFile } = require('child_process');
+      execFile(pyBin, ['-m', 'mcp_rules_assistant.cli', 'status-update', '--json'], { cwd }, async (err: any, stdout: string, stderr: string) => {
+        if (err) { vscode.window.showErrorMessage('状态刷新失败：' + String(err)); return; }
+        try {
+          const data = JSON.parse(stdout || '{}');
+          const cov = data.coverage || {}; const w = (cov.weak||[]).length || 0; const n = (cov.near||[]).length || 0; const mm = cov.min_module;
+          vscode.window.showInformationMessage(`Status: weak=${w}, near=${n}` + (mm !== undefined ? `, min_module=${(mm*100).toFixed(0)}%` : ''));
+          try { await updateStatusBar(); } catch {}
+        } catch { vscode.window.showInformationMessage('状态已刷新'); }
+      });
+    } catch (e:any) { vscode.window.showErrorMessage('状态刷新失败：' + String(e)); }
+  }));
+
+  // 快速摄取（默认 README.md, docs/）
+  context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant.ingestQuick', async () => {
+    try { client.start(context); } catch {}
+    try { await client.request('tools/call', { name: 'rules.ingest', arguments: { paths: ['README.md', 'docs/'] } }); vscode.window.showInformationMessage('规则摄取完成'); } catch (e:any) { vscode.window.showErrorMessage('规则摄取失败：' + String(e)); }
+  }));
+
+  // 打开状态文件
+  context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant.openStatus', async () => {
+    try {
+      const ws = getWorkspaceRoot(); if (!ws) { vscode.window.showWarningMessage('No workspace'); return; }
+      const uri = vscode.Uri.file(ws + '/.mcp/dashboard/status.json');
+      const doc = await vscode.workspace.openTextDocument(uri);
+      await vscode.window.showTextDocument(doc, { preview: false });
+    } catch { vscode.window.showInformationMessage('status.json not found'); }
+  }));
+
+  // 计划设置（status/current/next 三项任意）
+  context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant.planSet', async () => {
+    try { client.start(context); } catch {}
+    const status = await vscode.window.showQuickPick(['in_progress', 'done', 'planned', 'skip (no change)'], { placeHolder: 'status' });
+    let stVal: string|undefined = undefined; if (status && !status.startsWith('skip')) stVal = status;
+    const current = await vscode.window.showInputBox({ placeHolder: 'current (可留空不变)' });
+    const next = await vscode.window.showInputBox({ placeHolder: 'next (可留空不变)' });
+    const args: any = {}; if (stVal) args.status = stVal; if (current) args.current = current; if (next) args.next = next;
+    await client.request('tools/call', { name: 'plan.set', arguments: args });
+    vscode.window.showInformationMessage('Plan updated');
+    try {
+      const content = `Plan set: ${['status', 'current', 'next'].map(k=> (args[k]!==undefined? `${k}=${args[k]}` : '')).filter(Boolean).join(', ')}`;
+      await client.request('tools/call', { name: 'memory.append_turn', arguments: { role: 'assistant', content, meta: { source: 'vscode', action: 'plan.set' } } });
+    } catch {}
+  }));
+
+  // 记忆：追加选中内容
+  context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant.memoryAppendSelection', async () => {
+    try { client.start(context); } catch {}
+    const ed = vscode.window.activeTextEditor;
+    let text = '';
+    if (ed) { text = ed.document.getText(ed.selection); }
+    if (!text) { text = await vscode.window.showInputBox({ placeHolder: '输入要追加到记忆的文本' }) || ''; }
+    if (!text) { vscode.window.showWarningMessage('无内容可追加'); return; }
+    await client.request('tools/call', { name: 'memory.append_turn', arguments: { role: 'user', content: text } });
+    vscode.window.showInformationMessage('已追加到记忆');
+  }));
+
+  // 受控写入：当前文件或输入路径 + 内容；支持 dry-run/strict 选项
+  context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant.fsApplyPatch', async () => {
+    try { client.start(context); } catch {}
+    const ed = vscode.window.activeTextEditor;
+    const ws = getWorkspaceRoot() || process.cwd();
+    let defaultPath = '';
+    if (ed) {
+      const p = ed.document.uri.fsPath;
+      if (p && p.startsWith(ws)) defaultPath = p.substring(ws.length+1).replace(/\\\\/g,'/');
+    }
+    const path = await vscode.window.showInputBox({ placeHolder: '相对路径（例如 src/app.py）', value: defaultPath });
+    if (!path) { vscode.window.showWarningMessage('路径为空'); return; }
+    let content = ed ? ed.document.getText(ed.selection) : '';
+    if (!content) { content = await vscode.window.showInputBox({ placeHolder: '写入内容（留空则取消）' }) || ''; }
+    if (!content) { vscode.window.showWarningMessage('内容为空'); return; }
+    const mode = await vscode.window.showQuickPick(['dry-run', 'write (runChecks=strict)', 'write (runChecks=on, strict=off)'], { placeHolder: '模式' });
+    if (!mode) return;
+    const dryRun = mode === 'dry-run'; const strict = mode.includes('strict'); const runChecks = !mode.includes('strict') ? true : true;
+    const files = [{ path, content }];
+    const out = await client.request('tools/call', { name: 'fs.apply_patch', arguments: { files, runChecks, strict, dryRun } });
+    vscode.window.showInformationMessage('fs.apply_patch: ' + (out && out.ok ? 'OK' : 'Done'));
+    try {
+      const contentSum = `fs.apply_patch: ${dryRun ? 'dry-run' : 'write'}, files=${files.length}, strict=${strict}`;
+      await client.request('tools/call', { name: 'memory.append_turn', arguments: { role: 'assistant', content: contentSum, meta: { source: 'vscode', action: 'fs.apply_patch', dryRun, strict, files: files.length } } });
+    } catch {}
   }));
   context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant.openMemory', async () => {
     const ws = getWorkspaceRoot();
@@ -365,6 +549,10 @@ export function activate(context: vscode.ExtensionContext) {
           <button id="btnCovExport">导出覆盖率报表 / Export Coverage</button>
           <button id="btnPrepareEnvDry">准备环境(预览) / Prepare Env (dry-run)</button>
           <button id="btnPrepareEnvInstall">准备并安装环境 / Prepare & Install</button>
+        </div>
+        <div style="margin:8px 0;">
+          <button id="btnOpenUserGuide">打开用户上手 / Open User Guide</button>
+          <button id="btnOpenIdeSupport">打开 IDE 支持 / Open IDE Support</button>
         </div>
         <div>
           <h3>可用工具（示例）</h3>
@@ -509,6 +697,10 @@ export function activate(context: vscode.ExtensionContext) {
           (document.getElementById('btnCompliance') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'compliance' });
           (document.getElementById('btnOpenCompliance') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'openCompliance' });
           (document.getElementById('btnOpenIdeDir') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'openIdeDir' });
+          const btnUG = document.getElementById('btnOpenUserGuide') as HTMLButtonElement | null;
+          if (btnUG) btnUG.onclick = () => vscode.postMessage({ t: 'open', path: 'docs/USER_GUIDE.md' });
+          const btnIS = document.getElementById('btnOpenIdeSupport') as HTMLButtonElement | null;
+          if (btnIS) btnIS.onclick = () => vscode.postMessage({ t: 'open', path: 'docs/IDE_SUPPORT.md' });
           (document.getElementById('btnPrepareEnvInstall') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'prepareEnvInstall' });
           (document.getElementById('btnShowWeak') as HTMLButtonElement).onclick = () => {
             const all = (window as any).__weakAll || [];
@@ -1100,6 +1292,17 @@ export function activate(context: vscode.ExtensionContext) {
             } catch {}
           }
         } else if (msg.t === 'coverage') {
+          // Quick combined report for toast summary
+          let weakCount = 0, groupsCount = 0, nearCount = 0; let minModule: number | undefined = undefined;
+          try {
+            const rep = await client.request('tools/call', { name: 'coverage.report', arguments: {} });
+            if (rep && rep.ok) {
+              weakCount = Array.isArray(rep.weak) ? rep.weak.length : 0;
+              groupsCount = Array.isArray(rep.groups) ? rep.groups.length : 0;
+              nearCount = Array.isArray(rep.near) ? rep.near.length : 0;
+              if (typeof rep.min_module === 'number') minModule = rep.min_module;
+            }
+          } catch {}
           const resList = await client.request('resources/list', {});
           const covUri = (resList.resources || []).find((r: any) => String(r.uri || '').endsWith('/summary'))?.uri;
           const groupsUri = (resList.resources || []).find((r: any) => String(r.uri || '').endsWith('/groups'))?.uri;
@@ -1149,6 +1352,17 @@ export function activate(context: vscode.ExtensionContext) {
               }
             } catch {}
           }
+          // Toast summary for panel action (align with VS Code command behavior)
+          try {
+            const parts: string[] = [`weak=${weakCount}`, `near=${nearCount}`, `groups=${groupsCount}`];
+            if (typeof minModule === 'number') parts.push(`min_module=${(minModule*100).toFixed(0)}%`);
+            vscode.window.showInformationMessage('Coverage loaded: ' + parts.join(', '));
+            try { await updateStatusBar(); } catch {}
+            try {
+              const content = 'Coverage loaded: ' + parts.join(', ');
+              await client.request('tools/call', { name: 'memory.append_turn', arguments: { role: 'assistant', content, meta: { source: 'vscode', action: 'panel.coverage' } } });
+            } catch {}
+          } catch {}
         } else if (msg.t === 'coverageTree') {
           const resList = await client.request('resources/list', {});
           const treeUri = (resList.resources || []).find((r: any) => String(r.uri || '').endsWith('/tree'))?.uri;
@@ -1363,6 +1577,9 @@ export function activate(context: vscode.ExtensionContext) {
         } else if (msg.t === 'installHooks') {
           await client.request('tools/call', { name: 'git.install_hooks', arguments: {} });
           vscode.window.setStatusBarMessage('钩子安装完成', 3000);
+          try {
+            await client.request('tools/call', { name: 'memory.append_turn', arguments: { role: 'assistant', content: 'Git hooks installed', meta: { source: 'vscode', action: 'git.install_hooks' } } });
+          } catch {}
         } else if (msg.t === 'memory') {
           const resList = await client.request('resources/list', {});
           const memUri = (resList.resources || []).find((r: any) => String(r.uri || '').startsWith('memory://'))?.uri;
@@ -1409,9 +1626,11 @@ export function activate(context: vscode.ExtensionContext) {
           vscode.window.showInformationMessage('已生成 CI: ' + (out.path || ''));        
           vscode.commands.executeCommand('workbench.action.files.refresh');
           panel.webview.postMessage({ t: 'ciCheck' });
+          try { await client.request('tools/call', { name: 'memory.append_turn', arguments: { role: 'assistant', content: 'CI generated', meta: { source: 'vscode', action: 'ci.generate', path: out && out.path } } }); } catch {}
         } else if (msg.t === 'ciValidate') {
           const res = await client.request('tools/call', { name: 'ci.validate', arguments: {} });
           panel.webview.postMessage({ t: 'ciChecks', checks: (res.checks || {}) });
+          try { await client.request('tools/call', { name: 'memory.append_turn', arguments: { role: 'assistant', content: 'CI validated', meta: { source: 'vscode', action: 'ci.validate', ok: res && res.ok } } }); } catch {}
         } else if (msg.t === 'ciPreviewInline') {
           const resList = await client.request('resources/list', {});
           const ciUri = (resList.resources || []).find((r:any)=> String(r.uri||'').startsWith('ci://'))?.uri;
@@ -1490,6 +1709,7 @@ export function activate(context: vscode.ExtensionContext) {
           try {
             const out = await client.request('tools/call', { name: 'env.prepare', arguments: { create: false, install: false } });
             vscode.window.showInformationMessage('env.prepare 计划: ' + JSON.stringify(out.plan || out));
+            try { await client.request('tools/call', { name: 'memory.append_turn', arguments: { role: 'assistant', content: 'env.prepare dry-run', meta: { source: 'vscode', action: 'env.prepare', create: false, install: false } } }); } catch {}
           } catch (e:any) {
             vscode.window.showErrorMessage('env.prepare 执行失败：' + String(e));
           }
@@ -1498,6 +1718,7 @@ export function activate(context: vscode.ExtensionContext) {
             const out = await client.request('tools/call', { name: 'env.prepare', arguments: { create: true, install: true } });
             const msgInfo = (out && (out as any).ok) ? ('已创建并安装：' + String((out as any).venv || '')) : '执行失败';
             vscode.window.showInformationMessage('env.prepare: ' + msgInfo);
+            try { await client.request('tools/call', { name: 'memory.append_turn', arguments: { role: 'assistant', content: 'env.prepare install', meta: { source: 'vscode', action: 'env.prepare', create: true, install: true } } }); } catch {}
           } catch (e:any) {
             vscode.window.showErrorMessage('env.prepare 执行失败：' + String(e));
           }
@@ -1840,6 +2061,14 @@ export function activate(context: vscode.ExtensionContext) {
     return true;
   }));
 
+  // test-only: get/clear fake tool calls (when fake mode is on)
+  context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant._test_getFakeCalls', async () => {
+    try { return (client as any)._testGetFakeCalls ? (client as any)._testGetFakeCalls() : []; } catch { return []; }
+  }));
+  context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant._test_clearFakeCalls', async () => {
+    try { if ((client as any)._testClearFakeCalls) (client as any)._testClearFakeCalls(); return true; } catch { return false; }
+  }));
+
   // test-only: 直接触发部分 quick actions（不依赖后端与真实 webview 事件），便于在无 Python 的环境覆盖 UI 分支
   context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant._test_dispatchQuick', async (which: string) => {
     try {
@@ -2037,17 +2266,87 @@ export function activate(context: vscode.ExtensionContext) {
       if (!text) return;
       const res = await client.request('tools/call', { name: 'nl.command', arguments: { text } });
       const tool = (res && (res as any).parsed && (res as any).parsed.tool) || 'nl.command';
-      vscode.window.showInformationMessage('已执行：' + tool);
       const lower = (text || '').toLowerCase();
-      const runRulesOnboard = async () => {
-        // 直接触发后端 onboarding（非交互式），以保证命令可用
+      // Route common tools to concrete actions for true one-command behavior
+      const runLoadCoverage = async () => {
+        await vscode.commands.executeCommand('mcpRulesAssistant.loadCoverage');
+      };
+      const runIngestRules = async () => {
+        // Try to parse simple CSV paths from input, else default to README.md, docs/
+        const m = text.split(/摄取规则|ingest rules|规则|ingest/i).slice(-1)[0] || '';
+        let paths = m.split(/[,，]/).map(s=>s.trim()).filter(Boolean);
+        if (paths.length === 0) paths = ['README.md', 'docs/'];
+        await client.request('tools/call', { name: 'rules.ingest', arguments: { paths } });
+        vscode.window.showInformationMessage('规则摄取完成');
+      };
+      const runCiGenerate = async () => {
+        const out = await client.request('tools/call', { name: 'ci.generate', arguments: {} });
+        vscode.window.showInformationMessage('CI 已生成: ' + (out && out.path ? String(out.path) : ''));        
+      };
+      const runCiValidate = async () => {
+        const out = await client.request('tools/call', { name: 'ci.validate', arguments: {} });
+        vscode.window.showInformationMessage('CI 校验完成');
+      };
+      const runInstallHooks = async () => {
+        await client.request('tools/call', { name: 'git.install_hooks', arguments: {} });
+        vscode.window.showInformationMessage('Git hooks 已安装');
+      };
+      const runEnvPrepare = async () => {
+        const choice = await vscode.window.showQuickPick(['预览 / Dry-run', '创建并安装 / Create+Install'], { title: '准备环境' });
+        if (!choice) return;
+        const args = choice.startsWith('预览') ? { create: false, install: false } : { create: true, install: true };
+        const out = await client.request('tools/call', { name: 'env.prepare', arguments: args });
+        vscode.window.showInformationMessage('环境准备: ' + (out && out.ok ? 'OK' : 'Done'));
+      };
+      const runRulesEnforce = async () => {
+        const out = await client.request('tools/call', { name: 'rules.enforce', arguments: {} });
+        vscode.window.showInformationMessage('Enforce: ' + (out && out.changed ? '配置已更新' : '无变化'));
+      };
+      const runCompliance = async () => {
+        const out = await client.request('tools/call', { name: 'compliance.commitment', arguments: { write: true } });
+        vscode.window.showInformationMessage('合规承诺已生成');
+      };
+      // Dispatch
+      if (tool === 'coverage.report' || /加载覆盖率|load coverage/.test(lower)) {
+        await runLoadCoverage();
+      } else if (tool === 'rules.ingest' || /摄取规则|ingest rules/.test(lower)) {
+        await runIngestRules();
+      } else if (tool === 'ci.generate' || /生成 ci|生成ci|generate ci/.test(lower)) {
+        await runCiGenerate();
+      } else if (tool === 'ci.validate' || /校验 ci|validate ci/.test(lower)) {
+        await runCiValidate();
+      } else if (tool === 'git.install_hooks' || /安装钩子|install hooks/.test(lower)) {
+        await runInstallHooks();
+      } else if (tool === 'env.prepare' || /准备环境|prepare env/.test(lower)) {
+        await runEnvPrepare();
+      } else if (tool === 'rules.enforce' || /应用门禁|生成门禁|enforce/.test(lower)) {
+        await runRulesEnforce();
+      } else if (tool === 'compliance.commitment' || /合规承诺|compliance/.test(lower)) {
+        await runCompliance();
+      } else if (tool === 'plan.set' || /计划\s*设置|plan set|计划[:：]/.test(lower)) {
+        const mSt = /状态\s*[:=]\s*(进行中|in_progress|完成|done|planned)/i.exec(text);
+        const stMap: any = { '进行中':'in_progress', '完成':'done' };
+        const status = mSt ? (stMap[mSt[1]] || mSt[1]) : undefined;
+        const mCur = /当前(步骤)?\s*[:=]\s*([^;，]+)/i.exec(text);
+        const current = mCur ? mCur[2].trim() : undefined;
+        const mNext = /(下一步|next)\s*[:=]\s*([^;，]+)/i.exec(text);
+        const next = mNext ? mNext[2].trim() : undefined;
+        const args:any = {}; if (status) args.status = status; if (current) args.current = current; if (next) args.next = next;
+        if (Object.keys(args).length === 0) {
+          await vscode.commands.executeCommand('mcpRulesAssistant.planSet');
+        } else {
+          await client.request('tools/call', { name: 'plan.set', arguments: args });
+          vscode.window.showInformationMessage('Plan updated');
+        }
+      } else if (tool === 'fs.apply_patch' || /受控写入|guarded write/.test(lower)) {
+        await vscode.commands.executeCommand('mcpRulesAssistant.fsApplyPatch');
+      } else if (tool === 'rules.onboard' || /初始化规则|规则引导|setup rules|questionnaire/.test(lower)) {
         await client.request('tools/call', { name: 'rules.onboard', arguments: {} });
         vscode.window.showInformationMessage('已执行规则引导（默认参数）');
-      };
-      if (tool === 'rules.init' || tool === 'rules.onboard' || /初始化规则|规则引导|setup rules|questionnaire/.test(lower)) {
-        await runRulesOnboard();
-        return;
+      } else {
+        vscode.window.showInformationMessage('已执行：' + tool);
       }
+      
       // 存历史
       const h = context.globalState.get<string[]>('ruleflow.nl.history') || [];
       const nh = [text, ...h.filter(x=>x!==text)].slice(0, 10);
