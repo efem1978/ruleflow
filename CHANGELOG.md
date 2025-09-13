@@ -15,6 +15,12 @@ Details
 - No telemetry; local artifacts in .mcp/; security scans (bandit/semgrep/hadolint)
 - Natural-language commands (CN/EN), rolling memory (20 turns, namespaces)
 
+Release Notes (generated)
+- Body: `.mcp/dashboard/release_body.md`
+- Changes: `.mcp/dashboard/release_changes.md`
+- Snippet: `.mcp/dashboard/release_note_snippet.md`
+- Plan: `.mcp/plan.md` = done; tag: `v0.2.5-dev20250913`
+
 ## 0.2.5 — 2025-09-08
 
 Maintenance and docs/CI consistency updates (no API changes):
