@@ -50,6 +50,7 @@ class MemoryManager:
     ) -> None:
         data = self._read()
         data["turns"].append(asdict(Turn(role=role, content=content, meta=meta or {})))
+        # window 表示保留的“消息条数”（turns），直接裁剪到最近 window 条
         data["turns"] = data["turns"][-self.window :]
         data["summary"] = self._summarize(data["turns"], data.get("summary", ""))
         data = self._compress_if_needed(data)
@@ -77,7 +78,9 @@ class MemoryManager:
         # 未来可插拔本地小模型，当前使用简单规则抽取
         important = []
         for t in turns[-self.window :]:
-            text = t["content"].strip().replace("\n", " ")
+            if not isinstance(t, dict):
+                continue
+            text = str(t.get("content", "")).strip().replace("\n", " ")
             if t["role"] == "user":
                 important.append(f"Q: {text[:160]}")
             else:

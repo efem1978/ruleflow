@@ -1,5 +1,9 @@
 TDD 开发计划 / TDD Development Plan
 
+重要说明（Authority Notice）
+- 唯一权威的任务清单来源为 `.mcp/plan.md`；如与本页或其他文档不一致，以 `.mcp/plan.md` 为准。
+- 快捷打开：`mcp-rules-assistant plan-open`
+
 目标与范围 Goals & Scope
 - 目标：以 TDD 模式完善本仓库，确保功能按文档落地；覆盖率达标（核心≥98%，非核心≥95%），测试全绿且无警告/跳过；CI/钩子具备生产级门禁。
 - 范围：Python MCP Server、规则摄取/编译、覆盖率摘要、受控写入检查、Hooks/CI 生成、VS Code 扩展交互的核心路径。

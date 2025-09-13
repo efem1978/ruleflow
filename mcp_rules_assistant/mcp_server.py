@@ -144,6 +144,7 @@ class JsonRpcServer:
         params = request.get("params", {})
         result: Dict[str, Any] = {}
         try:
+            # 注意：不在 handle 中刷新配置，以便测试可在调用前通过 srv.cfg 注入覆盖。
             # --- light limits (size & rate) ---
             try:
                 exec_cfg: Dict[str, Any] = (
@@ -375,6 +376,31 @@ class JsonRpcServer:
 
     # ---- Tools implementations ----
     def _call_tool(self, name: str, args: Dict[str, Any]) -> Dict[str, Any]:
+        # 当项目根被外部修改（测试或多项目场景）时，在工具调用前刷新配置与依赖的守卫对象。
+        # 设计：仅在根变化时从磁盘读取新配置，避免覆盖调用方对 self.cfg 的显式注入。
+        try:
+            if getattr(self, "_cfg_root", None) != self.project_root:
+                # 若调用方已注入极简 cfg（如 tests 设置仅 execution 键），尊重其注入并仅刷新依赖根的对象
+                cfg_dict = self.cfg if isinstance(self.cfg, dict) else {}
+                injected = not isinstance(cfg_dict.get("performance"), dict)
+                if not injected:
+                    self.cfg = load_config(self.project_root)
+                self._cfg_root = self.project_root
+                self.fs = FSGuard(self.project_root)
+                # 仅当仍为默认 MemoryManager 时重建；若调用方已注入自定义对象（测试桩），尊重注入
+                try:
+                    from .memory import MemoryManager as _MM
+
+                    if isinstance(self.mm, _MM):
+                        # 仅在旧 mm 仍绑定旧根时重建，避免覆盖调用方自定义 window/file 的注入
+                        mm_root = getattr(self.mm, "project_root", None)
+                        if mm_root != self.project_root:
+                            self.mm = MemoryManager(self.project_root)
+                except Exception:
+                    # 若类型未知则不触碰；最坏情况下由具体工具读写时失败
+                    pass
+        except Exception:
+            pass
         # 许可门禁：对敏感工具启用软硬门禁（受配置 license.required 控制）
         gated = {
             "rules.enforce",

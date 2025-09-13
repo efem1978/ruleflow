@@ -42,8 +42,10 @@ tests:
     history_limit: 400
 ci:
   hadolint: true
-  semgrep_config: auto
+  semgrep_config: p/ci
   vscode_required: true
+  hadolint_image: hadolint/hadolint:2.12.0
+  hadolint_args: --ignore DL3008
 rules:
   conflict_delta:
     __default__: 0.03

@@ -369,7 +369,8 @@ def render_github_ci_yaml(project_root: Optional[Path] = None) -> str:
     if ci_cfg.get("hadolint", False) and (
         policy.get("container.required") or policy.get(KEY_CONTAINER_POLICY_BASELINE)
     ):
-        image = ci_cfg.get("hadolint_image", "hadolint/hadolint:latest")
+        # 默认固定镜像标签以提升可重复性；可通过 ci.hadolint_image 覆盖
+        image = ci_cfg.get("hadolint_image", "hadolint/hadolint:2.12.0")
         extra = ci_cfg.get("hadolint_args", "")
         hadolint_step = (
             "      - name: Dockerfile Lint (hadolint)\n"
@@ -562,9 +563,9 @@ jobs:
         run: |
           sh scripts/ide-compat-check.sh || true
           if [ -f extensions/compat_report.json ]; then echo "[ide-compat] found"; else echo "[ide-compat] missing (ok)"; fi
-      - name: VS Code coverage threshold (warn)
+      - name: VS Code coverage threshold (gate)
         run: |
-          sh scripts/check-lcov.sh extensions/vscode/coverage/lcov.info 30
+          sh scripts/check-lcov.sh extensions/vscode/coverage/lcov.info 95 gate
       - name: Upload VS Code coverage to Codecov (conditional)
         if: always()
         uses: codecov/codecov-action@v4

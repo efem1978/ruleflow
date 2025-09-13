@@ -3,6 +3,7 @@ MCP 规则与上下文助手 / MCP Rules & Context Assistant
 
 重要：唯一权威任务清单来源是 `.mcp/plan.md`。任何任务推进、提交门禁与面板/CLI 状态均以该文件为准（本页与其他文档仅作指引）。
 快捷入口：使用 `mcp-rules-assistant plan-open` 直接打开该计划文件；或在 IDE 面板点击“Open Plan/打开计划”。
+交付摘要（本地生成）：`.mcp/dashboard/deliverable_summary.md`（覆盖率仪表/CI 关键步骤/发行物料一页览）
 
 以“插件 + MCP Server”模式，提供跨 IDE 的上下文滚动记忆、编程规则强约束、
 包裹式改动门禁与性能优先的开发体验。默认启用“快速内环（Fast Inner Loop）”，
