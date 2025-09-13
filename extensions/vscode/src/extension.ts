@@ -444,26 +444,73 @@ export function activate(context: vscode.ExtensionContext) {
     try { client.start(context); } catch {}
     const ed = vscode.window.activeTextEditor;
     const ws = getWorkspaceRoot() || process.cwd();
-    let defaultPath = '';
-    if (ed) {
-      const p = ed.document.uri.fsPath;
-      if (p && p.startsWith(ws)) defaultPath = p.substring(ws.length+1).replace(/\\\\/g,'/');
+    const modeTop = await vscode.window.showQuickPick(['single file', 'multi files (dry-run)'], { placeHolder: '模式选择 / Mode' });
+    if (!modeTop) return;
+    if (modeTop.startsWith('single')) {
+      let defaultPath = '';
+      if (ed) {
+        const p = ed.document.uri.fsPath;
+        if (p && p.startsWith(ws)) defaultPath = p.substring(ws.length+1).replace(/\\\\/g,'/');
+      }
+      const path = await vscode.window.showInputBox({ placeHolder: '相对路径（例如 src/app.py）', value: defaultPath });
+      if (!path) { vscode.window.showWarningMessage('路径为空'); return; }
+      let content = ed ? ed.document.getText(ed.selection) : '';
+      if (!content) { content = await vscode.window.showInputBox({ placeHolder: '写入内容（留空则取消）' }) || ''; }
+      if (!content) { vscode.window.showWarningMessage('内容为空'); return; }
+      const mode = await vscode.window.showQuickPick(['dry-run', 'write (runChecks=strict)', 'write (runChecks=on, strict=off)'], { placeHolder: '模式' });
+      if (!mode) return;
+      const dryRun = mode === 'dry-run'; const strict = mode.includes('strict'); const runChecks = !mode.includes('strict') ? true : true;
+      const files = [{ path, content }];
+      const out = await client.request('tools/call', { name: 'fs.apply_patch', arguments: { files, runChecks, strict, dryRun } });
+      vscode.window.showInformationMessage('fs.apply_patch: ' + (out && out.ok ? 'OK' : 'Done'));
+      try {
+        const contentSum = `fs.apply_patch: ${dryRun ? 'dry-run' : 'write'}, files=${files.length}, strict=${strict}`;
+        await client.request('tools/call', { name: 'memory.append_turn', arguments: { role: 'assistant', content: contentSum, meta: { source: 'vscode', action: 'fs.apply_patch', dryRun, strict, files: files.length } } });
+      } catch {}
+      return;
     }
-    const path = await vscode.window.showInputBox({ placeHolder: '相对路径（例如 src/app.py）', value: defaultPath });
-    if (!path) { vscode.window.showWarningMessage('路径为空'); return; }
-    let content = ed ? ed.document.getText(ed.selection) : '';
-    if (!content) { content = await vscode.window.showInputBox({ placeHolder: '写入内容（留空则取消）' }) || ''; }
-    if (!content) { vscode.window.showWarningMessage('内容为空'); return; }
-    const mode = await vscode.window.showQuickPick(['dry-run', 'write (runChecks=strict)', 'write (runChecks=on, strict=off)'], { placeHolder: '模式' });
-    if (!mode) return;
-    const dryRun = mode === 'dry-run'; const strict = mode.includes('strict'); const runChecks = !mode.includes('strict') ? true : true;
-    const files = [{ path, content }];
-    const out = await client.request('tools/call', { name: 'fs.apply_patch', arguments: { files, runChecks, strict, dryRun } });
-    vscode.window.showInformationMessage('fs.apply_patch: ' + (out && out.ok ? 'OK' : 'Done'));
+    // Multi files (dry-run) with simple diff preview
+    const nStr = await vscode.window.showInputBox({ placeHolder: '输入文件数量(1-10)', value: '2' });
+    const n = Math.max(1, Math.min(10, parseInt(nStr || '2', 10) || 2));
+    const items: { path: string, content: string }[] = [];
+    for (let i=1; i<=n; i++) {
+      const p = await vscode.window.showInputBox({ placeHolder: `第 ${i} 个相对路径`, value: i===1 && ed && ed.document.uri.fsPath.startsWith(ws) ? ed.document.uri.fsPath.substring(ws.length+1).replace(/\\\\/g,'/') : '' });
+      if (!p) break;
+      let c = ed ? ed.document.getText(ed.selection) : '';
+      if (!c) { c = await vscode.window.showInputBox({ placeHolder: `第 ${i} 个文件内容（留空取消本次多文件）` }) || ''; }
+      if (!c) { vscode.window.showWarningMessage('内容为空，已取消'); break; }
+      items.push({ path: p, content: c });
+    }
+    if (!items.length) { vscode.window.showWarningMessage('未收集到文件'); return; }
+    const out = await client.request('tools/call', { name: 'fs.apply_patch', arguments: { files: items, runChecks: true, strict: true, dryRun: true } });
     try {
-      const contentSum = `fs.apply_patch: ${dryRun ? 'dry-run' : 'write'}, files=${files.length}, strict=${strict}`;
-      await client.request('tools/call', { name: 'memory.append_turn', arguments: { role: 'assistant', content: contentSum, meta: { source: 'vscode', action: 'fs.apply_patch', dryRun, strict, files: files.length } } });
-    } catch {}
+      const previewLines: string[] = [];
+      previewLines.push('# Guarded Write (dry-run) preview');
+      const fsApi = vscode.workspace.fs;
+      for (const it of items) {
+        previewLines.push('--- ' + it.path);
+        try {
+          const uri = vscode.Uri.file((ws ? (ws + '/' + it.path) : it.path));
+          const buf = await fsApi.readFile(uri);
+          const cur = Buffer.from(buf).toString('utf-8');
+          previewLines.push('@@ current length=' + cur.length + ' new length=' + it.content.length);
+          const headOld = (cur || '').split(/\r?\n/).slice(0,3).join('\n');
+          const headNew = (it.content || '').split(/\r?\n/).slice(0,3).join('\n');
+          previewLines.push('- ' + headOld.replace(/\n/g, '\n- '));
+          previewLines.push('+ ' + headNew.replace(/\n/g, '\n+ '));
+        } catch {
+          previewLines.push('@@ new file (length=' + it.content.length + ')');
+          const headNew = (it.content || '').split(/\r?\n/).slice(0,3).join('\n');
+          previewLines.push('+ ' + headNew.replace(/\n/g, '\n+ '));
+        }
+      }
+      const doc = await vscode.workspace.openTextDocument({ language: 'markdown', content: previewLines.join('\n') });
+      await vscode.window.showTextDocument(doc, { preview: true });
+      vscode.window.showInformationMessage('fs.apply_patch (multi dry-run): ' + (out && out.ok ? 'OK' : 'Done'));
+      try { await client.request('tools/call', { name: 'memory.append_turn', arguments: { role: 'assistant', content: `fs.apply_patch: dry-run multi, files=${items.length}`, meta: { source: 'vscode', action: 'fs.apply_patch', dryRun: true, files: items.length } } }); } catch {}
+    } catch (e:any) {
+      vscode.window.showErrorMessage('预览失败：' + String(e));
+    }
   }));
   context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant.openMemory', async () => {
     const ws = getWorkspaceRoot();

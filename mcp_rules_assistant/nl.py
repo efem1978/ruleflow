@@ -46,8 +46,12 @@ SYNONYMS: Dict[str, str] = {
     "load rules": "resources.read",
     "加载建议": "resources.read",
     "load suggestions": "resources.read",
-    "加载覆盖率": "resources.read",
-    "load coverage": "resources.read",
+    "加载覆盖率": "coverage.report",
+    "load coverage": "coverage.report",
+    "导出覆盖率": "coverage.report",
+    "export coverage": "coverage.report",
+    "加载近阈值": "coverage.near",
+    "near coverage": "coverage.near",
     "近阈值": "coverage.near",
     "near threshold": "coverage.near",
     "准备环境": "env.prepare",
@@ -70,6 +74,27 @@ SYNONYMS: Dict[str, str] = {
     "load plan": "resources.read",
     "加载记忆": "resources.read",
     "load memory": "resources.read",
+    "合规承诺": "compliance.commitment",
+    "compliance": "compliance.commitment",
+    "生成 ide 配置": "ide.scaffold",
+    "ide scaffold": "ide.scaffold",
+    # 计划设置与受控写入
+    "计划 设置": "plan.set",
+    "plan set": "plan.set",
+    "受控写入": "fs.apply_patch",
+    "guarded write": "fs.apply_patch",
+    "受控写入 多文件": "fs.apply_patch",
+    "guarded write multi": "fs.apply_patch",
+    "apply patch": "fs.apply_patch",
+    # 计划设置别名
+    "计划 更新": "plan.set",
+    "更新 计划": "plan.set",
+    "plan update": "plan.set",
+    # 规则摘要 / 上限
+    "规则 摘要": "rules.maxima",
+    "规则 上限": "rules.maxima",
+    "rules summary": "rules.maxima",
+    "rules maxima": "rules.maxima",
 }
 
 
