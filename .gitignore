@@ -46,6 +46,8 @@ pytest-junit.xml
 extensions/vscode/.vscode-test/
 extensions/vscode/coverage/
 extensions/vscode/*.vsix
+extensions/vscode/.test-fixture/
+extensions/vscode/vscode-test.log
 
 # JetBrains storyboard outputs (generated)
 extensions/jetbrains/screenshots/jb_*.json
