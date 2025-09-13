@@ -65,6 +65,15 @@ MCP 规则与上下文助手 / MCP Rules & Context Assistant
 
 提示：`docs/CI_HEALTH_CHECK.md` 为 CI 健康检查说明文档（包含必备检查、触发方式与常见失败定位）。CI 工作流支持 `workflow_dispatch`，可在 GitHub Actions 页面手动触发一次完整构建（包含 VS Code 无头测试与门禁）。
 
+本地审计快照 / Local Audit Snapshot
+
+- 权威计划：`.mcp/plan.md` 当前状态为 completed（唯一权威任务清单）。
+- 覆盖率：Coverage Policy Gate 通过；weak=0，near=0；核心≥98%、其余≥95%。
+  - 详情与明细：`.mcp/dashboard/coverage_summary.json`、`/.mcp/dashboard/weak_top.csv`、`/.mcp/dashboard/near_top.csv`、`/.mcp/dashboard/groups.csv`
+- 规则编译：已刷新 `.mcp/rules_compiled.json` 与 `.mcp/rules_compiled.md`（如存在冲突将保留更严格值并在 MD 中给出来源）。
+- 发布物料（本地演练）：`.mcp/dashboard/release_check.md`、`/.mcp/dashboard/release_note_snippet.md`、`/.mcp/dashboard/release_changes.md`、`/.mcp/dashboard/release_body.md`
+- 一页交付摘要：`.mcp/dashboard/deliverable_summary.md`（覆盖率仪表/CI 关键步骤/发行物料一页览）。
+
 近阈值窗口（near）与 CI 说明
 - 默认示例使用 3% 窗口；本仓库为抛光核心模块将 `coverage.near.within` 覆盖为 0.8%（0.008）。可用命令快速调整：`mcp-rules-assistant coverage-near-set --within 3 --top 20`。
 - CI 已包含 JetBrains 最小 smoke：读取 `.mcp/dashboard/status.json` 并校验关键字段；对应工件会随构建上传（见 `jetbrains-storyboard` 作业）。

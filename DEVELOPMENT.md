@@ -177,6 +177,13 @@
  - 近阈值窗口覆盖：本仓库将 `coverage.near.within` 设为 0.8%（0.008），在保证 Gate 通过的前提下用于清空 near 列表、聚焦真正弱项；可用 `mcp-rules-assistant coverage-near-set --within 3 --top 20` 调整。
  - CI 已包含 JetBrains Storyboard 产物与最小 smoke 校验（读取 `.mcp/dashboard/status.json` 关键字段）。
 
+本地审计快照（最新一轮）
+- 计划状态：`.mcp/plan.md` = completed（唯一权威任务清单）。
+- 覆盖率：Coverage Policy Gate 通过；weak=0、near=0；核心≥98%、其余≥95%。
+  - 明细产物：`.mcp/dashboard/coverage_summary.json`、`weak_top.csv`、`near_top.csv`、`groups.csv`。
+- 规则编译：已刷新 `.mcp/rules_compiled.json/.md`（冲突按更严格值合并，来源写入 MD）。
+- 发布物料（本地演练）：`.mcp/dashboard/release_check.md`、`release_note_snippet.md`、`release_changes.md`、`release_body.md`。
+
 Release Note（0.2.5，维护性更新）
 - 文档：新增 `docs/IDE_SCAFFOLD.md`（VS Code/Cursor/JetBrains/Neovim）；README 增加“快速入口”与 IDE 文档链接。
 - Neovim：在 `ide.scaffold` 输出 Lua 示例（保留 Vimscript）。
