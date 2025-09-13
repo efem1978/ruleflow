@@ -1,5 +1,20 @@
 # Changelog
 
+## 2025-09-13 — Milestone: Plan Done (All Gates Green)
+
+Highlights
+- Coverage gate: core ≥98%, others ≥95%; weak=0, near=0
+- Docker verify: preflight + tests + coverage-export + jb-verify all passed
+- License gate: ci.validate respects project-scoped license (no double-check)
+- Docs: DEVELOPMENT.md adds coverage artifacts note; tmp_dbg_dir ignored
+- Stability: hooks/CI generated & validated; no skip/xfail; -W error
+
+Details
+- Python server/CLI + VS Code/JetBrains integration (MCP tools/resources)
+- Rules ingest/compile with conflicts and suggestions; coverage policy groups
+- No telemetry; local artifacts in .mcp/; security scans (bandit/semgrep/hadolint)
+- Natural-language commands (CN/EN), rolling memory (20 turns, namespaces)
+
 ## 0.2.5 — 2025-09-08
 
 Maintenance and docs/CI consistency updates (no API changes):
