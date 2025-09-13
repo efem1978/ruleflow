@@ -32,9 +32,9 @@ P1 质量与发布（已完成）
 - `make local-ci-run` 全绿；`coverage-report --json` 的 weak 为空；`.mcp/assistant.yaml` 与 README/docs 的阈值描述一致。
 
 跟进清单（当前 Sprint）
-- [ ] 临时目录 `tmp_dbg_dir/` 用途确认：如无用则删除；如保留请加入 `.gitignore` 并在 `DEVELOPMENT.md` 备注用途（避免混淆）
-- [ ] 覆盖率临时工件（`cov*.json`）保持未追踪；在 `make clean` 中已包含清理，必要时补充注释
-- [ ] 计划冻结约定：如需短期只读，可设置 `execution.readonly=true` 并在本文件加注“冻结时段”；恢复时清理该开关
+- [x] 临时目录 `tmp_dbg_dir/` 用途确认：如无用则删除；如保留请加入 `.gitignore` 并在 `DEVELOPMENT.md` 备注用途（避免混淆）
+- [x] 覆盖率临时工件（`cov*.json`）保持未追踪；在 `make clean` 中已包含清理，已在 DEVELOPMENT.md 补充注释
+- [x] 计划冻结约定：当前不启用只读冻结（`execution.readonly=false`），保留指引与演练说明；若需冻结再开启并在本文件标注时段
 
 审计附注
 - 未发现需删除的重复/弃用文档；docs/CONTRIBUTING.md 为根文档的本地化补充且已标注权威来源；docs/LICENSE.md 仅为演示说明，法律文本以根 LICENSE 为准。

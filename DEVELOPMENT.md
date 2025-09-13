@@ -130,6 +130,7 @@
 - 计划一致性：`.mcp/plan.md` 当前/下一步与本文件“TDD 清单”应相符
 
 - 临时目录约定：`tmp_dbg_dir/` 仅用于本地调试演示，不参与版本控制；如本地生成可安全删除或由 `.gitignore` 忽略（已默认忽略）。
+- 覆盖率工件说明：`coverage.xml`、`cov*.json`、`pytest-junit.xml` 等仅用于本地/CI 诊断与仪表，已在 `.gitignore` 忽略；执行 `make clean` 可一键清理相关临时产物。
 
 ## 快速衔接 / Quick Handoff
 - 新窗口/新会话快速获悉上下文：

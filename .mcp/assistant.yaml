@@ -63,7 +63,7 @@ execution:
   - .yaml
   - .yml
   checks_delegate_run_cmd: true
-  fs_guard_post_checks: false
-  fs_guard_strict: false
+  fs_guard_post_checks: true
+  fs_guard_strict: true
 license:
   required: false
