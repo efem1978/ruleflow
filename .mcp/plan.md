@@ -1,8 +1,8 @@
 # 项目审计与整改计划（唯一权威）
 
 - 状态: in_progress
-- 当前步骤: 抛光 near TopN（优先 auto_status.py/process.py/rules_ingest.py/dev_agent.py 少量分支）
-- 下一步: 发布前一次本地 Verify（make verify）与离线摘要复核
+- 当前步骤: 收束与交接（离线摘要与计划同步已完成）
+- 下一步: （可选）release-simulate 与生成发布说明片段
 - 说明: 本文件为唯一权威任务清单来源。面板/CLI/钩子与 CI 均以此为准。
 
 本轮审计基于真实代码与测试执行（pytest+coverage），不依赖任何文档描述。
