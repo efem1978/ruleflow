@@ -129,6 +129,8 @@
   - Compose 校验：`docker compose config -q`
 - 计划一致性：`.mcp/plan.md` 当前/下一步与本文件“TDD 清单”应相符
 
+- 临时目录约定：`tmp_dbg_dir/` 仅用于本地调试演示，不参与版本控制；如本地生成可安全删除或由 `.gitignore` 忽略（已默认忽略）。
+
 ## 快速衔接 / Quick Handoff
 - 新窗口/新会话快速获悉上下文：
   - 运行 `mcp-rules-assistant status-update`（或 `python3 -m mcp_rules_assistant.cli status-update`）刷新 `.mcp/dashboard/status.json` 与 `history.json`。
