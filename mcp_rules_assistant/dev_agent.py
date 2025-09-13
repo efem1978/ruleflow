@@ -15,6 +15,7 @@ from . import checks
 from .atomics import atomic_write_text
 from .config import get_coverage_policy, get_min_module, load_config
 from .coverage_summary import summarize, summarize_groups, summarize_near
+from .memory import MemoryManager
 from .process import run_cmd as run_cmd
 from .progress import parse_plan, read_plan
 
@@ -749,6 +750,84 @@ class DevAgent:
                 "[agent] write history skipped: %r", e
             )  # nosec B110 non-fatal
 
+    def _auto_append_memory(self, status: Dict[str, object], dash: Path) -> bool:
+        """Best-effort: append a minimal status summary into rolling memory.
+
+        Controlled by env:
+        - DEV_AGENT_MEM_ENABLE: '1' to enable (default off)
+        - DEV_AGENT_MEM_MIN_SEC: minimum seconds between appends (default 600)
+        - DEV_AGENT_MEM_MAX_TURNS: memory window (default 20)
+        Persist lightweight state under .mcp/dashboard/dev_agent_mem.json.
+        """
+        try:
+            if os.environ.get("DEV_AGENT_MEM_ENABLE", "0") not in ("1", "true", "True"):
+                return False
+            try:
+                min_sec = int(os.environ.get("DEV_AGENT_MEM_MIN_SEC", "600") or 600)
+            except Exception:
+                min_sec = 600
+            try:
+                window = int(os.environ.get("DEV_AGENT_MEM_MAX_TURNS", "20") or 20)
+            except Exception:
+                window = 20
+            st_file = dash / "dev_agent_mem.json"
+            last_ts = 0.0
+            try:
+                st = json.loads(st_file.read_text(encoding="utf-8"))
+                last_ts = float(st.get("last_ts", 0.0))
+            except Exception:
+                last_ts = 0.0
+            now = time.time()
+            if min_sec > 0 and (now - last_ts) < float(min_sec):
+                return False
+            # Compose brief content
+            plan: Dict[str, object] = {}
+            _p = status.get("plan", {})
+            if isinstance(_p, dict):
+                plan = _p
+            cov: Dict[str, object] = {}
+            _c = status.get("coverage", {})
+            if isinstance(_c, dict):
+                cov = _c
+            prog: Dict[str, object] = {}
+            _g = status.get("progress", {})
+            if isinstance(_g, dict):
+                prog = _g
+            cur = (
+                str(plan.get("current", ""))
+                if isinstance(plan.get("current", ""), str)
+                else str(plan.get("current", ""))
+            )
+            weak = 0
+            try:
+                w = cov.get("weak", [])
+                weak = len(w) if isinstance(w, list) else 0
+            except Exception:
+                weak = 0
+            overall = 0.0
+            try:
+                ov_raw = prog.get("overall", 0.0)
+                if isinstance(ov_raw, (int, float, str)):
+                    overall = float(ov_raw)
+                else:
+                    overall = 0.0
+            except Exception:
+                overall = 0.0
+            content = f"DevAgent: overall={overall:.2f}, weak={weak}, current={cur}"
+            mm = MemoryManager(self.project_root, window=window)
+            mm.append_turn(
+                "assistant", content, {"source": "dev-agent", "type": "auto"}
+            )
+            # update state
+            atomic_write_text(st_file, json.dumps({"last_ts": now}, ensure_ascii=False))
+            return True
+        except Exception as e:
+            try:
+                self._log.debug("[agent] auto_append_memory skipped: %r", e)
+            except Exception:
+                pass
+            return False
+
     def _handle_auto_commit(
         self,
         tests: Dict[str, object],
@@ -990,6 +1069,11 @@ class DevAgent:
 
             # 5. Persist status and history
             self._persist_status_and_history(status, dash, t0)
+            # 5.1 Auto append memory (optional; rate-limited)
+            try:
+                self._auto_append_memory(status, dash)
+            except Exception:
+                pass
 
             # 6. Handle auto-commit and auto-tag
             last_commit_ts = self._handle_auto_commit(

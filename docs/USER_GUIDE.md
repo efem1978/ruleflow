@@ -48,3 +48,8 @@
 - 看不到覆盖率？先运行测试（已在 install‑all 中自动运行）；或运行“加载覆盖率/Status Update”。
 - Python 解释器路径？工具自动使用 `.mcp/venv`；无需再设置。
 - CI/Hooks？“生成 CI”“安装钩子”一键完成；提交信息建议包含 `[step:...]`，并确保 `.mcp/plan.md` 在 in_progress。
+
+## 可选功能与隐私/性能说明
+- Dev Agent 自动记忆（可选）：设置 `DEV_AGENT_MEM_ENABLE=1` 后，dev-agent 会按最小间隔（`DEV_AGENT_MEM_MIN_SEC`，默认 600s）追加一条简要摘要到 `.mcp/memory.json`（窗口 `DEV_AGENT_MEM_MAX_TURNS`，默认 20）。摘要仅包含整体进度/弱项计数/当前步骤，不含源码内容。
+- VS Code Chat（可选）：如启用 Chat API，可在每轮对话后追加“上一轮问答摘要”到记忆（需人工确认）。
+- 默认关闭：所有可选功能默认关闭；开启后不引入遥测，不开放端口；仅在工作区落盘最小必要状态，并尽量避免性能回退。

@@ -1,10 +1,10 @@
 # 项目审计与整改计划（唯一权威）
 
 - 状态: in_progress
-- 当前步骤: NL 别名与受控写入 UX
+- 当前步骤: 容器与 Chat 集成可选项
 - Status: in_progress
-- Current step: NL 别名与受控写入 UX
-- 下一步: NL 别名与受控写入 UX
+- Current step: 容器与 Chat 集成可选项
+- 下一步: 容器与 Chat 集成可选项
 - 说明: 本文件为唯一权威任务清单来源。面板/CLI/钩子与 CI 均以此为准。
 
 本轮审计基于真实代码与测试产物（coverage.xml 与 CLI 解析），不依赖任何文档描述。
@@ -57,15 +57,15 @@ Batch 3（Onboard 问答深化与模板分层）
 - [x] 提交门禁：`[step:Onboard 深化]`
 
 Batch 4（NL 别名与受控写入 UX）
-- [ ] NL：为受控写入/计划设置/规则摘要等再增中文/英文别名
-- [ ] VS Code：Guarded Write 支持多文件 + diff 预览（dry‑run 阶段）
-- [ ] 测试：fs.apply_patch UI 合同与安全分支
-- [ ] 提交门禁：`[step:NL&Write UX]`
+- [x] NL：为受控写入/计划设置/规则摘要等再增中文/英文别名
+- [x] VS Code：Guarded Write 支持多文件 + diff 预览（dry‑run 阶段）
+- [x] 测试：fs.apply_patch UI 合同与安全分支
+- [x] 提交门禁：`[step:NL&Write UX]`
 
 Batch 5（容器与 Chat 集成可选项）
-- [ ] 容器：dev-agent 增加自动 append_turn（最小摘要），频率与上限受控
+ - [x] 容器：dev-agent 增加自动 append_turn（最小摘要），频率与上限受控
 - [ ] VS Code Chat（可选）：如启用 Chat API，追加“上一轮问答摘要”
-- [ ] 文档：在 USER_GUIDE 附“可选功能”与隐私/性能说明
+- [x] 文档：在 USER_GUIDE 附“可选功能”与隐私/性能说明
 - [ ] 提交门禁：`[step:容器与Chat可选]`
 
 审计附注
