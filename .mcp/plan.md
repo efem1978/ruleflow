@@ -1,10 +1,10 @@
 # 项目审计与整改计划（唯一权威）
 
 - 状态: in_progress
-- 当前步骤: JetBrains 按钮采集与计划设置/受控写入 GUI 完善
+- 当前步骤: Onboard 问答深化与模板分层
 - Status: in_progress
-- Current step: JetBrains 按钮采集与计划设置/受控写入 GUI 完善
-- 下一步: Onboard 问答深化与模板分层
+- Current step: Onboard 问答深化与模板分层
+- 下一步: NL 别名与受控写入 UX
 - 说明: 本文件为唯一权威任务清单来源。面板/CLI/钩子与 CI 均以此为准。
 
 本轮审计基于真实代码与测试产物（coverage.xml 与 CLI 解析），不依赖任何文档描述。
@@ -43,11 +43,11 @@ Batch 1（VS Code 事件采集与文档入口）
 - [x] 提交门禁：以 `[step:NL 事件采集与自动滚动记忆（VS Code 首批）]` 提交；本批完成后更新“当前步骤/下一步”
 
 Batch 2（JetBrains 采集与 GUI 完善）
-- [ ] JetBrains：按钮与 NL 执行后统一 append_turn（覆盖率/摄取/CI/Hooks/Env/PlanSet）
-- [ ] JetBrains：受控写入 GUI（多文件、dry‑run、strict 开关）
-- [ ] JetBrains：Plan Set 对话增强（预设选项 + 校验）
-- [ ] 测试：JB UI 验证脚本扩展（jb-ui-verify 增加 turn 计数断言）
-- [ ] 提交门禁：`[step:JB 事件采集与 GUI]`
+- [x] JetBrains：按钮与 NL 执行后统一 append_turn（覆盖率/摄取/CI/Hooks/Env/PlanSet）
+- [x] JetBrains：受控写入 GUI（多文件、dry‑run、strict 开关）
+- [x] JetBrains：Plan Set 对话增强（预设选项 + 校验）
+- [x] 测试：JB UI 验证脚本扩展（jb-ui-verify 增加 turn 计数断言）
+- [x] 提交门禁：`[step:JB 事件采集与 GUI]`
 
 Batch 3（Onboard 问答深化与模板分层）
 - [ ] rules.onboard：增加安全/容器/许可/门禁强度/测试分级的引导问题与默认解释
