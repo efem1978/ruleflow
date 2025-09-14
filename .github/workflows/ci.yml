@@ -157,6 +157,17 @@ jobs:
       - name: VS Code coverage threshold (gate @98%)
         run: |
           sh scripts/check-lcov.sh extensions/vscode/coverage/lcov.info 98 gate
+      - name: VS Code near/worst export (best-effort)
+        if: always()
+        run: |
+          sh scripts/lcov-near.sh extensions/vscode/coverage/lcov.info 98 5 20 > near_vscode.txt || true
+          head -n 50 near_vscode.txt || true
+      - name: Upload VS Code near/worst
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vscode-near
+          path: near_vscode.txt
       - name: Upload VS Code coverage to Codecov (conditional)
         if: always()
         uses: codecov/codecov-action@v4

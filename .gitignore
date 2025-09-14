@@ -49,6 +49,11 @@ extensions/vscode/coverage/
 extensions/vscode/*.vsix
 extensions/vscode/.test-fixture/
 extensions/vscode/vscode-test.log
+extensions/compat_report.json
+extensions/artifacts/
+
+# Local helper shims (not for version control)
+scripts/shims/
 
 # JetBrains storyboard outputs (generated)
 extensions/jetbrains/screenshots/jb_*.json

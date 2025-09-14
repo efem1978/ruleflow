@@ -117,8 +117,19 @@ release-harden-off:
 # 已移除前端看板相关目标（dashboard-*）
 
 vscode-test:
-	$(NPM) --prefix extensions/vscode run compile
-	$(NPM) --prefix extensions/vscode test
+	@if [ "$(shell uname -s)" = "Darwin" ]; then \
+		echo "[vscode-test] macOS detected; running container test for stability"; \
+		docker compose run --rm vscode-test; \
+	else \
+		$(NPM) --prefix extensions/vscode run compile; \
+		$(NPM) --prefix extensions/vscode test; \
+	fi
+
+.PHONY: vscode-near
+vscode-near:
+	@sh scripts/check-lcov.sh extensions/vscode/coverage/lcov.info 98 || true
+	@sh scripts/lcov-near.sh extensions/vscode/coverage/lcov.info 98 5 20 > near_vscode.txt || true
+	@echo "Generated near_vscode.txt (best-effort)"
 
 ingest:
 	$(PYTHON) -m mcp_rules_assistant.cli ingest-rules README.md docs/
