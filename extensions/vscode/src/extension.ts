@@ -626,6 +626,15 @@ export function activate(context: vscode.ExtensionContext) {
           <pre id="onboardSummary" style="white-space:pre-wrap; background:#f7f7f7; padding:8px; font-size:12px; color:#333;">（点击“预览推荐”查看将启用的规则摘要）</pre>
         </div>
         <div>
+          <h3>Chat（可选）</h3>
+          <div style="margin:6px 0;">
+            <button id="btnChatEnable">启用追加摘要 / Enable</button>
+            <button id="btnChatDisable">禁用 / Disable</button>
+            <button id="btnChatPreview">预览摘要 / Preview</button>
+          </div>
+          <pre id="chatPreview" style="white-space:pre-wrap; background:#f7f7f7; padding:8px; font-size:12px; color:#666;">（默认关闭；启用后，每轮对话可追加“上一轮问答摘要”至记忆。无遥测，不出网。）</pre>
+        </div>
+        <div>
           <h3>覆盖率分组</h3>
           <ul id="covGroups"></ul>
         </div>
@@ -759,6 +768,9 @@ export function activate(context: vscode.ExtensionContext) {
           (document.getElementById('btnPrepareEnvInstall') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'prepareEnvInstall' });
           (document.getElementById('btnOnboardPreview') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'onboardPreview' });
           (document.getElementById('btnOnboardApply') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'onboardApply' });
+          (document.getElementById('btnChatEnable') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'chatEnable' });
+          (document.getElementById('btnChatDisable') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'chatDisable' });
+          (document.getElementById('btnChatPreview') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'chatPreview' });
           (document.getElementById('btnShowWeak') as HTMLButtonElement).onclick = () => {
             const all = (window as any).__weakAll || [];
             const ulw = document.getElementById('covWeak');
@@ -875,6 +887,10 @@ export function activate(context: vscode.ExtensionContext) {
             }
             if (msg.t === 'onboardShow') {
               const el = document.getElementById('onboardSummary');
+              if (el) { (el as any).textContent = String(msg.text || ''); }
+            }
+            if (msg.t === 'chatShow') {
+              const el = document.getElementById('chatPreview');
               if (el) { (el as any).textContent = String(msg.text || ''); }
             }
             if (msg.t === 'csvPreview') {
@@ -1826,6 +1842,16 @@ export function activate(context: vscode.ExtensionContext) {
           } catch (e:any) {
             vscode.window.showErrorMessage('Onboard 采纳失败：' + String(e));
           }
+        } else if (msg.t === 'chatEnable') {
+          await context.globalState.update('ruleflow.chat.appendEnabled', true);
+          panel.webview.postMessage({ t: 'chatShow', text: 'Chat 追加摘要：已启用（默认摘要短小，不含源码/个人信息）' });
+        } else if (msg.t === 'chatDisable') {
+          await context.globalState.update('ruleflow.chat.appendEnabled', false);
+          panel.webview.postMessage({ t: 'chatShow', text: 'Chat 追加摘要：已禁用' });
+        } else if (msg.t === 'chatPreview') {
+          const enabled = !!context.globalState.get('ruleflow.chat.appendEnabled');
+          const demo = 'Chat: 这里将显示上一轮问答的简要摘要（示例）';
+          panel.webview.postMessage({ t: 'chatShow', text: (enabled ? '（启用）' : '（禁用）') + ' ' + demo });
         }
       } catch (e: any) {
         vscode.window.showErrorMessage('操作失败：' + String(e));
