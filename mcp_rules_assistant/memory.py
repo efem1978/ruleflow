@@ -133,6 +133,20 @@ class MemoryManager:
         return json.loads(self.path.read_text("utf-8"))
 
     def _write(self, data: Dict[str, Any]) -> None:
+        # 路径强校验：仅允许写入到 <project_root>/.mcp 下
+        try:
+            root = self.project_root.resolve()
+            target = self.path.resolve()
+            mcp_dir = (root / ".mcp").resolve()
+            try:
+                ok = target.is_relative_to(mcp_dir)  # py311+
+            except AttributeError:
+                ok = str(target).startswith(str(mcp_dir) + "/") or str(target) == str(mcp_dir)
+            if not ok:
+                raise ValueError("memory write path outside project .mcp")
+        except Exception:
+            # 容错：若强校验异常，宁可拒绝写入
+            raise
         # 使用原子写入，避免异常或并发导致的部分写入/损坏
         _atomic_write_json(self.path, data, indent=2)
 

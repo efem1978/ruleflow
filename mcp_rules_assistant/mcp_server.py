@@ -81,7 +81,7 @@ class JsonRpcServer:
 
         Allow when either:
         - config assistant.yaml: memory.allow_write: true
-        - env RULEFLOW_ALLOW_MEMORY_APPEND=1/true/on/yes
+        - env RULEFLOW_ALLOW_MEMORY_APPEND=1/true/on/yes (disabled when MCP_STRICT_ISOLATION=1)
         """
         # Allow in unit-tests (repo self-tests) to preserve existing contracts
         try:
@@ -89,14 +89,21 @@ class JsonRpcServer:
                 return True
         except Exception:
             pass
+        # Strict isolation mode: environment cannot elevate privileges
+        strict = False
         try:
-            env = (
-                str(os.environ.get("RULEFLOW_ALLOW_MEMORY_APPEND", "0")).strip().lower()
-            )
-            if env in {"1", "true", "on", "yes", "y"}:
-                return True
+            strict = str(os.environ.get("MCP_STRICT_ISOLATION", "")).strip().lower() in {"1", "true", "on", "yes", "y"}
         except Exception:
-            pass
+            strict = False
+        if not strict:
+            try:
+                env = (
+                    str(os.environ.get("RULEFLOW_ALLOW_MEMORY_APPEND", "0")).strip().lower()
+                )
+                if env in {"1", "true", "on", "yes", "y"}:
+                    return True
+            except Exception:
+                pass
         try:
             cfg = self.cfg if isinstance(self.cfg, dict) else {}
             mem = (
@@ -555,6 +562,18 @@ class JsonRpcServer:
             # arguments: { path?: string }
             new_path = args.get("path")
             if new_path:
+                # In strict isolation mode, block project switching unless explicitly allowed by config/env
+                strict = str(os.environ.get("MCP_STRICT_ISOLATION", "")).strip().lower() in {"1","true","on","yes","y"}
+                allow_env = str(os.environ.get("MCP_ALLOW_PROJECT_SWITCH", "")).strip().lower() in {"1","true","on","yes","y"}
+                allow_cfg = False
+                try:
+                    proj_cfg = self.cfg if isinstance(self.cfg, dict) else {}
+                    proj_cfg2 = proj_cfg.get("project", {}) if isinstance(proj_cfg.get("project", {}), dict) else {}
+                    allow_cfg = bool(proj_cfg2.get("allow_switch", False))
+                except Exception:
+                    allow_cfg = False
+                if strict and not (allow_env or allow_cfg):
+                    raise ValueError("project.switch is disabled by strict isolation")
                 p = Path(new_path).expanduser().resolve()
                 old_root = self.project_root
                 # 在旧项目记忆中记录“切换到”链接

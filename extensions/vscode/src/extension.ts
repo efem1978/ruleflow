@@ -78,7 +78,7 @@ class McpClient {
     this.proc = spawn(pyBin, ['-m', 'mcp_rules_assistant.cli', 'start'], {
       cwd: ws,
       stdio: ['pipe', 'pipe', 'pipe'],
-      env: { ...process.env, MCP_PROJECT_ROOT: ws }
+      env: { ...process.env, MCP_PROJECT_ROOT: ws, MCP_STRICT_ISOLATION: '1' }
     });
     // log to .mcp/dashboard/server.log for troubleshooting
     try {
