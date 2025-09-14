@@ -38,3 +38,9 @@ GitHub 设置建议
 - Secrets（可选）：
   - `PYPI_API_TOKEN`（用于 `release.yml` 发布 PyPI）
   - `VSCE_PAT`（用于 VS Code 扩展发布）
+
+清理与还原环境 Cleanup & Restore
+- 快速清理：`make clean` 或 `sh scripts/workspace-clean.sh`
+- 完全清理：`make clean-all`（包含 dist/build 与常见本地产物）
+- VS Code 产物：`extensions/vscode/coverage/`、`out/`、`.vscode-test/`、`*.vsix` 为临时/打包产物
+- 状态仪表：`.mcp/dashboard/` 可安全清空；保留 `.mcp/assistant.yaml`、`.mcp/plan.md`、`.mcp/rules_compiled.json`

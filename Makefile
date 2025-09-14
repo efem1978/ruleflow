@@ -189,6 +189,13 @@ docker-jb:
 build-vscode-test:
 	docker compose build vscode-test
 
+.PHONY: clean-all
+clean-all:
+	@$(MAKE) clean || true
+	@$(MAKE) clean-dist || true
+	@sh scripts/workspace-clean.sh || true
+	@echo "[clean-all] workspace and build artifacts cleaned."
+
 docker-vscode-test:
 	sh scripts/vscode-test-once.sh || true
 

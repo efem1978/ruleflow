@@ -19,7 +19,7 @@
 - 配置与性能：`docs/CONFIG.md` / `docs/PERFORMANCE.md` — 门槛与策略来源
 - TDD 计划：`docs/DEV_PLAN_TDD.md` — 分层推进与清单（与本文件同步）
 - 任务清单（权威）：`.mcp/plan.md` — Sprint/下一步/勾选项（新窗口优先读取）
-- AI 交接与状态：`AI_HANDOFF_GUIDE.md` / `AI_STATUS.md` — 交接清单与 `.mcp/dashboard/` 状态索引
+- AI 交接与状态：`docs/AI_HANDOFF_GUIDE.md` / `docs/AI_STATUS.md` — 交接清单与 `.mcp/dashboard/` 状态索引
 - CI 与 Hooks：`docs/HOOKS.md` / `docs/CI_HEALTH_CHECK.md` — 生成/自修复/健康检查
 - 规则与短语：`docs/RULESETS.md` / `docs/RULES_INGEST.md` / `docs/RULES_PHRASES_INDEX.md`
 - 安全工具：`docs/SECURITY_TOOLS.md` — hadolint/semgrep/detect-secrets 等
@@ -198,6 +198,14 @@ Release Note（0.2.5，维护性更新）
 - 许可文档：`docs/LICENSE.md` 明确根 `LICENSE` 为法律文本，本页为生成/校验演示。
 
 ## 统一子进程封装 / Unified Process Runner
+
+
+## 清理与还原环境 / Cleanup & Restore
+- 一键清理本地产物：`make clean` 或 `sh scripts/workspace-clean.sh`
+- 打包产物清理：`make clean-dist`（移除 dist/build/*）
+- VS Code 产物：`extensions/vscode/coverage/`、`out/`、`.vscode-test/`、`*.vsix` 已在 `.gitignore` 忽略，必要时手动删除
+- 状态仪表：`.mcp/dashboard/` 可安全清空；保留 `.mcp/assistant.yaml`、`.mcp/plan.md`、`.mcp/rules_compiled.json`
+- 诊断包与 near：`diagnostics-*.tar.gz`、`near_vscode.txt` 为诊断文件，不应提交到仓库
 
 - 模块：`mcp_rules_assistant/process.py` 提供 `run_cmd` 统一封装。
 - 语义：

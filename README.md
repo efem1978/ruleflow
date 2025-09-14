@@ -206,8 +206,8 @@ coverage:
 
 文档 Docs（入口：`DEVELOPMENT.md`）
 （快速入口：`DEVELOPMENT.md` | `docs/USER_GUIDE.md` | `docs/NATURAL_LANGUAGE.md` | `docs/IDE_SCAFFOLD.md` | `docs/IDE_SUPPORT.md` | `docs/USAGE.md`）
-- AI 协作交接：`AI_HANDOFF_GUIDE.md`（交接清单/最小工作流/Do&Don't）
-- AI 状态索引：`AI_STATUS.md`（`.mcp/plan.md` 与 `.mcp/dashboard/*` 权威状态位置）
+- AI 协作交接：`docs/AI_HANDOFF_GUIDE.md`（交接清单/最小工作流/Do&Don't）
+- AI 状态索引：`docs/AI_STATUS.md`（`.mcp/plan.md` 与 `.mcp/dashboard/*` 权威状态位置）
 - AI 协作交接：见下方“AI 协作交接（整合）”
 - AI 状态索引：见下方“AI 状态索引（整合）”
 - 任务计划（唯一权威）：`.mcp/plan.md`（面板与工具仅读取此处的清单与状态）

@@ -29,4 +29,3 @@ AI 编程约束（Do/Don't）
 
 备注
 - VS Code 扩展无头测试在本机若受 Electron 启动参数影响，可用容器运行：`make docker-vscode-test` 或 `docker compose run --rm vscode-test`；详见 `docs/VS_CODE_TEST.md`。
-

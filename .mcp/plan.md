@@ -36,7 +36,7 @@ P1 质量与发布（已完成）
 跟进清单（严格 TDD 批次，最大单批次 ≤ 6 项）
 
 整改任务（新增） / Remediation
-- [x] 入口补充：新增 `AI_HANDOFF_GUIDE.md`（AI 协作交接）与 `AI_STATUS.md`（状态索引），并已在 README/DEVELOPMENT 索引挂接。
+- [x] 入口补充：新增 `docs/AI_HANDOFF_GUIDE.md`（AI 协作交接）与 `docs/AI_STATUS.md`（状态索引），并已在 README/DEVELOPMENT 索引挂接。
 - [x] 文档一致性：`docs/CI_HEALTH_CHECK.md` 与 README 的 VS Code 覆盖率门禁阈值统一为 98%。
 - [x] 覆盖率抛光（dev_agent）：新增异常/边界分支用例，`dev_agent.py` 覆盖率提升至 ≈97.46%（≥96.5% 目标达成；阈值 95% 继续满足）。
 - [ ] VS Code lcov（本地）：macOS 本机仍可能因 Electron 参数差异导致无头测试失败/产出空 lcov；优先使用容器 `docker compose run --rm vscode-test` 或在 CI 环境生成 near/worst 清单。

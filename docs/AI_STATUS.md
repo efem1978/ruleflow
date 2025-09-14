@@ -22,4 +22,3 @@
 健康检查（CI）
 - 工作流：`.github/workflows/ci.yml`
 - 通过标准：Python weak=[]、核心≥98%、非核心≥95%；VS Code lcov ≥98%（本仓库标准）。
-

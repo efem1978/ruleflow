@@ -26,7 +26,7 @@ repos:
     rev: v1.4.0
     hooks:
       - id: detect-secrets
-        stages: [push]
+        stages: [pre-push]
   - repo: local
     hooks:
       - id: plan-gate
@@ -49,28 +49,28 @@ repos:
         entry: python .mcp/dockerfile_gate.py
         language: system
         pass_filenames: false
-        stages: [push]
+        stages: [pre-push]
       - id: pytest-with-coverage
         name: pytest with coverage (push)
         entry: sh -c 'pytest -q --maxfail=1 --disable-warnings -W error --strict-markers --cov --cov-report=xml:coverage.xml --cov-report=term-missing --cov-fail-under=99'
         language: system
         pass_filenames: false
-        stages: [push]
+        stages: [pre-push]
       - id: no-skip-xfail
         name: forbid skip/xfail (push)
         entry: sh -c 'if git grep -nE "pytest\\.mark\\.(skip|xfail)" -- ":(exclude)tests/*" mcp_rules_assistant >/dev/null; then echo "Found skip/xfail markers in package code. Disallowed."; exit 1; fi'
         language: system
         pass_filenames: false
-        stages: [push]
+        stages: [pre-push]
       - id: docs-anchors
         name: docs anchors snapshot (push)
         entry: sh -c 'PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/docs/test_docs_anchors.py'
         language: system
         pass_filenames: false
-        stages: [push]
+        stages: [pre-push]
   - repo: https://github.com/PyCQA/bandit
     rev: 1.7.7
     hooks:
       - id: bandit
         args: ["-q", "-ll", "-x", "tests"]
-        stages: [push]
+        stages: [pre-push]
