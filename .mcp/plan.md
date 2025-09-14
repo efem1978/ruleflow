@@ -64,9 +64,9 @@ Batch 4（NL 别名与受控写入 UX）
 
 Batch 5（容器与 Chat 集成可选项）
  - [x] 容器：dev-agent 增加自动 append_turn（最小摘要），频率与上限受控
-- [ ] VS Code Chat（可选）：如启用 Chat API，追加“上一轮问答摘要”
-- [x] 文档：在 USER_GUIDE 附“可选功能”与隐私/性能说明
-- [ ] 提交门禁：`[step:容器与Chat可选]`
+ - [x] VS Code Chat（可选）：如启用 Chat API，追加“上一轮问答摘要”
+ - [x] 文档：在 USER_GUIDE 附“可选功能”与隐私/性能说明
+ - [x] 提交门禁：`[step:容器与Chat可选]`
 
 审计附注
 - 未发现需删除的重复/弃用文档；docs/CONTRIBUTING.md 为根文档的本地化补充且已标注权威来源；docs/LICENSE.md 仅为演示说明，法律文本以根 LICENSE 为准。
