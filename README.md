@@ -63,7 +63,10 @@ MCP 规则与上下文助手 / MCP Rules & Context Assistant
   - VSIX：`extensions/vscode/mcp-rules-assistant-0.2.5.vsix`
   - Python 包：`dist/mcp_rules_assistant-0.2.5-py3-none-any.whl` | `dist/mcp_rules_assistant-0.2.5.tar.gz`
   - 归档：`dist/release-bundle-0.2.5.tar.gz`
-  - 预发布报告：`.mcp/dashboard/pre_release_report.md`
+- 预发布报告：`.mcp/dashboard/pre_release_report.md`
+
+发布操作清单 / Publishing Checklist
+- `docs/PUBLISHING_CHECKLIST.md`
 
 本地 Release Bundle 校验（可选）
 - 校验归档与内容：
