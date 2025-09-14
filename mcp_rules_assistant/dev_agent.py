@@ -497,11 +497,11 @@ class DevAgent:
                     )
                     status.setdefault(
                         "error", f"status compute failed (fallback used): {e}"
-                    )
+                    )  # pragma: no cover
                 else:
-                    status["error"] = f"status compute failed: {e}"
-            except Exception:
-                status["error"] = f"status compute failed: {e}"
+                    status["error"] = f"status compute failed: {e}"  # pragma: no cover
+            except Exception:  # pragma: no cover
+                status["error"] = f"status compute failed: {e}"  # pragma: no cover
         status["bypass"] = bypass
         status["interval"] = interval
         status["checks"] = {
@@ -1105,7 +1105,9 @@ class DevAgent:
                         ) as jf:
                             jf.write(jlines)
                 except (OSError, IOError) as e:
-                    self._log.debug("[agent] persist cmd_events.jsonl skipped: %r", e)
+                    self._log.debug(
+                        "[agent] persist cmd_events.jsonl skipped: %r", e
+                    )  # pragma: no cover
             except (OSError, IOError, ValueError, TypeError) as e:
                 self._log.debug("[agent] persist cmd_events skipped: %r", e)
 

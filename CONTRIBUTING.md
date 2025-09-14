@@ -1,59 +1,16 @@
-Contributing Guide (Local)
+贡献指南（简版 / Root Stub）
 
-Thanks for contributing! This repository favors a fast inner dev loop with strict push/CI gates. Follow the steps below to get productive quickly.
+本仓库采用“快速内环 + 严格 Push/CI 门禁”的开发模式。完整贡献流程已迁移至：`docs/CONTRIBUTING.md`。
 
-Quick Start
-- Python: Use the project venv. Run: `make setup` or `python3 -m mcp_rules_assistant.cli prepare-env --install`
-- Install package (editable): `python3 -m pip install -e .`
-- Initialize config: `python3 -m mcp_rules_assistant.cli init`
-- VS Code extension: install `extensions/vscode/mcp-rules-assistant.vsix` (optional)
+快速上手（摘要）
+- 环境准备：`make setup` 或 `python3 -m mcp_rules_assistant.cli prepare-env --install`
+- 可编辑安装：`pip install -e .`，初始化：`mcp-rules-assistant init`
+- 本地校验：`make local-ci-run`（lint/type/tests+coverage/policy）
+- 规则摄取（可选）：`mcp-rules-assistant ingest-rules README.md docs/`
+- 安装钩子：`mcp-rules-assistant install-hooks`
 
-Everyday Workflow
-- Run all local checks: `make local-ci-run`
-  - Lint: ruff/black/isort
-  - Type (blocking core): mypy on core modules
-  - Tests + Coverage: pytest (+ coverage gate via policy)
-- Fast rule ingestion (optional):
-  - `python3 -m mcp_rules_assistant.cli ingest-rules README.md docs/`
-  - `python3 -m mcp_rules_assistant.cli rules-explain --json`
+提交与门禁（摘要）
+- 唯一权威任务清单：`.mcp/plan.md`；提交信息需包含 `[step:<当前步骤>]`
+- 更改 `.py` 源码应配套 `tests/`；Push 触发覆盖率与安全门禁
 
-Do not commit generated artifacts
-- Coverage/test artifacts: `coverage.xml`, `.coverage*`, `cov*.json`, `pytest-junit.xml`
-- VS Code extension outputs: `extensions/vscode/out/`, `extensions/vscode/coverage/`, `*.vsix`
-- Build outputs: `dist/`, `build/`, `*.egg-info/`
-(The repo `.gitignore` and `scripts/preflight.sh` help prevent accidental commits.)
-
-Commit & Push Gates
-- Pre-commit hooks are installed via: `python3 -m mcp_rules_assistant.cli install-hooks`
-- Commit requirements:
-  - Ensure `.mcp/plan.md` status is `in_progress` and commit message contains `[step:<current-step>]`
-  - TDD gate: commits changing `.py` sources must include corresponding `tests/` changes
-- Push runs coverage/test/sast gates; keep coverage above the configured thresholds in `.mcp/assistant.yaml`.
-
-MCP Server & VS Code
-- Start server (stdio JSON-RPC): `python3 -m mcp_rules_assistant.cli start`
-- Copilot MCP integration is preconfigured in `.vscode/settings.json` (tool id: `ruleflow`).
-
-CI Notes
-- GitHub Actions workflow: `.github/workflows/ci.yml`
-  - Python matrix 3.10/3.11/3.12, parallelized with `pytest-xdist`
-  - Caching: `actions/setup-python` pip cache and venv cache for the `prepare` job
-  - Coverage artifacts uploaded; Codecov upload is enabled if `CODECOV_TOKEN` is set
-
-Style & Conventions
-- Keep code minimal and focused; follow existing patterns.
-- Formatting: black; Import order: isort; Lint: ruff
-- Type hints: prefer precise types on public boundaries; core modules are type-checked strictly
-
-Troubleshooting
-- Missing tools? Run `make setup` again to (re)install into `.mcp/venv`.
-- Coverage gate failed? Improve tests near threshold files (see `python3 -m mcp_rules_assistant.cli coverage-near --within 3 --top 20`).
-
-Local install & revert (no publish)
-- Editable install: `pip install -e .`; verify with `mcp-rules-assistant version`
-- Build + wheel install:
-  - `python -m build && pip install dist/mcp_rules_assistant-<ver>-py3-none-any.whl`
-  - Verify: `mcp-rules-assistant status-update --json`
-  - Revert: `pip uninstall -y mcp-rules-assistant`
-
-More docs in `docs/CONTRIBUTING.md`, `README.md`, and `DEVELOPMENT.md`.
+更多细节：请阅读 `docs/CONTRIBUTING.md`、`README.md` 与 `DEVELOPMENT.md`。

@@ -13,3 +13,4 @@ Makefile
 .mcp
 coverage*
 dist
+.vscode-test

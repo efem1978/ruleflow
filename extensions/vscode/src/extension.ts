@@ -34,6 +34,7 @@ class McpClient {
   private seq = 0;
   private pending = new Map<number, (res: any) => void>();
   private fakeMode = ((process.env.RULEFLOW_TEST_FAKE || '').trim() === '1');
+  private fakeCalls: { method: string; name?: string; params?: any; args?: any }[] = [];
 
   private updateFakeMode() {
     try {
@@ -112,6 +113,8 @@ class McpClient {
 
   private async _fakeRequest(method: string, params: any): Promise<any> {
     try {
+      // 记录调用供测试断言
+      try { this.fakeCalls.push({ method, name: (params && params.name) || undefined, params, args: (params && (params.arguments ?? params)) }); } catch {}
       const ws = getWorkspaceRoot() || process.cwd();
       const fsApi = vscode.workspace.fs;
       const fileToString = async (u: vscode.Uri) => {
@@ -235,6 +238,14 @@ class McpClient {
       return {};
     }
   }
+
+  // test helpers (exposed via commands)
+  public _testGetFakeCalls(): { method: string; name?: string; params?: any; args?: any }[] {
+    return Array.from(this.fakeCalls);
+  }
+  public _testClearFakeCalls(): void {
+    this.fakeCalls = [];
+  }
 }
 
 const client = new McpClient();
@@ -272,7 +283,14 @@ async function handleOpenMessage(msg: any) {
   }
 }
 
+let __activated = false; // 防重复激活（测试/多次初始化场景）
+
 export function activate(context: vscode.ExtensionContext) {
+  if (__activated) {
+    // 避免重复注册命令导致 “command ... already exists”
+    return;
+  }
+  __activated = true;
   vscode.window.showInformationMessage('RuleFlow Extension is now active!');
   // 在状态栏放一个快捷入口，点击即可打开面板
   const sb = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
@@ -2037,87 +2055,7 @@ export function activate(context: vscode.ExtensionContext) {
       }
     });
   });
-  // Quick actions: small launcher for common tasks
-  context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant.quickActions', async () => {
-    const pick = await vscode.window.showQuickPick([
-      { label: '摄取规则 / Ingest', action: 'ingestRules' },
-      { label: '加载覆盖率 / Load Coverage', action: 'coverage' },
-      { label: '生成 CI / Generate CI', action: 'ciGen' },
-      { label: '校验 CI / Validate CI', action: 'ciValidate' },
-      { label: '导出覆盖率 / Export Coverage', action: 'covExport' },
-      { label: '打开 JB 验证 / Open JB Verify', action: 'openJbVerify' },
-      { label: '打开 jb_groups.md', action: 'openJbGroupsMd' },
-      { label: '打开 weak_top.csv', action: 'openWeakCsv' },
-      { label: '打开 near_top.csv', action: 'openNearCsv' },
-      { label: '打开 groups.csv', action: 'openGroupsCsv' },
-    ], { title: 'RuleFlow: Quick Actions' });
-    if (!pick) { return; }
-    try { client.start(context); } catch {}
-    // Route to openPanel first to ensure webview exists
-    await vscode.commands.executeCommand('mcpRulesAssistant.openPanel');
-    // Post a message to the active webview (panel reuses the last instance)
-    try {
-      // Use a global state marker; in this minimal change, rely on the panel created above
-      // The panel handler already registers message listeners; send event via commands below
-      switch (pick.action) {
-        case 'ingestRules':
-          vscode.commands.executeCommand('mcpRulesAssistant.openPanel');
-          break;
-        case 'coverage':
-          vscode.commands.executeCommand('mcpRulesAssistant.openPanel');
-          break;
-        case 'ciGen':
-          vscode.commands.executeCommand('mcpRulesAssistant.openPanel');
-          break;
-        case 'ciValidate':
-          vscode.commands.executeCommand('mcpRulesAssistant.openPanel');
-          break;
-        case 'covExport':
-          try {
-            await client.request('tools/call', { name: 'coverage.export', arguments: {} });
-            const ws2 = getWorkspaceRoot();
-            if (ws2) {
-              const uri2 = vscode.Uri.file(ws2 + '/.mcp/dashboard/weak_top.csv');
-              try {
-                await vscode.workspace.fs.stat(uri2);
-                const doc2 = await vscode.workspace.openTextDocument(uri2);
-                await vscode.window.showTextDocument(doc2, { preview: false });
-              } catch {}
-            }
-            vscode.window.showInformationMessage('Coverage 导出完成 (.mcp/dashboard)');
-          } catch (e:any) {
-            vscode.window.showWarningMessage('Coverage 导出失败：' + String(e));
-          }
-          break;
-        case 'openJbVerify':
-          try {
-            const ws3 = getWorkspaceRoot();
-            if (!ws3) throw new Error('no workspace');
-            const uri3 = vscode.Uri.file(ws3 + '/.mcp/dashboard/jb_verify.json');
-            await vscode.workspace.fs.stat(uri3);
-            const doc3 = await vscode.workspace.openTextDocument(uri3);
-            await vscode.window.showTextDocument(doc3, { preview: false });
-          } catch (e:any) {
-            vscode.window.showWarningMessage('未找到 jb_verify.json：' + String(e));
-          }
-          break;
-        case 'openWeakCsv':
-          try { const ws = getWorkspaceRoot(); if (!ws) throw new Error('no workspace'); const u=vscode.Uri.file(ws + '/.mcp/dashboard/weak_top.csv'); await vscode.workspace.fs.stat(u); const d=await vscode.workspace.openTextDocument(u); await vscode.window.showTextDocument(d,{preview:false}); } catch {}
-          break;
-        case 'openNearCsv':
-          try { const ws = getWorkspaceRoot(); if (!ws) throw new Error('no workspace'); const u=vscode.Uri.file(ws + '/.mcp/dashboard/near_top.csv'); await vscode.workspace.fs.stat(u); const d=await vscode.workspace.openTextDocument(u); await vscode.window.showTextDocument(d,{preview:false}); } catch {}
-          break;
-        case 'openGroupsCsv':
-          try { const ws = getWorkspaceRoot(); if (!ws) throw new Error('no workspace'); const u=vscode.Uri.file(ws + '/.mcp/dashboard/groups.csv'); await vscode.workspace.fs.stat(u); const d=await vscode.workspace.openTextDocument(u); await vscode.window.showTextDocument(d,{preview:false}); } catch {}
-          break;
-        case 'openJbGroupsMd':
-          try { const ws = getWorkspaceRoot(); if (!ws) throw new Error('no workspace'); const u=vscode.Uri.file(ws + '/.mcp/dashboard/jb_groups.md'); await vscode.workspace.fs.stat(u); const d=await vscode.workspace.openTextDocument(u); await vscode.window.showTextDocument(d,{preview:false}); } catch {}
-          break;
-      }
-    } catch (e:any) {
-      vscode.window.showErrorMessage('Quick action failed: ' + String(e));
-    }
-  }));
+  // 注：quickActions 命令已在上文注册；此处重复注册已移除以避免测试中重复激活导致冲突
 
   // 许可状态（只读）：调用 license.verify 并展示结果
   context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant.licenseStatus', async () => {
@@ -2185,6 +2123,31 @@ export function activate(context: vscode.ExtensionContext) {
   }));
   context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant._test_clearFakeCalls', async () => {
     try { if ((client as any)._testClearFakeCalls) (client as any)._testClearFakeCalls(); return true; } catch { return false; }
+  }));
+  // test-only: set chat append enabled flag
+  context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant._test_chatSetEnabled', async (on?: boolean) => {
+    try { await context.globalState.update('ruleflow.chat.appendEnabled', !!on); return true; } catch { return false; }
+  }));
+
+  // Public: append last chat summary into memory (optional; guarded by enable flag)
+  context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant.chatAppendSummary', async (text?: string) => {
+    try { client.start(context); } catch {}
+    try {
+      const enabled = !!context.globalState.get('ruleflow.chat.appendEnabled');
+      if (!enabled) { vscode.window.showInformationMessage('Chat 追加摘要未启用'); return true; }
+      let summary = (typeof text === 'string' && text.trim()) ? String(text).trim() : '';
+      if (!summary) {
+        summary = await vscode.window.showInputBox({ placeHolder: '输入要追加的上一轮问答摘要' }) || '';
+      }
+      if (!summary) { return false; }
+      const content = 'ChatSummary: ' + summary;
+      await client.request('tools/call', { name: 'memory.append_turn', arguments: { role: 'assistant', content, meta: { source: 'vscode', action: 'chat.append' } } });
+      vscode.window.showInformationMessage('已追加 Chat 摘要');
+      return true;
+    } catch (e:any) {
+      vscode.window.showErrorMessage('Chat 摘要追加失败：' + String(e));
+      return false;
+    }
   }));
 
   // test-only: 直接触发部分 quick actions（不依赖后端与真实 webview 事件），便于在无 Python 的环境覆盖 UI 分支

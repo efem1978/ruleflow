@@ -1,6 +1,5 @@
-from pathlib import Path
-
 import json
+from pathlib import Path
 
 from mcp_rules_assistant import rules_ingest as ri
 
@@ -37,4 +36,3 @@ rules:
     # policy should keep stricter (max) value 0.95
     pol = compiled.get("policy", {})
     assert abs(float(pol.get("coverage.min_module", 0.0)) - 0.95) < 1e-9
-

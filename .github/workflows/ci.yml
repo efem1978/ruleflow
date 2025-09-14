@@ -49,7 +49,7 @@ jobs:
         env:
           PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
         run: |
-          pytest -q -p pytest_cov --maxfail=1 --disable-warnings -W error --strict-markers --cov=mcp_rules_assistant --cov-report=xml:coverage.xml --cov-report=term-missing --cov-fail-under=96 --junitxml=pytest-junit.xml
+          pytest -q -p pytest_cov --maxfail=1 --disable-warnings -W error --strict-markers --cov=mcp_rules_assistant --cov-report=xml:coverage.xml --cov-report=term-missing --cov-fail-under=99 --junitxml=pytest-junit.xml
       - name: Coverage Policy Gate (core≥98%, others≥95%)
         run: |
           python -m mcp_rules_assistant.cli coverage-report --json > cov.json
@@ -144,17 +144,19 @@ jobs:
         run: |
           npm ci || npm install
           npm run compile
-      - name: VS Code extension tests
+      - name: VS Code extension tests (fake backend)
         working-directory: extensions/vscode
+        env:
+          RULEFLOW_TEST_FAKE: "1"
         run: |
           MCP_VSCODE_TEST_ARGS="" xvfb-run -a npm test 2>&1 | tee vscode-test.log
       - name: IDE Compatibility Summary (best-effort)
         run: |
           sh scripts/ide-compat-check.sh || true
           if [ -f extensions/compat_report.json ]; then echo "[ide-compat] found"; else echo "[ide-compat] missing (ok)"; fi
-      - name: VS Code coverage threshold (gate)
+      - name: VS Code coverage threshold (gate @98%)
         run: |
-          sh scripts/check-lcov.sh extensions/vscode/coverage/lcov.info 95 gate
+          sh scripts/check-lcov.sh extensions/vscode/coverage/lcov.info 98 gate
       - name: Upload VS Code coverage to Codecov (conditional)
         if: always()
         uses: codecov/codecov-action@v4
@@ -175,3 +177,39 @@ jobs:
         with:
           name: vscode-tests
           path: extensions/vscode/vscode-test.log
+  vscode-real:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - name: Install backend (editable)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'extensions/vscode/package-lock.json'
+      - name: Install and compile
+        working-directory: extensions/vscode
+        run: |
+          npm ci || npm install
+          npm run compile
+      - name: VS Code extension tests (real backend)
+        working-directory: extensions/vscode
+        env:
+          MCP_VSCODE_TEST_ARGS: ""
+          MCP_PYTHON_BIN: "python3"
+          RULEFLOW_TEST_FAKE: "0"
+        run: |
+          xvfb-run -a npm test 2>&1 | tee vscode-test-real.log || true
+      - name: Upload VS Code (real) test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vscode-tests-real
+          path: extensions/vscode/vscode-test-real.log

@@ -35,7 +35,13 @@ def test_summarize_tree_shallow_structure_for_weak(tmp_path: Path) -> None:
             {"filename": "a/d/e.py", "line-rate": "0.95"},
         ],
     )
-    out = cs.summarize_tree(project_root=tmp_path, coverage_xml="coverage.xml", policy=None, min_module=0.98, max_depth=3)
+    out = cs.summarize_tree(
+        project_root=tmp_path,
+        coverage_xml="coverage.xml",
+        policy=None,
+        min_module=0.98,
+        max_depth=3,
+    )
     assert out.get("ok") is True
     tree = out.get("tree", {})
     assert isinstance(tree, dict) and tree.get("name") == "/"
@@ -46,4 +52,3 @@ def test_summarize_tree_shallow_structure_for_weak(tmp_path: Path) -> None:
     # depth one children should exist
     ach = a.get("children", {})
     assert "b" in ach and "d" in ach
-

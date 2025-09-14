@@ -8,4 +8,3 @@ def test_interpret_policy_ignores_near_phrase() -> None:
     for out in (out_en, out_cn):
         assert "coverage.min_module" not in out
         assert "coverage.min_core" not in out
-

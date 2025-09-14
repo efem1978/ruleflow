@@ -32,6 +32,10 @@
   - 角色：Maintainers
  - 触发：CLI 子命令/行为变更；AI 约束或协作模式调整
 
+- README.md 中的“AI 协作交接 / AI 状态索引”（原根目录文档，已整合）
+  - 角色：Tech Lead / Maintainers / Release Owner / AI 协作者
+  - 触发：协作流程、门禁策略、状态文件结构（`.mcp/dashboard/*`）或覆盖率口径调整
+
 权威计划来源（唯一）
 - `.mcp/plan.md`：任务清单与当前步骤的唯一权威来源；任何自动化（面板/CLI/Dev Agent/CI 注释）仅读取该文件。
 - `DEVELOPMENT.md` 与 `docs/DEV_PLAN_TDD.md` 仅作说明与索引，不承载任务状态。

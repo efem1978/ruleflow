@@ -23,7 +23,15 @@ class McpClient {
         try {
             val cfgBin = try { RuleFlowSettingsState.getInstance().pythonBin.trim() } catch (_: Exception) { "" }
             val envBin = System.getenv("MCP_PYTHON_BIN")?.takeIf { it.isNotBlank() }
+            // Prefer workspace .mcp/venv first for out-of-the-box experience
+            val base = project.basePath
+            val venvPy = if (base != null) {
+                val isWin = System.getProperty("os.name").lowercase().contains("win")
+                val p = if (isWin) java.io.File(base, ".mcp/venv/Scripts/python.exe") else java.io.File(base, ".mcp/venv/bin/python")
+                if (p.exists()) p.absolutePath else null
+            } else null
             val py = when {
+                !venvPy.isNullOrEmpty() -> venvPy
                 !cfgBin.isNullOrEmpty() -> cfgBin
                 envBin != null -> envBin
                 System.getProperty("os.name").lowercase().contains("win") -> "python"

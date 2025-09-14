@@ -1,4 +1,5 @@
 import os
+
 from mcp_rules_assistant.mcp_server import JsonRpcServer
 
 
@@ -19,4 +20,3 @@ def test_prompts_enabled_via_env_returns_templates(monkeypatch) -> None:
     tpl = rget.get("result", {})
     assert tpl.get("ok") is True
     assert tpl.get("name") == "handoff.next_steps"
-

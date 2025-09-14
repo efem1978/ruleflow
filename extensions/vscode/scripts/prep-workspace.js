@@ -27,8 +27,12 @@ function main() {
   // recreate minimal dirs
   ensureDir(path.join(ws, '.mcp', 'dashboard'));
   ensureDir(path.join(ws, '.github', 'workflows'));
-  // fake mode sentinel to avoid backend
-  try { fs.writeFileSync(path.join(ws, '.mcp', 'dashboard', 'fake_mode'), '1'); } catch {}
+  // fake mode sentinel to avoid backend (opt-in via env)
+  try {
+    if (String(process.env.RULEFLOW_TEST_FAKE || '').trim() === '1') {
+      fs.writeFileSync(path.join(ws, '.mcp', 'dashboard', 'fake_mode'), '1');
+    }
+  } catch {}
   // ensure README exists for smoke test
   try {
     const readme = path.join(ws, 'README.md');

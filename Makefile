@@ -34,9 +34,9 @@ ci:
 
 local-ci-run:
 	@echo "[local-ci] Lint"
-	$(PYTHON) -m ruff check --output-format=github mcp_rules_assistant || true
-	$(PYTHON) -m black --check mcp_rules_assistant || true
-	$(PYTHON) -m isort --check-only mcp_rules_assistant || true
+	$(PYTHON) -m ruff check --output-format=github mcp_rules_assistant
+	$(PYTHON) -m black --check mcp_rules_assistant
+	$(PYTHON) -m isort --check-only mcp_rules_assistant
 	@echo "[local-ci] Type (core blocking)"
 	$(PYTHON) -m mypy \
 	  mcp_rules_assistant/config.py \
@@ -90,10 +90,16 @@ release-simulate:
 release-note:
 	python3 scripts/release-note-from-report.py --report .mcp/dashboard/release_check.md --out .mcp/dashboard/release_note_snippet.md
 
-.PHONY: release-note-full
+.PHONY: release-note-full pre-release market-release
 release-note-full:
 	python3 scripts/release-note-from-report.py --report .mcp/dashboard/release_check.md --out .mcp/dashboard/release_note_snippet.md
 	python3 scripts/release-changes-from-git.py
+
+pre-release:
+	sh scripts/pre-release-check.sh
+
+market-release:
+	sh scripts/release-compose-marketplace.sh
 
 .PHONY: git-upstream-check
 git-upstream-check:

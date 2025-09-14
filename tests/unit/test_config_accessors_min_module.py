@@ -16,4 +16,3 @@ performance:
     )
     cfg = load_config(tmp_path)
     assert abs(get_min_module(cfg, default=0.90) - 0.96) < 1e-9
-

@@ -34,8 +34,8 @@ def test_threshold_suffix_overrides_prefix_and_default(tmp_path: Path) -> None:
         ],
     )
     policy = {
-        "pkg/": 0.80,   # prefix policy (less specific)
-        "cli.py": 0.99, # suffix policy (more specific, should win)
+        "pkg/": 0.80,  # prefix policy (less specific)
+        "cli.py": 0.99,  # suffix policy (more specific, should win)
     }
     out = cs.summarize(
         project_root=tmp_path,
@@ -78,4 +78,3 @@ def test_summarize_groups_weights_missing_lines(tmp_path: Path) -> None:
     core = gmap["core/"]
     assert int(core.get("files_count", 0)) == 2
     assert int(core.get("weak_count", 0)) == 1
-

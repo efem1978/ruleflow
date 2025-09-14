@@ -37,8 +37,19 @@ def test_to_suggestions_md_value_and_no_value() -> None:
     compiled = {
         "conflicts": [],
         "suggestions": [
-            {"key": "test.no_skip_xfail", "action": "enforce", "note": "n/a", "severity": "must"},
-            {"key": "coverage.min_module", "action": "enforce", "value": 0.95, "note": "n/a", "severity": "must"},
+            {
+                "key": "test.no_skip_xfail",
+                "action": "enforce",
+                "note": "n/a",
+                "severity": "must",
+            },
+            {
+                "key": "coverage.min_module",
+                "action": "enforce",
+                "value": 0.95,
+                "note": "n/a",
+                "severity": "must",
+            },
         ],
     }
     md = ri._to_suggestions_md(compiled)

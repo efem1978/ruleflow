@@ -1,0 +1,23 @@
+{
+  // VS Code tasks to quickly verify MCP is loaded and responsive
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "MCP: RPC Smoke",
+      "type": "shell",
+      "command": ".mcp/venv/bin/python scripts/mcp-rpc-smoke.py",
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": [],
+      "group": "test"
+    },
+    {
+      "label": "MCP: Status Update (JSON)",
+      "type": "shell",
+      "command": ".mcp/venv/bin/python -m mcp_rules_assistant.cli status-update --json",
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": [],
+      "group": "test"
+    }
+  ]
+}
+

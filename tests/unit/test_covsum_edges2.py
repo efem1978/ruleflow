@@ -30,10 +30,17 @@ def test_summarize_marks_weak_and_sets_delta(tmp_path: Path) -> None:
     _write_cov_xml(
         xml,
         [
-            {"filename": "foo.py", "line-rate": "0.50", "lines-valid": "10", "lines-covered": "5"},
+            {
+                "filename": "foo.py",
+                "line-rate": "0.50",
+                "lines-valid": "10",
+                "lines-covered": "5",
+            },
         ],
     )
-    out = cs.summarize(project_root=tmp_path, coverage_xml="coverage.xml", policy=None, min_module=0.96)
+    out = cs.summarize(
+        project_root=tmp_path, coverage_xml="coverage.xml", policy=None, min_module=0.96
+    )
     assert out.get("ok") is True
     weak = out.get("weak") or []
     assert isinstance(weak, list) and len(weak) == 1
@@ -52,7 +59,14 @@ def test_summarize_near_within_window(tmp_path: Path) -> None:
             {"filename": "baz.py", "line-rate": "0.990"},
         ],
     )
-    out = cs.summarize_near(project_root=tmp_path, coverage_xml="coverage.xml", policy=None, min_module=0.96, within=0.03, top=50)
+    out = cs.summarize_near(
+        project_root=tmp_path,
+        coverage_xml="coverage.xml",
+        policy=None,
+        min_module=0.96,
+        within=0.03,
+        top=50,
+    )
     assert out.get("ok") is True
     near = out.get("near") or []
     files = {str(it.get("file")) for it in near}

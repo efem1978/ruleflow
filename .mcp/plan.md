@@ -35,6 +35,13 @@ P1 质量与发布（已完成）
 
 跟进清单（严格 TDD 批次，最大单批次 ≤ 6 项）
 
+整改任务（新增） / Remediation
+- [x] 入口补充：新增 `AI_HANDOFF_GUIDE.md`（AI 协作交接）与 `AI_STATUS.md`（状态索引），并已在 README/DEVELOPMENT 索引挂接。
+- [x] 文档一致性：`docs/CI_HEALTH_CHECK.md` 与 README 的 VS Code 覆盖率门禁阈值统一为 98%。
+- [ ] 计划与事实一致性：`dev_agent.py` 当前覆盖率≈95.1%（阈值 95% 已达标）。若仍以“≥96.5%”为 polish 目标，则补齐剩余分支用例；否则在 README/计划中标注为“≥95% 已满足”。
+  - 方案（抬升至 ≥96.5%）：优先补测异常旁路与事件上报分支（`autocommit/autopush/autotag` 失败路径、`status_update` 极值、`bypass` 组合），避免过拟合。
+- [ ] VS Code 本机无头测试兼容：在 `docs/VS_CODE_TEST.md` 增补“macOS 报错时默认使用容器运行”的提示，并在 `Makefile` 的 `vscode-test` 目标下检测宿主系统，必要时提示转用 `docker compose run --rm vscode-test`。
+
 Batch 1（VS Code 事件采集与文档入口）
 - [x] VS Code：在 NL/Quick Actions/Panel“加载覆盖率”/Plan Set/CI/Hooks/受控写入等动作后，统一调用 memory.append_turn（含摘要）
 - [x] VS Code：USER_GUIDE/IDE_SUPPORT 入口挂接到面板（帮助/文档一键打开）

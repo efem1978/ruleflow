@@ -9,7 +9,11 @@ def test_mcp_initialize_and_lists() -> None:
     srv = JsonRpcServer()
     r0 = srv.handle(_req("initialize"))
     caps = r0.get("result", {}).get("capabilities", {})
-    assert caps.get("tools") is True and caps.get("resources") is True and caps.get("prompts") is True
+    assert (
+        caps.get("tools") is True
+        and caps.get("resources") is True
+        and caps.get("prompts") is True
+    )
 
     r1 = srv.handle(_req("tools/list"))
     tools = r1.get("result", {}).get("tools", [])
@@ -22,4 +26,3 @@ def test_mcp_initialize_and_lists() -> None:
     # prompts default disabled -> empty list
     r3 = srv.handle(_req("prompts/list"))
     assert r3.get("result", {}).get("prompts") == []
-

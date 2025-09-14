@@ -19,6 +19,7 @@
 - 配置与性能：`docs/CONFIG.md` / `docs/PERFORMANCE.md` — 门槛与策略来源
 - TDD 计划：`docs/DEV_PLAN_TDD.md` — 分层推进与清单（与本文件同步）
 - 任务清单（权威）：`.mcp/plan.md` — Sprint/下一步/勾选项（新窗口优先读取）
+- AI 交接与状态：`AI_HANDOFF_GUIDE.md` / `AI_STATUS.md` — 交接清单与 `.mcp/dashboard/` 状态索引
 - CI 与 Hooks：`docs/HOOKS.md` / `docs/CI_HEALTH_CHECK.md` — 生成/自修复/健康检查
 - 规则与短语：`docs/RULESETS.md` / `docs/RULES_INGEST.md` / `docs/RULES_PHRASES_INDEX.md`
 - 安全工具：`docs/SECURITY_TOOLS.md` — hadolint/semgrep/detect-secrets 等

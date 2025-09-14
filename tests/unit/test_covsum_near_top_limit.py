@@ -35,7 +35,8 @@ def test_near_top_crops_list(tmp_path: Path) -> None:
             {"filename": "c.py", "line-rate": "0.972"},
         ],
     )
-    out = cs.summarize_near(project_root=tmp_path, coverage_xml="coverage.xml", min_module=0.96, top=2)
+    out = cs.summarize_near(
+        project_root=tmp_path, coverage_xml="coverage.xml", min_module=0.96, top=2
+    )
     lst = out.get("near") or []
     assert len(lst) == 2
-

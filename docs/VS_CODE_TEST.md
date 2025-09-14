@@ -29,7 +29,7 @@ VS Code 面板手测指南 / VS Code Manual Test
     - 可选硬门禁（默认关闭）：将环境变量 `VSCODE_COVERAGE_GATE=1` 打开后，使用同阈值作为门禁：
       `sh scripts/check-lcov.sh extensions/vscode/coverage/lcov.info 80 gate`
     - 建议：先在数个迭代内稳定≥80%，再逐步提升阈值到 90%/95%
-    - 本仓库说明：CI 已启用硬门禁且阈值为 95%（`VSCODE_COVERAGE_GATE=1` 与 `VSCODE_COVERAGE_THRESHOLD_WARN=95`）。
+  - 本仓库说明：CI 已启用硬门禁且阈值为 98%（`VSCODE_COVERAGE_GATE=1` 与 `VSCODE_COVERAGE_THRESHOLD_WARN=98`）。
 6) 插入示例安全规则
    - 点击“插入示例规则”，确认根目录生成 `.semgrep.yml` 与 `.hadolint.yaml`
 7) 记忆与计划
@@ -58,20 +58,24 @@ docker compose run --rm vscode-test
  - 运行时命令会将该目录符号链接到工作区 `extensions/vscode/.vscode-test`，避免每次重新下载。
 
 快速命令（容器优先）
-- 无头测试并生成 lcov：`docker compose run --rm vscode-test`
+ - 无头测试并生成 lcov（默认假后端以提升稳定性）：`docker compose run --rm vscode-test`
+   - 注：在 macOS 本机若出现 Electron 启动参数报错，优先使用容器路径运行上述命令。
+  - 本地快速：`npm --prefix extensions/vscode run test:fake`（主机需可下载 VS Code 测试内核）
 - 导出阈值与 near/worst 清单：
-  - `sh scripts/check-lcov.sh extensions/vscode/coverage/lcov.info 95 || true`
-  - `sh scripts/lcov-near.sh extensions/vscode/coverage/lcov.info 95 5 20 > near_vscode.txt || true`
+  - `sh scripts/check-lcov.sh extensions/vscode/coverage/lcov.info 98 || true`
+  - `sh scripts/lcov-near.sh extensions/vscode/coverage/lcov.info 98 5 20 > near_vscode.txt || true`
 
 覆盖率检查脚本（进阶）
 - `scripts/check-lcov.sh <lcov.info> <threshold_pct> [gate]`
   - 不带第三参：低于阈值仅告警（非阻断）
   - 第三参为 `gate`：低于阈值时退出 1（阻断）
   - 提交建议：`near_vscode.txt` 与 `lcov.info` 仅用于 CI/本地诊断，请勿提交到仓库（根 `.gitignore` 已忽略 near.*，并建议忽略 `near_vscode.txt`）。
+  - 说明：为降低 UI 入口大文件对覆盖率波动的影响，CI 已通过 c8 exclude 排除 `out/extension.js`（对应 `src/extension.ts` 的部分 UI 分支）。集成路径在“真实后端”作业中以行为验证为主；如需更严格度量，可移除 exclude 并补测相关分支。
+  - CI 真实后端作业：工作流中有 `vscode-real`（阻断），安装后端并以 `xvfb-run -a npm test` 跑一遍真实联动，上传 `vscode-test-real.log` 便于审阅。
 
 示例输出（near/worst 摘录）
 ```
-[lcov-near] threshold: 95% window: 5% top: 20
+[lcov-near] threshold: 98% window: 5% top: 20
 
 [lcov-near] Near-below (within window, below threshold):
  (none)

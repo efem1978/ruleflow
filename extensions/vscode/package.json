@@ -48,12 +48,54 @@
         "command": "mcpRulesAssistant.nlCommand",
         "key": "cmd+shift+l",
         "when": "editorTextFocus && isMac"
+      },
+      {
+        "command": "mcpRulesAssistant.loadCoverage",
+        "key": "ctrl+shift+alt+l",
+        "when": "editorTextFocus && !isMac"
+      },
+      {
+        "command": "mcpRulesAssistant.loadCoverage",
+        "key": "cmd+shift+alt+l",
+        "when": "editorTextFocus && isMac"
       }
     ],
     "commands": [
       {
         "command": "mcpRulesAssistant.openPanel",
         "title": "RuleFlow: Open Panel"
+      },
+      {
+        "command": "mcpRulesAssistant.quickActions",
+        "title": "RuleFlow: Quick Actions"
+      },
+      {
+        "command": "mcpRulesAssistant.loadCoverage",
+        "title": "RuleFlow: Load Coverage"
+      },
+      {
+        "command": "mcpRulesAssistant.statusUpdate",
+        "title": "RuleFlow: Status Update"
+      },
+      {
+        "command": "mcpRulesAssistant.ingestQuick",
+        "title": "RuleFlow: Ingest Rules (Quick)"
+      },
+      {
+        "command": "mcpRulesAssistant.openStatus",
+        "title": "RuleFlow: Open Status"
+      },
+      {
+        "command": "mcpRulesAssistant.planSet",
+        "title": "RuleFlow: Plan Set (status/current/next)"
+      },
+      {
+        "command": "mcpRulesAssistant.memoryAppendSelection",
+        "title": "RuleFlow: Memory — Append Selection"
+      },
+      {
+        "command": "mcpRulesAssistant.fsApplyPatch",
+        "title": "RuleFlow: Guarded Write (fs.apply_patch)"
       },
       {
         "command": "mcpRulesAssistant.openPlan",
@@ -85,7 +127,9 @@
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "test": "node scripts/prep-workspace.js && npm run compile && c8 --reporter=lcov --reporter=text node ./out/test/runTest.js",
+    "test": "node scripts/prep-workspace.js && npm run compile && c8 --exclude='out/test/**' --exclude='out/extension.js' --exclude='out/**/panel*.js' --reporter=lcov --reporter=text node ./out/test/runTest.js",
+    "test:fake": "RULEFLOW_TEST_FAKE=1 npm test",
+    "test:real": "RULEFLOW_TEST_FAKE=0 npm test",
     "package": "vsce package --no-dependencies",
     "img:png": "node scripts/svg2png.js",
     "img:shots": "node scripts/svgshots.js"
@@ -122,6 +166,6 @@
     "mocha": "^10.2.0",
     "sharp": "^0.33.5",
     "typescript": "^5.4.0",
-    "vsce": "^2.15.0"
+    "@vscode/vsce": "^3.0.0"
   }
 }

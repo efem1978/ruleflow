@@ -46,6 +46,7 @@ services:
       - FORCE_COLOR=0
       - ELECTRON_DISABLE_SECURITY_WARNINGS=1
       - NO_AT_BRIDGE=1
+      - RULEFLOW_TEST_FAKE=1
       # 加入工作区路径，确保测试可获取 workspaceFolders[0]
       - MCP_VSCODE_TEST_ARGS=--disable-extensions,--disable-gpu,--no-sandbox,--disable-dev-shm-usage,/work/extensions/vscode/.test-fixture
       - MCP_VSCODE_TEST_TIMEOUT_MS=120000
