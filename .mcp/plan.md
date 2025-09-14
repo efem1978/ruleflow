@@ -1,10 +1,10 @@
 # 项目审计与整改计划（唯一权威）
 
 - 状态: in_progress
-- 当前步骤: 容器与 Chat 集成可选项
+- 当前步骤: 收尾与发布校验（DoD 验证）
 - Status: in_progress
-- Current step: 容器与 Chat 集成可选项
-- 下一步: 容器与 Chat 集成可选项
+- Current step: DoD verification (release checks)
+- 下一步: 收尾与发布校验（DoD 验证）
 - 说明: 本文件为唯一权威任务清单来源。面板/CLI/钩子与 CI 均以此为准。
 
 本轮审计基于真实代码与测试产物（coverage.xml 与 CLI 解析），不依赖任何文档描述。
