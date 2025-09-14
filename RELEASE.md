@@ -57,6 +57,32 @@
 - 已生成完整版发布正文草案：`.mcp/dashboard/release_body.md`
 - 建议作为 GitHub Release 正文基础（可在创建 Release 时直接粘贴），若需精简可改用 `.mcp/dashboard/release_note_snippet.md`
 
+## GitHub Release Draft（内置副本，直接复制）
+
+> 下方为“GitHub Release 草案”的内置副本，便于无需读取 `.mcp/` 目录也能直接复制到 GitHub Release 正文。
+
+### Highlights
+- VS Code：动作统一追加记忆、受控写入多文件 dry‑run + 预览
+- JetBrains：按钮/NL/Plan Set/受控写入统一追加记忆
+- Onboard：`rules.onboard` 返回 profile+summary 并写回覆盖率/许可/CI 建议
+- NL 别名：受控写入/计划设置/规则摘要等中英文别名
+- 可选：Dev Agent 自动记忆、VS Code Chat 摘要（默认关闭）
+
+### Quality Gates (DoD)
+- Python：`-W error`、无 skip/xfail；Coverage policy gate 通过（weak=[]；核心≥98%，其余≥95%）
+- VS Code：容器无头测试 + lcov（best‑effort），CI 可设 95% 硬门禁
+- 预发布报告：`.mcp/dashboard/pre_release_report.md`
+
+### Artifacts
+- VSIX：`extensions/vscode/mcp-rules-assistant-0.2.5.vsix`
+- Python 包：`dist/mcp_rules_assistant-0.2.5-py3-none-any.whl` | `dist/mcp_rules_assistant-0.2.5.tar.gz`
+- 归档：`dist/release-bundle-0.2.5.tar.gz`
+- 片段：`.mcp/dashboard/release_note_snippet.md`  | 正文：`.mcp/dashboard/release_body.md`
+
+### Notes
+- 可选功能默认关闭；启用前请阅读 `docs/USER_GUIDE.md` 的“可选功能与隐私/性能说明”
+- 无遥测，不开放端口；仅在工作区 `.mcp/` 写入最小必要工件
+
 ## 风险与已知事项
 - VS Code 无头测试在某些宿主/容器组合下可能有环境依赖（DBus 等）提示，不影响门禁（best‑effort）；建议在 CI 使用容器镜像运行。
 - Chat/Dev Agent 功能默认关闭；启用前请确认隐私与性能影响说明（USER_GUIDE 可选功能段落）。

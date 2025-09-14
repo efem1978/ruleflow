@@ -47,3 +47,55 @@
 - 失败回滚：删除标签/撤销 Release；PyPI/VSCE 按各平台回滚或撤销流程执行。
 
 > 提示：本地/CI 发布操作建议使用只读或最小权限令牌；所有操作均应由人工确认后再执行。
+
+---
+
+## CI 发布任务示例（草案，需按组织策略调整）
+
+```yaml
+name: Release (Manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Tag/Version (e.g. v0.2.5)'
+        required: true
+
+jobs:
+  build-and-draft:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: Pre-release check (local scripts)
+        run: |
+          python -m pip install --upgrade build twine
+          make local-ci-run
+          sh scripts/release-local-pack.sh
+      - name: Upload artifacts (bundle)
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-bundle
+          path: |
+            dist/release-bundle-*.tar.gz
+            extensions/vscode/*.vsix
+            dist/mcp_rules_assistant-*.whl
+            dist/mcp_rules_assistant-*.tar.gz
+      # 下方两个发布步骤为可选，需在仓库 secrets 配置凭据后再启用
+      - name: Publish to PyPI (optional)
+        if: ${{ false }}
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+        run: |
+          python -m twine upload dist/*
+      - name: Publish to VSCE (optional)
+        if: ${{ false }}
+        run: |
+          npm i -g @vscode/vsce
+          (cd extensions/vscode && vsce publish)
+```
