@@ -37,7 +37,15 @@ Maintenance and docs/CI consistency updates (no API changes):
 All tests and preflight checks pass; coverage policy gate reports weak=0.
 
 ## Unreleased
-No changes yet.
+
+Docs/CI/DevX cleanup (no API changes):
+- Docs: move AI handoff/status to `docs/AI_*.md`; update README/DEVELOPMENT and plan references.
+- Docs: add cleanup instructions to `DEVELOPMENT.md` and `docs/CONTRIBUTING.md`.
+- CI: VS Code job exports near/worst list artifact; Makefile adds `vscode-near` helper.
+- Makefile: add `clean-all`; macOS auto‑routes `vscode-test` via container for stability.
+- pre-commit: migrate custom hooks from `push` to `pre-push` stage (future‑proof).
+- Ignore: add `extensions/compat_report.json`, `extensions/artifacts/`, `scripts/shims/`.
+- Remove: invalid nested workflow `extensions/vscode/.github/workflows/ci.yml`; local shim `scripts/shims/python`.
 
 ## 0.2.4 — 2025-09-06
 
