@@ -65,6 +65,19 @@ MCP 规则与上下文助手 / MCP Rules & Context Assistant
   - 归档：`dist/release-bundle-0.2.5.tar.gz`
   - 预发布报告：`.mcp/dashboard/pre_release_report.md`
 
+本地 Release Bundle 校验（可选）
+- 校验归档与内容：
+  - `ls -lh dist/release-bundle-*.tar.gz`
+  - `tar tzf dist/release-bundle-*.tar.gz | sed -n '1,50p'`
+- 试装 VSIX（可卸载）：
+  - `code --install-extension extensions/vscode/mcp-rules-assistant-0.2.5.vsix`
+  - 验证：VS Code 命令面板 `RuleFlow: Open Panel`
+  - 卸载：`code --uninstall-extension ruleflow.mcp-rules-assistant`
+- 试装 Python 包（可卸载）：
+  - `pip install dist/mcp_rules_assistant-0.2.5-py3-none-any.whl`
+  - 验证：`python -m mcp_rules_assistant.cli status-update --json | jq .plan`
+  - 卸载：`pip uninstall -y mcp_rules_assistant`
+
 ![CI](https://img.shields.io/github/actions/workflow/status/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool/ci.yml?branch=main&label=CI)
 ![Release](https://img.shields.io/github/v/tag/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool?label=release)
 ![Coverage](https://codecov.io/gh/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool/branch/main/graph/badge.svg)

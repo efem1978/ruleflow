@@ -53,6 +53,10 @@
   - `.mcp/dashboard/release_changes.md`（变更日志）
   - `.mcp/dashboard/pre_release_report.md`（预发布检查报告）
 
+## 发布正文（自动生成草案）
+- 已生成完整版发布正文草案：`.mcp/dashboard/release_body.md`
+- 建议作为 GitHub Release 正文基础（可在创建 Release 时直接粘贴），若需精简可改用 `.mcp/dashboard/release_note_snippet.md`
+
 ## 风险与已知事项
 - VS Code 无头测试在某些宿主/容器组合下可能有环境依赖（DBus 等）提示，不影响门禁（best‑effort）；建议在 CI 使用容器镜像运行。
 - Chat/Dev Agent 功能默认关闭；启用前请确认隐私与性能影响说明（USER_GUIDE 可选功能段落）。
@@ -60,4 +64,3 @@
 ## 致谢与回溯
 - 任务清单来源与权威：`.mcp/plan.md`（状态：in_progress，步骤：DoD verification）。
 - 详细执行记录与门禁脚本：`Makefile`、`scripts/`、`.mcp/*`。
-
