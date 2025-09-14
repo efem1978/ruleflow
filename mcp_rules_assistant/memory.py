@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from .config import load_config
 from .fs_wrapper import atomic_write_json as _atomic_write_json
 
 DEFAULT_MEMORY_FILE = Path(".mcp/memory.json")
@@ -33,6 +35,23 @@ class MemoryManager:
             if isinstance(file_override, Path)
             else self.project_root / DEFAULT_MEMORY_FILE
         )
+        # optional masking patterns from config
+        self._mask_re: list[re.Pattern[str]] = []
+        try:
+            cfg = load_config(self.project_root)
+            mem = (
+                cfg.get("memory", {}) if isinstance(cfg.get("memory", {}), dict) else {}
+            )
+            pats = mem.get("mask_patterns")
+            if isinstance(pats, list):
+                for pat in pats:
+                    if isinstance(pat, str) and pat.strip():
+                        try:
+                            self._mask_re.append(re.compile(pat))
+                        except Exception:
+                            pass
+        except Exception:
+            self._mask_re = []
         self._ensure_file()
 
     def _ensure_file(self) -> None:
@@ -48,8 +67,15 @@ class MemoryManager:
     def append_turn(
         self, role: str, content: str, meta: Optional[Dict[str, Any]] = None
     ) -> None:
+        masked = content
+        if self._mask_re:
+            try:
+                for r in self._mask_re:
+                    masked = r.sub("***", masked)
+            except Exception:
+                masked = content
         data = self._read()
-        data["turns"].append(asdict(Turn(role=role, content=content, meta=meta or {})))
+        data["turns"].append(asdict(Turn(role=role, content=masked, meta=meta or {})))
         # window 表示保留的“消息条数”（turns），直接裁剪到最近 window 条
         data["turns"] = data["turns"][-self.window :]
         data["summary"] = self._summarize(data["turns"], data.get("summary", ""))

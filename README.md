@@ -47,6 +47,21 @@ MCP 规则与上下文助手 / MCP Rules & Context Assistant
   - 无实拍环境的替代方案：运行 `scripts/jb-ui-smoke.sh` 生成 `extensions/jetbrains/screenshots/jb_ui_snapshot.md`（从 `.mcp/dashboard/status.json` 抽取计划/覆盖率摘要，作为“替代截图”材料），并结合 `scripts/jb-storyboard.sh` 产出的 `jb_*.json/md` 用于审阅。CI 会上传 `jetbrains-ui-smoke-log` 工件（含 `jb_ui_snapshot.md`）。
   - 快速校验：`make docker-vscode-test`（VS Code 无头测试，已内置夹具与降噪），`bash scripts/jb-ui-verify.sh`（JetBrains 验证汇总）
 
+## 安装与隔离（VS Code 推荐）
+- 工作区隔离安装（避免跨项目互相影响）：
+  - `bash scripts/vscode_isolated_install.sh`
+  - 启动：`code . --extensions-dir '.mcp/vscode-extensions' --user-data-dir '.mcp/vscode-user'`
+- 若需卸载/清理：
+  - 全局残留清理：`bash scripts/purge_ruleflow_extensions.sh`
+  - 工作区隔离清理：`bash scripts/purge_ruleflow_workspace_isolated.sh`
+
+### 安全与隔离（开箱即用）
+- 无命令=无动作：扩展加载后不做任何后台工作；只有你点击命令才会启动后端。
+- 记忆写入默认关闭：服务器层拒绝 memory.append_turn/project.link，除非显式开启：
+  - `.mcp/assistant.yaml` 加 `memory.allow_write: true`，或
+  - 环境变量 `RULEFLOW_ALLOW_MEMORY_APPEND=1`
+- 严格按工作区隔离：所有读写均在当前项目根下的 `./.mcp/*`；不同项目（即便在同一 IDE）不会混用。
+
 本地安装验证（不发布）
 - 可编辑安装：`pip install -e .`，验证：`mcp-rules-assistant version`
 - 打包安装：
@@ -202,7 +217,12 @@ coverage:
   - 运行测试生成 `coverage.xml`
   - VS Code：`npm --prefix extensions/vscode run compile` → F5 启动“扩展开发主机” → `RuleFlow: Open Panel`
   - 面板：执行“摄取规则/加载覆盖率/生成或校验 CI（预览成功即通过）”
- - 安装钩子（回退）：`make hooks-sh`（无 Python 环境）
+- 安装钩子（回退）：`make hooks-sh`（无 Python 环境）
+
+一键部署（推荐）
+- macOS/Linux: `make install-all` 或 `bash scripts/install-all.sh`
+- Windows (PowerShell): `scripts/install-all.ps1`
+- 卸载（本地清理）: `make uninstall-all` 或 `scripts/uninstall-all.{sh,ps1}`
 
 文档 Docs（入口：`DEVELOPMENT.md`）
 （快速入口：`DEVELOPMENT.md` | `docs/USER_GUIDE.md` | `docs/NATURAL_LANGUAGE.md` | `docs/IDE_SCAFFOLD.md` | `docs/IDE_SUPPORT.md` | `docs/USAGE.md`）

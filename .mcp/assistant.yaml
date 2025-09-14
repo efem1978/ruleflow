@@ -13,8 +13,8 @@ performance:
     test_all: true
     coverage:
       enforce: true
-      min_module: 0.96
-      min_core: 0.98
+      min_module: 0.99
+      min_core: 1.0
     security_scan: true
     mutation_test: false
 language: python

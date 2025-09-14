@@ -72,6 +72,10 @@ def setup_default_tools() -> None:
             "Activate license by copying JSON to ~/.mcp/license.json",
         )
     )
+    registry.register(Tool("license.verify", "Verify local license and return status"))
+    registry.register(
+        Tool("rules.resolve", "Resolve compiled rules into config (apply)")
+    )
     registry.register(Tool("ide.scaffold", "Generate per-IDE integration scaffold"))
     registry.register(
         Tool(

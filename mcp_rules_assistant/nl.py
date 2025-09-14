@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Dict, Optional
 
+import yaml
+
+# Built-in synonyms (merged with optional .mcp/nl_synonyms.yaml at runtime)
 SYNONYMS: Dict[str, str] = {
     # 记忆
     "开启滚动记忆": "memory.toggle_auto",
@@ -100,6 +104,30 @@ SYNONYMS: Dict[str, str] = {
 
 def parse(text: str) -> Optional[str]:
     t = text.strip().lower()
+    # Merge external synonyms once per process (best-effort)
+    try:
+        global _EXT_LOADED  # type: ignore
+        if not globals().get("_EXT_LOADED", False):
+            root = Path.cwd()
+            for name in (".mcp/nl_synonyms.yaml", ".mcp/nl_synonyms.yml"):
+                p = root / name
+                if p.exists():
+                    try:
+                        data = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
+                    except Exception:
+                        data = {}
+                    if isinstance(data, dict):
+                        for k, v in data.items():
+                            if (
+                                isinstance(k, str)
+                                and isinstance(v, str)
+                                and k.strip()
+                                and v.strip()
+                            ):
+                                SYNONYMS[k.strip()] = v.strip()
+            globals()["_EXT_LOADED"] = True
+    except Exception:
+        pass
     for k, v in SYNONYMS.items():
         if k.lower() in t:
             return v

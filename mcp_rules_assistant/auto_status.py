@@ -195,6 +195,16 @@ def generate_status(project_root: Optional[Path] = None) -> Dict[str, Any]:
         "progress": {"overall": overall_progress},
         "tasks": {"pending": pending_tasks, "done": done_tasks},
     }
+    # 保留已有 info（若存在），用于显示重要操作摘要
+    try:
+        existing = root / ".mcp/dashboard/status.json"
+        if existing.exists():
+            old = json.loads(existing.read_text(encoding="utf-8"))
+            info = old.get("info") if isinstance(old, dict) else None
+            if isinstance(info, list):
+                payload["info"] = info[-50:]
+    except Exception:
+        pass
     if cmd_metrics is not None:
         payload["cmd_metrics"] = cmd_metrics
     # persist

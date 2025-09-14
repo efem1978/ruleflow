@@ -15,8 +15,24 @@
     "Other"
   ],
   "activationEvents": [
-    "*",
-    "onStartupFinished"
+    "onStartupFinished",
+    "onCommand:mcpRulesAssistant.openPanel",
+    "onCommand:mcpRulesAssistant.quickActions",
+    "onCommand:mcpRulesAssistant.loadCoverage",
+    "onCommand:mcpRulesAssistant.statusUpdate",
+    "onCommand:mcpRulesAssistant.ingestQuick",
+    "onCommand:mcpRulesAssistant.openStatus",
+    "onCommand:mcpRulesAssistant.planSet",
+    "onCommand:mcpRulesAssistant.memoryAppendSelection",
+    "onCommand:mcpRulesAssistant.fsApplyPatch",
+    "onCommand:mcpRulesAssistant.openPlan",
+    "onCommand:mcpRulesAssistant.openMemory",
+    "onCommand:mcpRulesAssistant.commit",
+    "onCommand:mcpRulesAssistant.push",
+    "onCommand:mcpRulesAssistant.nlCommand",
+    "onCommand:mcpRulesAssistant.licenseStatus",
+    "onCommand:mcpRulesAssistant.licenseActivate",
+    "onCommand:mcpRulesAssistant.licenseVerify"
   ],
   "main": "out/extension.js",
   "capabilities": {
@@ -120,6 +136,14 @@
       {
         "command": "mcpRulesAssistant.licenseStatus",
         "title": "RuleFlow: License Status"
+      },
+      {
+        "command": "mcpRulesAssistant.licenseActivate",
+        "title": "RuleFlow: License Activate"
+      },
+      {
+        "command": "mcpRulesAssistant.licenseVerify",
+        "title": "RuleFlow: License Verify"
       }
     ]
   },

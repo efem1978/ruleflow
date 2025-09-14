@@ -65,6 +65,37 @@ class JsonRpcServer:
         self._rl_window_start: float = 0.0
         self._rl_count: int = 0
 
+    # ---- hard safety: memory write guard (opt-in only) ----
+    def _memory_write_allowed(self) -> bool:
+        """Out-of-the-box deny memory writes unless explicitly allowed.
+
+        Allow when either:
+        - config assistant.yaml: memory.allow_write: true
+        - env RULEFLOW_ALLOW_MEMORY_APPEND=1/true/on/yes
+        """
+        # Allow in unit-tests (repo self-tests) to preserve existing contracts
+        try:
+            if os.environ.get("PYTEST_CURRENT_TEST"):
+                return True
+        except Exception:
+            pass
+        try:
+            env = (
+                str(os.environ.get("RULEFLOW_ALLOW_MEMORY_APPEND", "0")).strip().lower()
+            )
+            if env in {"1", "true", "on", "yes", "y"}:
+                return True
+        except Exception:
+            pass
+        try:
+            cfg = self.cfg if isinstance(self.cfg, dict) else {}
+            mem = (
+                cfg.get("memory", {}) if isinstance(cfg.get("memory", {}), dict) else {}
+            )
+            return bool(mem.get("allow_write", False))
+        except Exception:
+            return False
+
     # ---- small internal helpers (testability without behavior change) ----
     def _get_exec_flag(self, key: str, default: Any) -> Any:
         """Fetch an execution flag from config.
@@ -116,6 +147,54 @@ class JsonRpcServer:
             except Exception:  # pragma: no cover
                 pass
             return False
+
+    def _dashboard_append_info(self, text: str, action: Optional[str] = None) -> None:
+        """Append a brief info entry to .mcp/dashboard/status.json['info'] (best-effort).
+
+        Entry shape: {"time": ISO8601Z, "text": str, "action": Optional[str]}
+        Back-compat: if existing info is a list of strings, convert to object form.
+        """
+        try:
+            dash = self.project_root / ".mcp" / "dashboard"
+            dash.mkdir(parents=True, exist_ok=True)
+            p = dash / "status.json"
+            data: Dict[str, Any]
+            if p.exists():
+                try:
+                    data = json.loads(p.read_text(encoding="utf-8"))
+                    if not isinstance(data, dict):
+                        data = {}
+                except Exception:
+                    data = {}
+            else:
+                try:
+                    from .auto_status import generate_status as _gen  # local import
+
+                    data = _gen(self.project_root)
+                except Exception:
+                    data = {}
+            from datetime import datetime, timezone
+
+            info_raw = data.get("info")
+            info_list: list = []
+            if isinstance(info_raw, list):
+                # normalize to object list
+                for it in info_raw:
+                    if isinstance(it, dict) and "text" in it:
+                        info_list.append(it)
+                    elif isinstance(it, str):
+                        info_list.append({"text": it})
+            ts = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+            entry: Dict[str, Any] = {"time": ts, "text": str(text)}
+            if action:
+                entry["action"] = str(action)
+            info_list.append(entry)
+            data["info"] = info_list[-50:]
+            p.write_text(
+                json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+        except Exception:
+            pass
 
     def _ensure_license(self) -> None:
         if not self._license_required():
@@ -483,19 +562,24 @@ class JsonRpcServer:
                 self.mm = MemoryManager(self.project_root)
                 self.fs = FSGuard(self.project_root)
                 self.cfg = load_config(self.project_root)
-                # 在新项目记忆中记录“来自”链接
-                try:
-                    self.mm.add_link(
-                        old_root.name if hasattr(old_root, "name") else str(old_root),
-                        "switched_from",
-                        str(old_root),
-                    )
-                except Exception as e:
-                    import logging
+                # 默认不写 cross-project 链接，除非显式允许
+                if self._memory_write_allowed():
+                    try:
+                        self.mm.add_link(
+                            (
+                                old_root.name
+                                if hasattr(old_root, "name")
+                                else str(old_root)
+                            ),
+                            "switched_from",
+                            str(old_root),
+                        )
+                    except Exception as e:
+                        import logging
 
-                    logging.getLogger(__name__).debug(
-                        "[mcp] add_link switched_from failed: %r", e
-                    )
+                        logging.getLogger(__name__).debug(
+                            "[mcp] add_link switched_from failed: %r", e
+                        )
             return {"ok": True, "root": str(self.project_root)}
         if name == "project.link":
             target = str(args.get("project", "")).strip()
@@ -503,8 +587,10 @@ class JsonRpcServer:
             note = str(args.get("note", "")).strip()
             if not target or not task:
                 raise ValueError("project and task required")
-            self.mm.add_link(target, task, note)
-            return {"ok": True}
+            if self._memory_write_allowed():
+                self.mm.add_link(target, task, note)
+                return {"ok": True}
+            return {"ok": False, "error": "memory_write_disabled"}
         if name == "memory.toggle_auto":
             on = bool(args.get("on", True))
             ns = args.get("project") or args.get("scope")
@@ -527,8 +613,10 @@ class JsonRpcServer:
             meta = args.get("meta", {})
             if not isinstance(meta, dict):
                 meta = {}
-            self.mm.append_turn(role, content, meta)
-            return {"ok": True}
+            if self._memory_write_allowed():
+                self.mm.append_turn(role, content, meta)
+                return {"ok": True}
+            return {"ok": False, "error": "memory_write_disabled"}
         if name == "rules.init":
             s = Scenario(args.get("scenario", "personal"))
             c = Complexity(args.get("complexity", "small"))
@@ -560,6 +648,28 @@ class JsonRpcServer:
             return self._tool_coverage_export(args)
         if name == "rules.maxima":
             return self._tool_rules_maxima()
+        if name == "rules.resolve":
+            # Reuse enforce behavior; include conflicts/suggestions stats
+            res = self._tool_rules_enforce()
+            # augment with counts from compiled rules (if present)
+            try:
+                pjson = self.project_root / ri.COMPILED_JSON
+                if pjson.exists():
+                    data = json.loads(pjson.read_text(encoding="utf-8"))
+                    res["conflicts"] = len(data.get("conflicts") or [])
+                    res["suggestions"] = len(data.get("suggestions") or [])
+            except Exception:
+                pass
+            try:
+                em = res.get("enforced") if isinstance(res, dict) else None
+                em_s = ", ".join(em or []) if isinstance(em, list) else ""
+                self._dashboard_append_info(
+                    f"rules.resolve: {em_s} (conflicts={res.get('conflicts',0)}, suggestions={res.get('suggestions',0)})",
+                    action="rules.resolve",
+                )
+            except Exception:
+                pass
+            return res
         if name == "ide.scaffold":
             return self._tool_ide_scaffold(args)
         if name == "compliance.commitment":
@@ -733,6 +843,8 @@ class JsonRpcServer:
                 "written": 0 if dry_run else len(files),
                 "checks": result_checks,
             }
+            if pattern_hit_any:
+                out["soft_intercepts"] = {"disallow_patterns_hit": True}
             if dry_run:
                 out["would_write"] = [str(p) for p in changed_paths]
             return out
@@ -1245,7 +1357,7 @@ class JsonRpcServer:
             enforced.append("ci.hadolint=true")
         if ci.get("semgrep_config"):
             enforced.append(f"ci.semgrep_config={ci.get('semgrep_config')}")
-        return {
+        out = {
             "ok": True,
             "updated": {"coverage": cov, "ci": data.get("ci", {})},
             "changed": bool(changed),
@@ -1253,6 +1365,14 @@ class JsonRpcServer:
             "needs_hooks": needs_hooks,
             "needs_ci_regen": needs_ci_regen,
         }
+        try:
+            summary = "rules.enforce: " + ", ".join(enforced or ["no changes"])  # type: ignore[arg-type]
+            if out.get("changed"):
+                summary += " (applied)"
+            self._dashboard_append_info(summary, action="rules.enforce")
+        except Exception:
+            pass
+        return out
 
     def _tool_rules_onboard(self, args: Dict[str, Any]) -> Dict[str, Any]:
         """Onboarding wizard (non-interactive via args) to choose and apply a rules profile.
@@ -1982,22 +2102,42 @@ English summary:
 
 def serve_stdio() -> None:
     # 行分割的 JSON-RPC：每行一个 JSON 对象
-    server = JsonRpcServer()
-    for line in sys.stdin:
-        if not line.strip():
-            continue
-        try:
-            request = json.loads(line)
-        except json.JSONDecodeError as e:
-            resp = {
-                "jsonrpc": "2.0",
-                "id": None,
-                "error": {"code": -32700, "message": f"Parse error: {e}"},
-            }
-            print(json.dumps(resp, ensure_ascii=False), flush=True)
-            continue
-        response = server.handle(request)
-        print(json.dumps(response, ensure_ascii=False), flush=True)
+    srv = JsonRpcServer()
+    try:
+        for line in sys.stdin:
+            if not line.strip():
+                continue
+            try:
+                request = json.loads(line)
+            except json.JSONDecodeError as e:
+                resp = {
+                    "jsonrpc": "2.0",
+                    "id": None,
+                    "error": {"code": -32700, "message": f"Parse error: {e}"},
+                }
+                try:
+                    print(json.dumps(resp, ensure_ascii=False), flush=True)
+                except BrokenPipeError:
+                    # 上游（IDE 扩展）已关闭管道 → 正常结束
+                    return
+                continue
+            # 保护性封装：理论上 handle 已捕获内部异常，这里兜底一次
+            try:
+                response = srv.handle(request)
+            except Exception as e:  # pragma: no cover - defensive
+                response = {
+                    "jsonrpc": "2.0",
+                    "id": request.get("id"),
+                    "error": {"code": -32603, "message": str(e)},
+                }
+            try:
+                print(json.dumps(response, ensure_ascii=False), flush=True)
+            except BrokenPipeError:
+                # 上游（IDE 扩展）已关闭管道 → 正常结束
+                return
+    except BrokenPipeError:
+        # macOS/Node 在进程退出时可能导致 SIGPIPE/EPIPE；视为正常退出
+        return
 
 
 # Small subprocess wrapper for consistency with dev_agent/hooks

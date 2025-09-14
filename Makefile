@@ -5,10 +5,11 @@ ifneq (,$(wildcard .mcp/venv/bin/python))
 endif
 NPM ?= npm
 
-.PHONY: setup test lint type format ci vscode-test ingest coverage package release-check clean-dist clean help local-ci-run hooks hooks-sh ci-autofix preflight nightly-local maintenance-all verify jb-storyboard
+.PHONY: setup test lint type format ci vscode-test ingest coverage package release-check clean-dist clean help local-ci-run hooks hooks-sh ci-autofix preflight nightly-local maintenance-all verify jb-storyboard install-all uninstall-all
 
 help:
 	@echo "Targets: setup test lint type format ci vscode-test ingest coverage"
+	@echo "Extra: install-all uninstall-all"
 
 setup:
 	$(PYTHON) -m mcp_rules_assistant.cli prepare-env --install || true
@@ -77,6 +78,12 @@ maintenance-all:
 
 verify:
 	bash scripts/verify-all.sh
+
+install-all:
+	bash scripts/install-all.sh
+
+uninstall-all:
+	bash scripts/uninstall-all.sh || true
 
 .PHONY: release-harden-verify
 release-harden-verify:

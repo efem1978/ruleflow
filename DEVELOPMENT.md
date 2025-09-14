@@ -1,6 +1,5 @@
-# 开发指南总览 / Development Guide
+# 开发指南总览
 
-重要说明（Authority Notice）：唯一权威的任务清单来源为 `.mcp/plan.md`。本文件与任何专题文档仅作导引与背景说明；如有不一致，以 `.mcp/plan.md` 为准。
 快捷：在终端运行 `mcp-rules-assistant plan-open` 可直接打开并维护该计划。
 
 本指南是本仓库的开发入口，面向人类与 AI 协作者，提供：
@@ -13,7 +12,7 @@
 - 唯一权威任务清单：`.mcp/plan.md`（任何任务推进与提交门禁均以该文件为准）。
 - 本文件与 `docs/DEV_PLAN_TDD.md` 仅做导引与背景，遇到与 `.mcp/plan.md` 不一致时，以 `.mcp/plan.md` 为准。
 
-## 快速索引 / Docs Index（按常用度）
+## 快速索引
 - 架构与模块：`docs/ARCHITECTURE.md` — 组件划分与性能模式
 - 使用与示例：`docs/USAGE.md` — 常见命令与操作流
 - 配置与性能：`docs/CONFIG.md` / `docs/PERFORMANCE.md` — 门槛与策略来源
@@ -29,12 +28,13 @@
 - 版本与发布：`docs/RELEASE.md`
  - 文档维护映射：`docs/DOCS_MAP.md` — 文档所有者与触发条件
 
+## 文档维护与同步
 文档去重规则
 - 主入口与权威约束：本文件（DEVELOPMENT.md）与 `docs/DEV_PLAN_TDD.md`
 - 深入背景或扩展内容：保留在专题文档中（Architecture/AI_Developer_Guide 等）
 - 若同一主题有冲突/重复，以本文件为准；专题文档增加“参考本入口”提示
 
-## 环境与运行 / Environment & Run
+## 环境与运行
 - 前置：Python ≥3.10、Node ≥18（CI 使用 20）
 - 本地开发：
   - 安装：`pip install -e .`
@@ -56,7 +56,7 @@
   - 停止：`docker compose rm -sf dev-agent`
   - 说明：容器不再暴露端口/提供前端页面，专注落盘状态文件，便于无人值守编排
 
-## TDD 逐层推进计划 / TDD Step-by-step Plan
+## TDD 逐层推进计划
 遵循“先红后绿再重构”的节奏，按层推进，层内以“单元→组件→集成→接口→扩展”的粒度完成闭环。
 
 1) 单元层（Core Units）
@@ -162,7 +162,13 @@
 - 请以 `.mcp/plan.md` 作为唯一权威任务清单；VS Code 面板与 Dev Agent 仅读取该文件的清单。
 - CLI 刷新状态：`mcp-rules-assistant status-update` 会将计划/覆盖率/记忆与任务列表写入 `.mcp/dashboard/status.json`（任务仅来源于 `.mcp/plan.md`）。
 
-## 快速验证 / Quick Checks（容器优先）
+## 无人值守
+参见 `dev_agent.py` 与 `scripts/verify-all.sh`，支持在无 UI 环境下自动生成 `.mcp/dashboard` 状态（coverage/near/history 等）。
+
+## 提交与门禁
+本地建议执行：`bash scripts/verify-all.sh`（预检 + Python 测试 + 覆盖率门禁），确保 weak=0、near=0 后再提交。
+
+## 快速验证（容器优先）
 - VS Code 无头测试（带夹具与降噪）：`make docker-vscode-test`
 - JetBrains UI 验证汇总：`bash scripts/jb-ui-verify.sh`（输出 `/.mcp/dashboard/jb_verify.json` 和 `jb_groups.md`）
 

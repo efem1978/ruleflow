@@ -24,9 +24,15 @@ class FSGuard:
     def write_text(self, path: Path, content: str, encoding: str = "utf-8") -> None:
         full = self.project_root / path
         full.parent.mkdir(parents=True, exist_ok=True)
-        # 禁止对现有符号链接写入，以避免间接覆盖目标文件
+        # 可选：禁止对现有符号链接写入（默认启用，可通过 execution.forbid_symlink_write=false 关闭）
         try:
-            if full.exists() and full.is_symlink():
+            ex_cfg0: Dict[str, Any] = (
+                self.cfg.get("execution", {})
+                if isinstance(self.cfg.get("execution", {}), dict)
+                else {}
+            )
+            forbid_symlink = bool(ex_cfg0.get("forbid_symlink_write", True))
+            if forbid_symlink and full.exists() and full.is_symlink():
                 raise ValueError("FSGuard: 目标是符号链接，拒绝写入")
         except Exception:
             ex_cfg: Dict[str, Any] = (

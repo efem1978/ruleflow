@@ -41,6 +41,9 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
         val btnCiYaml = JButton("MCP: CI 工作流")
         val btnCiGen = JButton("CI: 生成")
         val btnCiVal = JButton("CI: 校验")
+        val btnStatusInfo = JButton("状态摘要 / Info")
+        val btnEvents = JButton("事件历史 / Events")
+        val btnRulesResolve = JButton("预览并应用门禁")
         val btnHooks = JButton("Git: 安装 hooks")
         val btnMcpIngest = JButton("MCP: 规则摄取")
         val btnMcpCovReport = JButton("MCP: 覆盖率报告")
@@ -73,6 +76,9 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
         top.add(btnMcpStop)
         top.add(btnCiGen)
         top.add(btnCiVal)
+        top.add(btnStatusInfo)
+        top.add(btnEvents)
+        top.add(btnRulesResolve)
         top.add(btnHooks)
         top.add(btnCfgYaml)
         top.add(btnCiYaml)
@@ -208,6 +214,97 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
                 text.text = "状态刷新失败: ${'$'}{e.message}"
             }
             updateStatusLabelFromFile()
+        }
+
+        btnStatusInfo.addActionListener {
+            try {
+                val raw = readFile(".mcp/dashboard/status.json")
+                // very light extraction of info list: prefer object entries with time/text
+                val lines = raw.lines()
+                val out = StringBuilder()
+                var curTime = ""
+                var curText = ""
+                var count = 0
+                for (ln in lines) {
+                    val l = ln.trim()
+                    if (l.startsWith("\"time\"")) {
+                        val i = l.indexOf(':')
+                        if (i > 0) {
+                            curTime = l.substring(i+1).trim().trim(',').trim().trim('"')
+                        }
+                    }
+                    if (l.startsWith("\"text\"")) {
+                        val i = l.indexOf(':')
+                        if (i > 0) {
+                            curText = l.substring(i+1).trim().trim(',').trim().trim('"')
+                        }
+                    }
+                    if (curText.isNotEmpty()) {
+                        out.append(curTime).append("  ").append(curText).append('\n')
+                        curTime = ""; curText = ""; count += 1
+                        if (count >= 50) break
+                    }
+                }
+                if (out.isEmpty()) {
+                    text.text = "未找到 info 条目或解析失败。\n\n" + raw
+                } else {
+                    text.text = out.toString()
+                }
+            } catch (e: Exception) {
+                text.text = "读取状态摘要失败: ${'$'}{e.message}"
+            }
+        }
+
+        btnEvents.addActionListener {
+            try {
+                val base = project.basePath ?: return@addActionListener
+                val f = File(base, ".mcp/dashboard/cmd_events.jsonl")
+                if (!f.exists()) {
+                    text.text = "未找到 .mcp/dashboard/cmd_events.jsonl"
+                    return@addActionListener
+                }
+                val raw = f.readText()
+                val lines = raw.lines().takeLast(200)
+                text.text = lines.joinToString("\n")
+            } catch (e: Exception) {
+                text.text = "读取事件历史失败: ${'$'}{e.message}"
+            }
+        }
+
+        // 规则预览并回写（rules.resolve）
+        btnRulesResolve.addActionListener {
+            try {
+                if (!mcp.isRunning()) mcp.start(project)
+                // read compiled rules JSON
+                val lst = mcp.request("resources/list", "{}", 4000)
+                val uri = "\"uri\":\"rules://" // find a compiled.json marker
+                var got = ""
+                lst.lines().forEach { line ->
+                    if (line.contains("compiled.json")) got = "compiled.json" // just mark existence
+                }
+                var preview = StringBuilder()
+                if (got.isNotEmpty()) {
+                    // attempt to read and extract minimal fields by regex
+                    val res = mcp.request("resources/read", "{\"uri\":\"rules://project/x/compiled.json\"}", 6000)
+                    preview.append("将应用的门禁：\n")
+                    val mm = Regex("\"coverage.min_module\"\s*:\s*([0-9.]+)").find(res)
+                    val mc = Regex("\"coverage.min_core\"\s*:\s*([0-9.]+)").find(res)
+                    if (mm != null) preview.append("coverage.min_module = ").append((mm.groupValues[1].toDouble()*100).toInt()).append("%\n")
+                    if (mc != null) preview.append("coverage.min_core = ").append((mc.groupValues[1].toDouble()*100).toInt()).append("%\n")
+                    if (res.contains("container.policy.baseline") || res.contains("container.required")) preview.append("ci.hadolint = true\n")
+                    if (res.contains("security.sast_strict")) preview.append("ci.semgrep_config = auto\n")
+                } else {
+                    preview.append("将应用门禁策略到配置（无法预览详细，可能尚未摄取规则）\n")
+                }
+                val confirm = Messages.showYesNoDialog(project, preview.toString(), "规则预览", "应用", "取消", null)
+                if (confirm == Messages.YES) {
+                    val out = mcp.request("tools/call", "{\"name\":\"rules.resolve\",\"arguments\":{}}", 8000)
+                    text.text = out
+                    com.intellij.notification.NotificationGroupManager.getInstance().getNotificationGroup("RuleFlow").createNotification("门禁已应用（rules.resolve）", com.intellij.notification.NotificationType.INFORMATION).notify(project)
+                }
+            } catch (e: Exception) {
+                text.text = "rules.resolve 失败: ${'$'}{e.message}"
+            }
         }
 
         // NL command: route common phrases via MCP server

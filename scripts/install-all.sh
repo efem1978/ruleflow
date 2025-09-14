@@ -53,8 +53,20 @@ else
   echo "[install] docker not available; skipped JetBrains packaging"
 fi
 
+echo "[install] validating..."
+OK_CLI=0
+if .mcp/venv/bin/python -m mcp_rules_assistant.cli version >/dev/null 2>&1; then OK_CLI=1; fi
+OK_STATUS=0
+if [ -f .mcp/dashboard/status.json ]; then OK_STATUS=1; fi
+OK_VSIX=0
+if command -v code >/dev/null 2>&1; then
+  if code --list-extensions | grep -qi 'ruleflow.mcp-rules-assistant'; then OK_VSIX=1; fi
+fi
+echo "- CLI: $OK_CLI"
+echo "- Status: $OK_STATUS"
+echo "- VSIX installed: $OK_VSIX"
+
 echo "[install] done"
 echo "- MCP venv: .mcp/venv"
 echo "- Status: .mcp/dashboard/status.json (if tests passed)"
 echo "- VS Code command palette: 'RuleFlow: Open Panel' | 'RuleFlow: Load Coverage' | 'RuleFlow: Natural Command'"
-

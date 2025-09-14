@@ -35,6 +35,13 @@ class McpClient {
   private pending = new Map<number, (res: any) => void>();
   private fakeMode = ((process.env.RULEFLOW_TEST_FAKE || '').trim() === '1');
   private fakeCalls: { method: string; name?: string; params?: any; args?: any }[] = [];
+  private hb: NodeJS.Timeout | null = null;
+  private connected = false;
+  private lastStartAt = 0;
+  private restarting = false;
+  private failureCount = 0;
+  private lastFailureAt = 0;
+  private autoPrepared = false;
 
   private updateFakeMode() {
     try {
@@ -67,16 +74,81 @@ class McpClient {
         pyBin = (process.platform === 'win32' ? 'python' : 'python3');
       }
     }
+    this.lastStartAt = Date.now();
     this.proc = spawn(pyBin, ['-m', 'mcp_rules_assistant.cli', 'start'], {
-      cwd: getWorkspaceRoot(),
+      cwd: ws,
       stdio: ['pipe', 'pipe', 'pipe']
     });
+    // log to .mcp/dashboard/server.log for troubleshooting
+    try {
+      const logDir = path.join(ws, '.mcp', 'dashboard');
+      fs.mkdirSync(logDir, { recursive: true });
+      const logFile = path.join(logDir, 'server.log');
+      const append = (line: string) => { try { fs.appendFileSync(logFile, line + '\n'); } catch {} };
+      append(`[spawn] ${new Date().toISOString()} ${pyBin} -m mcp_rules_assistant.cli start`);
+      this.proc.stderr.setEncoding('utf8');
+      this.proc.stderr.on('data', async (chunk: string) => {
+        chunk.split(/\r?\n/).forEach((ln: string) => { if (ln.trim()) append('[stderr] ' + ln); });
+        // 自愈：缺少 mcp_rules_assistant 时自动创建 venv 并安装本地包
+        try {
+          if (!this.autoPrepared && /No module named .*mcp_rules_assistant/.test(String(chunk || ''))) {
+            this.autoPrepared = true;
+            const venvDir = path.join(ws, '.mcp', 'venv');
+            const vpy = process.platform === 'win32' ? path.join(venvDir, 'Scripts', 'python.exe') : path.join(venvDir, 'bin', 'python');
+            const run = (cmd: string, args: string[]) => new Promise<void>((resolve) => {
+              try { const p = spawn(cmd, args, { cwd: ws }); p.on('close', () => resolve()); p.on('error', () => resolve()); } catch { resolve(); }
+            });
+            if (!fs.existsSync(venvDir)) {
+              await run(pyBin, ['-m', 'venv', venvDir]);
+            }
+            if (fs.existsSync(vpy)) {
+              await run(vpy, ['-m', 'pip', 'install', '-U', 'pip', 'setuptools', 'wheel']);
+              await run(vpy, ['-m', 'pip', 'install', '-e', ws]);
+              vscode.window.showInformationMessage('已自动安装本地 MCP 包到 .mcp/venv，尝试重新连接…');
+              try { this.proc?.kill(); } catch {}
+            }
+          }
+        } catch { /* ignore */ }
+      });
+    } catch { /* ignore logging errors */ }
     this.proc.on('error', (err) => {
       vscode.window.showErrorMessage(`MCP Server 启动失败，请检查 Python：${String(err)}。可设置环境变量 MCP_PYTHON_BIN 指定解释器。`);
     });
     this.proc.on('close', (code) => {
-      if (code !== 0) {
-        vscode.window.showWarningMessage(`MCP Server 退出（代码 ${code}）。部分功能可能不可用。`);
+      const early = (Date.now() - this.lastStartAt) < 1500; // early exit likely due to reload/pipe close
+      const willRetry = !this.restarting;
+      // 延迟提示：给自动重启一个窗口，若已恢复则不打扰
+      const maybeWarn = () => {
+        if (code !== 0 && !this.connected) {
+          vscode.window.showWarningMessage(`MCP Server 退出（代码 ${code}）。部分功能可能不可用。正在尝试自动恢复…`);
+        }
+      };
+      this.connected = false;
+      try { vscode.commands.executeCommand('setContext', 'ruleflow.mcpConnected', false); } catch {}
+      // try to restart on unexpected close (debounced by caller)
+      this.proc = null;
+      // 失败计数与自动降级为演示模式（fake），避免空白面板
+      const now = Date.now();
+      this.failureCount = (now - this.lastFailureAt <= 5000) ? (this.failureCount + 1) : 1;
+      this.lastFailureAt = now;
+      if (this.failureCount >= 2) {
+        try {
+          const path = require('path'); const fs = require('fs');
+          const dash = path.join(ws, '.mcp', 'dashboard');
+          fs.mkdirSync(dash, { recursive: true });
+          fs.writeFileSync(path.join(dash, 'fake_mode'), '1');
+          this.fakeMode = true;
+          vscode.window.showInformationMessage('MCP 无法启动，已自动切换为演示模式（fake）。可稍后准备环境后再试。');
+        } catch { /* ignore */ }
+      }
+      if (willRetry) {
+        this.restarting = true;
+        setTimeout(() => {
+          try { this.start(context); } finally { this.restarting = false; }
+        }, early ? 400 : 800);
+        setTimeout(maybeWarn, 1600);
+      } else {
+        setTimeout(maybeWarn, 800);
       }
     });
     this.proc.stdout.setEncoding('utf8');
@@ -95,6 +167,25 @@ class McpClient {
         }
       });
     });
+    // heartbeat ping
+    if (this.hb) { clearInterval(this.hb); this.hb = null; }
+    this.hb = setInterval(async () => {
+      try {
+        const res = await this.request('ping', {});
+        const ok = !!(res && (res.ok !== false));
+        if (ok !== this.connected) {
+          this.connected = ok;
+          try { vscode.commands.executeCommand('setContext', 'ruleflow.mcpConnected', ok); } catch {}
+        }
+      } catch {
+        this.connected = false;
+        try { vscode.commands.executeCommand('setContext', 'ruleflow.mcpConnected', false); } catch {}
+        // attempt a light restart
+        if (!this.proc) {
+          try { this.start(context); } catch {}
+        }
+      }
+    }, 5000);
   }
 
   request(method: string, params?: any): Promise<any> {
@@ -249,6 +340,11 @@ class McpClient {
 }
 
 const client = new McpClient();
+function memAllowed(): boolean {
+  try { if ((client as any).fakeMode) return true; } catch {}
+  const v = String(process.env.RULEFLOW_ALLOW_MEMORY_APPEND || '').trim().toLowerCase();
+  return ['1','true','on','yes','y'].includes(v);
+}
 // ---- test hooks (non-public commands register below) ----
 let __testWebviewHandler: ((msg: any) => Promise<void> | void) | null = null;
 let __testPanelHandler: ((msg: any) => Promise<void> | void) | null = null;
@@ -291,7 +387,6 @@ export function activate(context: vscode.ExtensionContext) {
     return;
   }
   __activated = true;
-  vscode.window.showInformationMessage('RuleFlow Extension is now active!');
   // 在状态栏放一个快捷入口，点击即可打开面板
   const sb = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
   sb.text = 'RuleFlow';
@@ -321,8 +416,7 @@ export function activate(context: vscode.ExtensionContext) {
       sb.tooltip = 'Open RuleFlow Panel';
     }
   };
-  // 首次尝试刷新一次
-  updateStatusBar().then(()=>{});
+  // 保守模式：不自动触发任何后端调用；状态栏仅显示入口
 
   // 快捷命令：快速打开计划与记忆文件
   context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant.openPlan', async () => {
@@ -349,17 +443,17 @@ export function activate(context: vscode.ExtensionContext) {
       if (res && res.ok) {
         vscode.window.showInformationMessage(`Coverage loaded: weak=${weak}, near=${near}, groups=${groups}` + (mm !== undefined ? `, min_module=${(mm*100).toFixed(0)}%` : ''));
         try { await updateStatusBar(); } catch {}
-        try {
+        try { if (memAllowed()) {
           const content = `Coverage loaded: weak=${weak}, near=${near}, groups=${groups}` + (mm !== undefined ? `, min_module=${(mm*100).toFixed(0)}%` : '');
           await client.request('tools/call', { name: 'memory.append_turn', arguments: { role: 'assistant', content, meta: { source: 'vscode', action: 'loadCoverage' } } });
-        } catch {}
+        } } catch {}
       } else {
         const msg = (res && (res.message || res.error)) || 'coverage.xml not found or unavailable';
         vscode.window.showWarningMessage(`Coverage not available: ${String(msg)}`);
-        try {
+        try { if (memAllowed()) {
           const content = `Coverage not available: ${String(msg)}`;
           await client.request('tools/call', { name: 'memory.append_turn', arguments: { role: 'assistant', content, meta: { source: 'vscode', action: 'loadCoverage' } } });
-        } catch {}
+        } } catch {}
       }
     } catch (e:any) {
       vscode.window.showErrorMessage(`Load Coverage failed: ${String(e)}`);
@@ -388,9 +482,9 @@ export function activate(context: vscode.ExtensionContext) {
     if (choice === 'Open Status') { await vscode.commands.executeCommand('mcpRulesAssistant.openStatus'); return; }
     if (choice === 'Ingest Rules (Quick)') { await vscode.commands.executeCommand('mcpRulesAssistant.ingestQuick'); return; }
     if (choice === 'Status Update') { await vscode.commands.executeCommand('mcpRulesAssistant.statusUpdate'); return; }
-    if (choice === 'Generate CI') { await client.request('tools/call', { name: 'ci.generate', arguments: {} }); vscode.window.showInformationMessage('CI 已生成'); try { await client.request('tools/call', { name: 'memory.append_turn', arguments: { role: 'assistant', content: 'CI generated', meta: { source: 'vscode', action: 'ci.generate' } } }); } catch {} return; }
-    if (choice === 'Validate CI') { await client.request('tools/call', { name: 'ci.validate', arguments: {} }); vscode.window.showInformationMessage('CI 校验完成'); try { await client.request('tools/call', { name: 'memory.append_turn', arguments: { role: 'assistant', content: 'CI validated', meta: { source: 'vscode', action: 'ci.validate' } } }); } catch {} return; }
-    if (choice === 'Install Hooks') { await client.request('tools/call', { name: 'git.install_hooks', arguments: {} }); vscode.window.showInformationMessage('Git hooks 已安装'); try { await client.request('tools/call', { name: 'memory.append_turn', arguments: { role: 'assistant', content: 'Git hooks installed', meta: { source: 'vscode', action: 'git.install_hooks' } } }); } catch {} return; }
+    if (choice === 'Generate CI') { await client.request('tools/call', { name: 'ci.generate', arguments: {} }); vscode.window.showInformationMessage('CI 已生成'); try { if (memAllowed()) { await client.request('tools/call', { name: 'memory.append_turn', arguments: { role: 'assistant', content: 'CI generated', meta: { source: 'vscode', action: 'ci.generate' } } }); } } catch {} return; }
+    if (choice === 'Validate CI') { await client.request('tools/call', { name: 'ci.validate', arguments: {} }); vscode.window.showInformationMessage('CI 校验完成'); try { if (memAllowed()) { await client.request('tools/call', { name: 'memory.append_turn', arguments: { role: 'assistant', content: 'CI validated', meta: { source: 'vscode', action: 'ci.validate' } } }); } } catch {} return; }
+    if (choice === 'Install Hooks') { await client.request('tools/call', { name: 'git.install_hooks', arguments: {} }); vscode.window.showInformationMessage('Git hooks 已安装'); try { if (memAllowed()) { await client.request('tools/call', { name: 'memory.append_turn', arguments: { role: 'assistant', content: 'Git hooks installed', meta: { source: 'vscode', action: 'git.install_hooks' } } }); } } catch {} return; }
     if (choice === 'Natural Command') { await vscode.commands.executeCommand('mcpRulesAssistant.nlCommand'); return; }
   }));
 
@@ -544,22 +638,81 @@ export function activate(context: vscode.ExtensionContext) {
   }));
 
   const disposable = vscode.commands.registerCommand('mcpRulesAssistant.openPanel', async () => {
-    // 按需启动后端 Python 服务器
-    try { client.start(context); } catch {}
+    // 先渲染一个最小占位以避免空白，并提供快速修复入口
+    const renderFallback = (msg: string) => `
+      <html><body style="font-family:-apple-system,Segoe UI,Arial;">
+      <style>
+        body.simple .adv{display:none;} body.advanced #simpleBar{display:none;}
+        #modeBar{display:flex;gap:6px;align-items:center;margin:6px 0;}
+        #modeBar button{padding:4px 8px;}
+      </style>
+      <h2>RuleFlow 面板</h2>
+      <div id="modeBar"><span>显示模式：</span> <button id="btnModeSimple">新手模式</button> <button id="btnModeAdvanced">高级模式</button></div>
+      <div id="simpleBar" style="border:1px solid #ddd; padding:8px; background:#f9fbff;">
+        <div style="color:#666; font-size:12px;">${msg || '正在连接 MCP …'}</div>
+        <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;">
+          <button id="btnRetry">重试连接</button>
+          <button id="btnEnableFake">切换为演示模式</button>
+          <button id="btnOpenLog">打开 server.log</button>
+        </div>
+      </div>
+      <script>
+        const vscode = acquireVsCodeApi();
+        (function(){
+          const apply=(m)=>{ try{document.body.classList.remove('simple','advanced');document.body.classList.add(m);}catch{} try{vscode.setState&&vscode.setState({uiMode:m});}catch{} };
+          const st=(vscode.getState&&vscode.getState())||{}; apply((st&&st.uiMode)||'simple');
+          const s=document.getElementById('btnModeSimple'); const a=document.getElementById('btnModeAdvanced');
+          if(s) s.onclick=()=>apply('simple'); if(a) a.onclick=()=>apply('advanced');
+          const r=document.getElementById('btnRetry'); if(r) r.onclick=()=>vscode.postMessage({t:'retryConnect'});
+          const f=document.getElementById('btnEnableFake'); if(f) f.onclick=()=>vscode.postMessage({t:'enableFake'});
+          const l=document.getElementById('btnOpenLog'); if(l) l.onclick=()=>vscode.postMessage({t:'openServerLog'});
+      })();
+      </script>
+      </body></html>`;
     const panel = vscode.window.createWebviewPanel(
       'mcpRulesAssistant',
       'RuleFlow: Rules & Memory',
       vscode.ViewColumn.Beside,
       { enableScripts: true }
     );
+    panel.webview.html = renderFallback('正在连接 MCP …');
+    // 按需启动后端 Python 服务器
+    try { client.start(context); } catch {}
+    // make postMessage safe after dispose
+    let __panelDisposed = false;
+    const __origPost = panel.webview.postMessage.bind(panel.webview);
+    (panel.webview as any).postMessage = (msg: any) => {
+      try {
+        if (__panelDisposed) return Promise.resolve(false);
+        const r = __origPost(msg);
+        try { (r as any).then(()=>{}, ()=>{}); } catch {}
+        return r;
+      } catch { return Promise.resolve(false); }
+    };
+    panel.onDidDispose(() => { __panelDisposed = true; try { __testPanelHandler = null as any; } catch {} });
     __panelReady = new Promise<void>((res) => { __panelReadyResolve = res; });
 
     /* c8 ignore start */
     const render = (md: string, toolsListHtml: string, sugg: string = '') => `
       <html>
-      <body style="font-family: -apple-system,Segoe UI,Arial;">
+      <body class="simple" style="font-family: -apple-system,Segoe UI,Arial;">
+        <style>
+          body.simple .adv { display: none; }
+          body.simple #simpleBar { display: block; }
+          body.advanced #simpleBar { display: none; }
+          body.advanced .adv { display: block; }
+          #modeBar { display:flex; gap:6px; align-items:center; margin:6px 0; }
+          #modeBar button { padding:4px 8px; }
+          #simpleBar button { padding:6px 10px; margin:2px 4px; }
+          .hint { color:#666; font-size:12px; }
+        </style>
         <h2>MCP 规则与上下文助手</h2>
         <p>已连接到 Python MCP Server（最小协议）。默认快速内环：保存轻、推送重。</p>
+        <div id="modeBar">
+          <span class="hint">显示模式：</span>
+          <button id="btnModeSimple" title="仅展示常用操作；不会自动修改文件或配置">新手模式</button>
+          <button id="btnModeAdvanced" title="展示全部功能；每项操作都需要你确认后才执行">高级模式</button>
+        </div>
         <div id="ticker" style="height:auto; background:#f6f6f6; border:1px solid #ddd; padding:4px 8px; margin:6px 0;">
           <span id="tickerText" style="display:inline-block; white-space:nowrap; font-size:12px; color:#333;"></span>
         </div>
@@ -574,21 +727,40 @@ export function activate(context: vscode.ExtensionContext) {
         </div>
         <pre id="licDetail" style="white-space:pre-wrap; display:none; font-size:11px; color:#555; background:#f7f7f7; padding:4px;"></pre>
         <div id="info" style="margin:6px 0; color:#d33;"></div>
-        <div style="margin:8px 0;">
-          <input id="nlInput" placeholder="自然语言指令：如 摄取规则 README.md, docs/ / 加载覆盖率 / 开启滚动记忆" style="width:65%;" />
+        <div id="simpleBar" style="margin:10px 0; padding:8px; border:1px solid #ddd; background:#f9fbff;">
+          <div class="hint">三步上手：</div>
+          <div>
+            <button id="btnSimpleInstall">1) 准备并安装环境</button>
+            <button id="btnSimpleCoverage">2) 加载覆盖率</button>
+            <button id="btnSimplePlan">3) 打开计划</button>
+          </div>
+          <div>
+            <button id="btnSimpleIngest">摄取规则（README.md, docs/）</button>
+            <button id="btnSimpleStatus">刷新状态</button>
+          </div>
+          <div class="hint">遇到问题 → 点击“刷新状态”，或切换到“高级模式”查看更多功能。</div>
+        </div>
+        <div class="adv" style="margin:8px 0;">
+          <input id="nlInput" placeholder="自然语言指令：如 摄取规则 README.md, docs/ / 加载覆盖率 / 开启滚动记忆" style="width:65%;" title="在此输入中文或英文指令，按“执行”按钮运行；示例可点击下方快速填充" />
           <button id="nlSend">执行</button>
           <button id="nlExamples">范例</button>
           <button id="nlClear">清空历史</button>
           <button id="btnStatusUpdate">刷新状态</button>
           <span style="margin-left:6px;">近阈值%:</span>
-          <input id="nearPct" value="3" style="width:40px;" />
+          <input id="nearPct" value="3" style="width:40px;" title="显示覆盖率距离阈值≤该百分比的文件（默认3%）" />
           <button id="btnCovNearInline">显示近阈值</button>
           <button id="btnIdeScaffold">生成 IDE 集成配置</button>
           <button id="btnCompliance">生成合规承诺</button>
           <button id="btnOpenCompliance">打开合规承诺</button>
           <button id="btnOpenIdeDir">打开 IDE 目录</button>
+          <button id="btnEvents">事件历史</button>
+          <button id="btnInfo">状态摘要 Info</button>
+          <button id="btnCopyEvents">复制事件</button>
+          <button id="btnCopyInfo">复制摘要</button>
+          <button id="btnOpenStatusFile">打开 status.json</button>
+          <button id="btnOpenEventsFile">打开 events</button>
         </div>
-        <div id="nlExamplesBox" style="display:none; margin:4px 0 10px 0;">
+        <div id="nlExamplesBox" class="adv" style="display:none; margin:4px 0 10px 0;">
           <span style="opacity:.8">快速范例：</span>
           <button data-nl="摄取规则 README.md, docs/">摄取规则</button>
           <button data-nl="加载覆盖率">加载覆盖率</button>
@@ -596,46 +768,75 @@ export function activate(context: vscode.ExtensionContext) {
           <button data-nl="开启滚动记忆">开启记忆</button>
           <button data-nl="生成 CI">生成 CI</button>
           <button data-nl="校验 CI">校验 CI</button>
+          <button data-nl="规则 摘要">规则摘要</button>
+        </div>
+        <div id="nlCatalog" style="margin:6px 0;">
+          <fieldset style="border:1px solid #ddd; padding:6px;">
+            <legend>自然语言命令示例（点击即执行）</legend>
+            <div class="hint">触发词：摄取规则 / 加载覆盖率 / 近阈值 / 打开计划 / 开启滚动记忆 / 生成 CI / 校验 CI / 安装钩子</div>
+            <div style="margin-top:6px;"><b>规则</b>：
+              <button data-nl="摄取规则 README.md, docs/">摄取规则 README.md, docs/</button>
+              <button data-nl="载入编译规则">载入编译规则</button>
+              <button data-nl="校验 规则">校验 规则</button>
+            </div>
+            <div style="margin-top:6px;"><b>覆盖率</b>：
+              <button data-nl="加载覆盖率">加载覆盖率</button>
+              <button data-nl="仅看弱项">仅看弱项</button>
+              <button data-nl="仅看近阈值 3">仅看近阈值 3</button>
+            </div>
+            <div style="margin-top:6px;"><b>计划与记忆</b>：
+              <button data-nl="打开 计划">打开 计划</button>
+              <button data-nl="开启滚动记忆">开启滚动记忆</button>
+            </div>
+            <div style="margin-top:6px;"><b>CI</b>：
+              <button data-nl="生成 CI">生成 CI</button>
+              <button data-nl="校验 CI">校验 CI</button>
+              <button data-nl="安装 钩子">安装 钩子</button>
+            </div>
+          </fieldset>
         </div>
         <div>
           <h4 style="margin:8px 0 4px;">最近指令</h4>
           <ul id="nlHistory" style="padding-left:18px;"></ul>
         </div>
         <div style="margin:8px 0;">
-          <button id="btnLoad">载入编译规则 / Load Rules</button>
-          <button id="btnIngest">摄取规则 / Ingest</button>
-          <button id="btnValidate">校验规则 / Validate</button>
-          <button id="btnHooks">安装钩子 / Install Hooks</button>
-          <button id="btnLoadSugg">载入建议 / Load Suggestions</button>
-          <button id="btnCoverage">加载覆盖率 / Load Coverage</button>
-          <button id="btnShowWeak">仅看弱项 / Show Weak</button>
-          <button id="btnCovTree">加载目录树 / Load Weak Tree</button>
-          <button id="btnCovNear">仅看近阈值 / Show Near</button>
-          <button id="btnCovExport">导出覆盖率报表 / Export Coverage</button>
-          <button id="btnPrepareEnvDry">准备环境(预览) / Prepare Env (dry-run)</button>
-          <button id="btnPrepareEnvInstall">准备并安装环境 / Prepare & Install</button>
+          <fieldset style="border:1px solid #ddd; padding:6px;">
+            <legend>工作流常用操作</legend>
+            <button id="btnLoad" title="从 .mcp/rules_compiled.* 读取并展示编译后的规则（只读）">载入编译规则 / Load Rules</button>
+            <button id="btnIngest" title="将 README、docs 等文档转换为规则（写入 .mcp/rules_*）">摄取规则 / Ingest</button>
+            <button id="btnValidate" title="重新编译并校验规则，输出冲突与建议（只读展示）">校验规则 / Validate</button>
+            <button id="btnHooks" title="安装 pre-commit/commit-msg/pre-push 钩子（便于在提交前自动检查）">安装钩子 / Install Hooks</button>
+            <button id="btnLoadSugg" title="读取并展示规则建议（冲突与优化提示）">载入建议 / Load Suggestions</button>
+            <button id="btnCoverage" title="读取 coverage.xml 并生成薄弱/分组/近阈值摘要（只读）">加载覆盖率 / Load Coverage</button>
+            <button id="btnShowWeak" title="只显示低于阈值的薄弱文件（更易聚焦问题）">仅看弱项 / Show Weak</button>
+            <button id="btnCovTree" title="按目录展示薄弱文件（层级浏览，便于定位）">加载目录树 / Load Weak Tree</button>
+            <button id="btnCovNear" title="显示距离阈值很近（默认≤3%）但尚未跌破的文件（快速补齐）">仅看近阈值 / Show Near</button>
+            <button id="btnCovExport" title="导出 CSV/JSON 报表到 .mcp/dashboard（供审阅与归档）">导出覆盖率报表 / Export Coverage</button>
+            <button id="btnPrepareEnvDry" title="预览将要创建的虚拟环境与安装的工具链（不做任何改动）">准备环境(预览) / Prepare Env (dry-run)</button>
+            <button id="btnPrepareEnvInstall" title="创建 .mcp/venv 并安装 ruff/black/mypy/pytest 等基础工具">准备并安装环境 / Prepare & Install</button>
+          </fieldset>
         </div>
-        <div style="margin:8px 0;">
+        <div class="adv" style="margin:8px 0;">
           <button id="btnOpenUserGuide">打开用户上手 / Open User Guide</button>
           <button id="btnOpenIdeSupport">打开 IDE 支持 / Open IDE Support</button>
         </div>
-        <div>
+        <div class="adv">
           <h3>可用工具（示例）</h3>
           <ul>${toolsListHtml}</ul>
         </div>
-        <div>
+        <div class="adv">
           <h3>项目规则（编译版）</h3>
           <pre id="rules" style="white-space:pre-wrap; background:#1112; padding:8px;">${md || '暂无内容 / No content'}</pre>
         </div>
-        <div>
+        <div class="adv">
           <h3>冲突定位（可点击跳转）</h3>
           <ul id="conflicts"></ul>
         </div>
-        <div>
+        <div class="adv">
           <h3>冲突与建议（Conflicts & Suggestions）</h3>
           <pre id="sugg" style="white-space:pre-wrap; background:#1111; padding:8px;">${sugg || '暂无建议 / No suggestions'}</pre>
         </div>
-        <div>
+        <div class="adv">
           <h3>规则引导（Onboard）</h3>
           <div style="margin:6px 0;">
             <button id="btnOnboardPreview">预览推荐 / Preview</button>
@@ -643,7 +844,7 @@ export function activate(context: vscode.ExtensionContext) {
           </div>
           <pre id="onboardSummary" style="white-space:pre-wrap; background:#f7f7f7; padding:8px; font-size:12px; color:#333;">（点击“预览推荐”查看将启用的规则摘要）</pre>
         </div>
-        <div>
+        <div class="adv">
           <h3>Chat（可选）</h3>
           <div style="margin:6px 0;">
             <button id="btnChatEnable">启用追加摘要 / Enable</button>
@@ -652,47 +853,51 @@ export function activate(context: vscode.ExtensionContext) {
           </div>
           <pre id="chatPreview" style="white-space:pre-wrap; background:#f7f7f7; padding:8px; font-size:12px; color:#666;">（默认关闭；启用后，每轮对话可追加“上一轮问答摘要”至记忆。无遥测，不出网。）</pre>
         </div>
-        <div>
+        <div class="adv">
           <h3>覆盖率分组</h3>
           <ul id="covGroups"></ul>
         </div>
-        <div>
+        <div class="adv">
           <h3>覆盖率薄弱（Top 20）</h3>
-          <input id="covFilter" placeholder="过滤文件名关键词..." />
+          <input id="covFilter" placeholder="过滤文件名关键词..." title="在薄弱列表中过滤包含该关键词的文件名" />
           <button id="btnCovFilter">过滤</button>
-          <button id="btnOpenWeakCsv">打开 weak_top.csv</button>
-          <button id="btnOpenNearCsv">打开 near_top.csv</button>
-          <button id="btnOpenGroupsCsv">打开 groups.csv</button>
-          <button id="btnOpenGroupsMd">打开 jb_groups.md</button>
+          <button id="btnOpenWeakCsv" title="查看薄弱文件 TopN 的 CSV">打开 weak_top.csv</button>
+          <button id="btnOpenNearCsv" title="查看近阈值文件 TopN 的 CSV">打开 near_top.csv</button>
+          <button id="btnOpenGroupsCsv" title="查看覆盖率分组聚合的 CSV">打开 groups.csv</button>
+          <button id="btnOpenGroupsMd" title="为 JetBrains UI 预览的分组摘要">打开 jb_groups.md</button>
           <ul id="covWeak"></ul>
           <h4>CSV 预览</h4>
           <pre id="csvPreview" style="white-space:pre-wrap; background:#f7f7f7; padding:4px; font-size:11px;"></pre>
           <div>
             <label>切换预览：</label>
-            <select id="csvSelect">
+            <select id="csvSelect" title="选择要预览的 CSV 报表">
               <option value="weak_top.csv">weak_top.csv</option>
               <option value="near_top.csv">near_top.csv</option>
               <option value="groups.csv">groups.csv</option>
             </select>
-            <button id="btnCsvReload">重新加载预览</button>
-          </div>
+            <button id="btnCsvReload" title="重新渲染上面选择的 CSV 报表头部">重新加载预览</button>
         </div>
-        <div>
+        </div>
+        <div class="adv">
           <h3>覆盖率目录树（弱项）</h3>
           <ul id="covTree"></ul>
         </div>
-        <div>
+        <div class="adv">
           <h3>最近记忆与计划</h3>
-          <pre id="memory" style="white-space:pre-wrap; background:#1102; padding:8px;">（点击“加载记忆 / 加载计划”获取）</pre>
+          <pre id="memory" style="white-space:pre-wrap; background:#1102; padding:8px;">（点击“加载记忆 / 加载计划 / 事件历史”获取）</pre>
           <pre id="plan" style="white-space:pre-wrap; background:#1101; padding:8px;"></pre>
+          <h4>事件历史（最近）</h4>
+          <pre id="events" style="white-space:pre-wrap; background:#0211; padding:8px;"></pre>
+          <h4>状态摘要（最近）</h4>
+          <pre id="infolist" style="white-space:pre-wrap; background:#1021; padding:8px;"></pre>
         </div>
-        <div>
+        <div class="adv">
           <h3>剩余任务（来自 .mcp/plan.md）</h3>
           <ul id="tasksPending"></ul>
           <h3>已完成</h3>
           <ul id="tasksDone"></ul>
         </div>
-        <div>
+        <div class="adv">
           <h3>CI 配置（hadolint / semgrep / mutation）</h3>
           <label><input type="checkbox" id="ciHadolint"> 启用 hadolint</label><br/>
           镜像: <input id="ciHadolintImage" style="width:260px" placeholder="hadolint/hadolint:latest"/>
@@ -720,11 +925,40 @@ export function activate(context: vscode.ExtensionContext) {
         <script>
           const vscode = acquireVsCodeApi();
           try { vscode.postMessage({ t: 'ready' }); } catch {}
+          // ---- UI mode (simple/advanced) ----
+          (function(){
+            try {
+              const state = (vscode.getState && vscode.getState()) || {};
+              let mode = (state && (state as any).uiMode) || (typeof localStorage!=='undefined' ? localStorage.getItem('ruleflow.uiMode') : '') || 'simple';
+              const apply = (m: string) => {
+                try { document.body.classList.remove('simple','advanced'); document.body.classList.add(m); } catch {}
+                try { vscode.setState && vscode.setState({ ...(state||{}), uiMode: m }); } catch {}
+                try { localStorage && localStorage.setItem('ruleflow.uiMode', m); } catch {}
+              };
+              apply(mode);
+              const btnS = document.getElementById('btnModeSimple') as HTMLButtonElement | null;
+              const btnA = document.getElementById('btnModeAdvanced') as HTMLButtonElement | null;
+              if (btnS) btnS.onclick = () => apply('simple');
+              if (btnA) btnA.onclick = () => apply('advanced');
+            } catch {}
+          })();
+
+          // ---- Beginner quick actions ----
+          try { const el = document.getElementById('btnSimpleInstall') as HTMLButtonElement | null; if (el) el.onclick = ()=> vscode.postMessage({ t: 'prepareEnvInstall' }); } catch {}
+          try { const el = document.getElementById('btnSimpleCoverage') as HTMLButtonElement | null; if (el) el.onclick = ()=> vscode.postMessage({ t: 'coverage' }); } catch {}
+          try { const el = document.getElementById('btnSimplePlan') as HTMLButtonElement | null; if (el) el.onclick = ()=> vscode.postMessage({ t: 'open', path: '.mcp/plan.md', line: 1 }); } catch {}
+          try { const el = document.getElementById('btnSimpleIngest') as HTMLButtonElement | null; if (el) el.onclick = ()=> vscode.postMessage({ t: 'ingestRules' }); } catch {}
+          try { const el = document.getElementById('btnSimpleStatus') as HTMLButtonElement | null; if (el) el.onclick = ()=> vscode.postMessage({ t: 'statusUpdate' }); } catch {}
           document.getElementById('btnLoad').onclick = () => vscode.postMessage({ t: 'loadRules' });
           document.getElementById('btnStatusUpdate').onclick = () => vscode.postMessage({ t: 'statusUpdate' });
           (document.getElementById('btnSelectProject') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'selectProject' });
           document.getElementById('btnIngest').onclick = () => vscode.postMessage({ t: 'ingestRules' });
           document.getElementById('btnValidate').onclick = () => vscode.postMessage({ t: 'validateRules' });
+          // 预览并回写门禁（rules.resolve）
+          const btnResolve = document.createElement('button'); btnResolve.id = 'btnRulesResolve'; btnResolve.textContent = '预览并应用门禁';
+          const anchor = document.getElementById('btnValidate');
+          if (anchor && anchor.parentElement) { anchor.parentElement.insertBefore(btnResolve, anchor.nextSibling); }
+          btnResolve.onclick = () => vscode.postMessage({ t: 'rulesResolvePreview' });
           document.getElementById('btnHooks').onclick = () => vscode.postMessage({ t: 'installHooks' });
           document.getElementById('btnLoadSugg').onclick = () => vscode.postMessage({ t: 'loadSugg' });
           document.getElementById('btnCoverage').onclick = () => vscode.postMessage({ t: 'coverage' });
@@ -779,6 +1013,7 @@ export function activate(context: vscode.ExtensionContext) {
           (document.getElementById('btnCompliance') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'compliance' });
           (document.getElementById('btnOpenCompliance') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'openCompliance' });
           (document.getElementById('btnOpenIdeDir') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'openIdeDir' });
+          (document.getElementById('btnEvents') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'eventsLoad' });
           const btnUG = document.getElementById('btnOpenUserGuide') as HTMLButtonElement | null;
           if (btnUG) btnUG.onclick = () => vscode.postMessage({ t: 'open', path: 'docs/USER_GUIDE.md' });
           const btnIS = document.getElementById('btnOpenIdeSupport') as HTMLButtonElement | null;
@@ -789,6 +1024,16 @@ export function activate(context: vscode.ExtensionContext) {
           (document.getElementById('btnChatEnable') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'chatEnable' });
           (document.getElementById('btnChatDisable') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'chatDisable' });
           (document.getElementById('btnChatPreview') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'chatPreview' });
+          (document.getElementById('btnEvents') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'eventsLoad' });
+          (document.getElementById('btnInfo') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'statusInfo' });
+          (document.getElementById('btnCopyEvents') as HTMLButtonElement).onclick = async () => {
+            try { const el = document.getElementById('events') as HTMLPreElement; const t = (el && (el as any).textContent) || ''; if ((navigator as any).clipboard) { await (navigator as any).clipboard.writeText(String(t)); vscode.postMessage({ t: 'info', text: '已复制事件历史' }); } } catch {}
+          };
+          (document.getElementById('btnCopyInfo') as HTMLButtonElement).onclick = async () => {
+            try { const el = document.getElementById('infolist') as HTMLPreElement; const t = (el && (el as any).textContent) || ''; if ((navigator as any).clipboard) { await (navigator as any).clipboard.writeText(String(t)); vscode.postMessage({ t: 'info', text: '已复制状态摘要' }); } } catch {}
+          };
+          (document.getElementById('btnOpenStatusFile') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'open', path: '.mcp/dashboard/status.json', line: 1 });
+          (document.getElementById('btnOpenEventsFile') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'open', path: '.mcp/dashboard/cmd_events.jsonl', line: 1 });
           (document.getElementById('btnShowWeak') as HTMLButtonElement).onclick = () => {
             const all = (window as any).__weakAll || [];
             const ulw = document.getElementById('covWeak');
@@ -864,7 +1109,7 @@ export function activate(context: vscode.ExtensionContext) {
             const box = document.getElementById('nlExamplesBox'); if (!box) return;
             box.style.display = box.style.display === 'none' ? '' : 'none';
           };
-          (document.querySelectorAll('#nlExamplesBox button') as any).forEach((b:any)=>{
+          (document.querySelectorAll('#nlExamplesBox button, #nlCatalog button') as any).forEach((b:any)=>{
             b.addEventListener('click', ()=>{ const t=b.getAttribute('data-nl')||''; (document.getElementById('nlInput') as HTMLInputElement).value=t; runNL(); });
           });
           const btnLicV = document.getElementById('btnLicVerify') as HTMLButtonElement | null;
@@ -1262,8 +1507,16 @@ export function activate(context: vscode.ExtensionContext) {
             if (msg.t === 'memory') {
               document.getElementById('memory').textContent = msg.text || '';
             }
+            if (msg.t === 'events') {
+              const el = document.getElementById('events');
+              if (el) (el as any).textContent = String(msg.text || '');
+            }
             if (msg.t === 'plan') {
               document.getElementById('plan').textContent = msg.text || '';
+            }
+            if (msg.t === 'infoList') {
+              const pre = document.getElementById('infolist') as HTMLPreElement;
+              pre.textContent = (Array.isArray(msg.items) ? msg.items : []).join('\n');
             }
             if (msg.t === 'ci') {
               const cfg = msg.config || {}; const ci = cfg.ci || {};
@@ -1330,7 +1583,7 @@ export function activate(context: vscode.ExtensionContext) {
         }
       } catch {}
     } catch (e: any) {
-      panel.webview.html = `<pre>连接 MCP 失败：${String(e)}</pre>`;
+      panel.webview.html = renderFallback('连接 MCP 失败：' + String(e));
     }
 
     const __panelDispatch = async (msg: any) => {
@@ -1338,7 +1591,36 @@ export function activate(context: vscode.ExtensionContext) {
       try { __panelInFlight = new Promise<void>((res)=>{ __panelInFlightResolve = res; }); } catch {}
       try {
         __testWebviewHandler = async (m:any) => { await handleOpenMessage(m); };
-        if (msg.t === 'statusUpdate') {
+        if (msg.t === 'retryConnect') {
+          try { client.start(context); } catch {}
+          vscode.window.setStatusBarMessage('正在尝试重新连接 MCP…', 2000);
+        }
+        else if (msg.t === 'enableFake') {
+          try {
+            const ws = getWorkspaceRoot() || process.cwd();
+            const path = require('path'); const fs = require('fs');
+            const dash = path.join(ws, '.mcp', 'dashboard');
+            fs.mkdirSync(dash, { recursive: true });
+            fs.writeFileSync(path.join(dash, 'fake_mode'), '1');
+            vscode.window.showInformationMessage('已切换为演示模式（fake）。');
+            (client as any).fakeMode = true; // best-effort
+            await vscode.commands.executeCommand('mcpRulesAssistant.openPanel');
+            return;
+          } catch (e:any) {
+            vscode.window.showErrorMessage('切换演示模式失败：' + String(e));
+          }
+        }
+        else if (msg.t === 'openServerLog') {
+          try {
+            const ws = getWorkspaceRoot();
+            if (!ws) { vscode.window.showInformationMessage('No workspace'); return; }
+            const uri = vscode.Uri.file(ws + '/.mcp/dashboard/server.log');
+            await vscode.workspace.fs.stat(uri);
+            const doc = await vscode.workspace.openTextDocument(uri);
+            await vscode.window.showTextDocument(doc, { preview: false });
+          } catch { vscode.window.showInformationMessage('未找到 .mcp/dashboard/server.log'); }
+        }
+        else if (msg.t === 'statusUpdate') {
           const pyBin = process.env.MCP_PYTHON_BIN && process.env.MCP_PYTHON_BIN.trim()
             ? process.env.MCP_PYTHON_BIN.trim()
             : (process.platform === 'win32' ? 'python' : 'python3');
@@ -1385,6 +1667,38 @@ export function activate(context: vscode.ExtensionContext) {
                 panel.webview.postMessage({ t: 'info', text: `未检测到规则冲突。建议数：${m}` });
               }
             } catch {}
+          }
+        } else if (msg.t === 'rulesResolvePreview') {
+          try {
+            const resList = await client.request('resources/list', {});
+            const jsonUri = (resList.resources || []).find((r: any) => String(r.uri || '').endsWith('/compiled.json'))?.uri;
+            if (!jsonUri) { vscode.window.showWarningMessage('未找到编译规则，请先摄取规则'); return; }
+            const compiled = await client.request('resources/read', { uri: jsonUri });
+            const data = JSON.parse(compiled.text || '{}');
+            const pol = data.policy || {};
+            const minMod = pol['coverage.min_module'];
+            const minCore = pol['coverage.min_core'];
+            const wantHadolint = !!(pol['container.required'] || pol['container.policy.baseline']);
+            const wantSemgrep = !!pol['security.sast_strict'];
+            const conflicts = Array.isArray(data.conflicts) ? data.conflicts.length : 0;
+            const sugg = Array.isArray(data.suggestions) ? data.suggestions.length : 0;
+            const lines: string[] = [];
+            if (typeof minMod === 'number') lines.push(`coverage.min_module = ${(minMod*100).toFixed(0)}%`);
+            if (typeof minCore === 'number') lines.push(`coverage.min_core = ${(minCore*100).toFixed(0)}%`);
+            if (wantHadolint) lines.push('ci.hadolint = true');
+            if (wantSemgrep) lines.push('ci.semgrep_config = auto');
+            lines.push(`conflicts = ${conflicts}; suggestions = ${sugg}`);
+            const confirm = await vscode.window.showInformationMessage('将应用以下门禁到配置:\n' + lines.join('\n'), { modal: true }, '应用', '取消');
+            if (confirm === '应用') {
+              const out = await client.request('tools/call', { name: 'rules.resolve', arguments: {} });
+              const changed = out && out.changed;
+              const enforced = (out && out.enforced) || [];
+              const summary = `门禁已应用：${changed? '配置已更新' : '无变化'}；` + (Array.isArray(enforced)? enforced.join(', ') : '');
+              vscode.window.showInformationMessage(summary);
+              try { panel.webview.postMessage({ t: 'info', text: summary }); } catch {}
+            }
+          } catch (e:any) {
+            vscode.window.showErrorMessage('预览失败：' + String(e));
           }
         } else if (msg.t === 'coverage') {
           // Quick combined report for toast summary
@@ -1455,7 +1769,9 @@ export function activate(context: vscode.ExtensionContext) {
             try { await updateStatusBar(); } catch {}
             try {
               const content = 'Coverage loaded: ' + parts.join(', ');
-              await client.request('tools/call', { name: 'memory.append_turn', arguments: { role: 'assistant', content, meta: { source: 'vscode', action: 'panel.coverage' } } });
+              if (memAllowed()) {
+                await client.request('tools/call', { name: 'memory.append_turn', arguments: { role: 'assistant', content, meta: { source: 'vscode', action: 'panel.coverage' } } });
+              }
             } catch {}
           } catch {}
         } else if (msg.t === 'coverageTree') {
@@ -1792,6 +2108,32 @@ export function activate(context: vscode.ExtensionContext) {
           } catch (e:any) {
             vscode.window.showWarningMessage('无法打开 IDE 目录：' + String(e));
           }
+        } else if (msg.t === 'eventsLoad') {
+          try {
+            const ws = getWorkspaceRoot(); if (!ws) throw new Error('no workspace');
+            const uri = vscode.Uri.file(ws + '/.mcp/dashboard/cmd_events.jsonl');
+            const data = await vscode.workspace.fs.readFile(uri);
+            const text = Buffer.from(data).toString('utf8');
+            panel.webview.postMessage({ t: 'events', text });
+          } catch {
+            panel.webview.postMessage({ t: 'info', text: '未找到事件历史' });
+          }
+        } else if (msg.t === 'statusInfo') {
+          try {
+            const ws = getWorkspaceRoot(); if (!ws) throw new Error('no workspace');
+            const uri = vscode.Uri.file(ws + '/.mcp/dashboard/status.json');
+            const data = await vscode.workspace.fs.readFile(uri);
+            const text = Buffer.from(data).toString('utf8');
+            try {
+              const obj = JSON.parse(text || '{}');
+              const info = Array.isArray(obj.info) ? obj.info : [];
+              const lines = info.map((it:any) => {
+                if (it && typeof it === 'object') { return `${it.time || ''}  ${it.text || ''}`; }
+                return String(it);
+              });
+              panel.webview.postMessage({ t: 'infoList', items: lines });
+            } catch { panel.webview.postMessage({ t: 'info', text: '状态摘要解析失败' }); }
+          } catch { panel.webview.postMessage({ t: 'info', text: '未找到 status.json' }); }
         } else if (msg.t === 'insertSamples') {
           const semgrep = `rules:\n  - id: py-no-eval\n    message: \"Avoid eval() — security risk\"\n    languages: [python]\n    severity: ERROR\n    pattern: eval(...)\n\n  - id: py-no-exec\n    message: \"Avoid exec() — security risk\"\n    languages: [python]\n    severity: ERROR\n    pattern: exec(...)\n`;
           const hadolint = `ignored:\n  - DL3008\n  - DL3059\n\noverrides:\n  DL3007: warning\n`;
@@ -1804,7 +2146,10 @@ export function activate(context: vscode.ExtensionContext) {
           try {
             const out = await client.request('tools/call', { name: 'env.prepare', arguments: { create: false, install: false } });
             vscode.window.showInformationMessage('env.prepare 计划: ' + JSON.stringify(out.plan || out));
-            try { await client.request('tools/call', { name: 'memory.append_turn', arguments: { role: 'assistant', content: 'env.prepare dry-run', meta: { source: 'vscode', action: 'env.prepare', create: false, install: false } } }); } catch {}
+          // 严格隔离：默认不写入任何上下文记忆（需显式允许）
+          // if (process.env.RULEFLOW_ALLOW_MEMORY_APPEND === '1') {
+          //   try { await client.request('tools/call', { name: 'memory.append_turn', arguments: { role: 'assistant', content: 'env.prepare dry-run', meta: { source: 'vscode', action: 'env.prepare', create: false, install: false } } }); } catch {}
+          // }
           } catch (e:any) {
             vscode.window.showErrorMessage('env.prepare 执行失败：' + String(e));
           }
@@ -1813,7 +2158,9 @@ export function activate(context: vscode.ExtensionContext) {
             const out = await client.request('tools/call', { name: 'env.prepare', arguments: { create: true, install: true } });
             const msgInfo = (out && (out as any).ok) ? ('已创建并安装：' + String((out as any).venv || '')) : '执行失败';
             vscode.window.showInformationMessage('env.prepare: ' + msgInfo);
-            try { await client.request('tools/call', { name: 'memory.append_turn', arguments: { role: 'assistant', content: 'env.prepare install', meta: { source: 'vscode', action: 'env.prepare', create: true, install: true } } }); } catch {}
+            // if (process.env.RULEFLOW_ALLOW_MEMORY_APPEND === '1') {
+            //   try { await client.request('tools/call', { name: 'memory.append_turn', arguments: { role: 'assistant', content: 'env.prepare install', meta: { source: 'vscode', action: 'env.prepare', create: true, install: true } } }); } catch {}
+            // }
           } catch (e:any) {
             vscode.window.showErrorMessage('env.prepare 执行失败：' + String(e));
           }
@@ -2434,6 +2781,38 @@ export function activate(context: vscode.ExtensionContext) {
       await context.globalState.update('ruleflow.nl.history', nh);
     } catch (e: any) {
       vscode.window.showErrorMessage('执行自然语言命令失败：' + String(e));
+    }
+  }));
+
+  // License: Activate (choose file and call tool)
+  context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant.licenseActivate', async () => {
+    try {
+      client.start(context);
+      const pick = await vscode.window.showOpenDialog({ canSelectMany: false, openLabel: '选择许可文件 (JSON)' });
+      if (!pick || !pick[0]) { return; }
+      const path = pick[0].fsPath;
+      await client.request('tools/call', { name: 'license.activate', arguments: { path } });
+      vscode.window.showInformationMessage('License 已激活');
+    } catch (e:any) {
+      vscode.window.showErrorMessage('激活失败：' + String(e));
+    }
+  }));
+  context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant.licenseVerify', async () => {
+    try {
+      client.start(context);
+      const res = await client.request('tools/call', { name: 'license.verify', arguments: {} });
+      const lic = res && (res.license || res);
+      let msg = '未找到许可';
+      try {
+        const exp = lic && lic.expires; const ok = lic && lic.ok;
+        if (exp) {
+          const days = Math.ceil((new Date(exp).getTime() - Date.now()) / (1000*3600*24));
+          msg = `许可状态：${ok? '有效' : '无效'}；到期：${exp}（剩余 ${days} 天）`;
+        }
+      } catch {}
+      vscode.window.showInformationMessage(msg);
+    } catch (e:any) {
+      vscode.window.showErrorMessage('校验失败：' + String(e));
     }
   }));
 }
