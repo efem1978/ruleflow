@@ -77,7 +77,8 @@ class McpClient {
     this.lastStartAt = Date.now();
     this.proc = spawn(pyBin, ['-m', 'mcp_rules_assistant.cli', 'start'], {
       cwd: ws,
-      stdio: ['pipe', 'pipe', 'pipe']
+      stdio: ['pipe', 'pipe', 'pipe'],
+      env: { ...process.env, MCP_PROJECT_ROOT: ws }
     });
     // log to .mcp/dashboard/server.log for troubleshooting
     try {
@@ -647,13 +648,13 @@ export function activate(context: vscode.ExtensionContext) {
         #modeBar button{padding:4px 8px;}
       </style>
       <h2>RuleFlow 面板</h2>
-      <div id="modeBar"><span>显示模式：</span> <button id="btnModeSimple">新手模式</button> <button id="btnModeAdvanced">高级模式</button></div>
+      <div id="modeBar"><span>显示模式：</span> <button id="btnModeSimple" title="仅展示常用操作；不会自动修改文件或配置">新手模式</button> <button id="btnModeAdvanced" title="展示全部功能；每项操作都需要你确认后才执行">高级模式</button></div>
       <div id="simpleBar" style="border:1px solid #ddd; padding:8px; background:#f9fbff;">
         <div style="color:#666; font-size:12px;">${msg || '正在连接 MCP …'}</div>
         <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;">
-          <button id="btnRetry">重试连接</button>
-          <button id="btnEnableFake">切换为演示模式</button>
-          <button id="btnOpenLog">打开 server.log</button>
+          <button id="btnRetry" title="重新尝试连接 MCP 后端（安全，只进行握手/健康检查）">重试连接</button>
+          <button id="btnEnableFake" title="写入 .mcp/dashboard/fake_mode 以启用离线演示；可随时删除该文件恢复">切换为演示模式</button>
+          <button id="btnOpenLog" title="打开 .mcp/dashboard/server.log 日志用于排查（只读）">打开 server.log</button>
         </div>
       </div>
       <script>
@@ -718,47 +719,47 @@ export function activate(context: vscode.ExtensionContext) {
         </div>
         <div id="proj" style="padding:4px 6px; border:1px solid #ddd; background:#fafafa; margin:6px 0; display:flex; align-items:center; gap:8px;">
           <b>当前项目:</b> <span id="curProject">(检测中)</span>
-          <button id="btnSelectProject">选择/切换项目…</button>
+          <button id="btnSelectProject" title="在当前 IDE 窗口内选择/切换项目根；所有读写限定在所选项目的 .mcp/ 目录">选择/切换项目…</button>
         </div>
         <div id="lic" style="padding:4px 6px; border:1px solid #ddd; background:#fafafa; margin:6px 0; display:flex; align-items:center; gap:8px;">
           <b>License:</b> <span id="licText">(loading)</span>
-          <button id="btnLicVerify">Verify</button>
-          <button id="btnLicActivate">Activate…</button>
+          <button id="btnLicVerify" title="校验许可状态（本地只读，不出网）">Verify</button>
+          <button id="btnLicActivate" title="从本地文件激活许可（仅写入许可配置，不改源码）">Activate…</button>
         </div>
         <pre id="licDetail" style="white-space:pre-wrap; display:none; font-size:11px; color:#555; background:#f7f7f7; padding:4px;"></pre>
         <div id="info" style="margin:6px 0; color:#d33;"></div>
         <div id="simpleBar" style="margin:10px 0; padding:8px; border:1px solid #ddd; background:#f9fbff;">
           <div class="hint">三步上手：</div>
           <div>
-            <button id="btnSimpleInstall">1) 准备并安装环境</button>
-            <button id="btnSimpleCoverage">2) 加载覆盖率</button>
-            <button id="btnSimplePlan">3) 打开计划</button>
+            <button id="btnSimpleInstall" title="为当前项目创建 .mcp/venv 并安装基础工具链（ruff/black/mypy/pytest）">1) 准备并安装环境</button>
+            <button id="btnSimpleCoverage" title="读取 coverage.xml 汇总弱项/分组/近阈值并输出到 .mcp/dashboard">2) 加载覆盖率</button>
+            <button id="btnSimplePlan" title="打开 .mcp/plan.md（项目任务与进度的唯一权威来源）">3) 打开计划</button>
           </div>
           <div>
-            <button id="btnSimpleIngest">摄取规则（README.md, docs/）</button>
-            <button id="btnSimpleStatus">刷新状态</button>
+            <button id="btnSimpleIngest" title="将 README/docs 转换为规则（写入 .mcp/rules_*），不改现有源码">摄取规则（README.md, docs/）</button>
+            <button id="btnSimpleStatus" title="刷新状态并写入 .mcp/dashboard/status.json（只读源码）">刷新状态</button>
           </div>
           <div class="hint">遇到问题 → 点击“刷新状态”，或切换到“高级模式”查看更多功能。</div>
         </div>
         <div class="adv" style="margin:8px 0;">
           <input id="nlInput" placeholder="自然语言指令：如 摄取规则 README.md, docs/ / 加载覆盖率 / 开启滚动记忆" style="width:65%;" title="在此输入中文或英文指令，按“执行”按钮运行；示例可点击下方快速填充" />
-          <button id="nlSend">执行</button>
-          <button id="nlExamples">范例</button>
-          <button id="nlClear">清空历史</button>
-          <button id="btnStatusUpdate">刷新状态</button>
+          <button id="nlSend" title="执行输入框中的自然语言指令，仅作用于当前项目">执行</button>
+          <button id="nlExamples" title="插入常用指令示例到输入框，不会直接执行">范例</button>
+          <button id="nlClear" title="清空面板中的历史显示（仅 UI，不写磁盘）">清空历史</button>
+          <button id="btnStatusUpdate" title="刷新状态摘要并更新 .mcp/dashboard/status.json">刷新状态</button>
           <span style="margin-left:6px;">近阈值%:</span>
           <input id="nearPct" value="3" style="width:40px;" title="显示覆盖率距离阈值≤该百分比的文件（默认3%）" />
-          <button id="btnCovNearInline">显示近阈值</button>
-          <button id="btnIdeScaffold">生成 IDE 集成配置</button>
-          <button id="btnCompliance">生成合规承诺</button>
-          <button id="btnOpenCompliance">打开合规承诺</button>
-          <button id="btnOpenIdeDir">打开 IDE 目录</button>
-          <button id="btnEvents">事件历史</button>
-          <button id="btnInfo">状态摘要 Info</button>
-          <button id="btnCopyEvents">复制事件</button>
-          <button id="btnCopyInfo">复制摘要</button>
-          <button id="btnOpenStatusFile">打开 status.json</button>
-          <button id="btnOpenEventsFile">打开 events</button>
+          <button id="btnCovNearInline" title="在面板内显示“近阈值”文件（仅 UI 过滤）">显示近阈值</button>
+          <button id="btnIdeScaffold" title="生成当前 IDE 的最小配置/脚本（仅写入项目内配置目录）">生成 IDE 集成配置</button>
+          <button id="btnCompliance" title="生成合规承诺文档（写入 .mcp/compliance.md）">生成合规承诺</button>
+          <button id="btnOpenCompliance" title="打开合规承诺文档（只读）">打开合规承诺</button>
+          <button id="btnOpenIdeDir" title="打开 IDE 相关目录（如 .vscode/，只读）">打开 IDE 目录</button>
+          <button id="btnEvents" title="显示近期事件（只读 .mcp/dashboard/history.json）">事件历史</button>
+          <button id="btnInfo" title="显示状态摘要信息（只读 .mcp/dashboard/status.json）">状态摘要 Info</button>
+          <button id="btnCopyEvents" title="复制事件内容到剪贴板（仅 UI，不写磁盘）">复制事件</button>
+          <button id="btnCopyInfo" title="复制状态摘要到剪贴板（仅 UI，不写磁盘）">复制摘要</button>
+          <button id="btnOpenStatusFile" title="打开 .mcp/dashboard/status.json（只读）">打开 status.json</button>
+          <button id="btnOpenEventsFile" title="打开 .mcp/dashboard/history.json（只读）">打开 events</button>
         </div>
         <div id="nlExamplesBox" class="adv" style="display:none; margin:4px 0 10px 0;">
           <span style="opacity:.8">快速范例：</span>
@@ -817,8 +818,8 @@ export function activate(context: vscode.ExtensionContext) {
           </fieldset>
         </div>
         <div class="adv" style="margin:8px 0;">
-          <button id="btnOpenUserGuide">打开用户上手 / Open User Guide</button>
-          <button id="btnOpenIdeSupport">打开 IDE 支持 / Open IDE Support</button>
+          <button id="btnOpenUserGuide" title="打开上手文档（只读），包含常见流程与截图示例">打开用户上手 / Open User Guide</button>
+          <button id="btnOpenIdeSupport" title="打开 IDE 集成说明（只读），包含 VS Code/Cursor/JetBrains 的最小配置">打开 IDE 支持 / Open IDE Support</button>
         </div>
         <div class="adv">
           <h3>可用工具（示例）</h3>
@@ -839,17 +840,17 @@ export function activate(context: vscode.ExtensionContext) {
         <div class="adv">
           <h3>规则引导（Onboard）</h3>
           <div style="margin:6px 0;">
-            <button id="btnOnboardPreview">预览推荐 / Preview</button>
-            <button id="btnOnboardApply">一键采纳 / Apply</button>
+            <button id="btnOnboardPreview" title="预览推荐的规则与阈值（只读展示，不做修改）">预览推荐 / Preview</button>
+            <button id="btnOnboardApply" title="一键采纳推荐（仅写入 .mcp/assistant.yaml 或相关配置，不改源码）">一键采纳 / Apply</button>
           </div>
           <pre id="onboardSummary" style="white-space:pre-wrap; background:#f7f7f7; padding:8px; font-size:12px; color:#333;">（点击“预览推荐”查看将启用的规则摘要）</pre>
         </div>
         <div class="adv">
           <h3>Chat（可选）</h3>
           <div style="margin:6px 0;">
-            <button id="btnChatEnable">启用追加摘要 / Enable</button>
-            <button id="btnChatDisable">禁用 / Disable</button>
-            <button id="btnChatPreview">预览摘要 / Preview</button>
+            <button id="btnChatEnable" title="启用“对话摘要追加”功能（默认仍不写记忆，除非显式允许）">启用追加摘要 / Enable</button>
+            <button id="btnChatDisable" title="禁用“对话摘要追加”功能">禁用 / Disable</button>
+            <button id="btnChatPreview" title="预览将要追加的摘要内容（只读）">预览摘要 / Preview</button>
           </div>
           <pre id="chatPreview" style="white-space:pre-wrap; background:#f7f7f7; padding:8px; font-size:12px; color:#666;">（默认关闭；启用后，每轮对话可追加“上一轮问答摘要”至记忆。无遥测，不出网。）</pre>
         </div>
@@ -860,7 +861,7 @@ export function activate(context: vscode.ExtensionContext) {
         <div class="adv">
           <h3>覆盖率薄弱（Top 20）</h3>
           <input id="covFilter" placeholder="过滤文件名关键词..." title="在薄弱列表中过滤包含该关键词的文件名" />
-          <button id="btnCovFilter">过滤</button>
+          <button id="btnCovFilter" title="应用上方的文件名关键词过滤（仅 UI）">过滤</button>
           <button id="btnOpenWeakCsv" title="查看薄弱文件 TopN 的 CSV">打开 weak_top.csv</button>
           <button id="btnOpenNearCsv" title="查看近阈值文件 TopN 的 CSV">打开 near_top.csv</button>
           <button id="btnOpenGroupsCsv" title="查看覆盖率分组聚合的 CSV">打开 groups.csv</button>
@@ -909,11 +910,11 @@ export function activate(context: vscode.ExtensionContext) {
           <div style="margin-top:4px;">
             <label><input type="checkbox" id="execChecksDelegate"> checks 委托至统一 runner（process.run_cmd）</label>
           </div>
-          <button id="btnCiSave">保存 CI 配置</button>
-          <button id="btnCiGen">生成 CI</button>
-          <button id="btnCiPreview">预览 CI</button>
-          <button id="btnCiOpen">打开 CI 文件</button>
-          <button id="btnInsertRules">插入示例规则</button>
+          <button id="btnCiSave" title="保存 CI 配置到项目（写入 .github/workflows 或配置文件）">保存 CI 配置</button>
+          <button id="btnCiGen" title="生成 CI 工作流文件（写入 .github/workflows）">生成 CI</button>
+          <button id="btnCiPreview" title="在面板内预览 CI 内容（只读）">预览 CI</button>
+          <button id="btnCiOpen" title="打开 CI 工作流文件（只读）">打开 CI 文件</button>
+          <button id="btnInsertRules" title="插入 .semgrep.yml / .hadolint.yaml 示例规则（便于快速启用基础检查）">插入示例规则</button>
           <span id="ciStatus" style="margin-left:8px;color:#888;"></span>
           <div style="margin-top:6px;">
             <h4>CI 预览（内联）</h4>
@@ -949,25 +950,25 @@ export function activate(context: vscode.ExtensionContext) {
           try { const el = document.getElementById('btnSimplePlan') as HTMLButtonElement | null; if (el) el.onclick = ()=> vscode.postMessage({ t: 'open', path: '.mcp/plan.md', line: 1 }); } catch {}
           try { const el = document.getElementById('btnSimpleIngest') as HTMLButtonElement | null; if (el) el.onclick = ()=> vscode.postMessage({ t: 'ingestRules' }); } catch {}
           try { const el = document.getElementById('btnSimpleStatus') as HTMLButtonElement | null; if (el) el.onclick = ()=> vscode.postMessage({ t: 'statusUpdate' }); } catch {}
-          document.getElementById('btnLoad').onclick = () => vscode.postMessage({ t: 'loadRules' });
-          document.getElementById('btnStatusUpdate').onclick = () => vscode.postMessage({ t: 'statusUpdate' });
-          (document.getElementById('btnSelectProject') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'selectProject' });
-          document.getElementById('btnIngest').onclick = () => vscode.postMessage({ t: 'ingestRules' });
-          document.getElementById('btnValidate').onclick = () => vscode.postMessage({ t: 'validateRules' });
+          try { const el = document.getElementById('btnLoad') as HTMLButtonElement | null; if (el) el.onclick = () => vscode.postMessage({ t: 'loadRules' }); } catch {}
+          try { const el = document.getElementById('btnStatusUpdate') as HTMLButtonElement | null; if (el) el.onclick = () => vscode.postMessage({ t: 'statusUpdate' }); } catch {}
+          try { const el = document.getElementById('btnSelectProject') as HTMLButtonElement | null; if (el) el.onclick = () => vscode.postMessage({ t: 'selectProject' }); } catch {}
+          try { const el = document.getElementById('btnIngest') as HTMLButtonElement | null; if (el) el.onclick = () => vscode.postMessage({ t: 'ingestRules' }); } catch {}
+          try { const el = document.getElementById('btnValidate') as HTMLButtonElement | null; if (el) el.onclick = () => vscode.postMessage({ t: 'validateRules' }); } catch {}
           // 预览并回写门禁（rules.resolve）
           const btnResolve = document.createElement('button'); btnResolve.id = 'btnRulesResolve'; btnResolve.textContent = '预览并应用门禁';
           const anchor = document.getElementById('btnValidate');
           if (anchor && anchor.parentElement) { anchor.parentElement.insertBefore(btnResolve, anchor.nextSibling); }
           btnResolve.onclick = () => vscode.postMessage({ t: 'rulesResolvePreview' });
-          document.getElementById('btnHooks').onclick = () => vscode.postMessage({ t: 'installHooks' });
-          document.getElementById('btnLoadSugg').onclick = () => vscode.postMessage({ t: 'loadSugg' });
-          document.getElementById('btnCoverage').onclick = () => vscode.postMessage({ t: 'coverage' });
-          document.getElementById('btnCovTree').onclick = () => vscode.postMessage({ t: 'coverageTree' });
-          (document.getElementById('btnOpenWeakCsv') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'open', path: '.mcp/dashboard/weak_top.csv', line: 1 });
-          (document.getElementById('btnOpenNearCsv') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'open', path: '.mcp/dashboard/near_top.csv', line: 1 });
-          (document.getElementById('btnOpenGroupsCsv') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'open', path: '.mcp/dashboard/groups.csv', line: 1 });
-          (document.getElementById('btnOpenGroupsMd') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'open', path: '.mcp/dashboard/jb_groups.md', line: 1 });
-          (document.getElementById('btnCovExport') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'covExport' });
+          try { const el = document.getElementById('btnHooks') as HTMLButtonElement | null; if (el) el.onclick = () => vscode.postMessage({ t: 'installHooks' }); } catch {}
+          try { const el = document.getElementById('btnLoadSugg') as HTMLButtonElement | null; if (el) el.onclick = () => vscode.postMessage({ t: 'loadSugg' }); } catch {}
+          try { const el = document.getElementById('btnCoverage') as HTMLButtonElement | null; if (el) el.onclick = () => vscode.postMessage({ t: 'coverage' }); } catch {}
+          try { const el = document.getElementById('btnCovTree') as HTMLButtonElement | null; if (el) el.onclick = () => vscode.postMessage({ t: 'coverageTree' }); } catch {}
+          try { const el = document.getElementById('btnOpenWeakCsv') as HTMLButtonElement | null; if (el) el.onclick = () => vscode.postMessage({ t: 'open', path: '.mcp/dashboard/weak_top.csv', line: 1 }); } catch {}
+          try { const el = document.getElementById('btnOpenNearCsv') as HTMLButtonElement | null; if (el) el.onclick = () => vscode.postMessage({ t: 'open', path: '.mcp/dashboard/near_top.csv', line: 1 }); } catch {}
+          try { const el = document.getElementById('btnOpenGroupsCsv') as HTMLButtonElement | null; if (el) el.onclick = () => vscode.postMessage({ t: 'open', path: '.mcp/dashboard/groups.csv', line: 1 }); } catch {}
+          try { const el = document.getElementById('btnOpenGroupsMd') as HTMLButtonElement | null; if (el) el.onclick = () => vscode.postMessage({ t: 'open', path: '.mcp/dashboard/jb_groups.md', line: 1 }); } catch {}
+          try { const el = document.getElementById('btnCovExport') as HTMLButtonElement | null; if (el) el.onclick = () => vscode.postMessage({ t: 'covExport' }); } catch {}
           (document.getElementById('btnCopyCsvPreview') as HTMLButtonElement).onclick = async () => {
             try {
               const el = document.getElementById('csvPreview');
@@ -2208,13 +2209,13 @@ export function activate(context: vscode.ExtensionContext) {
             vscode.window.showErrorMessage('Onboard 采纳失败：' + String(e));
           }
         } else if (msg.t === 'chatEnable') {
-          await context.globalState.update('ruleflow.chat.appendEnabled', true);
+          await context.workspaceState.update('ruleflow.chat.appendEnabled', true);
           panel.webview.postMessage({ t: 'chatShow', text: 'Chat 追加摘要：已启用（默认摘要短小，不含源码/个人信息）' });
         } else if (msg.t === 'chatDisable') {
-          await context.globalState.update('ruleflow.chat.appendEnabled', false);
+          await context.workspaceState.update('ruleflow.chat.appendEnabled', false);
           panel.webview.postMessage({ t: 'chatShow', text: 'Chat 追加摘要：已禁用' });
         } else if (msg.t === 'chatPreview') {
-          const enabled = !!context.globalState.get('ruleflow.chat.appendEnabled');
+          const enabled = !!context.workspaceState.get('ruleflow.chat.appendEnabled');
           const demo = 'Chat: 这里将显示上一轮问答的简要摘要（示例）';
           panel.webview.postMessage({ t: 'chatShow', text: (enabled ? '（启用）' : '（禁用）') + ' ' + demo });
         }
@@ -2341,9 +2342,9 @@ export function activate(context: vscode.ExtensionContext) {
           // 请求刷新历史
           vscode.commands.executeCommand('setContext', 'ruleflow.lastNL', text);
           panel.webview.postMessage({ t: 'nlRunOk', text });
-          const h = context.globalState.get<string[]>('ruleflow.nl.history') || [];
+          const h = context.workspaceState.get<string[]>('ruleflow.nl.history') || [];
           const nh = [text, ...h.filter(x=>x!==text)].slice(0, 10);
-          await context.globalState.update('ruleflow.nl.history', nh);
+          await context.workspaceState.update('ruleflow.nl.history', nh);
           panel.webview.postMessage({ t: 'nlHistory', items: nh });
         } catch (e:any) {
           vscode.window.showWarningMessage('自然语言执行失败：' + String(e));
@@ -2367,14 +2368,14 @@ export function activate(context: vscode.ExtensionContext) {
       }
       if (msg && msg.t === 'nlClearHistory') {
         try {
-          await context.globalState.update('ruleflow.nl.history', []);
+          await context.workspaceState.update('ruleflow.nl.history', []);
           panel.webview.postMessage({ t: 'nlHistory', items: [] });
           panel.webview.postMessage({ t: 'info', text: '已清空自然语言历史' });
         } catch {}
       }
       if (msg && msg.t === 'nlFetchHistory') {
         try {
-          const h = context.globalState.get<string[]>('ruleflow.nl.history') || [];
+          const h = context.workspaceState.get<string[]>('ruleflow.nl.history') || [];
           panel.webview.postMessage({ t: 'nlHistory', items: h });
         } catch {}
       }
@@ -2473,14 +2474,14 @@ export function activate(context: vscode.ExtensionContext) {
   }));
   // test-only: set chat append enabled flag
   context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant._test_chatSetEnabled', async (on?: boolean) => {
-    try { await context.globalState.update('ruleflow.chat.appendEnabled', !!on); return true; } catch { return false; }
+    try { await context.workspaceState.update('ruleflow.chat.appendEnabled', !!on); return true; } catch { return false; }
   }));
 
   // Public: append last chat summary into memory (optional; guarded by enable flag)
   context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant.chatAppendSummary', async (text?: string) => {
     try { client.start(context); } catch {}
     try {
-      const enabled = !!context.globalState.get('ruleflow.chat.appendEnabled');
+      const enabled = !!context.workspaceState.get('ruleflow.chat.appendEnabled');
       if (!enabled) { vscode.window.showInformationMessage('Chat 追加摘要未启用'); return true; }
       let summary = (typeof text === 'string' && text.trim()) ? String(text).trim() : '';
       if (!summary) {
@@ -2636,14 +2637,14 @@ export function activate(context: vscode.ExtensionContext) {
   // test-only: NL 历史 add/clear（不依赖后端）
   context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant._test_nlHistory', async (op: 'add'|'clear', text?: string) => {
     if (op === 'add') {
-      const h = context.globalState.get<string[]>('ruleflow.nl.history') || [];
+      const h = context.workspaceState.get<string[]>('ruleflow.nl.history') || [];
       const t = (text || 'hello').trim();
       const nh = [t, ...h.filter(x=>x!==t)].slice(0, 10);
-      await context.globalState.update('ruleflow.nl.history', nh);
+      await context.workspaceState.update('ruleflow.nl.history', nh);
       return nh.length;
     }
     if (op === 'clear') {
-      await context.globalState.update('ruleflow.nl.history', []);
+      await context.workspaceState.update('ruleflow.nl.history', []);
       return 0;
     }
     return -1;
@@ -2776,9 +2777,9 @@ export function activate(context: vscode.ExtensionContext) {
       }
       
       // 存历史
-      const h = context.globalState.get<string[]>('ruleflow.nl.history') || [];
+      const h = context.workspaceState.get<string[]>('ruleflow.nl.history') || [];
       const nh = [text, ...h.filter(x=>x!==text)].slice(0, 10);
-      await context.globalState.update('ruleflow.nl.history', nh);
+      await context.workspaceState.update('ruleflow.nl.history', nh);
     } catch (e: any) {
       vscode.window.showErrorMessage('执行自然语言命令失败：' + String(e));
     }

@@ -11,3 +11,11 @@
   - 提供 Vim/Lua 最小脚手架，命令 `:RuleFlowStart` 或绑定快捷键。
 
 > 所有 IDE 均优先使用工作区 `.mcp/venv` 的 Python 解释器；安装与配置已自动化，开箱即用。
+
+## Workspace Isolation
+
+- VS Code 扩展的状态存储改为按工作区隔离：
+  - 自然语言历史 `ruleflow.nl.history` 与 Chat 追加开关 `ruleflow.chat.appendEnabled` 使用 `workspaceState` 存储，不再跨项目/跨 IDE 混淆。
+  - 旧版本写入的 `globalState` 不再被读取，避免把其他工作区的历史带入当前窗口。
+- 后端 MCP 服务器在启动时优先使用环境变量 `MCP_PROJECT_ROOT` 作为项目根目录；VS Code 扩展在启动子进程时会设置该变量为当前工作区路径，并以此作为工作目录（cwd）。
+- 以上保证 `.mcp/memory.json` 与相关工件严格落在各自工作区内，实现项目级隔离。

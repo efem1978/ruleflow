@@ -54,7 +54,17 @@ class JsonRpcServer:
 
     def __init__(self) -> None:
         setup_default_tools()
-        self.project_root = Path.cwd()
+        # Prefer explicit workspace root from environment to avoid cross-project leakage
+        env_root = None
+        try:
+            r = os.environ.get("MCP_PROJECT_ROOT", "").strip()
+            if r:
+                p = Path(r).expanduser().resolve()
+                if p.exists() and p.is_dir():
+                    env_root = p
+        except Exception:
+            env_root = None
+        self.project_root = env_root or Path.cwd()
         self._mem_ns: str | None = None
         self.mm = MemoryManager(self.project_root)
         self.fs = FSGuard(self.project_root)
