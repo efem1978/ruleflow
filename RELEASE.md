@@ -1,0 +1,63 @@
+# Release v0.2.5 — RuleFlow: Rules & Memory (MCP)
+
+本版本围绕“上下文记忆 + 项目规则”的端到端体验完成五个批次（Batch 1–5），并严格执行本地 TDD 与覆盖率门禁（核心≥98%，其余≥95%，weak=[]）。发布说明与产物清单如下。
+
+## 摘要（Highlights）
+- VS Code：在 NL/Quick Actions/Panel“加载覆盖率”/Plan Set/CI/Hooks/受控写入后统一 `memory.append_turn`（含摘要）。
+- 面板：新增“用户上手/IDE 支持”一键文档入口；受控写入支持多文件 dry‑run + 预览。
+- JetBrains：按钮及 NL 执行后统一追加记忆；Plan Set 对话预设；多文件受控写入。
+- Onboard：`rules.onboard` 返回 profile+summary；apply 时写回 coverage min_module、license.required、CI 建议。
+- NL 别名：补充“受控写入/计划设置/规则摘要”等中英文别名。
+- 可选功能：
+  - Dev Agent 自动记忆（频率/窗口受控，默认关闭，零遥测）。
+  - VS Code Chat 可选开关，允许每轮问答后追加摘要（默认关闭，需显式启用）。
+
+## 质量门禁（DoD）
+- Python 侧：
+  - `-W error`、无 skip/xfail；`make local-ci-run` 全绿。
+  - 覆盖率门禁（Policy Gate）通过：weak=[]；核心≥98%、其余≥95%。
+- VS Code：容器内无头测试与 lcov 输出（best‑effort），CI 可设 95% 硬门禁。
+- 预发布检查报告：`.mcp/dashboard/pre_release_report.md`（含 lcov/状态/模拟发布物料）。
+
+## 主要改动
+- VS Code 扩展
+  - 统一追加记忆；受控写入多文件 dry‑run + 预览；Onboard 预览/采纳；Chat 可选开关与命令。
+- JetBrains 插件
+  - 按钮/NL/受控写入/Plan Set 统一落盘摘要；验证脚本导出 memory.turns_count。
+- 服务器/CLI
+  - `rules.onboard` 返回推荐 profile+summary，支持 license/CI/coverage 写回；
+  - NL 别名扩展；内置 `rules.maxima`/`plan.set` 等路径优化。
+- Dev Agent（可选）
+  - 自动追加“最小摘要”，频率与窗口受控，默认关闭。仅本地写文件，无遥测/开放端口。
+
+## 安装/使用（简）
+- Python 包
+  - `pip install dist/mcp_rules_assistant-0.2.5-py3-none-any.whl`
+  - CLI 示例：`python -m mcp_rules_assistant.cli start`
+- VS Code 扩展
+  - `code --install-extension extensions/vscode/mcp-rules-assistant-0.2.5.vsix`
+  - 命令面板：`RuleFlow: Open Panel` / `RuleFlow: Natural Command`
+- JetBrains 插件
+  - 使用 Gradle `buildPlugin` 生成 zip（脚本：`scripts/jb-package.sh`），在 IDE 中从磁盘安装；或使用工具窗口“RuleFlow”。
+
+## 产物清单（Artifacts）
+- Python 包/归档
+  - `dist/mcp_rules_assistant-0.2.5-py3-none-any.whl`
+  - `dist/mcp_rules_assistant-0.2.5.tar.gz`
+  - 集合包：`dist/release-bundle-0.2.5.tar.gz`
+- VS Code 扩展
+  - `extensions/vscode/mcp-rules-assistant-0.2.5.vsix`
+- 发布说明/报告
+  - `.mcp/dashboard/release_note_snippet.md`（简版）
+  - `.mcp/dashboard/release_body.md`（完整版）
+  - `.mcp/dashboard/release_changes.md`（变更日志）
+  - `.mcp/dashboard/pre_release_report.md`（预发布检查报告）
+
+## 风险与已知事项
+- VS Code 无头测试在某些宿主/容器组合下可能有环境依赖（DBus 等）提示，不影响门禁（best‑effort）；建议在 CI 使用容器镜像运行。
+- Chat/Dev Agent 功能默认关闭；启用前请确认隐私与性能影响说明（USER_GUIDE 可选功能段落）。
+
+## 致谢与回溯
+- 任务清单来源与权威：`.mcp/plan.md`（状态：in_progress，步骤：DoD verification）。
+- 详细执行记录与门禁脚本：`Makefile`、`scripts/`、`.mcp/*`。
+
