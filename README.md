@@ -57,6 +57,14 @@ MCP 规则与上下文助手 / MCP Rules & Context Assistant
 
 状态 Status
 
+下载与发布说明 / Download & Release Notes
+- 快速查看发布说明：`RELEASE.md`
+- 发布物料与报告（本地生成）：
+  - VSIX：`extensions/vscode/mcp-rules-assistant-0.2.5.vsix`
+  - Python 包：`dist/mcp_rules_assistant-0.2.5-py3-none-any.whl` | `dist/mcp_rules_assistant-0.2.5.tar.gz`
+  - 归档：`dist/release-bundle-0.2.5.tar.gz`
+  - 预发布报告：`.mcp/dashboard/pre_release_report.md`
+
 ![CI](https://img.shields.io/github/actions/workflow/status/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool/ci.yml?branch=main&label=CI)
 ![Release](https://img.shields.io/github/v/tag/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool?label=release)
 ![Coverage](https://codecov.io/gh/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool/branch/main/graph/badge.svg)
@@ -180,7 +188,7 @@ coverage:
  - 安装钩子（回退）：`make hooks-sh`（无 Python 环境）
 
 文档 Docs（入口：`DEVELOPMENT.md`）
-（快速入口：`DEVELOPMENT.md` | `docs/IDE_SCAFFOLD.md` | `docs/USAGE.md`）
+（快速入口：`DEVELOPMENT.md` | `docs/USER_GUIDE.md` | `docs/NATURAL_LANGUAGE.md` | `docs/IDE_SCAFFOLD.md` | `docs/IDE_SUPPORT.md` | `docs/USAGE.md`）
 - 任务计划（唯一权威）：`.mcp/plan.md`（面板与工具仅读取此处的清单与状态）
 - 插件化路线：`docs/IDE_PLUGIN_ROADMAP.md`
 - DEVELOPMENT：`DEVELOPMENT.md`（开发入口 / TDD 计划 / AI 约束 / 文档索引）
