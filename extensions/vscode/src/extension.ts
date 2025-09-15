@@ -1,9 +1,23 @@
 import * as vscode from 'vscode';
 import { spawn, ChildProcessWithoutNullStreams } from 'child_process';
 
+// Workspace root lock (user-selected project root for strict isolation)
+let __lockedRoot: string | null = null;
+
+// Helper to generate CSP nonce for webview inline scripts
+function getNonce(): string {
+  const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let text = '';
+  for (let i = 0; i < 32; i++) {
+    text += possible.charAt(Math.floor(Math.random() * possible.length));
+  }
+  return text;
+}
+
 // ---- Workspace helpers (multi-root aware, Occam's razor) ----
 function getWorkspaceRoot(): string | undefined {
   try {
+    if (__lockedRoot) return __lockedRoot;
     const ed = vscode.window.activeTextEditor;
     if (ed) {
       const folder = vscode.workspace.getWorkspaceFolder(ed.document.uri);
@@ -17,6 +31,9 @@ function getWorkspaceRoot(): string | undefined {
 
 function getWorkspaceLabel(): string {
   try {
+    if (__lockedRoot) {
+      try { const p = require('path'); return p.basename(__lockedRoot); } catch {}
+    }
     const ed = vscode.window.activeTextEditor;
     if (ed) {
       const folder = vscode.workspace.getWorkspaceFolder(ed.document.uri);
@@ -388,6 +405,20 @@ export function activate(context: vscode.ExtensionContext) {
     return;
   }
   __activated = true;
+  // 恢复锁定根目录（若存在），优先使用此前用户选择的项目根
+  try {
+    const saved = context.workspaceState.get<string>('ruleflow.lockRoot') || '';
+    if (saved && saved.trim()) { __lockedRoot = saved.trim(); }
+    else {
+      const w0 = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+      if (w0) {
+        const p = require('path'); const fs = require('fs');
+        const prefs = p.join(w0, '.mcp', 'dashboard', 'ui_prefs.json');
+        try { const txt = fs.readFileSync(prefs, 'utf8'); const obj = JSON.parse(txt||'{}'); if (obj && typeof obj.projectRoot==='string' && obj.projectRoot) __lockedRoot = obj.projectRoot; } catch {}
+      }
+    }
+  } catch {}
+
   // 在状态栏放一个快捷入口，点击即可打开面板
   const sb = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
   sb.text = 'RuleFlow';
@@ -631,6 +662,28 @@ export function activate(context: vscode.ExtensionContext) {
     const uri = vscode.Uri.file(ws + '/.mcp/memory.json');
     try {
       await vscode.workspace.fs.stat(uri);
+      // Guard against symlink/out-of-workspace and hardlink targets leaking memory across projects
+      try {
+        const fs = require('fs'); const path = require('path');
+        const l = fs.lstatSync(uri.fsPath);
+        const mcpDir = path.resolve(ws, '.mcp');
+        let real = uri.fsPath;
+        if (l.isSymbolicLink()) {
+          real = fs.realpathSync(uri.fsPath);
+        }
+        const inside = real.startsWith(mcpDir + path.sep) || real === mcpDir;
+        if (!inside) {
+          vscode.window.showErrorMessage('出于隔离安全，已拒绝打开位于工作区之外的记忆文件');
+          return;
+        }
+        // Detect hardlink count > 1 and warn/abort (conservative default)
+        const st = fs.statSync(real);
+        const isHardLinked = (st.nlink && st.nlink > 1);
+        if (isHardLinked && String(process.env.MCP_MEMORY_TRUST_HARDLINK || '').trim().toLowerCase() !== '1') {
+          vscode.window.showWarningMessage('检测到 memory.json 可能为硬链接；为防跨项目共享，默认不打开（设置 MCP_MEMORY_TRUST_HARDLINK=1 可放宽）。');
+          return;
+        }
+      } catch { /* ignore and continue best-effort */ }
       const doc = await vscode.workspace.openTextDocument(uri);
       await vscode.window.showTextDocument(doc, { preview: false });
     } catch {
@@ -674,9 +727,46 @@ export function activate(context: vscode.ExtensionContext) {
       'mcpRulesAssistant',
       'RuleFlow: Rules & Memory',
       vscode.ViewColumn.Beside,
-      { enableScripts: true }
+      { enableScripts: true, retainContextWhenHidden: true }
     );
-    panel.webview.html = renderFallback('正在连接 MCP …');
+    const csp = panel.webview.cspSource;
+    const nonce = getNonce();
+    const __fallbackHtml = `
+      <html>
+        <head>
+          <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${csp} data:; style-src ${csp} 'unsafe-inline'; script-src ${csp} 'nonce-${nonce}'; font-src ${csp} data:">
+        </head>
+        <body style="font-family:-apple-system,Segoe UI,Arial;">
+          <style>
+            body.simple .adv{display:none;} body.advanced #simpleBar{display:none;}
+            #modeBar{display:flex;gap:6px;align-items:center;margin:6px 0;}
+            #modeBar button{padding:4px 8px;}
+          </style>
+          <h2>RuleFlow 面板</h2>
+          <div id="modeBar"><span>显示模式：</span> <button id="btnModeSimple" title="仅展示常用操作；不会自动修改文件或配置">新手模式</button> <button id="btnModeAdvanced" title="展示全部功能；每项操作都需要你确认后才执行">高级模式</button></div>
+          <div id="simpleBar" style="border:1px solid #ddd; padding:8px; background:#f9fbff;">
+            <div style="color:#666; font-size:12px;">正在连接 MCP …</div>
+            <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;">
+              <button id="btnRetry" title="重新尝试连接 MCP 后端（安全，只进行握手/健康检查）">重试连接</button>
+              <button id="btnEnableFake" title="写入 .mcp/dashboard/fake_mode 以启用离线演示；可随时删除该文件恢复">切换为演示模式</button>
+              <button id="btnOpenLog" title="打开 .mcp/dashboard/server.log 日志用于排查（只读）">打开 server.log</button>
+            </div>
+          </div>
+          <script nonce="${nonce}">
+            const vscode = acquireVsCodeApi();
+            (function(){
+              const apply=(m)=>{ try{document.body.classList.remove('simple','advanced');document.body.classList.add(m);}catch{} try{vscode.setState&&vscode.setState({uiMode:m});}catch{} };
+              const st=(vscode.getState&&vscode.getState())||{}; apply((st&&st.uiMode)||'simple');
+              const s=document.getElementById('btnModeSimple'); const a=document.getElementById('btnModeAdvanced');
+              if(s) s.onclick=()=>apply('simple'); if(a) a.onclick=()=>apply('advanced');
+              const r=document.getElementById('btnRetry'); if(r) r.onclick=()=>vscode.postMessage({t:'retryConnect'});
+              const f=document.getElementById('btnEnableFake'); if(f) f.onclick=()=>vscode.postMessage({t:'enableFake'});
+              const l=document.getElementById('btnOpenLog'); if(l) l.onclick=()=>vscode.postMessage({t:'openServerLog'});
+            })();
+          </script>
+        </body>
+      </html>`;
+    panel.webview.html = __fallbackHtml;
     // 按需启动后端 Python 服务器
     try { client.start(context); } catch {}
     // make postMessage safe after dispose
@@ -694,8 +784,11 @@ export function activate(context: vscode.ExtensionContext) {
     __panelReady = new Promise<void>((res) => { __panelReadyResolve = res; });
 
     /* c8 ignore start */
-    const render = (md: string, toolsListHtml: string, sugg: string = '') => `
+    const render = (csp: string, nonceVal: string, md: string, toolsListHtml: string, sugg: string = '') => `
       <html>
+      <head>
+        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${csp} data:; style-src ${csp} 'unsafe-inline'; script-src ${csp} 'nonce-${nonceVal}'; font-src ${csp} data:">
+      </head>
       <body class="simple" style="font-family: -apple-system,Segoe UI,Arial;">
         <style>
           body.simple .adv { display: none; }
@@ -707,18 +800,20 @@ export function activate(context: vscode.ExtensionContext) {
           #simpleBar button { padding:6px 10px; margin:2px 4px; }
           .hint { color:#666; font-size:12px; }
         </style>
-        <h2>MCP 规则与上下文助手</h2>
-        <p>已连接到 Python MCP Server（最小协议）。默认快速内环：保存轻、推送重。</p>
+        <h2 id="hdrTitle">MCP 规则与上下文助手</h2>
+        <p id="pConnected">已连接到 Python MCP Server（最小协议）。默认快速内环：保存轻、推送重。</p>
         <div id="modeBar">
-          <span class="hint">显示模式：</span>
+          <span id="lblDisplayMode" class="hint">显示模式：</span>
           <button id="btnModeSimple" title="仅展示常用操作；不会自动修改文件或配置">新手模式</button>
           <button id="btnModeAdvanced" title="展示全部功能；每项操作都需要你确认后才执行">高级模式</button>
+          <button id="btnLang" title="切换中/英文界面标签">中文/English</button>
+          <button id="btnReloadPanel" title="重载面板（重新渲染并握手）">重载面板</button>
         </div>
         <div id="ticker" style="height:auto; background:#f6f6f6; border:1px solid #ddd; padding:4px 8px; margin:6px 0;">
           <span id="tickerText" style="display:inline-block; white-space:nowrap; font-size:12px; color:#333;"></span>
         </div>
         <div id="proj" style="padding:4px 6px; border:1px solid #ddd; background:#fafafa; margin:6px 0; display:flex; align-items:center; gap:8px;">
-          <b>当前项目:</b> <span id="curProject">(检测中)</span>
+          <b id="lblCurProject">当前项目:</b> <span id="curProject">(检测中)</span>
           <button id="btnSelectProject" title="在当前 IDE 窗口内选择/切换项目根；所有读写限定在所选项目的 .mcp/ 目录">选择/切换项目…</button>
         </div>
         <div id="lic" style="padding:4px 6px; border:1px solid #ddd; background:#fafafa; margin:6px 0; display:flex; align-items:center; gap:8px;">
@@ -729,7 +824,7 @@ export function activate(context: vscode.ExtensionContext) {
         <pre id="licDetail" style="white-space:pre-wrap; display:none; font-size:11px; color:#555; background:#f7f7f7; padding:4px;"></pre>
         <div id="info" style="margin:6px 0; color:#d33;"></div>
         <div id="simpleBar" style="margin:10px 0; padding:8px; border:1px solid #ddd; background:#f9fbff;">
-          <div class="hint">三步上手：</div>
+          <div id="hintQuick" class="hint">三步上手：</div>
           <div>
             <button id="btnSimpleInstall" title="为当前项目创建 .mcp/venv 并安装基础工具链（ruff/black/mypy/pytest）">1) 准备并安装环境</button>
             <button id="btnSimpleCoverage" title="读取 coverage.xml 汇总弱项/分组/近阈值并输出到 .mcp/dashboard">2) 加载覆盖率</button>
@@ -754,12 +849,14 @@ export function activate(context: vscode.ExtensionContext) {
           <button id="btnCompliance" title="生成合规承诺文档（写入 .mcp/compliance.md）">生成合规承诺</button>
           <button id="btnOpenCompliance" title="打开合规承诺文档（只读）">打开合规承诺</button>
           <button id="btnOpenIdeDir" title="打开 IDE 相关目录（如 .vscode/，只读）">打开 IDE 目录</button>
-          <button id="btnEvents" title="显示近期事件（只读 .mcp/dashboard/history.json）">事件历史</button>
+          <button id="btnEvents" title="显示近期事件（只读 .mcp/dashboard/cmd_events.jsonl）">事件历史</button>
+          <button id="btnAudit" title="显示安全审计（只读 .mcp/dashboard/security_audit.jsonl）">安全审计</button>
           <button id="btnInfo" title="显示状态摘要信息（只读 .mcp/dashboard/status.json）">状态摘要 Info</button>
           <button id="btnCopyEvents" title="复制事件内容到剪贴板（仅 UI，不写磁盘）">复制事件</button>
           <button id="btnCopyInfo" title="复制状态摘要到剪贴板（仅 UI，不写磁盘）">复制摘要</button>
           <button id="btnOpenStatusFile" title="打开 .mcp/dashboard/status.json（只读）">打开 status.json</button>
-          <button id="btnOpenEventsFile" title="打开 .mcp/dashboard/history.json（只读）">打开 events</button>
+          <button id="btnOpenEventsFile" title="打开 .mcp/dashboard/cmd_events.jsonl（只读）">打开 events</button>
+          <button id="btnOpenAuditFile" title="打开 .mcp/dashboard/security_audit.jsonl（只读）">打开 audit</button>
         </div>
         <div id="nlExamplesBox" class="adv" style="display:none; margin:4px 0 10px 0;">
           <span style="opacity:.8">快速范例：</span>
@@ -822,23 +919,23 @@ export function activate(context: vscode.ExtensionContext) {
           <button id="btnOpenIdeSupport" title="打开 IDE 集成说明（只读），包含 VS Code/Cursor/JetBrains 的最小配置">打开 IDE 支持 / Open IDE Support</button>
         </div>
         <div class="adv">
-          <h3>可用工具（示例）</h3>
+          <h3 id="hdrTools">可用工具（示例）</h3>
           <ul>${toolsListHtml}</ul>
         </div>
         <div class="adv">
-          <h3>项目规则（编译版）</h3>
+          <h3 id="hdrCompiled">项目规则（编译版）</h3>
           <pre id="rules" style="white-space:pre-wrap; background:#1112; padding:8px;">${md || '暂无内容 / No content'}</pre>
         </div>
         <div class="adv">
-          <h3>冲突定位（可点击跳转）</h3>
+          <h3 id="hdrConflictsNav">冲突定位（可点击跳转）</h3>
           <ul id="conflicts"></ul>
         </div>
         <div class="adv">
-          <h3>冲突与建议（Conflicts & Suggestions）</h3>
+          <h3 id="hdrConflictsSugg">冲突与建议（Conflicts & Suggestions）</h3>
           <pre id="sugg" style="white-space:pre-wrap; background:#1111; padding:8px;">${sugg || '暂无建议 / No suggestions'}</pre>
         </div>
         <div class="adv">
-          <h3>规则引导（Onboard）</h3>
+          <h3 id="hdrOnboard">规则引导（Onboard）</h3>
           <div style="margin:6px 0;">
             <button id="btnOnboardPreview" title="预览推荐的规则与阈值（只读展示，不做修改）">预览推荐 / Preview</button>
             <button id="btnOnboardApply" title="一键采纳推荐（仅写入 .mcp/assistant.yaml 或相关配置，不改源码）">一键采纳 / Apply</button>
@@ -846,7 +943,7 @@ export function activate(context: vscode.ExtensionContext) {
           <pre id="onboardSummary" style="white-space:pre-wrap; background:#f7f7f7; padding:8px; font-size:12px; color:#333;">（点击“预览推荐”查看将启用的规则摘要）</pre>
         </div>
         <div class="adv">
-          <h3>Chat（可选）</h3>
+          <h3 id="hdrChat">Chat（可选）</h3>
           <div style="margin:6px 0;">
             <button id="btnChatEnable" title="启用“对话摘要追加”功能（默认仍不写记忆，除非显式允许）">启用追加摘要 / Enable</button>
             <button id="btnChatDisable" title="禁用“对话摘要追加”功能">禁用 / Disable</button>
@@ -855,11 +952,11 @@ export function activate(context: vscode.ExtensionContext) {
           <pre id="chatPreview" style="white-space:pre-wrap; background:#f7f7f7; padding:8px; font-size:12px; color:#666;">（默认关闭；启用后，每轮对话可追加“上一轮问答摘要”至记忆。无遥测，不出网。）</pre>
         </div>
         <div class="adv">
-          <h3>覆盖率分组</h3>
+          <h3 id="hdrCovGroups">覆盖率分组</h3>
           <ul id="covGroups"></ul>
         </div>
         <div class="adv">
-          <h3>覆盖率薄弱（Top 20）</h3>
+          <h3 id="hdrWeakTop">覆盖率薄弱（Top 20）</h3>
           <input id="covFilter" placeholder="过滤文件名关键词..." title="在薄弱列表中过滤包含该关键词的文件名" />
           <button id="btnCovFilter" title="应用上方的文件名关键词过滤（仅 UI）">过滤</button>
           <button id="btnOpenWeakCsv" title="查看薄弱文件 TopN 的 CSV">打开 weak_top.csv</button>
@@ -867,10 +964,10 @@ export function activate(context: vscode.ExtensionContext) {
           <button id="btnOpenGroupsCsv" title="查看覆盖率分组聚合的 CSV">打开 groups.csv</button>
           <button id="btnOpenGroupsMd" title="为 JetBrains UI 预览的分组摘要">打开 jb_groups.md</button>
           <ul id="covWeak"></ul>
-          <h4>CSV 预览</h4>
+          <h4 id="hdrCsvPreview">CSV 预览</h4>
           <pre id="csvPreview" style="white-space:pre-wrap; background:#f7f7f7; padding:4px; font-size:11px;"></pre>
           <div>
-            <label>切换预览：</label>
+            <label id="lblCsvSwitch">切换预览：</label>
             <select id="csvSelect" title="选择要预览的 CSV 报表">
               <option value="weak_top.csv">weak_top.csv</option>
               <option value="near_top.csv">near_top.csv</option>
@@ -880,26 +977,28 @@ export function activate(context: vscode.ExtensionContext) {
         </div>
         </div>
         <div class="adv">
-          <h3>覆盖率目录树（弱项）</h3>
+          <h3 id="hdrCovTree">覆盖率目录树（弱项）</h3>
           <ul id="covTree"></ul>
         </div>
         <div class="adv">
-          <h3>最近记忆与计划</h3>
+          <h3 id="hdrRecent">最近记忆与计划</h3>
           <pre id="memory" style="white-space:pre-wrap; background:#1102; padding:8px;">（点击“加载记忆 / 加载计划 / 事件历史”获取）</pre>
           <pre id="plan" style="white-space:pre-wrap; background:#1101; padding:8px;"></pre>
-          <h4>事件历史（最近）</h4>
+          <h4 id="hdrEvents">事件历史（最近）</h4>
           <pre id="events" style="white-space:pre-wrap; background:#0211; padding:8px;"></pre>
-          <h4>状态摘要（最近）</h4>
+          <h4 id="hdrAudit">安全审计（最近）</h4>
+          <pre id="audit" style="white-space:pre-wrap; background:#0211; padding:8px;"></pre>
+          <h4 id="hdrStatus">状态摘要（最近）</h4>
           <pre id="infolist" style="white-space:pre-wrap; background:#1021; padding:8px;"></pre>
         </div>
         <div class="adv">
-          <h3>剩余任务（来自 .mcp/plan.md）</h3>
+          <h3 id="hdrTasksPending">剩余任务（来自 .mcp/plan.md）</h3>
           <ul id="tasksPending"></ul>
-          <h3>已完成</h3>
+          <h3 id="hdrTasksDone">已完成</h3>
           <ul id="tasksDone"></ul>
         </div>
         <div class="adv">
-          <h3>CI 配置（hadolint / semgrep / mutation）</h3>
+          <h3 id="hdrCI">CI 配置（hadolint / semgrep / mutation）</h3>
           <label><input type="checkbox" id="ciHadolint"> 启用 hadolint</label><br/>
           镜像: <input id="ciHadolintImage" style="width:260px" placeholder="hadolint/hadolint:latest"/>
           参数: <input id="ciHadolintArgs" style="width:260px" placeholder="--ignore DL3008"/><br/>
@@ -923,9 +1022,20 @@ export function activate(context: vscode.ExtensionContext) {
             <ul id="ciChecks"></ul>
           </div>
         </div>
-        <script>
+        <script nonce="${nonceVal}">
           const vscode = acquireVsCodeApi();
+          // Collect front-end errors for diagnostics
+          try {
+            (window as any).__panelErrors = [];
+            window.addEventListener('error', (e:any) => {
+              try { (window as any).__panelErrors.push('error: ' + (e.message||'') + ' @ ' + (e.filename||'') + ':' + (e.lineno||'') + ':' + (e.colno||'')); } catch {}
+            });
+            window.addEventListener('unhandledrejection', (e:any) => {
+              try { (window as any).__panelErrors.push('unhandledrejection: ' + String(e.reason||'')); } catch {}
+            });
+          } catch {}
           try { vscode.postMessage({ t: 'ready' }); } catch {}
+          try { vscode.postMessage({ t: 'handshake' }); } catch {}
           // ---- UI mode (simple/advanced) ----
           (function(){
             try {
@@ -936,11 +1046,83 @@ export function activate(context: vscode.ExtensionContext) {
                 try { vscode.setState && vscode.setState({ ...(state||{}), uiMode: m }); } catch {}
                 try { localStorage && localStorage.setItem('ruleflow.uiMode', m); } catch {}
               };
+              const applyLang = (lang: string) => {
+                const zh = lang === 'zh';
+                const set = (id:string, text?:string, title?:string) => { try { const el = document.getElementById(id) as HTMLElement; if (el && text!==undefined) el.textContent = text; if (el && title!==undefined) (el as any).title = title; } catch {} };
+                set('hdrTitle', zh? 'MCP 规则与上下文助手' : 'MCP Rules & Context Assistant');
+                set('pConnected', zh? '已连接到 Python MCP Server（最小协议）。默认快速内环：保存轻、推送重。' : 'Connected to Python MCP Server (minimal protocol). Fast inner loop: light save, gated push.');
+                set('lblDisplayMode', zh? '显示模式：' : 'Display mode:');
+                set('lblCurProject', zh? '当前项目:' : 'Project:');
+                set('hintQuick', zh? '三步上手：' : 'Quick start:');
+                set('btnModeSimple', zh? '新手模式' : 'Simple', zh? '仅展示常用操作；不会自动修改文件或配置' : 'Show common actions only; no writes');
+                set('btnModeAdvanced', zh? '高级模式' : 'Advanced', zh? '展示全部功能；每项操作都需要你确认后才执行' : 'Show all features; confirm before actions');
+                set('btnLang', zh? '中文/English' : 'English/中文', zh? '切换中/英文界面标签' : 'Toggle Chinese/English labels');
+                set('btnSimpleInstall', zh? '1) 准备并安装环境' : '1) Prepare & Install Env', zh? '为当前项目创建 .mcp/venv 并安装基础工具链（ruff/black/mypy/pytest）' : 'Create .mcp/venv and install basics');
+                set('btnSimpleCoverage', zh? '2) 加载覆盖率' : '2) Load Coverage', zh? '读取 coverage.xml 汇总弱项/分组/近阈值并输出到 .mcp/dashboard' : 'Read coverage.xml and summarize');
+                set('btnSimplePlan', zh? '3) 打开计划' : '3) Open Plan', zh? '打开 .mcp/plan.md（项目任务与进度的唯一权威来源）' : 'Open .mcp/plan.md');
+                set('btnSimpleIngest', zh? '摄取规则（README.md, docs/）' : 'Ingest Rules (README.md, docs/)', zh? '将 README/docs 转换为规则（写入 .mcp/rules_*），不改现有源码' : 'Convert README/docs to rules into .mcp');
+                set('btnSimpleStatus', zh? '刷新状态' : 'Refresh Status', zh? '刷新状态并写入 .mcp/dashboard/status.json（只读源码）' : 'Refresh status and write dashboard');
+                set('nlSend', zh? '执行' : 'Run', zh? '执行输入框中的自然语言指令，仅作用于当前项目' : 'Run natural-language command');
+                set('nlExamples', zh? '范例' : 'Examples');
+                set('nlClear', zh? '清空历史' : 'Clear');
+                set('btnIdeScaffold', zh? '生成 IDE 集成配置' : 'Generate IDE Scaffold');
+                set('btnCompliance', zh? '生成合规承诺' : 'Gen Compliance');
+                set('btnOpenCompliance', zh? '打开合规承诺' : 'Open Compliance');
+                set('btnOpenIdeDir', zh? '打开 IDE 目录' : 'Open IDE Dir');
+                set('btnReloadPanel', zh? '重载面板' : 'Reload Panel', zh? '重载面板（重新渲染并握手）' : 'Reload panel (re-render & handshake)');
+                set('btnEvents', zh? '事件历史' : 'Events', zh? '显示近期事件（只读 .mcp/dashboard/cmd_events.jsonl）' : 'Show recent events');
+                set('btnAudit', zh? '安全审计' : 'Security Audit', zh? '显示安全审计（只读 .mcp/dashboard/security_audit.jsonl）' : 'Show security audit');
+                set('btnInfo', zh? '状态摘要 Info' : 'Status Info');
+                set('btnDiag', zh? '诊断' : 'Diagnostics', zh? '收集前端错误、环境与审计信息到 .mcp/dashboard/panel_diag.json' : 'Collect front-end errors and audit report');
+                // Section headings
+                set('hdrTools', zh? '可用工具（示例）' : 'Available Tools (samples)');
+                set('hdrCompiled', zh? '项目规则（编译版）' : 'Compiled Project Rules');
+                set('hdrConflictsNav', zh? '冲突定位（可点击跳转）' : 'Conflicts (click to open)');
+                set('hdrConflictsSugg', zh? '冲突与建议（Conflicts & Suggestions）' : 'Conflicts & Suggestions');
+                set('hdrOnboard', zh? '规则引导（Onboard）' : 'Rules Onboarding');
+                set('hdrChat', zh? 'Chat（可选）' : 'Chat (optional)');
+                set('hdrCovGroups', zh? '覆盖率分组' : 'Coverage Groups');
+                set('hdrWeakTop', zh? '覆盖率薄弱（Top 20）' : 'Weak Coverage (Top 20)');
+                set('hdrCsvPreview', zh? 'CSV 预览' : 'CSV Preview');
+                set('lblCsvSwitch', zh? '切换预览：' : 'Switch preview:');
+                set('hdrCovTree', zh? '覆盖率目录树（弱项）' : 'Coverage Tree (weak)');
+                set('hdrRecent', zh? '最近记忆与计划' : 'Recent Memory & Plan');
+                set('hdrEvents', zh? '事件历史（最近）' : 'Recent Events');
+                set('hdrAudit', zh? '安全审计（最近）' : 'Security Audit (recent)');
+                set('hdrStatus', zh? '状态摘要（最近）' : 'Status Summary (recent)');
+                set('hdrTasksPending', zh? '剩余任务（来自 .mcp/plan.md）' : 'Pending Tasks (from .mcp/plan.md)');
+                set('hdrTasksDone', zh? '已完成' : 'Done');
+                set('hdrCI', zh? 'CI 配置（hadolint / semgrep / mutation）' : 'CI Config (hadolint / semgrep / mutation)');
+                // Placeholders
+                try { const ip = document.getElementById('nlInput') as HTMLInputElement; if (ip) ip.placeholder = zh? '自然语言指令：如 摄取规则 README.md, docs/ / 加载覆盖率 / 开启滚动记忆' : 'NL command: e.g. Ingest README.md, docs/ / Load Coverage / Enable memory'; } catch {}
+                try { (window as any).applyLang = applyLang; } catch {}
+              };
               apply(mode);
               const btnS = document.getElementById('btnModeSimple') as HTMLButtonElement | null;
               const btnA = document.getElementById('btnModeAdvanced') as HTMLButtonElement | null;
               if (btnS) btnS.onclick = () => apply('simple');
               if (btnA) btnA.onclick = () => apply('advanced');
+              const btnL = document.getElementById('btnLang') as HTMLButtonElement | null;
+              if (btnL) btnL.onclick = () => {
+                try {
+                  const st = (vscode.getState && vscode.getState()) || {} as any;
+                  const cur = (st && (st as any).lang) || (typeof localStorage!=='undefined' ? localStorage.getItem('ruleflow.lang') : '') || 'zh';
+                  const next = (String(cur) === 'zh') ? 'en' : 'zh';
+                  if (vscode.setState) vscode.setState({ ...(st||{}), lang: next });
+                  try { localStorage && localStorage.setItem('ruleflow.lang', next); } catch {}
+                  vscode.postMessage({ t: 'info', text: (next==='zh' ? '已切换到中文' : 'Switched to English') });
+                  applyLang(next);
+                  // persist to workspace (shared across windows)
+                  try { vscode.postMessage({ t: 'lang.set', value: next }); } catch {}
+                } catch {}
+              };
+              try {
+                const st = (vscode.getState && vscode.getState()) || {} as any;
+                const savedLang = (st && (st as any).lang) || (typeof localStorage!=='undefined' ? localStorage.getItem('ruleflow.lang') : '') || 'zh';
+                applyLang(String(savedLang));
+                // ask extension to override from workspace if present
+                try { vscode.postMessage({ t: 'lang.get' }); } catch {}
+              } catch {}
             } catch {}
           })();
 
@@ -950,6 +1132,31 @@ export function activate(context: vscode.ExtensionContext) {
           try { const el = document.getElementById('btnSimplePlan') as HTMLButtonElement | null; if (el) el.onclick = ()=> vscode.postMessage({ t: 'open', path: '.mcp/plan.md', line: 1 }); } catch {}
           try { const el = document.getElementById('btnSimpleIngest') as HTMLButtonElement | null; if (el) el.onclick = ()=> vscode.postMessage({ t: 'ingestRules' }); } catch {}
           try { const el = document.getElementById('btnSimpleStatus') as HTMLButtonElement | null; if (el) el.onclick = ()=> vscode.postMessage({ t: 'statusUpdate' }); } catch {}
+          // Event delegation fallback: ensure clicks still work even if nodes are re-rendered
+          try {
+            const clickMap: any = {
+              'btnLicVerify': { t: 'licenseVerify' },
+              'btnLicActivate': { t: 'licenseActivate' },
+              'btnSimpleInstall': { t: 'prepareEnvInstall' },
+              'btnSimpleCoverage': { t: 'coverage' },
+              'btnSimplePlan': { t: 'open', path: '.mcp/plan.md', line: 1 },
+              'btnSimpleIngest': { t: 'ingestRules' },
+              'btnSimpleStatus': { t: 'statusUpdate' },
+              'btnEvents': { t: 'eventsLoad' },
+              'btnAudit': { t: 'auditLoad' },
+              'btnInfo': { t: 'statusInfo' },
+            };
+            document.addEventListener('click', (ev:any) => {
+              try {
+                const el = ev.target as HTMLElement;
+                if (!el || !el.id) return;
+                const m = clickMap[el.id];
+                if (!m) return;
+                ev.preventDefault();
+                vscode.postMessage(m);
+              } catch {}
+            }, true);
+          } catch {}
           try { const el = document.getElementById('btnLoad') as HTMLButtonElement | null; if (el) el.onclick = () => vscode.postMessage({ t: 'loadRules' }); } catch {}
           try { const el = document.getElementById('btnStatusUpdate') as HTMLButtonElement | null; if (el) el.onclick = () => vscode.postMessage({ t: 'statusUpdate' }); } catch {}
           try { const el = document.getElementById('btnSelectProject') as HTMLButtonElement | null; if (el) el.onclick = () => vscode.postMessage({ t: 'selectProject' }); } catch {}
@@ -1015,6 +1222,11 @@ export function activate(context: vscode.ExtensionContext) {
           (document.getElementById('btnOpenCompliance') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'openCompliance' });
           (document.getElementById('btnOpenIdeDir') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'openIdeDir' });
           (document.getElementById('btnEvents') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'eventsLoad' });
+          (document.getElementById('btnAudit') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'auditLoad' });
+          const btnReload = document.getElementById('btnReloadPanel') as HTMLButtonElement | null; if (btnReload) btnReload.onclick = () => vscode.postMessage({ t: 'panel.reload' });
+          const btnDiag = document.createElement('button'); btnDiag.id='btnDiag'; btnDiag.textContent='诊断'; (btnDiag as HTMLButtonElement).title='收集前端错误、环境与审计信息到 .mcp/dashboard/panel_diag.json';
+          const advBar = document.querySelector('div.adv'); if (advBar) advBar.insertBefore(btnDiag, advBar.firstChild);
+          btnDiag.onclick = () => { try { const errs = (window as any).__panelErrors || []; vscode.postMessage({ t: 'panelDiagRequest', errors: errs }); } catch {} };
           const btnUG = document.getElementById('btnOpenUserGuide') as HTMLButtonElement | null;
           if (btnUG) btnUG.onclick = () => vscode.postMessage({ t: 'open', path: 'docs/USER_GUIDE.md' });
           const btnIS = document.getElementById('btnOpenIdeSupport') as HTMLButtonElement | null;
@@ -1035,6 +1247,8 @@ export function activate(context: vscode.ExtensionContext) {
           };
           (document.getElementById('btnOpenStatusFile') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'open', path: '.mcp/dashboard/status.json', line: 1 });
           (document.getElementById('btnOpenEventsFile') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'open', path: '.mcp/dashboard/cmd_events.jsonl', line: 1 });
+          const _btnAuditFile = document.getElementById('btnOpenAuditFile') as HTMLButtonElement | null;
+          if (_btnAuditFile) _btnAuditFile.onclick = () => vscode.postMessage({ t: 'open', path: '.mcp/dashboard/security_audit.jsonl', line: 1 });
           (document.getElementById('btnShowWeak') as HTMLButtonElement).onclick = () => {
             const all = (window as any).__weakAll || [];
             const ulw = document.getElementById('covWeak');
@@ -1130,6 +1344,10 @@ export function activate(context: vscode.ExtensionContext) {
 
           window.addEventListener('message', (e) => {
             const msg = e.data || {};
+            if (msg.t === 'setLang') {
+              try { const v = String(msg.value||'zh'); (window as any).__ruleflowLang=v; } catch {}
+              try { const applyLangFn = (window as any).applyLang || null; if (applyLangFn) applyLangFn((window as any).__ruleflowLang); } catch {}
+            }
             const setTicker = () => {
               const t = document.getElementById('tickerText');
               if (!t) return;
@@ -1147,7 +1365,30 @@ export function activate(context: vscode.ExtensionContext) {
             };
             if (msg.t === 'info') {
               const inf = document.getElementById('info');
-              if (inf) inf.textContent = msg.text || '';
+              let text = String(msg.text || '');
+              try {
+                const lang = String((window as any).__ruleflowLang || 'zh');
+                if (lang === 'en') {
+                  const map: any = {
+                    '未找到覆盖率资源': 'No coverage resources found',
+                    '覆盖率摘要不可用': 'Coverage summary unavailable',
+                    '状态已刷新': 'Status refreshed',
+                    '未找到事件历史': 'No event history found',
+                    '未找到编译规则': 'Compiled rules not found',
+                    '检测到': 'Detected',
+                    '处规则冲突': 'rule conflicts',
+                    '建议数': 'suggestions',
+                    'Onboard 预览完成': 'Onboard preview completed',
+                    '目录树不可用': 'Coverage tree unavailable',
+                    '已写入诊断': 'Diagnostics written',
+                    '已切换到中文': 'Switched to Chinese',
+                    '近阈值文件': 'Near-threshold files',
+                    '弱项': 'Weak items'
+                  };
+                  Object.keys(map).forEach(k => { text = text.replace(new RegExp(k, 'g'), map[k]); });
+                }
+              } catch {}
+              if (inf) inf.textContent = text;
             }
             if (msg.t === 'onboardShow') {
               const el = document.getElementById('onboardSummary');
@@ -1176,6 +1417,14 @@ export function activate(context: vscode.ExtensionContext) {
                 const lines = arr.join('\n');
                 (el as any).textContent = '[' + which + ']\n' + lines;
               }
+            }
+            if (msg.t === 'events') {
+              const el = document.getElementById('events');
+              if (el) (el as any).textContent = String(msg.text || '');
+            }
+            if (msg.t === 'audit') {
+              const el = document.getElementById('audit');
+              if (el) (el as any).textContent = String(msg.text || '');
             }
             if (msg.t === 'project') {
               const el = document.getElementById('curProject');
@@ -1553,7 +1802,23 @@ export function activate(context: vscode.ExtensionContext) {
       await client.request('initialize', {});
       const tools = await client.request('tools/list', {});
       const list = (tools.tools || []).map((t: any) => `<li><code>${t.name}</code> — ${t.description}</li>`).join('');
-      panel.webview.html = render('', list);
+      const csp = panel.webview.cspSource;
+      panel.webview.html = render(csp, nonce, '', list);
+      // Apply persisted language preference from workspace (shared across windows)
+      try {
+        const ws = getWorkspaceRoot();
+        if (ws) {
+          const uri = vscode.Uri.file(ws + '/.mcp/dashboard/ui_prefs.json');
+          let lang = 'zh';
+          try {
+            const data = await vscode.workspace.fs.readFile(uri);
+            const text = Buffer.from(data).toString('utf8');
+            const obj = JSON.parse(text || '{}');
+            if (obj && typeof obj.lang === 'string' && obj.lang) lang = obj.lang;
+          } catch { /* missing is fine */ }
+          try { panel.webview.postMessage({ t: 'setLang', value: lang }); } catch {}
+        }
+      } catch { /* ignore */ }
       try {
         panel.webview.postMessage({ t: 'project', name: getWorkspaceLabel() });
         const diag = await client.request('tools/call', { name: 'env.diagnose', arguments: {} });
@@ -1611,6 +1876,9 @@ export function activate(context: vscode.ExtensionContext) {
             vscode.window.showErrorMessage('切换演示模式失败：' + String(e));
           }
         }
+        else if (msg.t === 'handshake') {
+          try { panel.webview.postMessage({ t: 'info', text: 'Webview 已连接（handshake_ok）' }); } catch {}
+        }
         else if (msg.t === 'openServerLog') {
           try {
             const ws = getWorkspaceRoot();
@@ -1620,6 +1888,54 @@ export function activate(context: vscode.ExtensionContext) {
             const doc = await vscode.workspace.openTextDocument(uri);
             await vscode.window.showTextDocument(doc, { preview: false });
           } catch { vscode.window.showInformationMessage('未找到 .mcp/dashboard/server.log'); }
+        }
+        else if (msg.t === 'panelDiagRequest') {
+          try {
+            const ws = getWorkspaceRoot(); if (!ws) throw new Error('no workspace');
+            const errs = Array.isArray(msg.errors) ? (msg.errors as any[]).slice(-100) : [];
+            const diag: any = { time: new Date().toISOString(), workspace: ws, strict: String(process.env.MCP_STRICT_ISOLATION||''), projectRootEnv: String(process.env.MCP_PROJECT_ROOT||'') };
+            try { const ext = vscode.extensions.getExtension('ruleflow.mcp-rules-assistant'); diag.version = (ext && (ext.packageJSON as any).version) || ''; } catch {}
+            try { diag.env = await client.request('tools/call', { name: 'env.diagnose', arguments: {} }); } catch {}
+            try { diag.audit = await client.request('tools/call', { name: 'security.audit_report', arguments: {} }); } catch {}
+            try {
+              const uriE = vscode.Uri.file(ws + '/.mcp/dashboard/cmd_events.jsonl');
+              const data = await vscode.workspace.fs.readFile(uriE);
+              const text = Buffer.from(data).toString('utf8');
+              const lines = text.split(/\r?\n/).filter(Boolean); diag.events_tail = lines.slice(-120);
+            } catch {}
+            diag.frontend_errors = errs;
+            const outUri = vscode.Uri.file(ws + '/.mcp/dashboard/panel_diag.json');
+            const enc = new TextEncoder();
+            await vscode.workspace.fs.writeFile(outUri, enc.encode(JSON.stringify(diag, null, 2)));
+            try { const doc = await vscode.workspace.openTextDocument(outUri); await vscode.window.showTextDocument(doc, { preview: false }); } catch {}
+            panel.webview.postMessage({ t: 'info', text: '已写入诊断：.mcp/dashboard/panel_diag.json' });
+          } catch (e:any) {
+            vscode.window.showWarningMessage('生成诊断失败：' + String(e));
+          }
+        }
+        else if (msg.t === 'lang.set') {
+          try {
+            const lang = String(msg.value || 'zh');
+            const ws = getWorkspaceRoot(); if (!ws) return;
+            const dash = vscode.Uri.file(ws + '/.mcp/dashboard');
+            try { await vscode.workspace.fs.createDirectory(dash); } catch {}
+            const p = vscode.Uri.file(ws + '/.mcp/dashboard/ui_prefs.json');
+            const enc = new TextEncoder();
+            await vscode.workspace.fs.writeFile(p, enc.encode(JSON.stringify({ lang }, null, 2)));
+          } catch {}
+        }
+        else if (msg.t === 'lang.get') {
+          try {
+            const ws = getWorkspaceRoot(); if (!ws) return;
+            const p = vscode.Uri.file(ws + '/.mcp/dashboard/ui_prefs.json');
+            const data = await vscode.workspace.fs.readFile(p);
+            const text = Buffer.from(data).toString('utf8');
+            const obj = JSON.parse(text || '{}');
+            const lang = (obj && typeof obj.lang === 'string' && obj.lang) ? obj.lang : 'zh';
+            panel.webview.postMessage({ t: 'setLang', value: lang });
+          } catch {
+            panel.webview.postMessage({ t: 'setLang', value: 'zh' });
+          }
         }
         else if (msg.t === 'statusUpdate') {
           const pyBin = process.env.MCP_PYTHON_BIN && process.env.MCP_PYTHON_BIN.trim()
@@ -1775,6 +2091,32 @@ export function activate(context: vscode.ExtensionContext) {
               }
             } catch {}
           } catch {}
+        } else if (msg.t === 'panel.reload') {
+          try {
+            client.start(context);
+            try { await client.request('initialize', {}); } catch {}
+            const tools = await client.request('tools/list', {});
+            const list = (tools.tools || []).map((t: any) => `<li><code>${t.name}</code> — ${t.description}</li>`).join('');
+            const nonce2 = getNonce();
+            panel.webview.html = render(csp, nonce2, '', list);
+            // re-apply workspace language preference after reload
+            try {
+              const ws = getWorkspaceRoot();
+              if (ws) {
+                const uri = vscode.Uri.file(ws + '/.mcp/dashboard/ui_prefs.json');
+                try {
+                  const data = await vscode.workspace.fs.readFile(uri);
+                  const text = Buffer.from(data).toString('utf8');
+                  const obj = JSON.parse(text || '{}');
+                  const lang = (obj && typeof obj.lang === 'string' && obj.lang) ? obj.lang : 'zh';
+                  try { panel.webview.postMessage({ t: 'setLang', value: lang }); } catch {}
+                } catch { /* ignore */ }
+              }
+            } catch {}
+            vscode.window.setStatusBarMessage('Panel reloaded', 2000);
+          } catch (e:any) {
+            vscode.window.showWarningMessage('重载失败：' + String(e));
+          }
         } else if (msg.t === 'coverageTree') {
           const resList = await client.request('resources/list', {});
           const treeUri = (resList.resources || []).find((r: any) => String(r.uri || '').endsWith('/tree'))?.uri;
@@ -2119,6 +2461,16 @@ export function activate(context: vscode.ExtensionContext) {
           } catch {
             panel.webview.postMessage({ t: 'info', text: '未找到事件历史' });
           }
+        } else if (msg.t === 'auditLoad') {
+          try {
+            const ws = getWorkspaceRoot(); if (!ws) throw new Error('no workspace');
+            const uri = vscode.Uri.file(ws + '/.mcp/dashboard/security_audit.jsonl');
+            const data = await vscode.workspace.fs.readFile(uri);
+            const text = Buffer.from(data).toString('utf8');
+            panel.webview.postMessage({ t: 'audit', text });
+          } catch {
+            panel.webview.postMessage({ t: 'info', text: '未找到安全审计（security_audit.jsonl）' });
+          }
         } else if (msg.t === 'statusInfo') {
           try {
             const ws = getWorkspaceRoot(); if (!ws) throw new Error('no workspace');
@@ -2135,7 +2487,7 @@ export function activate(context: vscode.ExtensionContext) {
               panel.webview.postMessage({ t: 'infoList', items: lines });
             } catch { panel.webview.postMessage({ t: 'info', text: '状态摘要解析失败' }); }
           } catch { panel.webview.postMessage({ t: 'info', text: '未找到 status.json' }); }
-        } else if (msg.t === 'insertSamples') {
+    } else if (msg.t === 'insertSamples') {
           const semgrep = `rules:\n  - id: py-no-eval\n    message: \"Avoid eval() — security risk\"\n    languages: [python]\n    severity: ERROR\n    pattern: eval(...)\n\n  - id: py-no-exec\n    message: \"Avoid exec() — security risk\"\n    languages: [python]\n    severity: ERROR\n    pattern: exec(...)\n`;
           const hadolint = `ignored:\n  - DL3008\n  - DL3059\n\noverrides:\n  DL3007: warning\n`;
           await client.request('tools/call', { name: 'fs.apply_patch', arguments: { files: [
@@ -2171,7 +2523,20 @@ export function activate(context: vscode.ExtensionContext) {
           const pick = await vscode.window.showQuickPick(folders.map(f=>({ label: f.name, description: f.uri.fsPath })), { title: '选择项目根目录' });
           if (!pick) return;
           try {
-            await client.request('tools/call', { name: 'project.switch', arguments: { path: pick.description } });
+            __lockedRoot = pick.description;
+            await context.workspaceState.update('ruleflow.lockRoot', __lockedRoot);
+            // 写入 ui_prefs.json 以共享选择
+            try {
+              const p = require('path'); const fs = require('fs');
+              const dash = p.join(__lockedRoot, '.mcp', 'dashboard');
+              fs.mkdirSync(dash, { recursive: true });
+              const up = p.join(dash, 'ui_prefs.json');
+              let obj: any = {}; try { obj = JSON.parse(fs.readFileSync(up, 'utf8')||'{}'); } catch {}
+              obj.projectRoot = __lockedRoot; fs.writeFileSync(up, JSON.stringify(obj, null, 2));
+            } catch {}
+            // 重启后端以应用新的 MCP_PROJECT_ROOT
+            try { (client as any).proc?.kill(); (client as any).proc=null; } catch {}
+            try { client.start(context); } catch {}
             panel.webview.postMessage({ t: 'project', name: pick.label });
             panel.webview.postMessage({ t: 'info', text: '已切换至项目：' + pick.label });
           } catch (e:any) {

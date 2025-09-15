@@ -401,14 +401,36 @@ class JsonRpcServer:
                 try:
                     for p in (self.project_root / ".mcp").glob("memory.*.json"):
                         ns = p.name.replace("memory.", "").replace(".json", "")
-                        if ns:
-                            resources_list.insert(
-                                1,
-                                {
-                                    "uri": f"memory://{self._project_id()}/rollup?ns={ns}",
-                                    "name": f"Last 20 turns & summary ({ns})",
-                                },
-                            )
+                        if not ns:
+                            continue
+                        # Filter out unsafe namespaced files (symlink/out-of-.mcp/hardlink) from listing
+                        try:
+                            mcp_dir = (self.project_root / ".mcp").resolve()
+                            target = p.resolve()
+                            try:
+                                inside = target.is_relative_to(mcp_dir)  # py311+
+                            except Exception:
+                                inside = str(target).startswith(str(mcp_dir) + "/") or str(target) == str(mcp_dir)
+                            import os as _os
+                            trust_symlink = str(_os.environ.get("MCP_MEMORY_TRUST_SYMLINK", "")).strip().lower() in {"1", "true", "on", "yes", "y"}
+                            allow_hardlink = str(_os.environ.get("MCP_MEMORY_TRUST_HARDLINK", "")).strip().lower() in {"1", "true", "on", "yes", "y"}
+                            if (not inside) or (not trust_symlink and p.is_symlink()):
+                                continue
+                            try:
+                                nlink = int(p.stat().st_nlink)
+                            except Exception:
+                                nlink = 1
+                            if (not allow_hardlink) and nlink > 1:
+                                continue
+                        except Exception:
+                            continue
+                        resources_list.insert(
+                            1,
+                            {
+                                "uri": f"memory://{self._project_id()}/rollup?ns={ns}",
+                                "name": f"Last 20 turns & summary ({ns})",
+                            },
+                        )
                 except Exception:
                     pass
                 result = {"resources": resources_list}
@@ -946,6 +968,8 @@ class JsonRpcServer:
             return self._tool_ci_autofix()
         if name == "rules.enforce":
             return self._tool_rules_enforce()
+        if name == "security.audit_report":
+            return self._tool_security_audit_report(args)
         raise ValueError(f"Unknown tool: {name}")
 
     # ---- resources/read helpers ----
@@ -969,6 +993,25 @@ class JsonRpcServer:
             p = self.project_root / ".mcp" / f"memory.{ns}.json"
             if not p.exists():
                 raise FileNotFoundError("memory namespace not found")
+            # Safety: disallow reading namespaced memory via symlink/outside-of-.mcp
+            try:
+                mcp_dir = (self.project_root / ".mcp").resolve()
+                target = p.resolve()
+                try:
+                    inside = target.is_relative_to(mcp_dir)  # py311+
+                except Exception:
+                    inside = str(target).startswith(str(mcp_dir) + "/") or str(target) == str(mcp_dir)
+                if not inside:
+                    raise FileNotFoundError("memory namespace not found")
+                import os as _os
+                trust_symlink = str(_os.environ.get("MCP_MEMORY_TRUST_SYMLINK", "")).strip().lower() in {"1", "true", "on", "yes", "y"}
+                if not trust_symlink and p.is_symlink():
+                    raise FileNotFoundError("memory namespace not found")
+            except FileNotFoundError:
+                raise
+            except Exception:
+                # Be conservative on unexpected errors
+                raise FileNotFoundError("memory namespace not found")
             try:
                 data = json.loads(p.read_text(encoding="utf-8"))
             except Exception:
@@ -978,6 +1021,35 @@ class JsonRpcServer:
         return {"mimeType": MIME_JSON, "text": json.dumps(snap, ensure_ascii=False)}
 
     # ---- tool helpers (extracted from _call_tool) ----
+    def _tool_security_audit_report(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        """Summarize .mcp/dashboard/security_audit.jsonl events.
+
+        Returns: { ok, counts: {event->int}, last: [..], total }
+        """
+        try:
+            dash = self.project_root / ".mcp" / "dashboard"
+            p = dash / "security_audit.jsonl"
+            if not p.exists():
+                return {"ok": True, "counts": {}, "last": [], "total": 0}
+            lines = p.read_text(encoding="utf-8").splitlines()
+            total = 0
+            counts: Dict[str, int] = {}
+            last_items = []
+            for ln in lines[-500:]:
+                try:
+                    obj = json.loads(ln)
+                except Exception:
+                    continue
+                ev = str(obj.get("event", ""))
+                if not ev:
+                    continue
+                total += 1
+                counts[ev] = counts.get(ev, 0) + 1
+                last_items.append(obj)
+            last_items = last_items[-50:]
+            return {"ok": True, "counts": counts, "last": last_items, "total": total}
+        except Exception:
+            return {"ok": False}
     def _tool_coverage_near(self, args: Dict[str, Any]) -> Dict[str, Any]:
         """Return coverage.near JSON using config defaults with arg overrides."""
         # Load defaults for near

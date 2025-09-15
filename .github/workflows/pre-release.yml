@@ -50,10 +50,16 @@ jobs:
           WITH_DOCKER_VERIFY: '0'
         run: |
           bash scripts/pre-release-check.sh
+      - name: Security SBOM + audit bundle (best-effort)
+        run: |
+          python3 scripts/sbom_generate.py || true
+          bash scripts/ci-security.sh || true
+          mkdir -p .mcp/dashboard
+          (cd dist && sha256sum * > ../.mcp/dashboard/dist.sha256 || shasum -a 256 * > ../.mcp/dashboard/dist.sha256) 2>/dev/null || true
+          if ls extensions/vscode/*.vsix >/dev/null 2>&1; then (cd extensions/vscode && sha256sum *.vsix > ../../.mcp/dashboard/vsix.sha256 || shasum -a 256 *.vsix > ../../.mcp/dashboard/vsix.sha256); fi
 
       - name: Upload dashboard artifacts
         uses: actions/upload-artifact@v4
         with:
           name: pre-release-dashboard
           path: .mcp/dashboard/**
-

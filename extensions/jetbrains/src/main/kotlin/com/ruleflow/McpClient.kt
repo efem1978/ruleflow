@@ -39,6 +39,13 @@ class McpClient {
             }
             val pb = ProcessBuilder(py, "-m", "mcp_rules_assistant.cli", "start")
             if (project.basePath != null) pb.directory(java.io.File(project.basePath!!))
+            // Enforce strict isolation and explicit root to prevent cross-project leakage
+            try {
+                val env = pb.environment()
+                env["MCP_STRICT_ISOLATION"] = "1"
+                project.basePath?.let { env["MCP_PROJECT_ROOT"] = it }
+            } catch (_: Exception) {
+            }
             pb.redirectErrorStream(true)
             val p = pb.start()
             proc = p

@@ -83,3 +83,9 @@ def setup_default_tools() -> None:
             "Return AI compliance commitment text and optionally write to project",
         )
     )
+    registry.register(
+        Tool(
+            "security.audit_report",
+            "Summarize security audit events from .mcp/dashboard/security_audit.jsonl",
+        )
+    )

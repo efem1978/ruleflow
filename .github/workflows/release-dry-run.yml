@@ -34,6 +34,13 @@ jobs:
       - name: Generate changes from git (best-effort)
         run: |
           python3 scripts/release-changes-from-git.py || true
+      - name: Security SBOM + audit bundle (best-effort)
+        run: |
+          python3 scripts/sbom_generate.py || true
+          bash scripts/ci-security.sh || true
+          mkdir -p .mcp/dashboard
+          (cd dist && sha256sum * > ../.mcp/dashboard/dist.sha256 || shasum -a 256 * > ../.mcp/dashboard/dist.sha256) 2>/dev/null || true
+          if ls extensions/vscode/*.vsix >/dev/null 2>&1; then (cd extensions/vscode && sha256sum *.vsix > ../../.mcp/dashboard/vsix.sha256 || shasum -a 256 *.vsix > ../../.mcp/dashboard/vsix.sha256); fi
       - name: Upload Dry Run Artifacts
         if: always()
         uses: actions/upload-artifact@v4
@@ -41,6 +48,10 @@ jobs:
           name: release-dry-run
           path: |
             coverage.xml
+            .mcp/dashboard/sbom.json
+            .mcp/dashboard/security_audit.jsonl
+            .mcp/dashboard/dist.sha256
+            .mcp/dashboard/vsix.sha256
             .mcp/dashboard/coverage_summary.json
             .mcp/dashboard/weak_top.csv
             .mcp/dashboard/near_top.csv

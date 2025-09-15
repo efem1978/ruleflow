@@ -68,6 +68,7 @@ execution:
 license:
   required: false
 memory:
-  allow_write: true
+  allow_write: false
+  hard_disable: true
 project:
   allow_switch: false

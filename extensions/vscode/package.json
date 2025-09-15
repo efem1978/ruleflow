@@ -2,7 +2,7 @@
   "name": "mcp-rules-assistant",
   "displayName": "RuleFlow: Rules & Memory (MCP)",
   "publisher": "ruleflow",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "Rules enforcement + rolling context memory across IDEs (VS Code + MCP server). No telemetry.",
   "repository": {
     "type": "git",

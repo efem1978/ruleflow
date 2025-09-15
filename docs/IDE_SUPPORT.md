@@ -12,6 +12,12 @@
 
 > 所有 IDE 均优先使用工作区 `.mcp/venv` 的 Python 解释器；安装与配置已自动化，开箱即用。
 
+## 安全与隔离指引（强烈建议）
+- 请阅读《docs/IDE_SECURITY.md》获取 VS Code / Cursor / JetBrains 的安全安装与隔离说明：
+  - VS Code：显式指定 `VSCODE_BIN`，使用隔离目录安装与启动；默认严格隔离，记忆写入需项目允许。
+  - Cursor：仅通过 UI 手动安装 VSIX；脚本默认不操作 Cursor，避免唤起窗口。
+  - JetBrains：与 VS Code 同策略；支持 smoke 验证脚本。
+
 ## Workspace Isolation
 
 - VS Code 扩展的状态存储改为按工作区隔离：

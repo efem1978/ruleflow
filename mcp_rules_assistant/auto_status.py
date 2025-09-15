@@ -94,18 +94,20 @@ def _coverage_snapshot(project_root: Optional[Path] = None) -> Dict[str, Any]:
 
 
 def _memory_snapshot(project_root: Optional[Path] = None) -> Dict[str, Any]:
+    """Return a safe snapshot of memory for status composition.
+
+    Uses MemoryManager.snapshot() to inherit read-side safety (no symlink/outside path).
+    """
     root = (project_root or Path.cwd()).resolve()
-    p = root / ".mcp/memory.json"
-    if not p.exists():
-        return {"exists": False, "summary": "", "turns": []}
     try:
-        data = json.loads(p.read_text(encoding="utf-8"))
-        turns = data.get("turns", []) if isinstance(data.get("turns"), list) else []
-        return {
-            "exists": True,
-            "summary": data.get("summary", ""),
-            "turns": turns[-6:],
-        }
+        from .memory import MemoryManager  # local import to avoid cycles
+
+        mm = MemoryManager(root)
+        snap = mm.snapshot()
+        turns = snap.get("turns", []) if isinstance(snap.get("turns"), list) else []
+        summary = snap.get("summary", "") if isinstance(snap.get("summary", ""), str) else ""
+        exists = (root / ".mcp/memory.json").exists()
+        return {"exists": bool(exists), "summary": summary, "turns": list(turns)[-6:]}
     except Exception:
         return {"exists": False, "summary": "", "turns": []}
 

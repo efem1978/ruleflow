@@ -55,6 +55,8 @@ MCP 规则与上下文助手 / MCP Rules & Context Assistant
   - 全局残留清理：`bash scripts/purge_ruleflow_extensions.sh`
   - 工作区隔离清理：`bash scripts/purge_ruleflow_workspace_isolated.sh`
 
+提示：VS Code 状态栏“RuleFlow”仅在安装并激活本扩展时显示（见 `extensions/vscode/mcp-rules-assistant-*.vsix` 或从源码构建）。若仅通过 Copilot MCP/第三方插件加载后端（Server），不会添加 VS Code 状态栏项——此为预期行为。
+
 ### 安全与隔离（开箱即用）
 - 无命令=无动作：扩展加载后不做任何后台工作；只有你点击命令才会启动后端。
 - 记忆写入默认关闭：服务器层拒绝 memory.append_turn/project.link，除非显式开启：
@@ -158,7 +160,7 @@ JetBrains 头less UI Smoke（可选）
 - 严格隔离 Strict Isolation：VS Code 扩展以 `MCP_STRICT_ISOLATION=1` 启动后端，此模式下：
   - 环境变量不能开启记忆写入（`RULEFLOW_ALLOW_MEMORY_APPEND` 无效）；必须在 `.mcp/assistant.yaml` 设置 `memory.allow_write: true` 才允许写入。
   - `project.switch` 默认被拒绝，避免跨项目写入；如需在多根工作区内切换，显式 `project.allow_switch: true` 或仅当次设 `MCP_ALLOW_PROJECT_SWITCH=1`。
-  - 记忆写入路径强校验：仅允许 `<project_root>/.mcp`，越界一律拒绝。
+  - 记忆路径强校验：仅允许 `<project_root>/.mcp`；读取同样受限且默认拒绝通过符号链接与硬链接读取（防止跨项目“借读/共享”）。如需放宽读取可设置 `MCP_MEMORY_TRUST_SYMLINK=1` 或 `MCP_MEMORY_TRUST_HARDLINK=1`。
   - 全局紧急硬禁用：设置 `MCP_MEMORY_HARD_DISABLE=1` 后，进程内一切记忆写入将被拒绝（优先级最高）。
   - 安全审计：拒绝写入/路径越界/跨项目切换被拒等事件会追加到 `.mcp/dashboard/security_audit.jsonl`。
 - 硬禁用开关（最高优先级）：
@@ -249,6 +251,7 @@ coverage:
 
 文档 Docs（入口：`DEVELOPMENT.md`）
 （快速入口：`DEVELOPMENT.md` | `docs/USER_GUIDE.md` | `docs/NATURAL_LANGUAGE.md` | `docs/IDE_SCAFFOLD.md` | `docs/IDE_SUPPORT.md` | `docs/USAGE.md`）
+- 安全安装与隔离：`docs/IDE_SECURITY.md`
 - AI 协作交接：`docs/AI_HANDOFF_GUIDE.md`（交接清单/最小工作流/Do&Don't）
 - AI 状态索引：`docs/AI_STATUS.md`（`.mcp/plan.md` 与 `.mcp/dashboard/*` 权威状态位置）
 - AI 协作交接：见下方“AI 协作交接（整合）”

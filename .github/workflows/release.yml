@@ -46,6 +46,14 @@ jobs:
           python -m pip install --upgrade pip build twine
           python -m build
           python -m twine check dist/*
+      - name: Security SBOM + Audit bundle
+        run: |
+          python3 scripts/sbom_generate.py || true
+          bash scripts/ci-security.sh || true
+          echo "[sha256] computing checksums"
+          mkdir -p .mcp/dashboard
+          (cd dist && sha256sum * > ../.mcp/dashboard/dist.sha256 || shasum -a 256 * > ../.mcp/dashboard/dist.sha256)
+          if ls extensions/vscode/*.vsix >/dev/null 2>&1; then (cd extensions/vscode && sha256sum *.vsix > ../../.mcp/dashboard/vsix.sha256 || shasum -a 256 *.vsix > ../../.mcp/dashboard/vsix.sha256); fi
       - name: Build VS Code VSIX (attach artifacts)
         run: |
           npm i -g @vscode/vsce
@@ -123,6 +131,35 @@ if jb.exists():
             print('')
     except Exception:
         pass
+          PY
+      - name: Append Security Summary to body (best-effort)
+        run: |
+          BODY=.mcp/dashboard/release_body.md
+          python3 - <<'PY' >> "$BODY" || true
+from pathlib import Path
+import json, yaml
+print('\n---\nSecurity Summary\n')
+print('- Strict Isolation: on (extension passes MCP_STRICT_ISOLATION=1)')
+cfgp = Path('.mcp/assistant.yaml')
+if cfgp.exists():
+    try:
+        cfg = yaml.safe_load(cfgp.read_text(encoding='utf-8')) or {}
+        mem = (cfg.get('memory') or {}) if isinstance(cfg.get('memory'), dict) else {}
+        proj = (cfg.get('project') or {}) if isinstance(cfg.get('project'), dict) else {}
+        print(f"- memory.allow_write: {bool(mem.get('allow_write', False))}")
+        print(f"- memory.hard_disable: {bool(mem.get('hard_disable', False))}")
+        print(f"- project.allow_switch: {bool(proj.get('allow_switch', False))}")
+    except Exception:
+        pass
+sbom = Path('.mcp/dashboard/sbom.json')
+if sbom.exists():
+    try:
+        D = json.loads(sbom.read_text(encoding='utf-8'))
+        print(f"- SBOM: python={len(D.get('python') or [])}, node={len(D.get('node') or [])}")
+    except Exception:
+        print('- SBOM: present')
+audit = Path('.mcp/dashboard/security_audit.jsonl')
+print(f"- Audit log: {'present' if audit.exists() else 'absent'} (.mcp/dashboard/security_audit.jsonl)")
 PY
       - name: Create/Update GitHub Release
         uses: softprops/action-gh-release@v2
@@ -133,6 +170,10 @@ PY
           files: |
             dist/*
             extensions/vscode/*.vsix
+            .mcp/dashboard/dist.sha256
+            .mcp/dashboard/vsix.sha256
+            .mcp/dashboard/sbom.json
+            .mcp/dashboard/security_audit.jsonl
             .mcp/dashboard/coverage_summary.json
             .mcp/dashboard/weak_top.csv
             .mcp/dashboard/near_top.csv

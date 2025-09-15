@@ -59,15 +59,82 @@ class MemoryManager:
             self._hard_disable = False
         self._ensure_file()
 
+    def _resolve_target_inside_project(self) -> Optional[Path]:
+        """Resolve memory file path and ensure it stays within <project>/.mcp.
+
+        Returns the resolved path when safe; otherwise returns None. The check is
+        defensive against symlinks or path tricks that could point outside the
+        current project's .mcp directory (cross‑project leakage).
+        """
+        try:
+            root = self.project_root.resolve()
+            mcp_dir = (root / ".mcp").resolve()
+            target = self.path.resolve()
+            # Pathlib >=3.11: Path.is_relative_to
+            try:
+                inside = target.is_relative_to(mcp_dir)  # type: ignore[attr-defined]
+            except Exception:
+                inside = str(target).startswith(str(mcp_dir) + "/") or str(target) == str(mcp_dir)
+            if not inside:
+                try:
+                    _audit(self.project_root, "memory.read_denied", {"reason": "path_outside_mcp", "target": str(target)})
+                except Exception:
+                    pass
+                return None
+            # Optionally disallow reading through symlinks entirely (more strict)
+            import os as _os
+            trust_symlink = str(_os.environ.get("MCP_MEMORY_TRUST_SYMLINK", "")).strip().lower() in {"1", "true", "on", "yes", "y"}
+            try:
+                if not trust_symlink and self.path.is_symlink():
+                    try:
+                        _audit(self.project_root, "memory.read_denied", {"reason": "symlink_disallowed", "path": str(self.path)})
+                    except Exception:
+                        pass
+                    return None
+            except Exception:
+                # If symlink check fails, prefer to deny
+                return None
+            # Disallow hard-linked targets by default to avoid cross-project shared content
+            try:
+                import os as _os
+                allow_hardlink = str(_os.environ.get("MCP_MEMORY_TRUST_HARDLINK", "")).strip().lower() in {"1", "true", "on", "yes", "y"}
+                st = (self.path if self.path.exists() else target)
+                stinfo = st.stat() if hasattr(st, 'stat') else None
+                nlink = int(getattr(stinfo, 'st_nlink', 1)) if stinfo else 1
+                if not allow_hardlink and nlink > 1:
+                    try:
+                        _audit(self.project_root, "memory.read_denied", {"reason": "hardlink_disallowed", "path": str(self.path), "nlink": nlink})
+                    except Exception:
+                        pass
+                    return None
+            except Exception:
+                # On error, be conservative
+                return None
+            return target
+        except Exception:
+            return None
+
     def _ensure_file(self) -> None:
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        if not self.path.exists():
-            self.path.write_text(
-                json.dumps(
-                    {"turns": [], "summary": "", "links": []}, ensure_ascii=False
-                ),
-                "utf-8",
-            )
+        # Ensure .mcp directory exists under current project
+        try:
+            root = self.project_root.resolve()
+            (root / ".mcp").mkdir(parents=True, exist_ok=True)
+        except Exception:
+            return
+        # Create file only when safe (inside .mcp and not disallowed symlink)
+        try:
+            safe = self._resolve_target_inside_project()
+            if safe is None:
+                return  # do not create unsafe target
+            if not safe.exists():
+                _atomic_write_json(
+                    safe,
+                    {"turns": [], "summary": "", "links": []},
+                    indent=2,
+                )
+        except Exception:
+            # Best-effort init; skip on failure
+            return
 
     def append_turn(
         self, role: str, content: str, meta: Optional[Dict[str, Any]] = None
@@ -135,7 +202,15 @@ class MemoryManager:
         return "\n".join(important[-40:])
 
     def _read(self) -> Dict[str, Any]:
-        return json.loads(self.path.read_text("utf-8"))
+        safe = self._resolve_target_inside_project()
+        if safe is None:
+            # Safe fallback: do not read anything outside .mcp; return empty snapshot
+            return {"turns": [], "summary": "", "links": []}
+        try:
+            return json.loads(safe.read_text("utf-8"))
+        except Exception:
+            # Corrupted or unreadable → fallback to empty snapshot
+            return {"turns": [], "summary": "", "links": []}
 
     def _write(self, data: Dict[str, Any]) -> None:
         # Global emergency hard-disable via env (highest priority)
@@ -157,7 +232,7 @@ class MemoryManager:
         if self._hard_disable:
             _audit(self.project_root, "memory.write_denied", {"reason": "hard_disable"})
             raise ValueError("memory.hard_disable is true; writes are blocked")
-        # 路径强校验：仅允许写入到 <project_root>/.mcp 下
+        # 路径强校验：仅允许写入到 <project_root>/.mcp 下；拒绝通过符号链接/硬链接写入
         try:
             root = self.project_root.resolve()
             target = self.path.resolve()
@@ -175,6 +250,27 @@ class MemoryManager:
                     {"reason": "path_outside_mcp", "target": str(target)},
                 )
                 raise ValueError("memory write path outside project .mcp")
+            # reject symlink writes and (by default) hard-linked targets
+            try:
+                if self.path.is_symlink():
+                    _audit(self.project_root, "memory.write_denied", {"reason": "symlink_target"})
+                    raise ValueError("memory write denied: symlink target")
+            except Exception:
+                # if symlink check fails, deny
+                _audit(self.project_root, "memory.write_denied", {"reason": "symlink_check_error"})
+                raise
+            try:
+                import os as _os
+                allow_hardlink = str(_os.environ.get("MCP_MEMORY_TRUST_HARDLINK", "")).strip().lower() in {"1", "true", "on", "yes", "y"}
+                st = self.path.stat() if self.path.exists() else None
+                nlink = int(getattr(st, 'st_nlink', 1)) if st else 1
+                if not allow_hardlink and nlink > 1:
+                    _audit(self.project_root, "memory.write_denied", {"reason": "hardlink_target", "nlink": nlink})
+                    raise ValueError("memory write denied: hardlink target")
+            except Exception:
+                # on error, deny
+                _audit(self.project_root, "memory.write_denied", {"reason": "hardlink_check_error"})
+                raise
         except Exception:
             # 容错：若强校验异常，宁可拒绝写入
             raise

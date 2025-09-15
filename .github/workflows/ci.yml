@@ -89,6 +89,10 @@ jobs:
       - name: Security (bandit — high only)
         run: |
           bandit -q -lll -x tests -r .
+      - name: Security SBOM + SAST bundle (best effort)
+        run: |
+          python3 scripts/sbom_generate.py || true
+          bash scripts/ci-security.sh || true
       - name: SAST (semgrep)
         run: |
           # 固定 semgrep 版本以提升可重复性
