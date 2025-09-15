@@ -59,7 +59,9 @@ def _node_deps(root: Path) -> List[Dict[str, str]]:
             for k, v in pkgs.items():
                 if not isinstance(v, dict):
                     continue
-                name = v.get("name") or (k.split("node_modules/")[-1] if "node_modules/" in k else None)
+                name = v.get("name") or (
+                    k.split("node_modules/")[-1] if "node_modules/" in k else None
+                )
                 version = v.get("version")
                 if name and version:
                     out.append({"name": str(name), "version": str(version)})
@@ -77,10 +79,21 @@ def main() -> None:
         "python": _python_deps(root),
         "node": _node_deps(root),
     }
-    (out_dir / "sbom.json").write_text(json.dumps(sbom, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(json.dumps({"ok": True, "path": str(out_dir / 'sbom.json'), "py": len(sbom["python"]), "node": len(sbom["node"])}, ensure_ascii=False))
+    (out_dir / "sbom.json").write_text(
+        json.dumps(sbom, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    print(
+        json.dumps(
+            {
+                "ok": True,
+                "path": str(out_dir / "sbom.json"),
+                "py": len(sbom["python"]),
+                "node": len(sbom["node"]),
+            },
+            ensure_ascii=False,
+        )
+    )
 
 
 if __name__ == "__main__":
     main()
-

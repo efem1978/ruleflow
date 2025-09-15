@@ -6,6 +6,7 @@
       "cwd": "${workspaceFolder}",
       "env": { "PYTHONUNBUFFERED": "1" }
     }
-},
-"markdown.validate.enabled": true
+  },
+  "markdown.validate.enabled": true,
+  "ruleflow.python.path": "${workspaceFolder}/.mcp/venv/bin/python"
 }

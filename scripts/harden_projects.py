@@ -46,7 +46,9 @@ def edit_config(proj: Path) -> Path:
         proj_cfg = {}
     proj_cfg["allow_switch"] = False
     data["project"] = proj_cfg
-    cfg_p.write_text(yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding="utf-8")
+    cfg_p.write_text(
+        yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding="utf-8"
+    )
     return cfg_p
 
 
@@ -115,9 +117,12 @@ def main() -> None:
                 results.append(verify(t))
         except Exception as e:
             results.append({"project": str(t), "error": str(e)})
-    print(json.dumps({"hardened": [str(p) for p in uniq], "verify": results}, ensure_ascii=False))
+    print(
+        json.dumps(
+            {"hardened": [str(p) for p in uniq], "verify": results}, ensure_ascii=False
+        )
+    )
 
 
 if __name__ == "__main__":
     main()
-

@@ -59,7 +59,7 @@ def scan_project(project_root: Path) -> Dict[str, Any]:
             if nlink and nlink > 1:
                 issues.append("hardlink_shared")
             info["issues"] = issues
-            info["safe"] = (not issues)
+            info["safe"] = not issues
         except Exception as e:
             info["error"] = str(e)
             info["safe"] = False
@@ -76,7 +76,11 @@ def scan_parent(parent: Path) -> Dict[str, Any]:
     cands = [base] + [p for p in base.iterdir() if p.is_dir()]
     for p in cands:
         # heuristic: treat as project if it contains .mcp or common project files
-        if (p / ".mcp").exists() or (p / "pyproject.toml").exists() or (p / "package.json").exists():
+        if (
+            (p / ".mcp").exists()
+            or (p / "pyproject.toml").exists()
+            or (p / "package.json").exists()
+        ):
             results.append(scan_project(p))
     summary = {
         "parent": str(base),
@@ -121,4 +125,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

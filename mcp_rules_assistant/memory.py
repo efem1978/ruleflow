@@ -6,9 +6,9 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from .audit import log_security_event as _audit
 from .config import load_config
 from .fs_wrapper import atomic_write_json as _atomic_write_json
-from .audit import log_security_event as _audit
 
 DEFAULT_MEMORY_FILE = Path(".mcp/memory.json")
 
@@ -74,20 +74,33 @@ class MemoryManager:
             try:
                 inside = target.is_relative_to(mcp_dir)  # type: ignore[attr-defined]
             except Exception:
-                inside = str(target).startswith(str(mcp_dir) + "/") or str(target) == str(mcp_dir)
+                inside = str(target).startswith(str(mcp_dir) + "/") or str(
+                    target
+                ) == str(mcp_dir)
             if not inside:
                 try:
-                    _audit(self.project_root, "memory.read_denied", {"reason": "path_outside_mcp", "target": str(target)})
+                    _audit(
+                        self.project_root,
+                        "memory.read_denied",
+                        {"reason": "path_outside_mcp", "target": str(target)},
+                    )
                 except Exception:
                     pass
                 return None
             # Optionally disallow reading through symlinks entirely (more strict)
             import os as _os
-            trust_symlink = str(_os.environ.get("MCP_MEMORY_TRUST_SYMLINK", "")).strip().lower() in {"1", "true", "on", "yes", "y"}
+
+            trust_symlink = str(
+                _os.environ.get("MCP_MEMORY_TRUST_SYMLINK", "")
+            ).strip().lower() in {"1", "true", "on", "yes", "y"}
             try:
                 if not trust_symlink and self.path.is_symlink():
                     try:
-                        _audit(self.project_root, "memory.read_denied", {"reason": "symlink_disallowed", "path": str(self.path)})
+                        _audit(
+                            self.project_root,
+                            "memory.read_denied",
+                            {"reason": "symlink_disallowed", "path": str(self.path)},
+                        )
                     except Exception:
                         pass
                     return None
@@ -97,13 +110,24 @@ class MemoryManager:
             # Disallow hard-linked targets by default to avoid cross-project shared content
             try:
                 import os as _os
-                allow_hardlink = str(_os.environ.get("MCP_MEMORY_TRUST_HARDLINK", "")).strip().lower() in {"1", "true", "on", "yes", "y"}
-                st = (self.path if self.path.exists() else target)
-                stinfo = st.stat() if hasattr(st, 'stat') else None
-                nlink = int(getattr(stinfo, 'st_nlink', 1)) if stinfo else 1
+
+                allow_hardlink = str(
+                    _os.environ.get("MCP_MEMORY_TRUST_HARDLINK", "")
+                ).strip().lower() in {"1", "true", "on", "yes", "y"}
+                st = self.path if self.path.exists() else target
+                stinfo = st.stat() if hasattr(st, "stat") else None
+                nlink = int(getattr(stinfo, "st_nlink", 1)) if stinfo else 1
                 if not allow_hardlink and nlink > 1:
                     try:
-                        _audit(self.project_root, "memory.read_denied", {"reason": "hardlink_disallowed", "path": str(self.path), "nlink": nlink})
+                        _audit(
+                            self.project_root,
+                            "memory.read_denied",
+                            {
+                                "reason": "hardlink_disallowed",
+                                "path": str(self.path),
+                                "nlink": nlink,
+                            },
+                        )
                     except Exception:
                         pass
                     return None
@@ -224,7 +248,11 @@ class MemoryManager:
                 "yes",
                 "y",
             }:
-                _audit(self.project_root, "memory.write_denied", {"reason": "env_hard_disable"})
+                _audit(
+                    self.project_root,
+                    "memory.write_denied",
+                    {"reason": "env_hard_disable"},
+                )
                 raise ValueError("memory write blocked by MCP_MEMORY_HARD_DISABLE")
         except Exception:
             pass
@@ -253,23 +281,42 @@ class MemoryManager:
             # reject symlink writes and (by default) hard-linked targets
             try:
                 if self.path.is_symlink():
-                    _audit(self.project_root, "memory.write_denied", {"reason": "symlink_target"})
+                    _audit(
+                        self.project_root,
+                        "memory.write_denied",
+                        {"reason": "symlink_target"},
+                    )
                     raise ValueError("memory write denied: symlink target")
             except Exception:
                 # if symlink check fails, deny
-                _audit(self.project_root, "memory.write_denied", {"reason": "symlink_check_error"})
+                _audit(
+                    self.project_root,
+                    "memory.write_denied",
+                    {"reason": "symlink_check_error"},
+                )
                 raise
             try:
                 import os as _os
-                allow_hardlink = str(_os.environ.get("MCP_MEMORY_TRUST_HARDLINK", "")).strip().lower() in {"1", "true", "on", "yes", "y"}
+
+                allow_hardlink = str(
+                    _os.environ.get("MCP_MEMORY_TRUST_HARDLINK", "")
+                ).strip().lower() in {"1", "true", "on", "yes", "y"}
                 st = self.path.stat() if self.path.exists() else None
-                nlink = int(getattr(st, 'st_nlink', 1)) if st else 1
+                nlink = int(getattr(st, "st_nlink", 1)) if st else 1
                 if not allow_hardlink and nlink > 1:
-                    _audit(self.project_root, "memory.write_denied", {"reason": "hardlink_target", "nlink": nlink})
+                    _audit(
+                        self.project_root,
+                        "memory.write_denied",
+                        {"reason": "hardlink_target", "nlink": nlink},
+                    )
                     raise ValueError("memory write denied: hardlink target")
             except Exception:
                 # on error, deny
-                _audit(self.project_root, "memory.write_denied", {"reason": "hardlink_check_error"})
+                _audit(
+                    self.project_root,
+                    "memory.write_denied",
+                    {"reason": "hardlink_check_error"},
+                )
                 raise
         except Exception:
             # 容错：若强校验异常，宁可拒绝写入

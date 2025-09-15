@@ -11,11 +11,15 @@ def _req(method: str, params: dict | None = None, id: int = 1) -> dict:
     return {"jsonrpc": "2.0", "id": id, "method": method, "params": params or {}}
 
 
-def test_memory_hard_disable_env_overrides_allow_write(tmp_path: Path, monkeypatch) -> None:
+def test_memory_hard_disable_env_overrides_allow_write(
+    tmp_path: Path, monkeypatch
+) -> None:
     # enable allow_write in project config
     mcp = tmp_path / ".mcp"
     mcp.mkdir(parents=True, exist_ok=True)
-    (mcp / "assistant.yaml").write_text("memory:\n  allow_write: true\n", encoding="utf-8")
+    (mcp / "assistant.yaml").write_text(
+        "memory:\n  allow_write: true\n", encoding="utf-8"
+    )
     # strict isolation + global hard disable
     monkeypatch.setenv("MCP_STRICT_ISOLATION", "1")
     monkeypatch.setenv("MCP_MEMORY_HARD_DISABLE", "1")
@@ -27,7 +31,10 @@ def test_memory_hard_disable_env_overrides_allow_write(tmp_path: Path, monkeypat
     out = srv.handle(
         _req(
             "tools/call",
-            {"name": "memory.append_turn", "arguments": {"role": "assistant", "content": "x"}},
+            {
+                "name": "memory.append_turn",
+                "arguments": {"role": "assistant", "content": "x"},
+            },
         )
     )
     res = out.get("result") or {}
@@ -37,7 +44,9 @@ def test_memory_hard_disable_env_overrides_allow_write(tmp_path: Path, monkeypat
     audit = tmp_path / ".mcp" / "dashboard" / "security_audit.jsonl"
     assert audit.exists(), "security audit log should exist"
     lines = audit.read_text(encoding="utf-8").splitlines()
-    assert any("memory.write_denied" in ln or "memory.append_denied" in ln for ln in lines)
+    assert any(
+        "memory.write_denied" in ln or "memory.append_denied" in ln for ln in lines
+    )
 
 
 def test_project_switch_denied_audit(tmp_path: Path, monkeypatch) -> None:

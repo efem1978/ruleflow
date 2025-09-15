@@ -10,7 +10,9 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
-def log_security_event(project_root: Path, event: str, details: Dict[str, Any] | None = None) -> None:
+def log_security_event(
+    project_root: Path, event: str, details: Dict[str, Any] | None = None
+) -> None:
     """Append a structured security audit entry under .mcp/dashboard/security_audit.jsonl.
 
     Best-effort: never raises.
@@ -33,4 +35,3 @@ def log_security_event(project_root: Path, event: str, details: Dict[str, Any] |
     except Exception:
         # Never propagate audit failures
         return
-

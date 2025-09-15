@@ -25,7 +25,9 @@ def _mk_dash(tmp: Path) -> Path:
     return d
 
 
-def test_update_failure_freeze_and_prev_coverage_read_exception(tmp_path: Path, monkeypatch):
+def test_update_failure_freeze_and_prev_coverage_read_exception(
+    tmp_path: Path, monkeypatch
+):
     """Covers: 593-594, 649-652, 673-674, 681-682, 687-688 defensive except paths."""
 
     agent = dev.DevAgent(project_root=tmp_path)
@@ -64,7 +66,9 @@ def test_update_failure_freeze_and_prev_coverage_read_exception(tmp_path: Path, 
     assert (dash / dev.FAIL_COUNTERS_FILE).exists()
 
 
-def test_auto_append_memory_env_parse_and_append_exceptions(tmp_path: Path, monkeypatch):
+def test_auto_append_memory_env_parse_and_append_exceptions(
+    tmp_path: Path, monkeypatch
+):
     """Covers: 767-772, 805-806, 813-815, 824-829 in _auto_append_memory."""
 
     agent = dev.DevAgent(project_root=tmp_path)
@@ -92,13 +96,16 @@ def test_auto_append_memory_env_parse_and_append_exceptions(tmp_path: Path, monk
             raise RuntimeError("append-fail")
 
     monkeypatch.setattr(dev, "MemoryManager", DummyMM)
+
     # Make logger.debug also raise to hit the nested except
     class DummyLogger:
         def debug(self, *a, **k):
             raise RuntimeError("log-fail")
 
     # Avoid patching global logging.getLogger; override class property for this test
-    monkeypatch.setattr(dev.DevAgent, "_log", property(lambda self: DummyLogger()), raising=False)
+    monkeypatch.setattr(
+        dev.DevAgent, "_log", property(lambda self: DummyLogger()), raising=False
+    )
 
     ok = agent._auto_append_memory(status, dash)
     assert ok is False
@@ -117,10 +124,26 @@ def test_run_on_event_error_and_auto_append_raise(tmp_path: Path, monkeypatch):
         return {"ok": True, "mode": "full", "code": 0, "stdout": "", "stderr": ""}
 
     monkeypatch.setattr(dev.DevAgent, "_run_impacted_or_full", stub_impacted)
-    monkeypatch.setattr(dev.DevAgent, "_run_cycle_checks", lambda self, **k: {dev.STEP_LINT: "ok", dev.STEP_TYPE: "ok", dev.STEP_TESTS: "ok"})
-    monkeypatch.setattr(dev.DevAgent, "_ensure_dashboard_dir", lambda self, rebuild=True: _mk_dash(tmp_path))
+    monkeypatch.setattr(
+        dev.DevAgent,
+        "_run_cycle_checks",
+        lambda self, **k: {
+            dev.STEP_LINT: "ok",
+            dev.STEP_TYPE: "ok",
+            dev.STEP_TESTS: "ok",
+        },
+    )
+    monkeypatch.setattr(
+        dev.DevAgent,
+        "_ensure_dashboard_dir",
+        lambda self, rebuild=True: _mk_dash(tmp_path),
+    )
     # Make auto append memory raise to hit try/except around it
-    monkeypatch.setattr(dev.DevAgent, "_auto_append_memory", lambda self, *a, **k: (_ for _ in ()).throw(RuntimeError("boom")))
+    monkeypatch.setattr(
+        dev.DevAgent,
+        "_auto_append_memory",
+        lambda self, *a, **k: (_ for _ in ()).throw(RuntimeError("boom")),
+    )
 
     agent.run(interval=1, max_cycles=1)
 
@@ -152,6 +175,8 @@ def test_collect_tasks_counts_and_plan_overall_extras(tmp_path: Path):
     assert isinstance(pend_list, list) and isinstance(done_list, list)
 
     # Pending-only -> uses pending_len to compute plan_progress
-    plan_prog, overall = dev._compute_plan_overall(0, 0, cov_progress=0.5, pending_len=3)
+    plan_prog, overall = dev._compute_plan_overall(
+        0, 0, cov_progress=0.5, pending_len=3
+    )
     assert plan_prog == 0.0
     assert overall == 0.6 * 0.5 + 0.4 * 0.0

@@ -20,11 +20,11 @@ from . import hooks as hooks_mod
 from . import nl as nl_mod
 from . import progress as progress_mod
 from . import rules_ingest as ri
+from .audit import log_security_event as _audit
 from .config import DEFAULT_PROJECT_CONFIG_PATH, ensure_project_config, load_config
 from .fs_wrapper import FSGuard, atomic_write_text
 from .license_utils import verify_license as _verify_license
 from .memory import MemoryManager
-from .audit import log_security_event as _audit
 from .policy_keys import (
     POLICY_KEY_CONTAINER_BASELINE,
     POLICY_KEY_CONTAINER_REQUIRED,
@@ -124,7 +124,11 @@ class JsonRpcServer:
         # hard-disable always wins
         try:
             cfg0 = self.cfg if isinstance(self.cfg, dict) else {}
-            mem0 = cfg0.get("memory", {}) if isinstance(cfg0.get("memory", {}), dict) else {}
+            mem0 = (
+                cfg0.get("memory", {})
+                if isinstance(cfg0.get("memory", {}), dict)
+                else {}
+            )
             if bool(mem0.get("hard_disable", False)):
                 return False
         except Exception:
@@ -410,10 +414,17 @@ class JsonRpcServer:
                             try:
                                 inside = target.is_relative_to(mcp_dir)  # py311+
                             except Exception:
-                                inside = str(target).startswith(str(mcp_dir) + "/") or str(target) == str(mcp_dir)
+                                inside = str(target).startswith(
+                                    str(mcp_dir) + "/"
+                                ) or str(target) == str(mcp_dir)
                             import os as _os
-                            trust_symlink = str(_os.environ.get("MCP_MEMORY_TRUST_SYMLINK", "")).strip().lower() in {"1", "true", "on", "yes", "y"}
-                            allow_hardlink = str(_os.environ.get("MCP_MEMORY_TRUST_HARDLINK", "")).strip().lower() in {"1", "true", "on", "yes", "y"}
+
+                            trust_symlink = str(
+                                _os.environ.get("MCP_MEMORY_TRUST_SYMLINK", "")
+                            ).strip().lower() in {"1", "true", "on", "yes", "y"}
+                            allow_hardlink = str(
+                                _os.environ.get("MCP_MEMORY_TRUST_HARDLINK", "")
+                            ).strip().lower() in {"1", "true", "on", "yes", "y"}
                             if (not inside) or (not trust_symlink and p.is_symlink()):
                                 continue
                             try:
@@ -629,7 +640,11 @@ class JsonRpcServer:
                     allow_cfg = False
                 if strict and not (allow_env or allow_cfg):
                     try:
-                        _audit(self.project_root, "project.switch_denied", {"to": str(new_path), "reason": "strict_isolation"})
+                        _audit(
+                            self.project_root,
+                            "project.switch_denied",
+                            {"to": str(new_path), "reason": "strict_isolation"},
+                        )
                     except Exception:
                         pass
                     raise ValueError("project.switch is disabled by strict isolation")
@@ -704,12 +719,18 @@ class JsonRpcServer:
             if self._memory_write_allowed():
                 self.mm.append_turn(role, content, meta)
                 try:
-                    _audit(self.project_root, "memory.append", {"role": role, "meta": meta})
+                    _audit(
+                        self.project_root, "memory.append", {"role": role, "meta": meta}
+                    )
                 except Exception:
                     pass
                 return {"ok": True}
             try:
-                _audit(self.project_root, "memory.append_denied", {"role": role, "reason": "not_allowed"})
+                _audit(
+                    self.project_root,
+                    "memory.append_denied",
+                    {"role": role, "reason": "not_allowed"},
+                )
             except Exception:
                 pass
             return {"ok": False, "error": "memory_write_disabled"}
@@ -1000,11 +1021,16 @@ class JsonRpcServer:
                 try:
                     inside = target.is_relative_to(mcp_dir)  # py311+
                 except Exception:
-                    inside = str(target).startswith(str(mcp_dir) + "/") or str(target) == str(mcp_dir)
+                    inside = str(target).startswith(str(mcp_dir) + "/") or str(
+                        target
+                    ) == str(mcp_dir)
                 if not inside:
                     raise FileNotFoundError("memory namespace not found")
                 import os as _os
-                trust_symlink = str(_os.environ.get("MCP_MEMORY_TRUST_SYMLINK", "")).strip().lower() in {"1", "true", "on", "yes", "y"}
+
+                trust_symlink = str(
+                    _os.environ.get("MCP_MEMORY_TRUST_SYMLINK", "")
+                ).strip().lower() in {"1", "true", "on", "yes", "y"}
                 if not trust_symlink and p.is_symlink():
                     raise FileNotFoundError("memory namespace not found")
             except FileNotFoundError:
@@ -1050,6 +1076,7 @@ class JsonRpcServer:
             return {"ok": True, "counts": counts, "last": last_items, "total": total}
         except Exception:
             return {"ok": False}
+
     def _tool_coverage_near(self, args: Dict[str, Any]) -> Dict[str, Any]:
         """Return coverage.near JSON using config defaults with arg overrides."""
         # Load defaults for near
