@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional
 
 from .config import load_config
 from .fs_wrapper import atomic_write_json as _atomic_write_json
+from .audit import log_security_event as _audit
 
 DEFAULT_MEMORY_FILE = Path(".mcp/memory.json")
 
@@ -37,11 +38,14 @@ class MemoryManager:
         )
         # optional masking patterns from config
         self._mask_re: list[re.Pattern[str]] = []
+        self._hard_disable: bool = False
         try:
             cfg = load_config(self.project_root)
             mem = (
                 cfg.get("memory", {}) if isinstance(cfg.get("memory", {}), dict) else {}
             )
+            # hard-disable switch: when true, any write attempt must fail
+            self._hard_disable = bool(mem.get("hard_disable", False))
             pats = mem.get("mask_patterns")
             if isinstance(pats, list):
                 for pat in pats:
@@ -52,6 +56,7 @@ class MemoryManager:
                             pass
         except Exception:
             self._mask_re = []
+            self._hard_disable = False
         self._ensure_file()
 
     def _ensure_file(self) -> None:
@@ -133,6 +138,25 @@ class MemoryManager:
         return json.loads(self.path.read_text("utf-8"))
 
     def _write(self, data: Dict[str, Any]) -> None:
+        # Global emergency hard-disable via env (highest priority)
+        try:
+            import os as _os
+
+            if str(_os.environ.get("MCP_MEMORY_HARD_DISABLE", "")).strip().lower() in {
+                "1",
+                "true",
+                "on",
+                "yes",
+                "y",
+            }:
+                _audit(self.project_root, "memory.write_denied", {"reason": "env_hard_disable"})
+                raise ValueError("memory write blocked by MCP_MEMORY_HARD_DISABLE")
+        except Exception:
+            pass
+        # honor hard-disable (project-level kill switch)
+        if self._hard_disable:
+            _audit(self.project_root, "memory.write_denied", {"reason": "hard_disable"})
+            raise ValueError("memory.hard_disable is true; writes are blocked")
         # 路径强校验：仅允许写入到 <project_root>/.mcp 下
         try:
             root = self.project_root.resolve()
@@ -141,8 +165,15 @@ class MemoryManager:
             try:
                 ok = target.is_relative_to(mcp_dir)  # py311+
             except AttributeError:
-                ok = str(target).startswith(str(mcp_dir) + "/") or str(target) == str(mcp_dir)
+                ok = str(target).startswith(str(mcp_dir) + "/") or str(target) == str(
+                    mcp_dir
+                )
             if not ok:
+                _audit(
+                    self.project_root,
+                    "memory.write_denied",
+                    {"reason": "path_outside_mcp", "target": str(target)},
+                )
                 raise ValueError("memory write path outside project .mcp")
         except Exception:
             # 容错：若强校验异常，宁可拒绝写入

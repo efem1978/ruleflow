@@ -67,3 +67,7 @@ execution:
   fs_guard_strict: true
 license:
   required: false
+memory:
+  allow_write: true
+project:
+  allow_switch: false

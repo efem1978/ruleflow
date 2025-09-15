@@ -154,6 +154,29 @@ JetBrains 头less UI Smoke（可选）
 - `python3 -m mcp_rules_assistant.cli coverage`、`coverage-groups`、`coverage-near --within 3 --top 20` 查看流程中各步的关键信息
 - `python3 -m mcp_rules_assistant.cli diagnose-bundle` 一键打包 coverage/pytest/near/.mcp 状态，供审阅/归档
 
+#### 严格隔离与安全开关（重要）
+- 严格隔离 Strict Isolation：VS Code 扩展以 `MCP_STRICT_ISOLATION=1` 启动后端，此模式下：
+  - 环境变量不能开启记忆写入（`RULEFLOW_ALLOW_MEMORY_APPEND` 无效）；必须在 `.mcp/assistant.yaml` 设置 `memory.allow_write: true` 才允许写入。
+  - `project.switch` 默认被拒绝，避免跨项目写入；如需在多根工作区内切换，显式 `project.allow_switch: true` 或仅当次设 `MCP_ALLOW_PROJECT_SWITCH=1`。
+  - 记忆写入路径强校验：仅允许 `<project_root>/.mcp`，越界一律拒绝。
+  - 全局紧急硬禁用：设置 `MCP_MEMORY_HARD_DISABLE=1` 后，进程内一切记忆写入将被拒绝（优先级最高）。
+  - 安全审计：拒绝写入/路径越界/跨项目切换被拒等事件会追加到 `.mcp/dashboard/security_audit.jsonl`。
+- 硬禁用开关（最高优先级）：
+  - 将 `.mcp/assistant.yaml` 配置为：
+    ```yaml
+    memory:
+      hard_disable: true
+      allow_write: false
+    project:
+      allow_switch: false
+    ```
+  - 此时任何来源（扩展/DevAgent/环境变量）都无法写入记忆。
+
+团队安全操作建议
+- 只在“允许写入”的项目开启 `memory.allow_write: true`，其余统一设置 `memory.hard_disable: true`。
+- 禁止跨项目切换：`project.allow_switch: false`。
+- 批量加固与验证：可使用 `scripts/harden_projects.py --verify <proj1> <proj2> ...` 对多个项目设置硬禁用并产出 `./.mcp/dashboard/security_verify.json` 验证日志。
+
 覆盖率门禁 Coverage Gate
 - Python（门槛与策略）：核心≥98%，其余≥95%；coverage-report 弱项清零（weak 列表为空）。
 - VS Code 前端（阶段性）：CI 默认对 lcov 执行≥80% 的“非阻断”检查（仅警告）；可通过设置 `VSCODE_COVERAGE_GATE=1` 启用同阈值硬门禁，后续逐步提升至 90%/95%/97%/98%。

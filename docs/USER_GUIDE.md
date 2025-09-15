@@ -53,3 +53,9 @@
 - Dev Agent 自动记忆（可选）：设置 `DEV_AGENT_MEM_ENABLE=1` 后，dev-agent 会按最小间隔（`DEV_AGENT_MEM_MIN_SEC`，默认 600s）追加一条简要摘要到 `.mcp/memory.json`（窗口 `DEV_AGENT_MEM_MAX_TURNS`，默认 20）。摘要仅包含整体进度/弱项计数/当前步骤，不含源码内容。
 - VS Code Chat（可选）：如启用 Chat API，可在每轮对话后追加“上一轮问答摘要”到记忆（需人工确认）。
 - 默认关闭：所有可选功能默认关闭；开启后不引入遥测，不开放端口；仅在工作区落盘最小必要状态，并尽量避免性能回退。
+
+## 安全与隔离（必读）
+- 严格隔离：扩展默认以 `MCP_STRICT_ISOLATION=1` 启动后端，只有在 `.mcp/assistant.yaml` 设置 `memory.allow_write: true` 才会写记忆；环境变量无法开启写入。
+- 禁止跨项目切换：默认 `project.allow_switch: false`；如需切换到同窗口的其他项目，显式允许或仅当次设置 `MCP_ALLOW_PROJECT_SWITCH=1`。
+- 硬禁用：将 `memory.hard_disable: true` 写入 `.mcp/assistant.yaml` 可一劳永逸地禁止记忆写入（最高优先级）。
+- 批量加固（可选）：`python3 scripts/harden_projects.py --verify <proj1> <proj2> ...` 一键写入加固配置并输出验证日志。

@@ -24,6 +24,7 @@ from .config import DEFAULT_PROJECT_CONFIG_PATH, ensure_project_config, load_con
 from .fs_wrapper import FSGuard, atomic_write_text
 from .license_utils import verify_license as _verify_license
 from .memory import MemoryManager
+from .audit import log_security_event as _audit
 from .policy_keys import (
     POLICY_KEY_CONTAINER_BASELINE,
     POLICY_KEY_CONTAINER_REQUIRED,
@@ -89,21 +90,45 @@ class JsonRpcServer:
                 return True
         except Exception:
             pass
+        # Global emergency hard-disable via env (highest priority)
+        try:
+            if str(os.environ.get("MCP_MEMORY_HARD_DISABLE", "")).strip().lower() in {
+                "1",
+                "true",
+                "on",
+                "yes",
+                "y",
+            }:
+                return False
+        except Exception:
+            pass
         # Strict isolation mode: environment cannot elevate privileges
         strict = False
         try:
-            strict = str(os.environ.get("MCP_STRICT_ISOLATION", "")).strip().lower() in {"1", "true", "on", "yes", "y"}
+            strict = str(
+                os.environ.get("MCP_STRICT_ISOLATION", "")
+            ).strip().lower() in {"1", "true", "on", "yes", "y"}
         except Exception:
             strict = False
         if not strict:
             try:
                 env = (
-                    str(os.environ.get("RULEFLOW_ALLOW_MEMORY_APPEND", "0")).strip().lower()
+                    str(os.environ.get("RULEFLOW_ALLOW_MEMORY_APPEND", "0"))
+                    .strip()
+                    .lower()
                 )
                 if env in {"1", "true", "on", "yes", "y"}:
                     return True
             except Exception:
                 pass
+        # hard-disable always wins
+        try:
+            cfg0 = self.cfg if isinstance(self.cfg, dict) else {}
+            mem0 = cfg0.get("memory", {}) if isinstance(cfg0.get("memory", {}), dict) else {}
+            if bool(mem0.get("hard_disable", False)):
+                return False
+        except Exception:
+            pass
         try:
             cfg = self.cfg if isinstance(self.cfg, dict) else {}
             mem = (
@@ -563,16 +588,28 @@ class JsonRpcServer:
             new_path = args.get("path")
             if new_path:
                 # In strict isolation mode, block project switching unless explicitly allowed by config/env
-                strict = str(os.environ.get("MCP_STRICT_ISOLATION", "")).strip().lower() in {"1","true","on","yes","y"}
-                allow_env = str(os.environ.get("MCP_ALLOW_PROJECT_SWITCH", "")).strip().lower() in {"1","true","on","yes","y"}
+                strict = str(
+                    os.environ.get("MCP_STRICT_ISOLATION", "")
+                ).strip().lower() in {"1", "true", "on", "yes", "y"}
+                allow_env = str(
+                    os.environ.get("MCP_ALLOW_PROJECT_SWITCH", "")
+                ).strip().lower() in {"1", "true", "on", "yes", "y"}
                 allow_cfg = False
                 try:
                     proj_cfg = self.cfg if isinstance(self.cfg, dict) else {}
-                    proj_cfg2 = proj_cfg.get("project", {}) if isinstance(proj_cfg.get("project", {}), dict) else {}
+                    proj_cfg2 = (
+                        proj_cfg.get("project", {})
+                        if isinstance(proj_cfg.get("project", {}), dict)
+                        else {}
+                    )
                     allow_cfg = bool(proj_cfg2.get("allow_switch", False))
                 except Exception:
                     allow_cfg = False
                 if strict and not (allow_env or allow_cfg):
+                    try:
+                        _audit(self.project_root, "project.switch_denied", {"to": str(new_path), "reason": "strict_isolation"})
+                    except Exception:
+                        pass
                     raise ValueError("project.switch is disabled by strict isolation")
                 p = Path(new_path).expanduser().resolve()
                 old_root = self.project_root
@@ -644,7 +681,15 @@ class JsonRpcServer:
                 meta = {}
             if self._memory_write_allowed():
                 self.mm.append_turn(role, content, meta)
+                try:
+                    _audit(self.project_root, "memory.append", {"role": role, "meta": meta})
+                except Exception:
+                    pass
                 return {"ok": True}
+            try:
+                _audit(self.project_root, "memory.append_denied", {"role": role, "reason": "not_allowed"})
+            except Exception:
+                pass
             return {"ok": False, "error": "memory_write_disabled"}
         if name == "rules.init":
             s = Scenario(args.get("scenario", "personal"))

@@ -136,6 +136,20 @@ memory:
     - "(?i)api[_-]?key\s*[:=]\s*[^\s]+"
     - "(?i)token\s*[:=]\s*[^\s]+"
     - "(?i)authorization:\s*bearer\s+[^\s]+"
+
+安全与隔离补充 Security & Isolation
+- 记忆写入权限：
+  - `memory.allow_write: false` 为默认值；严格隔离模式下，环境变量不能提升该权限。
+  - `memory.hard_disable: true` 为最高优先级硬禁用，任何来源（扩展/DevAgent/环境变量）都不可写入。
+  - 全局紧急硬禁用：设置环境变量 `MCP_MEMORY_HARD_DISABLE=1` 将在进程级别一律拒绝记忆写入（高于项目配置）。
+- 跨项目切换：
+  - `project.allow_switch: false` 在严格隔离下默认拒绝 `tools/call: project.switch`；如需在多根工作区内切换到已打开的项目，显式设为 true 或仅当次设置 `MCP_ALLOW_PROJECT_SWITCH=1`。
+- 严格隔离 Strict Isolation：
+  - 扩展启动后端时传入 `MCP_STRICT_ISOLATION=1`，此模式下：
+    - `RULEFLOW_ALLOW_MEMORY_APPEND` 不再能开启写记忆；必须在项目配置中允许。
+    - `project.switch` 默认拒绝。
+  - 记忆写入有路径强校验：仅允许写入 `<project_root>/.mcp`；越界一律拒绝。
+  - 安全审计：拒绝写入/路径越界/跨项目切换被拒等事件会写入 `.mcp/dashboard/security_audit.jsonl`（逐行 JSON）。
 ```
 
 维护与兼容建议

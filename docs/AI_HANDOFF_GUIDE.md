@@ -27,5 +27,16 @@ AI 编程约束（Do/Don't）
 - 文档入口：`DEVELOPMENT.md`（开发入口） / `README.md`（产品入口）
 - 故障排查：`docs/TROUBLESHOOTING.md`
 
+安全与隔离（团队共识）
+- 严格隔离（默认）：扩展以 `MCP_STRICT_ISOLATION=1` 启动后端。此模式下：
+  - 仅当 `.mcp/assistant.yaml` 中 `memory.allow_write: true` 才允许写记忆；`RULEFLOW_ALLOW_MEMORY_APPEND` 无效。
+  - `project.switch` 默认拒绝（避免跨项目写入）。需切换时显式 `project.allow_switch: true` 或仅当次 `MCP_ALLOW_PROJECT_SWITCH=1`。
+  - 记忆写入路径强校验：只允许 `<project_root>/.mcp`。
+- 项目分级策略：
+  - 允许写入的项目：`memory.allow_write: true`，`project.allow_switch: false`。
+  - 禁止写入的项目：`memory.hard_disable: true`（最高优先级，任何来源都不可写入）。
+- 批量加固与验证：
+  - 运行 `python3 scripts/harden_projects.py --verify <proj1> <proj2> ...`，脚本会写入安全配置并生成 `./.mcp/dashboard/security_verify.json` 验证日志。
+
 备注
 - VS Code 扩展无头测试在本机若受 Electron 启动参数影响，可用容器运行：`make docker-vscode-test` 或 `docker compose run --rm vscode-test`；详见 `docs/VS_CODE_TEST.md`。

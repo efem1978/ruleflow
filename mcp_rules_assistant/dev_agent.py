@@ -819,7 +819,13 @@ class DevAgent:
                 from .config import load_config as _load_cfg
 
                 cfg = _load_cfg(self.project_root)
-                mem = cfg.get("memory", {}) if isinstance(cfg.get("memory", {}), dict) else {}
+                mem = (
+                    cfg.get("memory", {})
+                    if isinstance(cfg.get("memory", {}), dict)
+                    else {}
+                )
+                if bool(mem.get("hard_disable", False)):
+                    return False
                 allow_cfg = bool(mem.get("allow_write", False))
             except Exception:
                 allow_cfg = False
@@ -830,13 +836,17 @@ class DevAgent:
             except Exception:
                 pass
             # In strict isolation, environment cannot elevate privileges
-            strict = str(os.environ.get("MCP_STRICT_ISOLATION", "")).strip().lower() in {"1","true","on","yes","y"}
+            strict = str(
+                os.environ.get("MCP_STRICT_ISOLATION", "")
+            ).strip().lower() in {"1", "true", "on", "yes", "y"}
             if not allow_cfg and strict:
                 return False
             if not allow_cfg:
                 return False
             mm = MemoryManager(self.project_root, window=window)
-            mm.append_turn("assistant", content, {"source": "dev-agent", "type": "auto"})
+            mm.append_turn(
+                "assistant", content, {"source": "dev-agent", "type": "auto"}
+            )
             # update state
             atomic_write_text(st_file, json.dumps({"last_ts": now}, ensure_ascii=False))
             return True

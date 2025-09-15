@@ -4,19 +4,27 @@ set -euo pipefail
 EXT_ID="ruleflow.mcp-rules-assistant"
 echo "[Purge] Target extension id: ${EXT_ID}"
 
-# 1) Uninstall via CLIs when available
-if command -v code >/dev/null 2>&1; then
-  if code --list-extensions | grep -qi "^${EXT_ID}$"; then
-    echo "[VS Code] Uninstalling ${EXT_ID} via code CLI..."
-    code --uninstall-extension "${EXT_ID}" || true
+# 1) Uninstall via VS Code CLI when available and not pointing to Cursor
+CODE_BIN="${VSCODE_BIN:-code}"
+if command -v "${CODE_BIN}" >/dev/null 2>&1; then
+  real_path="$(command -v "${CODE_BIN}")"
+  target_path="$(readlink "${real_path}" 2>/dev/null || echo "")"
+  probe="${real_path} ${target_path}"
+  if echo "${probe}" | grep -qi "Cursor.app"; then
+    echo "[VS Code] '${CODE_BIN}' appears to point to Cursor.app — skipping VS Code uninstall to avoid popups."
   else
-    echo "[VS Code] No global ${EXT_ID} listed."
+    if "${CODE_BIN}" --list-extensions | grep -qi "^${EXT_ID}$"; then
+      echo "[VS Code] Uninstalling ${EXT_ID} via ${CODE_BIN}..."
+      "${CODE_BIN}" --uninstall-extension "${EXT_ID}" || true
+    else
+      echo "[VS Code] No global ${EXT_ID} listed."
+    fi
   fi
 else
-  echo "[VS Code] 'code' CLI not found; skipping CLI uninstall."
+  echo "[VS Code] CLI not found; skipping VS Code uninstall."
 fi
 
-if command -v cursor >/dev/null 2>&1; then
+if [[ "${RULEFLOW_SKIP_CURSOR:-}" != "1" ]] && command -v cursor >/dev/null 2>&1; then
   if cursor --list-extensions | grep -qi "^${EXT_ID}$"; then
     echo "[Cursor] Uninstalling ${EXT_ID} via cursor CLI..."
     cursor --uninstall-extension "${EXT_ID}" || true
@@ -24,7 +32,7 @@ if command -v cursor >/dev/null 2>&1; then
     echo "[Cursor] No global ${EXT_ID} listed."
   fi
 else
-  echo "[Cursor] 'cursor' CLI not found; skipping CLI uninstall."
+  echo "[Cursor] Skipped (RULEFLOW_SKIP_CURSOR=1) or CLI not found; skipping Cursor uninstall."
 fi
 
 # 2) Remove residual extension folders (best-effort, common locations)
@@ -49,13 +57,19 @@ purge_dir() {
 OS="$(uname -s 2>/dev/null || echo unknown)"
 HOME_DIR="${HOME:-$PWD}"
 purge_dir "${HOME_DIR}/.vscode/extensions"
-purge_dir "${HOME_DIR}/.cursor/extensions"
+if [[ "${RULEFLOW_SKIP_CURSOR:-}" != "1" ]]; then
+  purge_dir "${HOME_DIR}/.cursor/extensions"
+fi
 if [[ "$OS" == "Darwin" ]]; then
   purge_dir "${HOME_DIR}/Library/Application Support/Code/extensions"
-  purge_dir "${HOME_DIR}/Library/Application Support/Cursor/extensions"
+  if [[ "${RULEFLOW_SKIP_CURSOR:-}" != "1" ]]; then
+    purge_dir "${HOME_DIR}/Library/Application Support/Cursor/extensions"
+  fi
 elif [[ "$OS" == "Linux" ]]; then
   purge_dir "${HOME_DIR}/.config/Code/extensions"
-  purge_dir "${HOME_DIR}/.config/Cursor/extensions"
+  if [[ "${RULEFLOW_SKIP_CURSOR:-}" != "1" ]]; then
+    purge_dir "${HOME_DIR}/.config/Cursor/extensions"
+  fi
 fi
 
 if [[ $removed_any -eq 0 ]]; then
