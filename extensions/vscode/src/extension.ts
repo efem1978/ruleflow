@@ -400,11 +400,14 @@ async function handleOpenMessage(msg: any) {
 let __activated = false; // 防重复激活（测试/多次初始化场景）
 
 export function activate(context: vscode.ExtensionContext) {
+  console.log('[MCP Rules Assistant] Extension activation started');
   if (__activated) {
-    // 避免重复注册命令导致 “command ... already exists”
+    // 避免重复注册命令导致 "command ... already exists"
+    console.log('[MCP Rules Assistant] Already activated, skipping');
     return;
   }
   __activated = true;
+  console.log('[MCP Rules Assistant] Extension activated successfully');
   // 恢复锁定根目录（若存在），优先使用此前用户选择的项目根
   try {
     const saved = context.workspaceState.get<string>('ruleflow.lockRoot') || '';
@@ -727,7 +730,12 @@ export function activate(context: vscode.ExtensionContext) {
       'mcpRulesAssistant',
       'RuleFlow: Rules & Memory',
       vscode.ViewColumn.Beside,
-      { enableScripts: true, retainContextWhenHidden: true }
+      { 
+        enableScripts: true, 
+        retainContextWhenHidden: true,
+        localResourceRoots: [context.extensionUri],
+        enableCommandUris: true
+      }
     );
     const csp = panel.webview.cspSource;
     const nonce = getNonce();
@@ -788,6 +796,7 @@ export function activate(context: vscode.ExtensionContext) {
       <html>
       <head>
         <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${csp} data:; style-src ${csp} 'unsafe-inline'; script-src ${csp} 'nonce-${nonceVal}'; font-src ${csp} data:">
+        <script nonce="${nonceVal}" src="@@PANEL_BOOTSTRAP@@"></script>
       </head>
       <body class="simple" style="font-family: -apple-system,Segoe UI,Arial;">
         <style>
@@ -795,6 +804,7 @@ export function activate(context: vscode.ExtensionContext) {
           body.simple #simpleBar { display: block; }
           body.advanced #simpleBar { display: none; }
           body.advanced .adv { display: block; }
+{{ ... }}
           #modeBar { display:flex; gap:6px; align-items:center; margin:6px 0; }
           #modeBar button { padding:4px 8px; }
           #simpleBar button { padding:6px 10px; margin:2px 4px; }
@@ -1048,7 +1058,7 @@ export function activate(context: vscode.ExtensionContext) {
               };
               const applyLang = (lang: string) => {
                 const zh = lang === 'zh';
-                const set = (id:string, text?:string, title?:string) => { try { const el = document.getElementById(id) as HTMLElement; if (el && text!==undefined) el.textContent = text; if (el && title!==undefined) (el as any).title = title; } catch {} };
+                const set = (id:string, text?:string, title?:string) => { try { const el = document.getElementById(id); if (el && text!==undefined) el.textContent = text; if (el && title!==undefined) el.title = title; } catch {} };
                 set('hdrTitle', zh? 'MCP 规则与上下文助手' : 'MCP Rules & Context Assistant');
                 set('pConnected', zh? '已连接到 Python MCP Server（最小协议）。默认快速内环：保存轻、推送重。' : 'Connected to Python MCP Server (minimal protocol). Fast inner loop: light save, gated push.');
                 set('lblDisplayMode', zh? '显示模式：' : 'Display mode:');
@@ -1094,18 +1104,18 @@ export function activate(context: vscode.ExtensionContext) {
                 set('hdrTasksDone', zh? '已完成' : 'Done');
                 set('hdrCI', zh? 'CI 配置（hadolint / semgrep / mutation）' : 'CI Config (hadolint / semgrep / mutation)');
                 // Placeholders
-                try { const ip = document.getElementById('nlInput') as HTMLInputElement; if (ip) ip.placeholder = zh? '自然语言指令：如 摄取规则 README.md, docs/ / 加载覆盖率 / 开启滚动记忆' : 'NL command: e.g. Ingest README.md, docs/ / Load Coverage / Enable memory'; } catch {}
+                try { const ip = document.getElementById('nlInput'); if (ip) ip.placeholder = zh? '自然语言指令：如 摄取规则 README.md, docs/ / 加载覆盖率 / 开启滚动记忆' : 'NL command: e.g. Ingest README.md, docs/ / Load Coverage / Enable memory'; } catch {}
                 try { (window as any).applyLang = applyLang; } catch {}
               };
               apply(mode);
-              const btnS = document.getElementById('btnModeSimple') as HTMLButtonElement | null;
-              const btnA = document.getElementById('btnModeAdvanced') as HTMLButtonElement | null;
+              const btnS = document.getElementById('btnModeSimple');
+              const btnA = document.getElementById('btnModeAdvanced');
               if (btnS) btnS.onclick = () => apply('simple');
               if (btnA) btnA.onclick = () => apply('advanced');
-              const btnL = document.getElementById('btnLang') as HTMLButtonElement | null;
+              const btnL = document.getElementById('btnLang');
               if (btnL) btnL.onclick = () => {
                 try {
-                  const st = (vscode.getState && vscode.getState()) || {} as any;
+                  const st = (vscode.getState && vscode.getState()) || {};
                   const cur = (st && (st as any).lang) || (typeof localStorage!=='undefined' ? localStorage.getItem('ruleflow.lang') : '') || 'zh';
                   const next = (String(cur) === 'zh') ? 'en' : 'zh';
                   if (vscode.setState) vscode.setState({ ...(st||{}), lang: next });
@@ -1127,11 +1137,11 @@ export function activate(context: vscode.ExtensionContext) {
           })();
 
           // ---- Beginner quick actions ----
-          try { const el = document.getElementById('btnSimpleInstall') as HTMLButtonElement | null; if (el) el.onclick = ()=> vscode.postMessage({ t: 'prepareEnvInstall' }); } catch {}
-          try { const el = document.getElementById('btnSimpleCoverage') as HTMLButtonElement | null; if (el) el.onclick = ()=> vscode.postMessage({ t: 'coverage' }); } catch {}
-          try { const el = document.getElementById('btnSimplePlan') as HTMLButtonElement | null; if (el) el.onclick = ()=> vscode.postMessage({ t: 'open', path: '.mcp/plan.md', line: 1 }); } catch {}
-          try { const el = document.getElementById('btnSimpleIngest') as HTMLButtonElement | null; if (el) el.onclick = ()=> vscode.postMessage({ t: 'ingestRules' }); } catch {}
-          try { const el = document.getElementById('btnSimpleStatus') as HTMLButtonElement | null; if (el) el.onclick = ()=> vscode.postMessage({ t: 'statusUpdate' }); } catch {}
+          try { const el = document.getElementById('btnSimpleInstall'); if (el) el.onclick = ()=> vscode.postMessage({ t: 'prepareEnvInstall' }); } catch {}
+          try { const el = document.getElementById('btnSimpleCoverage'); if (el) el.onclick = ()=> vscode.postMessage({ t: 'coverage' }); } catch {}
+          try { const el = document.getElementById('btnSimplePlan'); if (el) el.onclick = ()=> vscode.postMessage({ t: 'open', path: '.mcp/plan.md', line: 1 }); } catch {}
+          try { const el = document.getElementById('btnSimpleIngest'); if (el) el.onclick = ()=> vscode.postMessage({ t: 'ingestRules' }); } catch {}
+          try { const el = document.getElementById('btnSimpleStatus'); if (el) el.onclick = ()=> vscode.postMessage({ t: 'statusUpdate' }); } catch {}
           // Event delegation fallback: ensure clicks still work even if nodes are re-rendered
           try {
             const clickMap: any = {
@@ -1148,20 +1158,20 @@ export function activate(context: vscode.ExtensionContext) {
             };
             document.addEventListener('click', (ev:any) => {
               try {
-                const el = ev.target as HTMLElement;
+                const el = ev.target;
                 if (!el || !el.id) return;
                 const m = clickMap[el.id];
-                if (!m) return;
-                ev.preventDefault();
-                vscode.postMessage(m);
+                // Post a generic click event for diagnostics
+                try { vscode.postMessage({ t: 'panel.click', id: el.id }); } catch {}
+                if (m) { ev.preventDefault(); vscode.postMessage(m); }
               } catch {}
             }, true);
           } catch {}
-          try { const el = document.getElementById('btnLoad') as HTMLButtonElement | null; if (el) el.onclick = () => vscode.postMessage({ t: 'loadRules' }); } catch {}
-          try { const el = document.getElementById('btnStatusUpdate') as HTMLButtonElement | null; if (el) el.onclick = () => vscode.postMessage({ t: 'statusUpdate' }); } catch {}
-          try { const el = document.getElementById('btnSelectProject') as HTMLButtonElement | null; if (el) el.onclick = () => vscode.postMessage({ t: 'selectProject' }); } catch {}
-          try { const el = document.getElementById('btnIngest') as HTMLButtonElement | null; if (el) el.onclick = () => vscode.postMessage({ t: 'ingestRules' }); } catch {}
-          try { const el = document.getElementById('btnValidate') as HTMLButtonElement | null; if (el) el.onclick = () => vscode.postMessage({ t: 'validateRules' }); } catch {}
+          try { const el = document.getElementById('btnLoad'); if (el) el.onclick = () => vscode.postMessage({ t: 'loadRules' }); } catch {}
+          try { const el = document.getElementById('btnStatusUpdate'); if (el) el.onclick = () => vscode.postMessage({ t: 'statusUpdate' }); } catch {}
+          try { const el = document.getElementById('btnSelectProject'); if (el) el.onclick = () => vscode.postMessage({ t: 'selectProject' }); } catch {}
+          try { const el = document.getElementById('btnIngest'); if (el) el.onclick = () => vscode.postMessage({ t: 'ingestRules' }); } catch {}
+          try { const el = document.getElementById('btnValidate'); if (el) el.onclick = () => vscode.postMessage({ t: 'validateRules' }); } catch {}
           // 预览并回写门禁（rules.resolve）
           const btnResolve = document.createElement('button'); btnResolve.id = 'btnRulesResolve'; btnResolve.textContent = '预览并应用门禁';
           const anchor = document.getElementById('btnValidate');
@@ -1803,7 +1813,10 @@ export function activate(context: vscode.ExtensionContext) {
       const tools = await client.request('tools/list', {});
       const list = (tools.tools || []).map((t: any) => `<li><code>${t.name}</code> — ${t.description}</li>`).join('');
       const csp = panel.webview.cspSource;
-      panel.webview.html = render(csp, nonce, '', list);
+      const scriptUri = panel.webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'media', 'panel_bootstrap.js'));
+      let html = render(csp, nonce, '', list);
+      html = html.replace('@@PANEL_BOOTSTRAP@@', String(scriptUri));
+      panel.webview.html = html;
       // Apply persisted language preference from workspace (shared across windows)
       try {
         const ws = getWorkspaceRoot();
@@ -1878,6 +1891,19 @@ export function activate(context: vscode.ExtensionContext) {
         }
         else if (msg.t === 'handshake') {
           try { panel.webview.postMessage({ t: 'info', text: 'Webview 已连接（handshake_ok）' }); } catch {}
+        }
+        else if (msg.t === 'panel.click') {
+          try {
+            const ws = getWorkspaceRoot(); if (!ws) return;
+            const p = vscode.Uri.file(ws + '/.mcp/dashboard/panel_clicks.jsonl');
+            const enc = new TextEncoder();
+            const line = JSON.stringify({ time: new Date().toISOString(), id: String(msg.id||''), type: 'panel.click' }) + '\n';
+            try {
+              let old = '';
+              try { const b = await vscode.workspace.fs.readFile(p); old = Buffer.from(b).toString('utf8'); } catch {}
+              await vscode.workspace.fs.writeFile(p, enc.encode(old + line));
+            } catch { await vscode.workspace.fs.writeFile(p, enc.encode(line)); }
+          } catch {}
         }
         else if (msg.t === 'openServerLog') {
           try {
@@ -2592,12 +2618,17 @@ export function activate(context: vscode.ExtensionContext) {
         __panelInFlight = null;
       }
     };
-    panel.webview.onDidReceiveMessage(async (msg) => { await __panelDispatch(msg); });
-    __testPanelHandler = __panelDispatch;
-
-    // 处理从 webview 的“打开源文件/ready/ready2”请求
-    panel.webview.onDidReceiveMessage(async (msg) => {
+    // 统一的消息处理器 - 处理所有webview消息
+    panel.webview.onDidReceiveMessage(async (msg) => { 
+      console.log('[MCP Rules Assistant] Webview message received:', JSON.stringify(msg));
+      
+      // 处理面板调度消息
+      await __panelDispatch(msg);
+      
+      // 处理打开文件消息
       await handleOpenMessage(msg);
+      
+      // 处理ready消息
       if (msg && msg.t === 'ready') { try { if (__panelReadyResolve) { __panelReadyResolve(); __panelReadyResolve = null; } } catch {} }
       if (msg && msg.t === 'ready2') {
         try {

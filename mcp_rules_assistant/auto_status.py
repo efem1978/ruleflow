@@ -94,20 +94,32 @@ def _coverage_snapshot(project_root: Optional[Path] = None) -> Dict[str, Any]:
 
 
 def _memory_snapshot(project_root: Optional[Path] = None) -> Dict[str, Any]:
-    """Return a safe snapshot of memory for status composition.
-
-    Uses MemoryManager.snapshot() to inherit read-side safety (no symlink/outside path).
-    """
+    """Snapshot of memory state (turns + summary)."""
     root = (project_root or Path.cwd()).resolve()
+    memory_file = root / ".mcp/memory.json"
+
     try:
         from .memory import MemoryManager  # local import to avoid cycles
+
+        # Check if file exists and is valid JSON first
+        if not memory_file.exists():
+            return {"exists": False, "summary": "", "turns": []}
+
+        # Try to parse JSON to check validity
+        try:
+            with open(memory_file, "r", encoding="utf-8") as f:
+                json.load(f)
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            # File exists but is corrupt - return exists=False
+            return {"exists": False, "summary": "", "turns": []}
 
         mm = MemoryManager(root)
         snap = mm.snapshot()
         turns = snap.get("turns", []) if isinstance(snap.get("turns"), list) else []
-        summary = snap.get("summary", "") if isinstance(snap.get("summary", ""), str) else ""
-        exists = (root / ".mcp/memory.json").exists()
-        return {"exists": bool(exists), "summary": summary, "turns": list(turns)[-6:]}
+        summary = (
+            snap.get("summary", "") if isinstance(snap.get("summary", ""), str) else ""
+        )
+        return {"exists": True, "summary": summary, "turns": list(turns)[-6:]}
     except Exception:
         return {"exists": False, "summary": "", "turns": []}
 
