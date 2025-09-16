@@ -79,7 +79,13 @@ initialize_mcp() {
         mcp-rules-assistant init --mode fast
     fi
     
-    mcp-rules-assistant ingest-rules .
+    # Only ingest specific rule directories to avoid memory issues
+    if [[ -d "rulesets" ]]; then
+        mcp-rules-assistant ingest-rules rulesets/
+    fi
+    if [[ -d "docs" ]]; then
+        mcp-rules-assistant ingest-rules docs/
+    fi
     log_success "MCP configuration initialized"
 }
 
