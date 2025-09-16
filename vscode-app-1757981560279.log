@@ -1,0 +1,75 @@
+event.ts:42 [Violation] Added non-passive event listener to a scroll-blocking 'touchstart' event. Consider marking event handler as 'passive' to make the page more responsive. See https://www.chromestatus.com/feature/5745543795965952
+onWillAddFirstListener @ event.ts:42
+u @ event.ts:1114
+（匿名） @ event.ts:131
+onWillAddFirstListener @ event.ts:206
+u @ event.ts:1114
+wOe @ listWidget.ts:692
+E @ listWidget.ts:1551
+pc @ listWidget.ts:1526
+Bf @ listService.ts:280
+o @ instantiationService.ts:169
+createInstance @ instantiationService.ts:135
+r @ notificationsList.ts:74
+show @ notificationsList.ts:54
+P @ notificationsToasts.ts:219
+（匿名） @ notificationsToasts.ts:169
+execute @ dom.ts:326
+n @ dom.ts:367
+（匿名） @ dom.ts:385
+console.ts:137 [Extension Host] Initializing Parallels Desktop Copilot...
+console.ts:137 [Extension Host] Parallels Desktop Extension is now active!
+panel_bootstrap.js:108 [panel_bootstrap] Click detected on: BUTTON btnLang 
+panel_bootstrap.js:129 [panel_bootstrap] Fallback applied: lang = en
+panel_bootstrap.js:134 [panel_bootstrap] Sending message: {t: 'lang.toggle'}
+panel_bootstrap.js:108 [panel_bootstrap] Click detected on: BUTTON btnReloadPanel 
+panel_bootstrap.js:134 [panel_bootstrap] Sending message: {t: 'panel.reload'}
+panel_bootstrap.js:108 [panel_bootstrap] Click detected on: BUTTON btnLicActivate 
+panel_bootstrap.js:134 [panel_bootstrap] Sending message: {t: 'licenseActivate'}
+panel_bootstrap.js:108 [panel_bootstrap] Click detected on: BUTTON btnSelectProject 
+panel_bootstrap.js:134 [panel_bootstrap] Sending message: {t: 'selectProject'}
+panel_bootstrap.js:108 [panel_bootstrap] Click detected on: BUTTON btnSimpleInstall 
+panel_bootstrap.js:134 [panel_bootstrap] Sending message: {t: 'prepareEnvInstall'}
+event.ts:42 [Violation] Added non-passive event listener to a scroll-blocking 'touchstart' event. Consider marking event handler as 'passive' to make the page more responsive. See https://www.chromestatus.com/feature/5745543795965952
+onWillAddFirstListener @ event.ts:42
+u @ event.ts:1114
+（匿名） @ event.ts:131
+onWillAddFirstListener @ event.ts:206
+u @ event.ts:1114
+wOe @ listWidget.ts:692
+Rns @ abstractTree.ts:2334
+E @ abstractTree.ts:2480
+pc @ listWidget.ts:1526
+Ans @ abstractTree.ts:2476
+a7 @ abstractTree.ts:2652
+ly @ objectTree.ts:51
+lHt @ objectTree.ts:293
+B @ asyncDataTree.ts:1528
+Rg @ asyncDataTree.ts:611
+Zns @ asyncDataTree.ts:1508
+$T @ listService.ts:1054
+o @ instantiationService.ts:169
+createInstance @ instantiationService.ts:135
+Gc @ explorerView.ts:450
+X @ explorerView.ts:301
+render @ paneview.ts:291
+render @ viewPane.ts:432
+ub @ viewPaneContainer.ts:781
+create @ viewPaneContainer.ts:522
+create @ explorerViewlet.ts:181
+create @ panecomposite.ts:48
+Fb @ compositePart.ts:236
+Fb @ paneCompositePart.ts:235
+Db @ compositePart.ts:159
+Cb @ compositePart.ts:123
+Cc @ paneCompositePart.ts:538
+openPaneComposite @ paneCompositePart.ts:506
+run @ paneCompositeBar.ts:836
+u @ actions.ts:194
+run @ actions.ts:185
+onClick @ actionViewItems.ts:177
+（匿名） @ actionViewItems.ts:157
+mouseTarget.ts:451 [Violation] Handling of 'wheel' input event was delayed for 108 ms due to main thread being busy. Consider marking event handler as 'passive' to make the page more responsive.
+mouseTarget.ts:451 [Violation] Handling of 'wheel' input event was delayed for 108 ms due to main thread being busy. Consider marking event handler as 'passive' to make the page more responsive.
+mouseTarget.ts:451 [Violation] Handling of 'wheel' input event was delayed for 108 ms due to main thread being busy. Consider marking event handler as 'passive' to make the page more responsive.
+mouseTarget.ts:451 [Violation] Handling of 'wheel' input event was delayed for 108 ms due to main thread being busy. Consider marking event handler as 'passive' to make the page more responsive.

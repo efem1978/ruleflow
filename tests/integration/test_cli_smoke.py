@@ -13,11 +13,11 @@ def test_cli_version_and_explain_performance(tmp_path: Path, capsys) -> None:
     )
 
     # change CWD for load_config()
-    cwd = Path.cwd()
-    try:
-        import os
+    import os
 
-        os.chdir(tmp_path)
+    cwd = os.getcwd()
+    try:
+        os.chdir(str(tmp_path))
         cli.version()
         out = capsys.readouterr().out
         assert "mcp-rules-assistant" in out
@@ -26,4 +26,8 @@ def test_cli_version_and_explain_performance(tmp_path: Path, capsys) -> None:
         out2 = capsys.readouterr().out
         assert "Performance Summary" in out2
     finally:
-        os.chdir(cwd)
+        try:
+            os.chdir(cwd)
+        except (FileNotFoundError, OSError):
+            # If original directory was deleted, just continue
+            pass

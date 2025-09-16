@@ -11,8 +11,13 @@ from mcp_rules_assistant.mcp_server import JsonRpcServer
 def chdir(path: Path):
     class _Ctx:
         def __enter__(self):
-            self._old = Path.cwd()
             import os
+
+            try:
+                self._old = Path.cwd()
+            except (FileNotFoundError, OSError):
+                # If current directory doesn't exist, use a safe default
+                self._old = Path.home()
 
             os.chdir(path)
             return path
@@ -20,7 +25,11 @@ def chdir(path: Path):
         def __exit__(self, exc_type, exc, tb):
             import os
 
-            os.chdir(self._old)
+            try:
+                os.chdir(self._old)
+            except (FileNotFoundError, OSError):
+                # If original directory was deleted, just continue
+                pass
 
     return _Ctx()
 

@@ -64,7 +64,35 @@ def project_root(tmp_path: Path) -> Path:
 
     # Copy real config to temp project
     (project_root / ".mcp/assistant.yaml").touch()
-    shutil.copyfile(".mcp/assistant.yaml", project_root / ".mcp/assistant.yaml")
+
+    # Find the real config file from the project root
+    import os
+
+    real_config_path = Path(__file__).parent.parent / ".mcp/assistant.yaml"
+    if real_config_path.exists():
+        shutil.copyfile(
+            str(real_config_path), str(project_root / ".mcp/assistant.yaml")
+        )
+    else:
+        # Create a minimal config if the real one doesn't exist
+        (project_root / ".mcp/assistant.yaml").write_text(
+            """
+performance:
+  mode: fast
+language: python
+bilingual: true
+coverage:
+  policy: {}
+tests:
+  quick_fail_decay:
+    high_days: 3
+    history_limit: 400
+execution:
+  fs_guard_post_checks: true
+  fs_guard_strict: true
+""",
+            encoding="utf-8",
+        )
 
     return project_root
 

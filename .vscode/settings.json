@@ -14,5 +14,29 @@
   "git.fetchOnPull": false,
   "git.autofetch": false,
   "markdown.validate.enabled": true,
-  "ruleflow.python.path": "${workspaceFolder}/.mcp/venv/bin/python"
+  "ruleflow.python.path": "${workspaceFolder}/.mcp/venv/bin/python",
+  "java.configuration.updateBuildConfiguration": "disabled",
+  "java.import.gradle.enabled": false,
+  "java.compile.nullAnalysis.mode": "disabled",
+  "java.autobuild.enabled": false,
+  "java.project.sourcePaths": [],
+  "java.project.referencedLibraries": [],
+  "files.exclude": {
+    "**/extensions/jetbrains/**": true,
+    "**/extensions/visualstudio/**": true,
+    "**/extensions/eclipse/**": true,
+    "**/.gradle": true,
+    "**/build": true,
+    "**/*.class": true
+  },
+  "files.watcherExclude": {
+    "**/extensions/jetbrains/**": true,
+    "**/extensions/visualstudio/**": true,
+    "**/extensions/eclipse/**": true
+  },
+  "search.exclude": {
+    "**/extensions/jetbrains/**": true,
+    "**/extensions/visualstudio/**": true,
+    "**/extensions/eclipse/**": true
+  }
 }

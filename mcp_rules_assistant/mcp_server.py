@@ -65,7 +65,16 @@ class JsonRpcServer:
                     env_root = p
         except Exception:
             env_root = None
-        self.project_root = env_root or Path.cwd()
+
+        # Fallback to current working directory, but handle cases where it doesn't exist
+        if env_root is None:
+            try:
+                env_root = Path.cwd()
+            except (FileNotFoundError, OSError):
+                # If current directory doesn't exist, use a safe default
+                env_root = Path.home()
+
+        self.project_root = env_root
         self._mem_ns: str | None = None
         self.mm = MemoryManager(self.project_root)
         self.fs = FSGuard(self.project_root)

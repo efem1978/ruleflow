@@ -11,7 +11,11 @@ echo "[jb-ui-verify] verifying status & coverage summary (if any) ..."
 python3 - << 'PY'
 import json, sys, os
 from pathlib import Path
-root = Path(os.getcwd())
+try:
+    root = Path(os.getcwd())
+except (FileNotFoundError, OSError):
+    # If current directory doesn't exist, use the script's directory
+    root = Path(os.environ.get('ROOT_DIR', os.path.expanduser('~')))
 dash = root/'.mcp'/'dashboard'
 status = dash/'status.json'
 if not status.exists():

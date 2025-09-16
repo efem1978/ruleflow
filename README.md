@@ -47,6 +47,117 @@ MCP 规则与上下文助手 / MCP Rules & Context Assistant
   - 无实拍环境的替代方案：运行 `scripts/jb-ui-smoke.sh` 生成 `extensions/jetbrains/screenshots/jb_ui_snapshot.md`（从 `.mcp/dashboard/status.json` 抽取计划/覆盖率摘要，作为“替代截图”材料），并结合 `scripts/jb-storyboard.sh` 产出的 `jb_*.json/md` 用于审阅。CI 会上传 `jetbrains-ui-smoke-log` 工件（含 `jb_ui_snapshot.md`）。
   - 快速校验：`make docker-vscode-test`（VS Code 无头测试，已内置夹具与降噪），`bash scripts/jb-ui-verify.sh`（JetBrains 验证汇总）
 
+## Installation
+
+### Quick Start (One-Click Installation)
+
+```bash
+# Clone the repository
+git clone <repository-url>
+cd Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool
+
+# Run one-click installation for all supported IDEs
+bash scripts/install-all.sh
+```
+
+This will automatically:
+- Set up Python environment (≥3.10 required)
+- Install MCP Rules Assistant package
+- Build and install IDE extensions for detected IDEs
+- Run comprehensive test suite and commercial validation
+- Generate installation report
+
+### Supported IDEs
+
+| IDE | Status | Installation Method |
+|-----|--------|-------------------|
+| VSCode | ✅ Full Support | Auto VSIX install |
+| Cursor | ✅ Full Support | Auto VSIX install |
+| Windsurf | ✅ Full Support | Auto VSIX install |
+| JetBrains | ✅ External Tools | Auto configuration |
+| Neovim | ✅ Lua Plugin | Auto install |
+| Sublime Text | ✅ Python Plugin | Auto install |
+
+### Manual Installation
+
+If you prefer manual installation:
+
+```bash
+# 1. Setup Python environment
+python3 -m venv .mcp/venv
+source .mcp/venv/bin/activate
+pip install -e .
+
+# 2. Initialize configuration
+mcp-rules-assistant init
+
+# 3. Install IDE extensions (choose your IDE)
+# VSCode: Install from .vsix file in extensions/vscode/
+# JetBrains: Use Tools -> External Tools -> MCP Rules Assistant
+# Neovim: Copy plugin from generated config
+```
+
+## Usage
+
+### Basic Commands
+
+```bash
+# Initialize project configuration
+mcp-rules-assistant init
+
+# Ingest rules from files or directories
+mcp-rules-assistant ingest-rules README.md docs/
+
+# Generate CI configuration
+mcp-rules-assistant generate-ci
+
+# Install Git hooks
+mcp-rules-assistant install-hooks
+
+# Run diagnostics
+mcp-rules-assistant diagnose
+
+# Check coverage
+mcp-rules-assistant coverage
+
+# Update status
+mcp-rules-assistant status-update
+```
+
+### IDE Integration
+
+#### VSCode
+1. Install the extension from `.vsix` file in `extensions/vscode/`
+2. Open Command Palette (Cmd+Shift+P)
+3. Run "RuleFlow: Open Panel" to access the main interface
+4. Use "RuleFlow: Natural Command" for natural language interactions
+
+#### JetBrains IDEs
+1. Use Tools → External Tools → MCP Rules Assistant
+2. Access the RuleFlow tool window for project management
+3. View coverage reports and rule compliance
+
+#### Other IDEs
+- **Cursor/Windsurf**: Use the same VSCode extension
+- **Neovim**: Lua plugin auto-configured during installation
+- **Sublime Text**: Python plugin with command integration
+
+### Configuration
+
+The tool uses `.mcp/assistant.yaml` for project-specific configuration:
+
+```yaml
+rules:
+  enforce_coverage: true
+  min_coverage: 95
+coverage:
+  core_modules: 98
+  other_modules: 95
+security:
+  enable_bandit: true
+  enable_semgrep: true
+```
+
 ## 安装与隔离（VS Code 推荐）
 - 工作区隔离安装（避免跨项目互相影响）：
   - `bash scripts/vscode_isolated_install.sh`
