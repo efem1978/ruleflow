@@ -1,12 +1,18 @@
 {
   "copilot.mcp.tools": {
-    "ruleflow": {
-      "command": "${workspaceFolder}/.mcp/venv/bin/python",
-      "args": ["-m", "mcp_rules_assistant.cli", "start"],
-      "cwd": "${workspaceFolder}",
-      "env": { "PYTHONUNBUFFERED": "1" }
+    "mcp.servers": {
+      "mcp-rules-assistant": {
+        "command": "python",
+        "args": ["-m", "mcp_rules_assistant.cli", "start"],
+        "cwd": "/Users/aifei/Desktop/人工智能编程/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool"
+      }
     }
   },
+  "github.pullRequests.queries": [],
+  "github.pullRequests.remotes": [],
+  "git.enableSmartCommit": false,
+  "git.fetchOnPull": false,
+  "git.autofetch": false,
   "markdown.validate.enabled": true,
   "ruleflow.python.path": "${workspaceFolder}/.mcp/venv/bin/python"
 }

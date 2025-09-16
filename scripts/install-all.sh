@@ -177,14 +177,52 @@ detect_ides() {
     printf '%s\n' "${ides[@]}"
 }
 
+# Install Neovim plugin
+install_neovim_plugin() {
+    log_info "Installing Neovim plugin..."
+    
+    # Create Neovim plugin directory
+    mkdir -p ~/.config/nvim/lua/mcp-rules-assistant
+    
+    # Create basic Neovim plugin
+    cat > ~/.config/nvim/lua/mcp-rules-assistant/init.lua << 'EOF'
+local M = {}
+
+function M.setup(opts)
+    opts = opts or {}
+    
+    -- Create user commands
+    vim.api.nvim_create_user_command('MCPStatus', function()
+        vim.fn.system('source ' .. vim.fn.getcwd() .. '/.mcp/venv/bin/activate && mcp-rules-assistant status')
+    end, {})
+    
+    vim.api.nvim_create_user_command('MCPRules', function()
+        vim.fn.system('source ' .. vim.fn.getcwd() .. '/.mcp/venv/bin/activate && mcp-rules-assistant rules-ingest')
+    end, {})
+    
+    vim.api.nvim_create_user_command('MCPCoverage', function()
+        vim.fn.system('source ' .. vim.fn.getcwd() .. '/.mcp/venv/bin/activate && mcp-rules-assistant coverage-update')
+    end, {})
+    
+    print("MCP Rules Assistant loaded")
+end
+
+return M
+EOF
+    
+    # Add to init.lua if it exists
+    if [ -f ~/.config/nvim/init.lua ]; then
+        if ! grep -q "mcp-rules-assistant" ~/.config/nvim/init.lua; then
+            echo "require('mcp-rules-assistant').setup()" >> ~/.config/nvim/init.lua
+        fi
+    fi
+    
+    log_success "Neovim plugin installed"
+}
+
 # Install VSCode extension
 install_vscode_extension() {
     log_info "Building and installing VSCode extension..."
-    
-    if ! command -v npm >/dev/null 2>&1; then
-        log_warn "npm not found, skipping VSCode extension build"
-        return 1
-    fi
     
     if ! npm --prefix extensions/vscode run compile; then
         log_error "Failed to compile VSCode extension"

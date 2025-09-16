@@ -591,6 +591,58 @@ class RuleFlowToolWindowFactory : ToolWindowFactory {
             }
         }
 
+        // ---- Chat transcript (bidirectional command UX) ----
+        val chatPanel = JPanel(java.awt.BorderLayout())
+        val chatTop = JPanel(FlowLayout(FlowLayout.LEFT))
+        val lblChat = JLabel("Chat / NL")
+        val tfChat = javax.swing.JTextField(40)
+        val btnChatSend = JButton("发送 / Send")
+        val btnChatClear = JButton("清空 / Clear")
+        val chkChatAppend = JCheckBox("追加到记忆", false)
+        chatTop.add(lblChat)
+        chatTop.add(tfChat)
+        chatTop.add(btnChatSend)
+        chatTop.add(btnChatClear)
+        chatTop.add(chkChatAppend)
+        val chatArea = JTextArea(10, 80)
+        chatArea.isEditable = false
+        val chatScroll = JScrollPane(chatArea)
+        chatPanel.add(chatTop, java.awt.BorderLayout.NORTH)
+        chatPanel.add(chatScroll, java.awt.BorderLayout.CENTER)
+
+        fun pushChat(role: String, content: String) {
+            val nick = if (role == "assistant") "Assistant" else "You"
+            val line = "${nick}: ${content}\n"
+            chatArea.append(line)
+            chatArea.caretPosition = chatArea.document.length
+        }
+
+        btnChatSend.addActionListener {
+            val msg = tfChat.text.trim()
+            if (msg.isEmpty()) return@addActionListener
+            pushChat("user", msg)
+            tfChat.text = ""
+            try {
+                if (!mcp.isRunning()) mcp.start(project)
+                val arg = "{\"text\":\"" + msg.replace("\\", "\\\\").replace("\"", "\\\"") + "\"}"
+                // Route through nl.command for parity with VSCode panel
+                val parsed = mcp.request("tools/call", "{\"name\":\"nl.command\",\"arguments\":$arg}", 8000)
+                // Show a light acknowledgement (JetBrains toolwindow is non-chatty by design)
+                pushChat("assistant", "已执行：$msg")
+                if (chkChatAppend.isSelected) {
+                    try { appendTurn(mcp, "Chat: $msg") } catch (_: Exception) {}
+                }
+            } catch (e: Exception) {
+                pushChat("assistant", "执行失败: ${e.message}")
+            }
+        }
+        btnChatClear.addActionListener { chatArea.text = "" }
+
+        // Layout: main panel top (buttons), center (scroll text), bottom (chat)
+        panel.add(top, BorderLayout.NORTH)
+        panel.add(scroll, BorderLayout.CENTER)
+        panel.add(chatPanel, BorderLayout.SOUTH)
+
         fun promptFsApplyPatch(strict: Boolean, dryRun: Boolean) {
             try {
                 if (!mcp.isRunning()) mcp.start(project)
