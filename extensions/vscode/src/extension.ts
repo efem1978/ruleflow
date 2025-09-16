@@ -1,5 +1,8 @@
 import * as vscode from 'vscode';
-import { spawn, ChildProcessWithoutNullStreams } from 'child_process';
+import { LanguageModelChatMessage, LanguageModelChatMessageRole } from 'vscode';
+import * as path from 'path';
+import * as fs from 'fs';
+import { spawn, ChildProcessWithoutNullStreams, execFile } from 'child_process';
 
 // Workspace root lock (user-selected project root for strict isolation)
 let __lockedRoot: string | null = null;
@@ -32,7 +35,7 @@ function getWorkspaceRoot(): string | undefined {
 function getWorkspaceLabel(): string {
   try {
     if (__lockedRoot) {
-      try { const p = require('path'); return p.basename(__lockedRoot); } catch {}
+      try { return path.basename(__lockedRoot); } catch {}
     }
     const ed = vscode.window.activeTextEditor;
     if (ed) {
@@ -64,8 +67,7 @@ class McpClient {
     try {
       if ((process.env.RULEFLOW_TEST_FAKE || '').trim() === '1') { this.fakeMode = true; return; }
       const ws = getWorkspaceRoot() || process.cwd();
-      const p = require('path').join(ws, '.mcp', 'dashboard', 'fake_mode');
-      const fs = require('fs');
+      const p = path.join(ws, '.mcp', 'dashboard', 'fake_mode');
       if (fs.existsSync(p)) this.fakeMode = true;
     } catch { /* ignore */ }
   }
@@ -75,8 +77,6 @@ class McpClient {
     if (this.proc || this.fakeMode) return;
     // 尽量不影响性能：按需启动，面板打开或首次请求时才启动
     const ws = getWorkspaceRoot() || process.cwd();
-    const path = require('path');
-    const fs = require('fs');
     // 1) 优先使用工作区内 .mcp/venv 的 Python（真正开箱即用）
     const venvPy = process.platform === 'win32'
       ? path.join(ws, '.mcp', 'venv', 'Scripts', 'python.exe')
@@ -379,7 +379,7 @@ async function handleOpenMessage(msg: any) {
       const wsRoot = getWorkspaceRoot() || '';
       let filePath = String(msg.path);
       if (!filePath.match(/^\w:\\|^\//)) {
-        filePath = require('path').join(wsRoot, filePath);
+        filePath = path.join(wsRoot, filePath);
       }
       if (wsRoot && !String(filePath).startsWith(wsRoot)) {
         vscode.window.showErrorMessage('无法打开文件：不在当前工作区内');
@@ -415,8 +415,7 @@ export function activate(context: vscode.ExtensionContext) {
     else {
       const w0 = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
       if (w0) {
-        const p = require('path'); const fs = require('fs');
-        const prefs = p.join(w0, '.mcp', 'dashboard', 'ui_prefs.json');
+        const prefs = path.join(w0, '.mcp', 'dashboard', 'ui_prefs.json');
         try { const txt = fs.readFileSync(prefs, 'utf8'); const obj = JSON.parse(txt||'{}'); if (obj && typeof obj.projectRoot==='string' && obj.projectRoot) __lockedRoot = obj.projectRoot; } catch {}
       }
     }
@@ -667,7 +666,6 @@ export function activate(context: vscode.ExtensionContext) {
       await vscode.workspace.fs.stat(uri);
       // Guard against symlink/out-of-workspace and hardlink targets leaking memory across projects
       try {
-        const fs = require('fs'); const path = require('path');
         const l = fs.lstatSync(uri.fsPath);
         const mcpDir = path.resolve(ws, '.mcp');
         let real = uri.fsPath;
@@ -1036,12 +1034,12 @@ export function activate(context: vscode.ExtensionContext) {
           const vscode = acquireVsCodeApi();
           // Collect front-end errors for diagnostics
           try {
-            (window as any).__panelErrors = [];
-            window.addEventListener('error', (e:any) => {
-              try { (window as any).__panelErrors.push('error: ' + (e.message||'') + ' @ ' + (e.filename||'') + ':' + (e.lineno||'') + ':' + (e.colno||'')); } catch {}
+            window.__panelErrors = [];
+            window.addEventListener('error', (e) => {
+              try { window.__panelErrors.push('error: ' + (e.message||'') + ' @ ' + (e.filename||'') + ':' + (e.lineno||'') + ':' + (e.colno||'')); } catch {}
             });
-            window.addEventListener('unhandledrejection', (e:any) => {
-              try { (window as any).__panelErrors.push('unhandledrejection: ' + String(e.reason||'')); } catch {}
+            window.addEventListener('unhandledrejection', (e) => {
+              try { window.__panelErrors.push('unhandledrejection: ' + String(e.reason||'')); } catch {}
             });
           } catch {}
           try { vscode.postMessage({ t: 'ready' }); } catch {}
@@ -1050,7 +1048,7 @@ export function activate(context: vscode.ExtensionContext) {
           (function(){
             try {
               const state = (vscode.getState && vscode.getState()) || {};
-              let mode = (state && (state as any).uiMode) || (typeof localStorage!=='undefined' ? localStorage.getItem('ruleflow.uiMode') : '') || 'simple';
+              let mode = (state && state.uiMode) || (typeof localStorage!=='undefined' ? localStorage.getItem('ruleflow.uiMode') : '') || 'simple';
               const apply = (m: string) => {
                 try { document.body.classList.remove('simple','advanced'); document.body.classList.add(m); } catch {}
                 try { vscode.setState && vscode.setState({ ...(state||{}), uiMode: m }); } catch {}
@@ -1105,7 +1103,7 @@ export function activate(context: vscode.ExtensionContext) {
                 set('hdrCI', zh? 'CI 配置（hadolint / semgrep / mutation）' : 'CI Config (hadolint / semgrep / mutation)');
                 // Placeholders
                 try { const ip = document.getElementById('nlInput'); if (ip) ip.placeholder = zh? '自然语言指令：如 摄取规则 README.md, docs/ / 加载覆盖率 / 开启滚动记忆' : 'NL command: e.g. Ingest README.md, docs/ / Load Coverage / Enable memory'; } catch {}
-                try { (window as any).applyLang = applyLang; } catch {}
+                try { window.applyLang = applyLang; } catch {}
               };
               apply(mode);
               const btnS = document.getElementById('btnModeSimple');
@@ -1116,7 +1114,7 @@ export function activate(context: vscode.ExtensionContext) {
               if (btnL) btnL.onclick = () => {
                 try {
                   const st = (vscode.getState && vscode.getState()) || {};
-                  const cur = (st && (st as any).lang) || (typeof localStorage!=='undefined' ? localStorage.getItem('ruleflow.lang') : '') || 'zh';
+                  const cur = (st && st.lang) || (typeof localStorage!=='undefined' ? localStorage.getItem('ruleflow.lang') : '') || 'zh';
                   const next = (String(cur) === 'zh') ? 'en' : 'zh';
                   if (vscode.setState) vscode.setState({ ...(st||{}), lang: next });
                   try { localStorage && localStorage.setItem('ruleflow.lang', next); } catch {}
@@ -1127,8 +1125,8 @@ export function activate(context: vscode.ExtensionContext) {
                 } catch {}
               };
               try {
-                const st = (vscode.getState && vscode.getState()) || {} as any;
-                const savedLang = (st && (st as any).lang) || (typeof localStorage!=='undefined' ? localStorage.getItem('ruleflow.lang') : '') || 'zh';
+                const st = (vscode.getState && vscode.getState()) || {};
+                const savedLang = (st && st.lang) || (typeof localStorage!=='undefined' ? localStorage.getItem('ruleflow.lang') : '') || 'zh';
                 applyLang(String(savedLang));
                 // ask extension to override from workspace if present
                 try { vscode.postMessage({ t: 'lang.get' }); } catch {}
@@ -1177,28 +1175,28 @@ export function activate(context: vscode.ExtensionContext) {
           const anchor = document.getElementById('btnValidate');
           if (anchor && anchor.parentElement) { anchor.parentElement.insertBefore(btnResolve, anchor.nextSibling); }
           btnResolve.onclick = () => vscode.postMessage({ t: 'rulesResolvePreview' });
-          try { const el = document.getElementById('btnHooks') as HTMLButtonElement | null; if (el) el.onclick = () => vscode.postMessage({ t: 'installHooks' }); } catch {}
-          try { const el = document.getElementById('btnLoadSugg') as HTMLButtonElement | null; if (el) el.onclick = () => vscode.postMessage({ t: 'loadSugg' }); } catch {}
-          try { const el = document.getElementById('btnCoverage') as HTMLButtonElement | null; if (el) el.onclick = () => vscode.postMessage({ t: 'coverage' }); } catch {}
-          try { const el = document.getElementById('btnCovTree') as HTMLButtonElement | null; if (el) el.onclick = () => vscode.postMessage({ t: 'coverageTree' }); } catch {}
-          try { const el = document.getElementById('btnOpenWeakCsv') as HTMLButtonElement | null; if (el) el.onclick = () => vscode.postMessage({ t: 'open', path: '.mcp/dashboard/weak_top.csv', line: 1 }); } catch {}
-          try { const el = document.getElementById('btnOpenNearCsv') as HTMLButtonElement | null; if (el) el.onclick = () => vscode.postMessage({ t: 'open', path: '.mcp/dashboard/near_top.csv', line: 1 }); } catch {}
-          try { const el = document.getElementById('btnOpenGroupsCsv') as HTMLButtonElement | null; if (el) el.onclick = () => vscode.postMessage({ t: 'open', path: '.mcp/dashboard/groups.csv', line: 1 }); } catch {}
-          try { const el = document.getElementById('btnOpenGroupsMd') as HTMLButtonElement | null; if (el) el.onclick = () => vscode.postMessage({ t: 'open', path: '.mcp/dashboard/jb_groups.md', line: 1 }); } catch {}
-          try { const el = document.getElementById('btnCovExport') as HTMLButtonElement | null; if (el) el.onclick = () => vscode.postMessage({ t: 'covExport' }); } catch {}
-          (document.getElementById('btnCopyCsvPreview') as HTMLButtonElement).onclick = async () => {
+          try { const el = document.getElementById('btnHooks'); if (el) el.onclick = () => vscode.postMessage({ t: 'installHooks' }); } catch {}
+          try { const el = document.getElementById('btnLoadSugg'); if (el) el.onclick = () => vscode.postMessage({ t: 'loadSugg' }); } catch {}
+          try { const el = document.getElementById('btnCoverage'); if (el) el.onclick = () => vscode.postMessage({ t: 'coverage' }); } catch {}
+          try { const el = document.getElementById('btnCovTree'); if (el) el.onclick = () => vscode.postMessage({ t: 'coverageTree' }); } catch {}
+          try { const el = document.getElementById('btnOpenWeakCsv'); if (el) el.onclick = () => vscode.postMessage({ t: 'open', path: '.mcp/dashboard/weak_top.csv', line: 1 }); } catch {}
+          try { const el = document.getElementById('btnOpenNearCsv'); if (el) el.onclick = () => vscode.postMessage({ t: 'open', path: '.mcp/dashboard/near_top.csv', line: 1 }); } catch {}
+          try { const el = document.getElementById('btnOpenGroupsCsv'); if (el) el.onclick = () => vscode.postMessage({ t: 'open', path: '.mcp/dashboard/groups.csv', line: 1 }); } catch {}
+          try { const el = document.getElementById('btnOpenGroupsMd'); if (el) el.onclick = () => vscode.postMessage({ t: 'open', path: '.mcp/dashboard/jb_groups.md', line: 1 }); } catch {}
+          try { const el = document.getElementById('btnCovExport'); if (el) el.onclick = () => vscode.postMessage({ t: 'covExport' }); } catch {}
+          document.getElementById('btnCopyCsvPreview').onclick = async () => {
             try {
               const el = document.getElementById('csvPreview');
-              const text = (el && (el as any).textContent) ? String((el as any).textContent) : '';
-              if (text && (navigator as any).clipboard) {
-                await (navigator as any).clipboard.writeText(text);
+              const text = (el && el.textContent) ? String(el.textContent) : '';
+              if (text && navigator.clipboard) {
+                await navigator.clipboard.writeText(text);
                 vscode.postMessage({ t: 'info', text: '已复制 CSV 预览到剪贴板' });
               }
             } catch {}
           };
-          (document.getElementById('btnCsvReload') as HTMLButtonElement).onclick = () => {
+          document.getElementById('btnCsvReload').onclick = () => {
             try {
-              const sel = document.getElementById('csvSelect') as HTMLSelectElement;
+              const sel = document.getElementById('csvSelect');
               const which = sel && sel.value ? sel.value : 'weak_top.csv';
               vscode.postMessage({ t: 'csvPreviewPick', which });
             } catch {}
@@ -1209,7 +1207,7 @@ export function activate(context: vscode.ExtensionContext) {
           btnMd.onclick = async () => {
             try {
               const el = document.getElementById('csvPreview');
-              const text = (el && (el as any).textContent) ? String((el as any).textContent) : '';
+              const text = (el && el.textContent) ? String(el.textContent) : '';
               const lines = text.split(/\r?\n/).filter(Boolean);
               if (lines.length >= 2) {
                 const head = lines[0].replace(/^\[[^\]]*\]\s*/, '');
@@ -1220,51 +1218,51 @@ export function activate(context: vscode.ExtensionContext) {
                   '| ' + cols.map(()=> '---').join(' | ') + ' |',
                   ...data.map(row => '| ' + row.split(',').map(s=>s.trim()).join(' | ') + ' |')
                 ].join('\n');
-                if ((navigator as any).clipboard) {
-                  await (navigator as any).clipboard.writeText(tbl);
+                if (navigator.clipboard) {
+                  await navigator.clipboard.writeText(tbl);
                   vscode.postMessage({ t: 'info', text: '已复制 Markdown 表格到剪贴板' });
                 }
               }
             } catch {}
           };
-          (document.getElementById('btnIdeScaffold') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'ideScaffold' });
-          (document.getElementById('btnCompliance') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'compliance' });
-          (document.getElementById('btnOpenCompliance') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'openCompliance' });
-          (document.getElementById('btnOpenIdeDir') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'openIdeDir' });
-          (document.getElementById('btnEvents') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'eventsLoad' });
-          (document.getElementById('btnAudit') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'auditLoad' });
-          const btnReload = document.getElementById('btnReloadPanel') as HTMLButtonElement | null; if (btnReload) btnReload.onclick = () => vscode.postMessage({ t: 'panel.reload' });
-          const btnDiag = document.createElement('button'); btnDiag.id='btnDiag'; btnDiag.textContent='诊断'; (btnDiag as HTMLButtonElement).title='收集前端错误、环境与审计信息到 .mcp/dashboard/panel_diag.json';
+          document.getElementById('btnIdeScaffold').onclick = () => vscode.postMessage({ t: 'ideScaffold' });
+          document.getElementById('btnCompliance').onclick = () => vscode.postMessage({ t: 'compliance' });
+          document.getElementById('btnOpenCompliance').onclick = () => vscode.postMessage({ t: 'openCompliance' });
+          document.getElementById('btnOpenIdeDir').onclick = () => vscode.postMessage({ t: 'openIdeDir' });
+          (document.getElementById('btnEvents')).onclick = () => vscode.postMessage({ t: 'eventsLoad' });
+          document.getElementById('btnAudit').onclick = () => vscode.postMessage({ t: 'auditLoad' });
+          const btnReload = document.getElementById('btnReloadPanel'); if (btnReload) btnReload.onclick = () => vscode.postMessage({ t: 'panel.reload' });
+          const btnDiag = document.createElement('button'); btnDiag.id='btnDiag'; btnDiag.textContent='诊断'; btnDiag.title='收集前端错误、环境与审计信息到 .mcp/dashboard/panel_diag.json';
           const advBar = document.querySelector('div.adv'); if (advBar) advBar.insertBefore(btnDiag, advBar.firstChild);
-          btnDiag.onclick = () => { try { const errs = (window as any).__panelErrors || []; vscode.postMessage({ t: 'panelDiagRequest', errors: errs }); } catch {} };
-          const btnUG = document.getElementById('btnOpenUserGuide') as HTMLButtonElement | null;
+          btnDiag.onclick = () => { try { const errs = window.__panelErrors || []; vscode.postMessage({ t: 'panelDiagRequest', errors: errs }); } catch {} };
+          const btnUG = document.getElementById('btnOpenUserGuide');
           if (btnUG) btnUG.onclick = () => vscode.postMessage({ t: 'open', path: 'docs/USER_GUIDE.md' });
-          const btnIS = document.getElementById('btnOpenIdeSupport') as HTMLButtonElement | null;
+          const btnIS = document.getElementById('btnOpenIdeSupport');
           if (btnIS) btnIS.onclick = () => vscode.postMessage({ t: 'open', path: 'docs/IDE_SUPPORT.md' });
-          (document.getElementById('btnPrepareEnvInstall') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'prepareEnvInstall' });
-          (document.getElementById('btnOnboardPreview') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'onboardPreview' });
-          (document.getElementById('btnOnboardApply') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'onboardApply' });
-          (document.getElementById('btnChatEnable') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'chatEnable' });
-          (document.getElementById('btnChatDisable') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'chatDisable' });
-          (document.getElementById('btnChatPreview') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'chatPreview' });
-          (document.getElementById('btnEvents') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'eventsLoad' });
-          (document.getElementById('btnInfo') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'statusInfo' });
-          (document.getElementById('btnCopyEvents') as HTMLButtonElement).onclick = async () => {
-            try { const el = document.getElementById('events') as HTMLPreElement; const t = (el && (el as any).textContent) || ''; if ((navigator as any).clipboard) { await (navigator as any).clipboard.writeText(String(t)); vscode.postMessage({ t: 'info', text: '已复制事件历史' }); } } catch {}
+          document.getElementById('btnPrepareEnvInstall').onclick = () => vscode.postMessage({ t: 'prepareEnvInstall' });
+          document.getElementById('btnOnboardPreview').onclick = () => vscode.postMessage({ t: 'onboardPreview' });
+          document.getElementById('btnOnboardApply').onclick = () => vscode.postMessage({ t: 'onboardApply' });
+          document.getElementById('btnChatEnable').onclick = () => vscode.postMessage({ t: 'chatEnable' });
+          document.getElementById('btnChatDisable').onclick = () => vscode.postMessage({ t: 'chatDisable' });
+          document.getElementById('btnChatPreview').onclick = () => vscode.postMessage({ t: 'chatPreview' });
+          (document.getElementById('btnEvents')).onclick = () => vscode.postMessage({ t: 'eventsLoad' });
+          document.getElementById('btnInfo').onclick = () => vscode.postMessage({ t: 'statusInfo' });
+          document.getElementById('btnCopyEvents').onclick = async () => {
+            try { const el = document.getElementById('events'); const t = (el && el.textContent) || ''; if (navigator.clipboard) { await navigator.clipboard.writeText(String(t)); vscode.postMessage({ t: 'info', text: '已复制事件历史' }); } } catch {}
           };
-          (document.getElementById('btnCopyInfo') as HTMLButtonElement).onclick = async () => {
-            try { const el = document.getElementById('infolist') as HTMLPreElement; const t = (el && (el as any).textContent) || ''; if ((navigator as any).clipboard) { await (navigator as any).clipboard.writeText(String(t)); vscode.postMessage({ t: 'info', text: '已复制状态摘要' }); } } catch {}
+          (document.getElementById('btnCopyInfo')).onclick = async () => {
+            try { const el = document.getElementById('infolist'); const t = (el && el.textContent) || ''; if (navigator.clipboard) { await navigator.clipboard.writeText(String(t)); vscode.postMessage({ t: 'info', text: '已复制状态摘要' }); } } catch {}
           };
-          (document.getElementById('btnOpenStatusFile') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'open', path: '.mcp/dashboard/status.json', line: 1 });
-          (document.getElementById('btnOpenEventsFile') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'open', path: '.mcp/dashboard/cmd_events.jsonl', line: 1 });
-          const _btnAuditFile = document.getElementById('btnOpenAuditFile') as HTMLButtonElement | null;
+          (document.getElementById('btnOpenStatusFile')).onclick = () => vscode.postMessage({ t: 'open', path: '.mcp/dashboard/status.json', line: 1 });
+          (document.getElementById('btnOpenEventsFile')).onclick = () => vscode.postMessage({ t: 'open', path: '.mcp/dashboard/cmd_events.jsonl', line: 1 });
+          const _btnAuditFile = document.getElementById('btnOpenAuditFile');
           if (_btnAuditFile) _btnAuditFile.onclick = () => vscode.postMessage({ t: 'open', path: '.mcp/dashboard/security_audit.jsonl', line: 1 });
-          (document.getElementById('btnShowWeak') as HTMLButtonElement).onclick = () => {
-            const all = (window as any).__weakAll || [];
+          (document.getElementById('btnShowWeak')).onclick = () => {
+            const all = window.__weakAll || [];
             const ulw = document.getElementById('covWeak');
             if (!ulw) return;
             ulw.innerHTML = '';
-            (all || []).forEach((w:any) => {
+            (all || []).forEach((w) => {
               const li = document.createElement('li');
               const a = document.createElement('a'); a.href = '#';
               a.textContent = (w.coverage*100).toFixed(1) + '% < ' + Math.round((w.threshold||0)*100) + '% — ' + w.file;
@@ -1273,15 +1271,15 @@ export function activate(context: vscode.ExtensionContext) {
             });
             const inf = document.getElementById('info'); if (inf) inf.textContent = '当前视图：弱项';
           };
-          (document.getElementById('btnCovNear') as HTMLButtonElement).onclick = async () => {
-            const last = (window as any).__nearPct || 3;
+          (document.getElementById('btnCovNear')).onclick = async () => {
+            const last = window.__nearPct || 3;
             // 通过扩展侧获取输入与数据
             vscode.postMessage({ t: 'covNearPrompt', last });
           };
-          (document.getElementById('btnCovNearInline') as HTMLButtonElement).onclick = () => {
-            const ip = document.getElementById('nearPct') as HTMLInputElement;
+          (document.getElementById('btnCovNearInline')).onclick = () => {
+            const ip = document.getElementById('nearPct');
             const v = parseInt((ip && ip.value) || '3', 10) || 3;
-            (window as any).__nearPct = v;
+            window.__nearPct = v;
             try { vscode.setState && vscode.setState({ nearPct: v }); } catch {}
             try { localStorage.setItem('ruleflow.nearPct', String(v)); } catch {}
             try { vscode.postMessage({ t: 'saveNearPct', v }); } catch {}
@@ -1307,41 +1305,41 @@ export function activate(context: vscode.ExtensionContext) {
           vscode.postMessage({ t: 'ciFetch' });
           vscode.postMessage({ t: 'ciCheck' });
           // 绑定 CI 操作按钮
-          (document.getElementById('btnCiSave') as HTMLButtonElement).onclick = () => {
-            const had = (document.getElementById('ciHadolint') as HTMLInputElement).checked;
-            const img = (document.getElementById('ciHadolintImage') as HTMLInputElement).value;
-            const args = (document.getElementById('ciHadolintArgs') as HTMLInputElement).value;
-            const sem = (document.getElementById('ciSemgrepConfig') as HTMLInputElement).value;
-            const mutStrict = (document.getElementById('ciMutGateStrict') as HTMLInputElement).checked;
-            const execChecks = (document.getElementById('execChecksDelegate') as HTMLInputElement).checked;
+          (document.getElementById('btnCiSave')).onclick = () => {
+            const had = document.getElementById('ciHadolint').checked;
+            const img = document.getElementById('ciHadolintImage').value;
+            const args = document.getElementById('ciHadolintArgs').value;
+            const sem = document.getElementById('ciSemgrepConfig').value;
+            const mutStrict = document.getElementById('ciMutGateStrict').checked;
+            const execChecks = document.getElementById('execChecksDelegate').checked;
             vscode.postMessage({ t: 'ciSave', data: { hadolint: had, hadolint_image: img, hadolint_args: args, semgrep_config: sem, mutation_gate_strict: mutStrict, execution: { checks_delegate_run_cmd: execChecks } } });
           };
-          (document.getElementById('btnCiGen') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'ciGen' });
-          (document.getElementById('btnCiPreview') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'ciPreviewInline' });
-          (document.getElementById('btnCiOpen') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'ciOpen' });
-          (document.getElementById('btnCiValidate') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'ciValidate' });
-          (document.getElementById('btnInsertRules') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'insertSamples' });
-          (document.getElementById('btnPrepareEnvDry') as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'prepareEnvDry' });
+          (document.getElementById('btnCiGen')).onclick = () => vscode.postMessage({ t: 'ciGen' });
+          (document.getElementById('btnCiPreview')).onclick = () => vscode.postMessage({ t: 'ciPreviewInline' });
+          (document.getElementById('btnCiOpen')).onclick = () => vscode.postMessage({ t: 'ciOpen' });
+          (document.getElementById('btnCiValidate')).onclick = () => vscode.postMessage({ t: 'ciValidate' });
+          (document.getElementById('btnInsertRules')).onclick = () => vscode.postMessage({ t: 'insertSamples' });
+          (document.getElementById('btnPrepareEnvDry')).onclick = () => vscode.postMessage({ t: 'prepareEnvDry' });
           const runNL = () => {
-            const ip = document.getElementById('nlInput') as HTMLInputElement;
+            const ip = document.getElementById('nlInput');
             const txt = (ip && ip.value || '').trim();
             if (!txt) return;
             vscode.postMessage({ t: 'nl', text: txt });
           };
-          (document.getElementById('nlSend') as HTMLButtonElement).onclick = runNL;
-          (document.getElementById('nlInput') as HTMLInputElement).addEventListener('keydown', (ev) => { if (ev.key === 'Enter') runNL(); });
-          (document.getElementById('nlExamples') as HTMLButtonElement).onclick = () => {
+          (document.getElementById('nlSend')).onclick = runNL;
+          document.getElementById('nlInput').addEventListener('keydown', (ev) => { if (ev.key === 'Enter') runNL(); });
+          (document.getElementById('nlExamples')).onclick = () => {
             const box = document.getElementById('nlExamplesBox'); if (!box) return;
             box.style.display = box.style.display === 'none' ? '' : 'none';
           };
-          (document.querySelectorAll('#nlExamplesBox button, #nlCatalog button') as any).forEach((b:any)=>{
-            b.addEventListener('click', ()=>{ const t=b.getAttribute('data-nl')||''; (document.getElementById('nlInput') as HTMLInputElement).value=t; runNL(); });
+          document.querySelectorAll('#nlExamplesBox button, #nlCatalog button').forEach((b)=>{
+            b.addEventListener('click', ()=>{ const t=b.getAttribute('data-nl')||''; document.getElementById('nlInput').value=t; runNL(); });
           });
-          const btnLicV = document.getElementById('btnLicVerify') as HTMLButtonElement | null;
-          const btnLicA = document.getElementById('btnLicActivate') as HTMLButtonElement | null;
+          const btnLicV = document.getElementById('btnLicVerify');
+          const btnLicA = document.getElementById('btnLicActivate');
           if (btnLicV) btnLicV.onclick = () => vscode.postMessage({ t: 'licenseVerify' });
           if (btnLicA) btnLicA.onclick = () => vscode.postMessage({ t: 'licenseActivate' });
-          const btnClr = document.getElementById('nlClear') as HTMLButtonElement;
+          const btnClr = document.getElementById('nlClear');
           if (btnClr) btnClr.onclick = () => { vscode.postMessage({ t: 'nlClearHistory' }); };
           vscode.postMessage({ t: 'nlFetchHistory' });
 
@@ -1349,35 +1347,35 @@ export function activate(context: vscode.ExtensionContext) {
           try {
             const st = vscode.getState && vscode.getState();
             const saved = (st && st.nearPct) || Number(localStorage.getItem('ruleflow.nearPct')||'0') || 0;
-            if (saved) { (window as any).__nearPct = saved; const ip = document.getElementById('nearPct') as HTMLInputElement; if (ip) ip.value = String(saved); }
+            if (saved) { window.__nearPct = saved; const ip = document.getElementById('nearPct'); if (ip) ip.value = String(saved); }
           } catch {}
 
           window.addEventListener('message', (e) => {
             const msg = e.data || {};
             if (msg.t === 'setLang') {
-              try { const v = String(msg.value||'zh'); (window as any).__ruleflowLang=v; } catch {}
-              try { const applyLangFn = (window as any).applyLang || null; if (applyLangFn) applyLangFn((window as any).__ruleflowLang); } catch {}
+              try { const v = String(msg.value||'zh'); window.__ruleflowLang=v; } catch {}
+              try { const applyLangFn = window.applyLang || null; if (applyLangFn) applyLangFn(window.__ruleflowLang); } catch {}
             }
             const setTicker = () => {
               const t = document.getElementById('tickerText');
               if (!t) return;
-              const weakAll = (window as any).__weakAll || [];
-              const nearAll = (window as any).__near || [];
-              const topWeak = (weakAll || []).slice(0, 3).map((w:any)=> (w.coverage*100).toFixed(1) + '% ' + w.file);
-              const topNear = (nearAll || []).slice(0, 3).map((n:any)=> (n.coverage*100).toFixed(1) + '% ' + n.file);
+              const weakAll = window.__weakAll || [];
+              const nearAll = window.__near || [];
+              const topWeak = (weakAll || []).slice(0, 3).map((w)=> (w.coverage*100).toFixed(1) + '% ' + w.file);
+              const topNear = (nearAll || []).slice(0, 3).map((n)=> (n.coverage*100).toFixed(1) + '% ' + n.file);
               const parts = [
                 '弱项 ' + String(weakAll.length),
                 '近阈值 ' + String(nearAll.length),
                 topWeak.length ? ('Top弱项: ' + topWeak.join(' | ')) : '',
                 topNear.length ? ('Top近阈值: ' + topNear.join(' | ')) : ''
               ].filter(Boolean);
-              (t as any).textContent = parts.join('  ·  ');
+              t.textContent = parts.join('  ·  ');
             };
             if (msg.t === 'info') {
               const inf = document.getElementById('info');
               let text = String(msg.text || '');
               try {
-                const lang = String((window as any).__ruleflowLang || 'zh');
+                const lang = String(window.__ruleflowLang || 'zh');
                 if (lang === 'en') {
                   const map: any = {
                     '未找到覆盖率资源': 'No coverage resources found',
@@ -1402,11 +1400,11 @@ export function activate(context: vscode.ExtensionContext) {
             }
             if (msg.t === 'onboardShow') {
               const el = document.getElementById('onboardSummary');
-              if (el) { (el as any).textContent = String(msg.text || ''); }
+              if (el) { el.textContent = String(msg.text || ''); }
             }
             if (msg.t === 'chatShow') {
               const el = document.getElementById('chatPreview');
-              if (el) { (el as any).textContent = String(msg.text || ''); }
+              if (el) { el.textContent = String(msg.text || ''); }
             }
             if (msg.t === 'csvPreview') {
               const el = document.getElementById('csvPreview');
@@ -1425,16 +1423,16 @@ export function activate(context: vscode.ExtensionContext) {
                 };
                 if (arr.length) arr[0] = mapHeader(String(arr[0] || ''));
                 const lines = arr.join('\n');
-                (el as any).textContent = '[' + which + ']\n' + lines;
+                el.textContent = '[' + which + ']\n' + lines;
               }
             }
             if (msg.t === 'events') {
               const el = document.getElementById('events');
-              if (el) (el as any).textContent = String(msg.text || '');
+              if (el) el.textContent = String(msg.text || '');
             }
             if (msg.t === 'audit') {
               const el = document.getElementById('audit');
-              if (el) (el as any).textContent = String(msg.text || '');
+              if (el) el.textContent = String(msg.text || '');
             }
             if (msg.t === 'project') {
               const el = document.getElementById('curProject');
@@ -1444,15 +1442,15 @@ export function activate(context: vscode.ExtensionContext) {
               let items = msg.items || [];
               const pct = msg.pct || 3;
               const top = msg.top || items.length;
-              try { items = (items || []).slice().sort((a:any,b:any)=> (a.delta_up||0)-(b.delta_up||0)).slice(0, top); } catch {}
-              (window as any).__nearPct = pct;
+              try { items = (items || []).slice().sort((a,b)=> (a.delta_up||0)-(b.delta_up||0)).slice(0, top); } catch {}
+              window.__nearPct = pct;
               try { vscode.setState && vscode.setState({ nearPct: pct }); } catch {}
-              (window as any).__near = items;
+              window.__near = items;
               setTicker();
               const ulw = document.getElementById('covWeak');
               if (ulw) {
                 ulw.innerHTML = '';
-                (items || []).forEach((w:any) => {
+                (items || []).forEach((w) => {
                   const li = document.createElement('li');
                   const a = document.createElement('a');
                   a.href = '#';
@@ -1470,7 +1468,7 @@ export function activate(context: vscode.ExtensionContext) {
                 const qi = document.createElement('button');
                 qi.id = 'btnQuickIngest';
                 qi.textContent = '快速摄取 / Quick Ingest';
-                (qi as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'ingestRules' });
+                (qi).onclick = () => vscode.postMessage({ t: 'ingestRules' });
                 bar.appendChild(qi);
               }
             }
@@ -1491,14 +1489,14 @@ export function activate(context: vscode.ExtensionContext) {
               document.getElementById('sugg').textContent = msg.md || '暂无建议';
             }
             if (msg.t === 'covWeakAll') {
-              (window as any).__weakAll = msg.items || [];
+              window.__weakAll = msg.items || [];
               // 自动构建目录树（弱项文件）
               const tree = document.getElementById('covTree');
               if (tree) {
-                const all = (window as any).__weakAll || [];
+                const all = window.__weakAll || [];
                 // 构建 prefix -> children 的浅树（前 3 层）
-                const root: any = {};
-                (all || []).forEach((w:any) => {
+                const root = {};
+                (all || []).forEach((w) => {
                   const parts = String(w.file||'').split('/').slice(0, 3);
                   let node = root;
                   parts.forEach((p, i) => {
@@ -1530,7 +1528,7 @@ export function activate(context: vscode.ExtensionContext) {
                     li.appendChild(ulFiles);
                     title.onclick = () => {
                       const vis = (ulFiles as any)._collapsed;
-                      (ulFiles as any)._collapsed = !vis;
+                      ulFiles._collapsed = false;
                       ulFiles.style.display = vis ? '' : 'none';
                     };
                   }
@@ -1567,20 +1565,20 @@ export function activate(context: vscode.ExtensionContext) {
             }
             if (msg.t === 'ci') {
               const cfg = msg.config || {}; const ci = cfg.ci || {};
-              (document.getElementById('ciHadolint') as HTMLInputElement).checked = !!ci.hadolint;
-              (document.getElementById('ciHadolintImage') as HTMLInputElement).value = ci.hadolint_image || '';
-              (document.getElementById('ciHadolintArgs') as HTMLInputElement).value = ci.hadolint_args || '';
-              (document.getElementById('ciSemgrepConfig') as HTMLInputElement).value = ci.semgrep_config || '';
-              (document.getElementById('ciMutGateStrict') as HTMLInputElement).checked = !!ci.mutation_gate_strict;
+              document.getElementById('ciHadolint').checked = !!ci.hadolint;
+              document.getElementById('ciHadolintImage').value = ci.hadolint_image || '';
+              document.getElementById('ciHadolintArgs').value = ci.hadolint_args || '';
+              document.getElementById('ciSemgrepConfig').value = ci.semgrep_config || '';
+              document.getElementById('ciMutGateStrict').checked = !!ci.mutation_gate_strict;
               try {
                 const ex = cfg.execution || {};
-                (document.getElementById('execChecksDelegate') as HTMLInputElement).checked = !!ex.checks_delegate_run_cmd;
+                document.getElementById('execChecksDelegate').checked = !!ex.checks_delegate_run_cmd;
               } catch {}
               try {
                 const perf = cfg.performance || {};
                 const strict = String(perf.mode || '').toLowerCase() === 'strict' || !!ci.mutation_gate_strict;
                 // Update status bar hint
-                (globalThis as any).__ruleflowStrict = strict;
+                globalThis.__ruleflowStrict = strict;
                 sb.text = strict ? 'RuleFlow [Strict]' : 'RuleFlow';
               } catch {}
             }
@@ -1649,7 +1647,7 @@ export function activate(context: vscode.ExtensionContext) {
                 const qi = document.createElement('button');
                 qi.id = 'btnQuickIngest';
                 qi.textContent = '快速摄取 / Quick Ingest';
-                (qi as HTMLButtonElement).onclick = () => vscode.postMessage({ t: 'ingestRules' });
+                (qi).onclick = () => vscode.postMessage({ t: 'ingestRules' });
                 bar.appendChild(qi);
               }
             }
@@ -1691,7 +1689,7 @@ export function activate(context: vscode.ExtensionContext) {
                     keys.sort().forEach((k) => ul2.appendChild(renderNode(children[k])));
                     li.appendChild(ul2);
                   }
-                  return li as HTMLLIElement;
+                  return li;
                 };
                 const ulRoot = document.createElement('ul');
                 const tree = msg.tree || { children: {} };
@@ -1739,16 +1737,16 @@ export function activate(context: vscode.ExtensionContext) {
                   li.appendChild(a);
                   ul.appendChild(li);
                 });
-                const filterBtn = document.getElementById('btnCovFilter') as HTMLButtonElement;
-                const filterInput = document.getElementById('covFilter') as HTMLInputElement;
+                const filterBtn = document.getElementById('btnCovFilter');
+                const filterInput = document.getElementById('covFilter');
                 if (filterBtn && filterInput) {
                   filterBtn.onclick = () => {
                     const kw = (filterInput.value || '').toLowerCase();
-                    const all = (window as any).__weakAll || [];
-                    const filtered = kw ? all.filter((w:any)=> String(w.file||'').toLowerCase().includes(kw)) : all;
+                    const all = window.__weakAll || [];
+                    const filtered = kw ? all.filter((w)=> String(w.file||'').toLowerCase().includes(kw)) : all;
                     // 直接重绘列表（不依赖扩展消息）
                     ul.innerHTML = '';
-                    (filtered || []).forEach((w:any) => {
+                    (filtered || []).forEach((w) => {
                       const li = document.createElement('li');
                       const a = document.createElement('a');
                       a.href = '#';
@@ -1769,21 +1767,21 @@ export function activate(context: vscode.ExtensionContext) {
             }
             if (msg.t === 'events') {
               const el = document.getElementById('events');
-              if (el) (el as any).textContent = String(msg.text || '');
+              if (el) el.textContent = String(msg.text || '');
             }
             if (msg.t === 'plan') {
               document.getElementById('plan').textContent = msg.text || '';
             }
             if (msg.t === 'infoList') {
-              const pre = document.getElementById('infolist') as HTMLPreElement;
+              const pre = document.getElementById('infolist');
               pre.textContent = (Array.isArray(msg.items) ? msg.items : []).join('\n');
             }
             if (msg.t === 'ci') {
               const cfg = msg.config || {}; const ci = cfg.ci || {};
-              (document.getElementById('ciHadolint') as HTMLInputElement).checked = !!ci.hadolint;
-              (document.getElementById('ciHadolintImage') as HTMLInputElement).value = ci.hadolint_image || '';
-              (document.getElementById('ciHadolintArgs') as HTMLInputElement).value = ci.hadolint_args || '';
-              (document.getElementById('ciSemgrepConfig') as HTMLInputElement).value = ci.semgrep_config || '';
+              document.getElementById('ciHadolint').checked = !!ci.hadolint;
+              document.getElementById('ciHadolintImage').value = ci.hadolint_image || '';
+              document.getElementById('ciHadolintArgs').value = ci.hadolint_args || '';
+              document.getElementById('ciSemgrepConfig').value = ci.semgrep_config || '';
             }
             if (msg.t === 'ciStatus') {
               const el = document.getElementById('ciStatus');
@@ -1877,7 +1875,6 @@ export function activate(context: vscode.ExtensionContext) {
         else if (msg.t === 'enableFake') {
           try {
             const ws = getWorkspaceRoot() || process.cwd();
-            const path = require('path'); const fs = require('fs');
             const dash = path.join(ws, '.mcp', 'dashboard');
             fs.mkdirSync(dash, { recursive: true });
             fs.writeFileSync(path.join(dash, 'fake_mode'), '1');
@@ -1968,7 +1965,6 @@ export function activate(context: vscode.ExtensionContext) {
             ? process.env.MCP_PYTHON_BIN.trim()
             : (process.platform === 'win32' ? 'python' : 'python3');
           const cwd = getWorkspaceRoot() || process.cwd();
-          const { execFile } = require('child_process');
           execFile(pyBin, ['-m', 'mcp_rules_assistant.cli', 'status-update', '--json'], { cwd }, (err: any, stdout: string, stderr: string) => {
             if (err) {
               vscode.window.showErrorMessage('状态刷新失败：' + String(err));
@@ -2553,10 +2549,9 @@ export function activate(context: vscode.ExtensionContext) {
             await context.workspaceState.update('ruleflow.lockRoot', __lockedRoot);
             // 写入 ui_prefs.json 以共享选择
             try {
-              const p = require('path'); const fs = require('fs');
-              const dash = p.join(__lockedRoot, '.mcp', 'dashboard');
+              const dash = path.join(__lockedRoot, '.mcp', 'dashboard');
               fs.mkdirSync(dash, { recursive: true });
-              const up = p.join(dash, 'ui_prefs.json');
+              const up = path.join(dash, 'ui_prefs.json');
               let obj: any = {}; try { obj = JSON.parse(fs.readFileSync(up, 'utf8')||'{}'); } catch {}
               obj.projectRoot = __lockedRoot; fs.writeFileSync(up, JSON.stringify(obj, null, 2));
             } catch {}

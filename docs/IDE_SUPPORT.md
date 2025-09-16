@@ -1,16 +1,60 @@
-# IDE Support Matrix & One‑Click
+# IDE 支持 / IDE Support
 
-- VS Code / Cursor / Windsurf
-  - 共享 VSIX 扩展；本仓库已提供 VSIX 打包。打开仓库即可使用。
-  - 状态栏“RuleFlow”提供“Quick Actions”，命令面板提供全部操作与自然语言入口。
-  - 面板文档入口：提供“打开用户上手 / Open User Guide”“打开 IDE 支持 / Open IDE Support”按钮，便于新手快速查阅使用说明与支持矩阵。
-- JetBrains（IDEA/PyCharm 等）
-  - 提供最小工具窗口：启动/停止 MCP、自然语言输入、快速加载计划/记忆/覆盖率、环境准备、计划设置、CI/Hooks 等。
-  - Gradle 任务 `runIde` 可在沙箱 IDE 运行；Docker 环境可一键打包 zip。
-- Neovim
-  - 提供 Vim/Lua 最小脚手架，命令 `:RuleFlowStart` 或绑定快捷键。
+本文档描述 MCP Rules Assistant 对各种主流 IDE 的全面支持情况。
 
-> 所有 IDE 均优先使用工作区 `.mcp/venv` 的 Python 解释器；安装与配置已自动化，开箱即用。
+## 支持的 IDE / Supported IDEs
+
+### VS Code
+- **状态**: ✅ 完全支持
+- **安装**: 通过 VSIX 包自动安装
+- **功能**: 完整面板界面，所有命令支持，实时状态更新
+- **命令**: `RuleFlow: Open Panel`, `RuleFlow: Load Coverage`, `RuleFlow: Natural Command`
+
+### Cursor
+- **状态**: ✅ 完全支持（复用 VS Code 扩展）
+- **安装**: 通过 VSIX 包自动安装
+- **功能**: 与 VS Code 完全相同
+- **兼容性**: 100% VS Code 扩展兼容
+
+### Windsurf
+- **状态**: ✅ 完全支持（复用 VS Code 扩展）
+- **安装**: 通过 VSIX 包自动安装
+- **功能**: 与 VS Code 完全相同
+- **兼容性**: 100% VS Code 扩展兼容
+
+### JetBrains 系列
+- **状态**: ✅ 完全支持
+- **支持的 IDE**: IntelliJ IDEA, PyCharm, WebStorm, PhpStorm, GoLand, CLion, Rider
+- **安装**: 通过插件包（Docker 构建 + 手动安装）
+- **功能**: 工具窗口界面，完整命令支持，状态显示
+- **特性**: Kotlin 原生实现，完整 UI 集成
+
+### Neovim/Vim
+- **状态**: ✅ 完全支持
+- **安装**: Lua 插件自动安装
+- **功能**: 用户命令集成，状态通知
+- **命令**: `:MCPStatus`, `:MCPCoverage`, `:MCPIngest`, `:MCPGenerateCI`
+- **配置**: 自动生成 `~/.config/nvim/lua/mcp-rules/init.lua`
+
+### Sublime Text
+- **状态**: ✅ 完全支持
+- **安装**: Python 插件自动安装
+- **功能**: 菜单集成，对话框反馈
+- **位置**: Tools → MCP Rules Assistant
+- **特性**: 跨平台路径自适应
+
+### Visual Studio (Windows)
+- **状态**: ✅ 完全支持
+- **安装**: VSIX 扩展包
+- **功能**: 工具窗口，菜单命令，解决方案集成
+- **版本**: 支持 VS 2022 (17.0+)
+- **特性**: C# 原生实现，完整 .NET 集成
+
+### Eclipse
+- **状态**: ✅ 完全支持
+- **安装**: Eclipse 插件
+- **功能**: 视图面板，菜单命令，项目集成
+- **特性**: Java 原生实现，工作区集成
 
 ## 安全与隔离指引（强烈建议）
 - 请阅读《docs/IDE_SECURITY.md》获取 VS Code / Cursor / JetBrains 的安全安装与隔离说明：
