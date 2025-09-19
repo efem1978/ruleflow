@@ -60,12 +60,42 @@ cd Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool
 bash scripts/install-all.sh
 ```
 
+### Conditional Rule Tags (可选)
+
+You can make certain textual rules apply only under specific environments/IDE/OS by adding tags:
+
+- `[env:container]` or `[env:docker]` — applies when `docker` CLI exists or a `Dockerfile` is present
+- `[ide:vscode]` — applies when `code`/`code-insiders` CLI exists
+- `[os:windows|linux|darwin]` — OS scoped; multiple values allowed (use `|` or `,`)
+
+Examples:
+
+- `- [env:container] 覆盖率 95%` → compiles to `coverage.min_module: 0.95` only in containerized contexts
+- `- [os:windows] 禁止 skip/xfail` → compiles to `test.no_skip_xfail: true` only on Windows
+
+See `docs/RULES_CONDITIONAL_TAGS.md` for details.
+
 This will automatically:
 - Set up Python environment (≥3.10 required)
 - Install MCP Rules Assistant package
 - Build and install IDE extensions for detected IDEs
 - Run comprehensive test suite and commercial validation
 - Generate installation report
+
+Post‑install checks (recommended)
+
+```bash
+# Generate environment diagnostics (JSON + Markdown)
+bash scripts/diagnose-env.sh
+
+# Optional: run full verification (non-blocking)
+RUN_VERIFY=1 bash scripts/install-all.sh
+```
+
+Tips
+- Devcontainer: open the project in devcontainer, then use “RuleFlow: Open Panel”. Extension and backend will run in the container; first run auto-provisions .mcp/venv.
+- WSL: if `code` CLI is not available in WSL, install “Remote - WSL” in Windows VS Code and install the extension via “Install from VSIX…”.
+- Strictness toggles: set `STRICT_TESTS=0` to continue install even if tests/security checks fail; set `RUN_VERIFY=1` to run full end-to-end verification after install.
 
 ### Supported IDEs
 
@@ -113,6 +143,9 @@ mcp-rules-assistant generate-ci
 
 # Install Git hooks
 mcp-rules-assistant install-hooks
+
+# Environment autotune (apply recommended config based on environment)
+mcp-rules-assistant env-autotune --apply
 
 # Run diagnostics
 mcp-rules-assistant diagnose
@@ -196,6 +229,25 @@ security:
 
 发布操作清单 / Publishing Checklist
 - `docs/PUBLISHING_CHECKLIST.md`
+
+发布前校验（本地 Build & Verify + pip-audit）
+
+```bash
+# 推荐在项目 venv 下执行（或使用 CI 中的 constraints-ci.txt 锁定工具版本）
+python -m pip install --upgrade pip
+python -m pip install build twine pip-audit
+
+# 构建并验证包元数据
+python -m build
+twine check dist/*
+
+# 依赖安全扫描（非阻断，可结合 CI 输出修复建议）
+pip-audit || true
+```
+
+说明：
+- CI 工作流已包含上述两个步骤（Build & Verify 与 pip-audit），本地执行可作为发布前自检，以减少 CI 迭代开销。
+- 若需完全与 CI 一致的工具版本，请参考 `constraints-ci.txt`。
 
 本地 Release Bundle 校验（可选）
 - 校验归档与内容：

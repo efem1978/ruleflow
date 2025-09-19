@@ -34,18 +34,23 @@ $env:PYTEST_DISABLE_PLUGIN_AUTOLOAD = '1'
 
 Write-Host "[install] VS Code extension build + install"
 if (Get-Command npm -ErrorAction SilentlyContinue) {
+  Exec npm --prefix extensions/vscode install
   Exec npm --prefix extensions/vscode run compile
   Exec npm --prefix extensions/vscode run package
-  $vsix = "extensions/vscode/mcp-rules-assistant-0.2.5.vsix"
-  if (Test-Path $vsix) {
+  $vsixFiles = Get-ChildItem -Path "extensions/vscode" -Filter "mcp-rules-assistant-*.vsix" | Sort-Object Name
+  if ($vsixFiles -and $vsixFiles.Length -gt 0) {
+    $vsix = $vsixFiles[-1].FullName
     if (Get-Command code -ErrorAction SilentlyContinue) {
       Exec code --install-extension $vsix --force
       Write-Host "[install] VS Code extension installed: $vsix"
+    } elseif (Get-Command code-insiders -ErrorAction SilentlyContinue) {
+      Exec code-insiders --install-extension $vsix --force
+      Write-Host "[install] VS Code Insiders extension installed: $vsix"
     } else {
-      Write-Host "[install] vscode 'code' CLI not found; skipped install"
+      Write-Host "[install] vscode CLI not found; skipped install. VSIX: $vsix"
     }
   } else {
-    Write-Host "[install] VSIX not found; skipped"
+    Write-Host "[install] VSIX not found after packaging; skipped"
   }
 } else {
   Write-Host "[install] npm not available; skipped VS Code packaging"

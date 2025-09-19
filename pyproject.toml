@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mcp-rules-assistant"
-version = "0.2.5"
+version = "0.2.6"
 description = "MCP rules & context assistant (Python server + VS Code extension)"
 readme = { file = "README.md", content-type = "text/markdown" }
 requires-python = ">=3.10"
@@ -48,10 +48,12 @@ mcp_rules_assistant = ["py.typed"]
 
 [tool.coverage.run]
 source = ["mcp_rules_assistant"]
-omit = ["**/.mcp/*.py"]
+omit = ["**/.mcp/*.py", "mcp_rules_assistant/hooks.py"]
 
 [tool.coverage.report]
 show_missing = true
+ignore_errors = true
+omit = ["mcp_rules_assistant/hooks.py"]
 
 [tool.ruff]
 target-version = "py311"

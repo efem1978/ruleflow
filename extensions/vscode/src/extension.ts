@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { LanguageModelChatMessage, LanguageModelChatMessageRole } from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as os from 'os';
 import { spawn, ChildProcessWithoutNullStreams, execFile } from 'child_process';
 
 // Workspace root lock (user-selected project root for strict isolation)
@@ -43,9 +44,9 @@ function getWorkspaceLabel(): string {
       if (folder) return folder.name;
     }
     const ws0 = vscode.workspace.workspaceFolders?.[0];
-    return ws0?.name || '当前工作区';
+    return ws0?.name || '\u5f53\u524d\u5de5\u4f5c\u533a';
   } catch {
-    return '当前工作区';
+    return '\u5f53\u524d\u5de5\u4f5c\u533a';
   }
 }
 
@@ -62,6 +63,7 @@ class McpClient {
   private failureCount = 0;
   private lastFailureAt = 0;
   private autoPrepared = false;
+  private outBuf = '';
 
   private updateFakeMode() {
     try {
@@ -75,20 +77,39 @@ class McpClient {
   start(context: vscode.ExtensionContext) {
     this.updateFakeMode();
     if (this.proc || this.fakeMode) return;
-    // 尽量不影响性能：按需启动，面板打开或首次请求时才启动
+    // \u5c3d\u91cf\u4e0d\u5f71\u54cd\u6027\u80fd\uff1a\u6309\u9700\u542f\u52a8\uff0c\u9762\u677f\u6253\u5f00\u6216\u9996\u6b21\u8bf7\u6c42\u65f6\u624d\u542f\u52a8
     const ws = getWorkspaceRoot() || process.cwd();
-    // 1) 优先使用工作区内 .mcp/venv 的 Python（真正开箱即用）
+    // 1) \u4f18\u5148\u4f7f\u7528\u5de5\u4f5c\u533a\u5185 .mcp/venv \u7684 Python\uff08\u771f\u6b63\u5f00\u7bb1\u5373\u7528\uff09
     const venvPy = process.platform === 'win32'
       ? path.join(ws, '.mcp', 'venv', 'Scripts', 'python.exe')
       : path.join(ws, '.mcp', 'venv', 'bin', 'python');
     let pyBin = venvPy;
     if (!fs.existsSync(venvPy)) {
-      // 2) 其次使用环境变量 MCP_PYTHON_BIN
+      // 2) \u5176\u6b21\u4f7f\u7528\u73af\u5883\u53d8\u91cf MCP_PYTHON_BIN
       if (process.env.MCP_PYTHON_BIN && process.env.MCP_PYTHON_BIN.trim()) {
         pyBin = process.env.MCP_PYTHON_BIN.trim();
       } else {
-        // 3) 最后回退到系统 python/python3
-        pyBin = (process.platform === 'win32' ? 'python' : 'python3');
+        // 2.5) \u5168\u90e8\u56de\u9000\uff1a\u7528\u6237\u4e3b\u76ee\u5f55 ~/.mcp/venv\uff08\u7ed9\u6240\u6709\u9879\u76ee\u590d\u7528\uff09
+        let decided = false;
+        try {
+          const home = os.homedir();
+          const globalPy = process.platform === 'win32'
+            ? path.join(home, '.mcp', 'venv', 'Scripts', 'python.exe')
+            : path.join(home, '.mcp', 'venv', 'bin', 'python');
+          if (fs.existsSync(globalPy)) { pyBin = globalPy; decided = true; }
+        } catch {}
+        if (!decided) {
+          try {
+            const repoRoot = path.resolve(context.extensionUri.fsPath, '..', '..');
+            const repoPy = process.platform === 'win32'
+              ? path.join(repoRoot, '.mcp', 'venv', 'Scripts', 'python.exe')
+              : path.join(repoRoot, '.mcp', 'venv', 'bin', 'python');
+            if (fs.existsSync(repoPy)) { pyBin = repoPy; decided = true; }
+          } catch {}
+        }
+        if (!decided) {
+          pyBin = (process.platform === 'win32' ? 'python' : 'python3');
+        }
       }
     }
     this.lastStartAt = Date.now();
@@ -121,8 +142,17 @@ class McpClient {
             }
             if (fs.existsSync(vpy)) {
               await run(vpy, ['-m', 'pip', 'install', '-U', 'pip', 'setuptools', 'wheel']);
-              await run(vpy, ['-m', 'pip', 'install', '-e', ws]);
-              vscode.window.showInformationMessage('已自动安装本地 MCP 包到 .mcp/venv，尝试重新连接…');
+              // 优先从当前工作区安装（适配在容器/工作区内开发的场景）；若非源码仓库则回退到 PyPI 包
+              const wsPyProject = path.join(ws, 'pyproject.toml');
+              const wsSetupPy = path.join(ws, 'setup.py');
+              if (fs.existsSync(wsPyProject) || fs.existsSync(wsSetupPy)) {
+                append('[autoprep] installing server from workspace (editable)');
+                await run(vpy, ['-m', 'pip', 'install', '-e', ws]);
+              } else {
+                append('[autoprep] installing server from PyPI package');
+                await run(vpy, ['-m', 'pip', 'install', 'mcp-rules-assistant']);
+              }
+              vscode.window.showInformationMessage('MCP 服务器已自动安装到 .mcp/venv，正在尝试重新连接…');
               try { this.proc?.kill(); } catch {}
             }
           }
@@ -130,22 +160,22 @@ class McpClient {
       });
     } catch { /* ignore logging errors */ }
     this.proc.on('error', (err) => {
-      vscode.window.showErrorMessage(`MCP Server 启动失败，请检查 Python：${String(err)}。可设置环境变量 MCP_PYTHON_BIN 指定解释器。`);
+      vscode.window.showErrorMessage(`MCP Server \u542f\u52a8\u5931\u8d25\uff0c\u8bf7\u68c0\u67e5 Python\uff1a${String(err)}\u3002\u53ef\u8bbe\u7f6e\u73af\u5883\u53d8\u91cf MCP_PYTHON_BIN \u6307\u5b9a\u89e3\u91ca\u5668\u3002`);
     });
     this.proc.on('close', (code) => {
       const early = (Date.now() - this.lastStartAt) < 1500; // early exit likely due to reload/pipe close
       const willRetry = !this.restarting;
-      // 延迟提示：给自动重启一个窗口，若已恢复则不打扰
+      // \u5ef6\u8fdf\u63d0\u793a\uff1a\u7ed9\u81ea\u52a8\u91cd\u542f\u4e00\u4e2a\u7a97\u53e3\uff0c\u82e5\u5df2\u6062\u590d\u5219\u4e0d\u6253\u6270
       const maybeWarn = () => {
         if (code !== 0 && !this.connected) {
-          vscode.window.showWarningMessage(`MCP Server 退出（代码 ${code}）。部分功能可能不可用。正在尝试自动恢复…`);
+          vscode.window.showWarningMessage(`MCP Server \u9000\u51fa\uff08\u4ee3\u7801 ${code}\uff09\u3002\u90e8\u5206\u529f\u80fd\u53ef\u80fd\u4e0d\u53ef\u7528\u3002\u6b63\u5728\u5c1d\u8bd5\u81ea\u52a8\u6062\u590d\u2026`);
         }
       };
       this.connected = false;
       try { vscode.commands.executeCommand('setContext', 'ruleflow.mcpConnected', false); } catch {}
       // try to restart on unexpected close (debounced by caller)
       this.proc = null;
-      // 失败计数与自动降级为演示模式（fake），避免空白面板
+      // \u5931\u8d25\u8ba1\u6570\u4e0e\u81ea\u52a8\u964d\u7ea7\u4e3a\u6f14\u793a\u6a21\u5f0f\uff08fake\uff09\uff0c\u907f\u514d\u7a7a\u767d\u9762\u677f
       const now = Date.now();
       this.failureCount = (now - this.lastFailureAt <= 5000) ? (this.failureCount + 1) : 1;
       this.lastFailureAt = now;
@@ -156,7 +186,7 @@ class McpClient {
           fs.mkdirSync(dash, { recursive: true });
           fs.writeFileSync(path.join(dash, 'fake_mode'), '1');
           this.fakeMode = true;
-          vscode.window.showInformationMessage('MCP 无法启动，已自动切换为演示模式（fake）。可稍后准备环境后再试。');
+          vscode.window.showInformationMessage('MCP \u65e0\u6cd5\u542f\u52a8\uff0c\u5df2\u81ea\u52a8\u5207\u6362\u4e3a\u6f14\u793a\u6a21\u5f0f\uff08fake\uff09\u3002\u53ef\u7a0d\u540e\u51c6\u5907\u73af\u5883\u540e\u518d\u8bd5\u3002');
         } catch { /* ignore */ }
       }
       if (willRetry) {
@@ -171,19 +201,35 @@ class McpClient {
     });
     this.proc.stdout.setEncoding('utf8');
     this.proc.stdout.on('data', (chunk: string) => {
-      chunk.split(/\r?\n/).forEach(line => {
-        if (!line.trim()) return;
-        try {
-          const msg = JSON.parse(line);
-          if (msg.id !== undefined && this.pending.has(msg.id)) {
-            const cb = this.pending.get(msg.id)!;
-            this.pending.delete(msg.id);
-            cb(msg.result ?? msg.error);
+      try {
+        this.outBuf += String(chunk || '');
+        let idx = this.outBuf.indexOf('\n');
+        while (idx >= 0) {
+          // Extract one full line (strip trailing CR if present)
+          let line = this.outBuf.slice(0, idx);
+          this.outBuf = this.outBuf.slice(idx + 1);
+          if (line.endsWith('\r')) line = line.slice(0, -1);
+          if (line.trim()) {
+            try {
+              const msg = JSON.parse(line);
+              if (msg.id !== undefined && this.pending.has(msg.id)) {
+                const cb = this.pending.get(msg.id)!;
+                this.pending.delete(msg.id);
+                cb(msg.result ?? msg.error);
+              }
+            } catch {
+              // ignore malformed line; do not drop buffer already advanced for this line
+            }
           }
-        } catch {
-          // ignore
+          idx = this.outBuf.indexOf('\n');
         }
-      });
+        // guard against unbounded buffer growth (if no newline ever arrives)
+        if (this.outBuf.length > 1_000_000) {
+          this.outBuf = this.outBuf.slice(-10000);
+        }
+      } catch {
+        // ignore
+      }
     });
     // heartbeat ping
     if (this.hb) { clearInterval(this.hb); this.hb = null; }
@@ -222,7 +268,7 @@ class McpClient {
 
   private async _fakeRequest(method: string, params: any): Promise<any> {
     try {
-      // 记录调用供测试断言
+      // \u8bb0\u5f55\u8c03\u7528\u4f9b\u6d4b\u8bd5\u65ad\u8a00
       try { this.fakeCalls.push({ method, name: (params && params.name) || undefined, params, args: (params && (params.arguments ?? params)) }); } catch {}
       const ws = getWorkspaceRoot() || process.cwd();
       const fsApi = vscode.workspace.fs;
@@ -299,7 +345,7 @@ class McpClient {
           return { mimeType: 'application/json', text };
         }
         if (uri.startsWith('progress://')) {
-          const text = '# Plan\n- 状态: in_progress\n- 当前步骤: test';
+          const text = '# Plan\n- \u72b6\u6001: in_progress\n- \u5f53\u524d\u6b65\u9aa4: test';
           return { mimeType: 'text/markdown', text };
         }
         return { mimeType: 'text/plain', text: '' };
@@ -327,7 +373,7 @@ class McpClient {
           const status = (params && params.status) || 'in_progress';
           const current = (params && params.current) || 'step';
           const u = vscode.Uri.file(ws + '/.mcp/plan.md');
-          const md = Buffer.from(`# Plan\n- 状态: ${status}\n- 当前步骤: ${current}\n`, 'utf-8');
+          const md = Buffer.from(`# Plan\n- \u72b6\u6001: ${status}\n- \u5f53\u524d\u6b65\u9aa4: ${current}\n`, 'utf-8');
           try { await fsApi.createDirectory(vscode.Uri.file(ws + '/.mcp')); } catch {}
           await fsApi.writeFile(u, md);
           return { ok: true };
@@ -382,7 +428,7 @@ async function handleOpenMessage(msg: any) {
         filePath = path.join(wsRoot, filePath);
       }
       if (wsRoot && !String(filePath).startsWith(wsRoot)) {
-        vscode.window.showErrorMessage('无法打开文件：不在当前工作区内');
+        vscode.window.showErrorMessage('\u65e0\u6cd5\u6253\u5f00\u6587\u4ef6\uff1a\u4e0d\u5728\u5f53\u524d\u5de5\u4f5c\u533a\u5185');
         return;
       }
       const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(filePath));
@@ -392,23 +438,29 @@ async function handleOpenMessage(msg: any) {
       editor.selection = new vscode.Selection(pos, pos);
       editor.revealRange(new vscode.Range(pos, pos), vscode.TextEditorRevealType.InCenter);
     } catch (e:any) {
-      vscode.window.showErrorMessage('无法打开文件：' + String(e));
+      vscode.window.showErrorMessage('\u65e0\u6cd5\u6253\u5f00\u6587\u4ef6\uff1a' + String(e));
     }
   }
 }
 
-let __activated = false; // 防重复激活（测试/多次初始化场景）
+let __activated = false; // \u9632\u91cd\u590d\u6fc0\u6d3b\uff08\u6d4b\u8bd5/\u591a\u6b21\u521d\u59cb\u5316\u573a\u666f\uff09
 
 export function activate(context: vscode.ExtensionContext) {
   console.log('[MCP Rules Assistant] Extension activation started');
   if (__activated) {
-    // 避免重复注册命令导致 "command ... already exists"
+    // \u907f\u514d\u91cd\u590d\u6ce8\u518c\u547d\u4ee4\u5bfc\u81f4 "command ... already exists"
     console.log('[MCP Rules Assistant] Already activated, skipping');
     return;
   }
   __activated = true;
+  
+  // Create output channel for the extension
+  const outputChannel = vscode.window.createOutputChannel('MCP Rules Assistant');
+  outputChannel.appendLine('MCP Rules Assistant extension activated');
+  context.subscriptions.push(outputChannel);
+  
   console.log('[MCP Rules Assistant] Extension activated successfully');
-  // 恢复锁定根目录（若存在），优先使用此前用户选择的项目根
+  // \u6062\u590d\u9501\u5b9a\u6839\u76ee\u5f55\uff08\u82e5\u5b58\u5728\uff09\uff0c\u4f18\u5148\u4f7f\u7528\u6b64\u524d\u7528\u6237\u9009\u62e9\u7684\u9879\u76ee\u6839
   try {
     const saved = context.workspaceState.get<string>('ruleflow.lockRoot') || '';
     if (saved && saved.trim()) { __lockedRoot = saved.trim(); }
@@ -421,7 +473,7 @@ export function activate(context: vscode.ExtensionContext) {
     }
   } catch {}
 
-  // 在状态栏放一个快捷入口，点击即可打开面板
+  // \u5728\u72b6\u6001\u680f\u653e\u4e00\u4e2a\u5feb\u6377\u5165\u53e3\uff0c\u70b9\u51fb\u5373\u53ef\u6253\u5f00\u9762\u677f
   const sb = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
   sb.text = 'RuleFlow';
   sb.tooltip = 'Quick Actions';
@@ -429,7 +481,10 @@ export function activate(context: vscode.ExtensionContext) {
   sb.show();
   context.subscriptions.push(sb);
 
-  // 轻量状态栏刷新：从 coverage.report 获取摘要并更新状态显示
+  // Ensure MCP backend starts early so the status bar and commands are responsive
+  try { client.start(context); } catch {}
+
+  // \u8f7b\u91cf\u72b6\u6001\u680f\u5237\u65b0\uff1a\u4ece coverage.report \u83b7\u53d6\u6458\u8981\u5e76\u66f4\u65b0\u72b6\u6001\u663e\u793a
   const updateStatusBar = async () => {
     try {
       client.start(context);
@@ -450,9 +505,9 @@ export function activate(context: vscode.ExtensionContext) {
       sb.tooltip = 'Open RuleFlow Panel';
     }
   };
-  // 保守模式：不自动触发任何后端调用；状态栏仅显示入口
+  // \u4fdd\u5b88\u6a21\u5f0f\uff1a\u4e0d\u81ea\u52a8\u89e6\u53d1\u4efb\u4f55\u540e\u7aef\u8c03\u7528\uff1b\u72b6\u6001\u680f\u4ec5\u663e\u793a\u5165\u53e3
 
-  // 快捷命令：快速打开计划与记忆文件
+  // \u5feb\u6377\u547d\u4ee4\uff1a\u5feb\u901f\u6253\u5f00\u8ba1\u5212\u4e0e\u8bb0\u5fc6\u6587\u4ef6
   context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant.openPlan', async () => {
     const ws = getWorkspaceRoot();
     if (!ws) { vscode.window.showInformationMessage('No workspace'); return; }
@@ -465,7 +520,7 @@ export function activate(context: vscode.ExtensionContext) {
       vscode.window.showInformationMessage('.mcp/plan.md not found');
     }
   }));
-  // 主动加载覆盖率：调用 MCP 工具 coverage.report，并给出摘要提示
+  // \u4e3b\u52a8\u52a0\u8f7d\u8986\u76d6\u7387\uff1a\u8c03\u7528 MCP \u5de5\u5177 coverage.report\uff0c\u5e76\u7ed9\u51fa\u6458\u8981\u63d0\u793a
   context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant.loadCoverage', async () => {
     try { client.start(context); } catch {}
     try {
@@ -494,7 +549,7 @@ export function activate(context: vscode.ExtensionContext) {
     }
   }));
 
-  // 快速动作（状态栏入口）
+  // \u5feb\u901f\u52a8\u4f5c\uff08\u72b6\u6001\u680f\u5165\u53e3\uff09
   context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant.quickActions', async () => {
     try { client.start(context); } catch {}
     const choice = await vscode.window.showQuickPick([
@@ -516,13 +571,13 @@ export function activate(context: vscode.ExtensionContext) {
     if (choice === 'Open Status') { await vscode.commands.executeCommand('mcpRulesAssistant.openStatus'); return; }
     if (choice === 'Ingest Rules (Quick)') { await vscode.commands.executeCommand('mcpRulesAssistant.ingestQuick'); return; }
     if (choice === 'Status Update') { await vscode.commands.executeCommand('mcpRulesAssistant.statusUpdate'); return; }
-    if (choice === 'Generate CI') { await client.request('tools/call', { name: 'ci.generate', arguments: {} }); vscode.window.showInformationMessage('CI 已生成'); try { if (memAllowed()) { await client.request('tools/call', { name: 'memory.append_turn', arguments: { role: 'assistant', content: 'CI generated', meta: { source: 'vscode', action: 'ci.generate' } } }); } } catch {} return; }
-    if (choice === 'Validate CI') { await client.request('tools/call', { name: 'ci.validate', arguments: {} }); vscode.window.showInformationMessage('CI 校验完成'); try { if (memAllowed()) { await client.request('tools/call', { name: 'memory.append_turn', arguments: { role: 'assistant', content: 'CI validated', meta: { source: 'vscode', action: 'ci.validate' } } }); } } catch {} return; }
-    if (choice === 'Install Hooks') { await client.request('tools/call', { name: 'git.install_hooks', arguments: {} }); vscode.window.showInformationMessage('Git hooks 已安装'); try { if (memAllowed()) { await client.request('tools/call', { name: 'memory.append_turn', arguments: { role: 'assistant', content: 'Git hooks installed', meta: { source: 'vscode', action: 'git.install_hooks' } } }); } } catch {} return; }
+    if (choice === 'Generate CI') { await client.request('tools/call', { name: 'ci.generate', arguments: {} }); vscode.window.showInformationMessage('CI \u5df2\u751f\u6210'); try { if (memAllowed()) { await client.request('tools/call', { name: 'memory.append_turn', arguments: { role: 'assistant', content: 'CI generated', meta: { source: 'vscode', action: 'ci.generate' } } }); } } catch {} return; }
+    if (choice === 'Validate CI') { await client.request('tools/call', { name: 'ci.validate', arguments: {} }); vscode.window.showInformationMessage('CI \u6821\u9a8c\u5b8c\u6210'); try { if (memAllowed()) { await client.request('tools/call', { name: 'memory.append_turn', arguments: { role: 'assistant', content: 'CI validated', meta: { source: 'vscode', action: 'ci.validate' } } }); } } catch {} return; }
+    if (choice === 'Install Hooks') { await client.request('tools/call', { name: 'git.install_hooks', arguments: {} }); vscode.window.showInformationMessage('Git hooks \u5df2\u5b89\u88c5'); try { if (memAllowed()) { await client.request('tools/call', { name: 'memory.append_turn', arguments: { role: 'assistant', content: 'Git hooks installed', meta: { source: 'vscode', action: 'git.install_hooks' } } }); } } catch {} return; }
     if (choice === 'Natural Command') { await vscode.commands.executeCommand('mcpRulesAssistant.nlCommand'); return; }
   }));
 
-  // 状态刷新（显示摘要 + 刷新状态栏）
+  // \u72b6\u6001\u5237\u65b0\uff08\u663e\u793a\u6458\u8981 + \u5237\u65b0\u72b6\u6001\u680f\uff09
   context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant.statusUpdate', async () => {
     try {
       client.start(context);
@@ -530,24 +585,24 @@ export function activate(context: vscode.ExtensionContext) {
       const cwd = getWorkspaceRoot() || process.cwd();
       const { execFile } = require('child_process');
       execFile(pyBin, ['-m', 'mcp_rules_assistant.cli', 'status-update', '--json'], { cwd }, async (err: any, stdout: string, stderr: string) => {
-        if (err) { vscode.window.showErrorMessage('状态刷新失败：' + String(err)); return; }
+        if (err) { vscode.window.showErrorMessage('\u72b6\u6001\u5237\u65b0\u5931\u8d25\uff1a' + String(err)); return; }
         try {
           const data = JSON.parse(stdout || '{}');
           const cov = data.coverage || {}; const w = (cov.weak||[]).length || 0; const n = (cov.near||[]).length || 0; const mm = cov.min_module;
           vscode.window.showInformationMessage(`Status: weak=${w}, near=${n}` + (mm !== undefined ? `, min_module=${(mm*100).toFixed(0)}%` : ''));
           try { await updateStatusBar(); } catch {}
-        } catch { vscode.window.showInformationMessage('状态已刷新'); }
+        } catch { vscode.window.showInformationMessage('\u72b6\u6001\u5df2\u5237\u65b0'); }
       });
-    } catch (e:any) { vscode.window.showErrorMessage('状态刷新失败：' + String(e)); }
+    } catch (e:any) { vscode.window.showErrorMessage('\u72b6\u6001\u5237\u65b0\u5931\u8d25\uff1a' + String(e)); }
   }));
 
-  // 快速摄取（默认 README.md, docs/）
+  // \u5feb\u901f\u6444\u53d6\uff08\u9ed8\u8ba4 README.md, docs/\uff09
   context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant.ingestQuick', async () => {
     try { client.start(context); } catch {}
-    try { await client.request('tools/call', { name: 'rules.ingest', arguments: { paths: ['README.md', 'docs/'] } }); vscode.window.showInformationMessage('规则摄取完成'); } catch (e:any) { vscode.window.showErrorMessage('规则摄取失败：' + String(e)); }
+    try { await client.request('tools/call', { name: 'rules.ingest', arguments: { paths: ['README.md', 'docs/'] } }); vscode.window.showInformationMessage('\u89c4\u5219\u6444\u53d6\u5b8c\u6210'); } catch (e:any) { vscode.window.showErrorMessage('\u89c4\u5219\u6444\u53d6\u5931\u8d25\uff1a' + String(e)); }
   }));
 
-  // 打开状态文件
+  // \u6253\u5f00\u72b6\u6001\u6587\u4ef6
   context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant.openStatus', async () => {
     try {
       const ws = getWorkspaceRoot(); if (!ws) { vscode.window.showWarningMessage('No workspace'); return; }
@@ -557,13 +612,13 @@ export function activate(context: vscode.ExtensionContext) {
     } catch { vscode.window.showInformationMessage('status.json not found'); }
   }));
 
-  // 计划设置（status/current/next 三项任意）
+  // \u8ba1\u5212\u8bbe\u7f6e\uff08status/current/next \u4e09\u9879\u4efb\u610f\uff09
   context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant.planSet', async () => {
     try { client.start(context); } catch {}
     const status = await vscode.window.showQuickPick(['in_progress', 'done', 'planned', 'skip (no change)'], { placeHolder: 'status' });
     let stVal: string|undefined = undefined; if (status && !status.startsWith('skip')) stVal = status;
-    const current = await vscode.window.showInputBox({ placeHolder: 'current (可留空不变)' });
-    const next = await vscode.window.showInputBox({ placeHolder: 'next (可留空不变)' });
+    const current = await vscode.window.showInputBox({ placeHolder: 'current (\u53ef\u7559\u7a7a\u4e0d\u53d8)' });
+    const next = await vscode.window.showInputBox({ placeHolder: 'next (\u53ef\u7559\u7a7a\u4e0d\u53d8)' });
     const args: any = {}; if (stVal) args.status = stVal; if (current) args.current = current; if (next) args.next = next;
     await client.request('tools/call', { name: 'plan.set', arguments: args });
     vscode.window.showInformationMessage('Plan updated');
@@ -573,24 +628,24 @@ export function activate(context: vscode.ExtensionContext) {
     } catch {}
   }));
 
-  // 记忆：追加选中内容
+  // \u8bb0\u5fc6\uff1a\u8ffd\u52a0\u9009\u4e2d\u5185\u5bb9
   context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant.memoryAppendSelection', async () => {
     try { client.start(context); } catch {}
     const ed = vscode.window.activeTextEditor;
     let text = '';
     if (ed) { text = ed.document.getText(ed.selection); }
-    if (!text) { text = await vscode.window.showInputBox({ placeHolder: '输入要追加到记忆的文本' }) || ''; }
-    if (!text) { vscode.window.showWarningMessage('无内容可追加'); return; }
+    if (!text) { text = await vscode.window.showInputBox({ placeHolder: '\u8f93\u5165\u8981\u8ffd\u52a0\u5230\u8bb0\u5fc6\u7684\u6587\u672c' }) || ''; }
+    if (!text) { vscode.window.showWarningMessage('\u65e0\u5185\u5bb9\u53ef\u8ffd\u52a0'); return; }
     await client.request('tools/call', { name: 'memory.append_turn', arguments: { role: 'user', content: text } });
-    vscode.window.showInformationMessage('已追加到记忆');
+    vscode.window.showInformationMessage('\u5df2\u8ffd\u52a0\u5230\u8bb0\u5fc6');
   }));
 
-  // 受控写入：当前文件或输入路径 + 内容；支持 dry-run/strict 选项
+  // \u53d7\u63a7\u5199\u5165\uff1a\u5f53\u524d\u6587\u4ef6\u6216\u8f93\u5165\u8def\u5f84 + \u5185\u5bb9\uff1b\u652f\u6301 dry-run/strict \u9009\u9879
   context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant.fsApplyPatch', async () => {
     try { client.start(context); } catch {}
     const ed = vscode.window.activeTextEditor;
     const ws = getWorkspaceRoot() || process.cwd();
-    const modeTop = await vscode.window.showQuickPick(['single file', 'multi files (dry-run)'], { placeHolder: '模式选择 / Mode' });
+    const modeTop = await vscode.window.showQuickPick(['single file', 'multi files (dry-run)'], { placeHolder: '\u6a21\u5f0f\u9009\u62e9 / Mode' });
     if (!modeTop) return;
     if (modeTop.startsWith('single')) {
       let defaultPath = '';
@@ -598,12 +653,12 @@ export function activate(context: vscode.ExtensionContext) {
         const p = ed.document.uri.fsPath;
         if (p && p.startsWith(ws)) defaultPath = p.substring(ws.length+1).replace(/\\\\/g,'/');
       }
-      const path = await vscode.window.showInputBox({ placeHolder: '相对路径（例如 src/app.py）', value: defaultPath });
-      if (!path) { vscode.window.showWarningMessage('路径为空'); return; }
+      const path = await vscode.window.showInputBox({ placeHolder: '\u76f8\u5bf9\u8def\u5f84\uff08\u4f8b\u5982 src/app.py\uff09', value: defaultPath });
+      if (!path) { vscode.window.showWarningMessage('\u8def\u5f84\u4e3a\u7a7a'); return; }
       let content = ed ? ed.document.getText(ed.selection) : '';
-      if (!content) { content = await vscode.window.showInputBox({ placeHolder: '写入内容（留空则取消）' }) || ''; }
-      if (!content) { vscode.window.showWarningMessage('内容为空'); return; }
-      const mode = await vscode.window.showQuickPick(['dry-run', 'write (runChecks=strict)', 'write (runChecks=on, strict=off)'], { placeHolder: '模式' });
+      if (!content) { content = await vscode.window.showInputBox({ placeHolder: '\u5199\u5165\u5185\u5bb9\uff08\u7559\u7a7a\u5219\u53d6\u6d88\uff09' }) || ''; }
+      if (!content) { vscode.window.showWarningMessage('\u5185\u5bb9\u4e3a\u7a7a'); return; }
+      const mode = await vscode.window.showQuickPick(['dry-run', 'write (runChecks=strict)', 'write (runChecks=on, strict=off)'], { placeHolder: '\u6a21\u5f0f' });
       if (!mode) return;
       const dryRun = mode === 'dry-run'; const strict = mode.includes('strict'); const runChecks = !mode.includes('strict') ? true : true;
       const files = [{ path, content }];
@@ -616,18 +671,18 @@ export function activate(context: vscode.ExtensionContext) {
       return;
     }
     // Multi files (dry-run) with simple diff preview
-    const nStr = await vscode.window.showInputBox({ placeHolder: '输入文件数量(1-10)', value: '2' });
+    const nStr = await vscode.window.showInputBox({ placeHolder: '\u8f93\u5165\u6587\u4ef6\u6570\u91cf(1-10)', value: '2' });
     const n = Math.max(1, Math.min(10, parseInt(nStr || '2', 10) || 2));
     const items: { path: string, content: string }[] = [];
     for (let i=1; i<=n; i++) {
-      const p = await vscode.window.showInputBox({ placeHolder: `第 ${i} 个相对路径`, value: i===1 && ed && ed.document.uri.fsPath.startsWith(ws) ? ed.document.uri.fsPath.substring(ws.length+1).replace(/\\\\/g,'/') : '' });
+      const p = await vscode.window.showInputBox({ placeHolder: `\u7b2c ${i} \u4e2a\u76f8\u5bf9\u8def\u5f84`, value: i===1 && ed && ed.document.uri.fsPath.startsWith(ws) ? ed.document.uri.fsPath.substring(ws.length+1).replace(/\\\\/g,'/') : '' });
       if (!p) break;
       let c = ed ? ed.document.getText(ed.selection) : '';
-      if (!c) { c = await vscode.window.showInputBox({ placeHolder: `第 ${i} 个文件内容（留空取消本次多文件）` }) || ''; }
-      if (!c) { vscode.window.showWarningMessage('内容为空，已取消'); break; }
+      if (!c) { c = await vscode.window.showInputBox({ placeHolder: `\u7b2c ${i} \u4e2a\u6587\u4ef6\u5185\u5bb9\uff08\u7559\u7a7a\u53d6\u6d88\u672c\u6b21\u591a\u6587\u4ef6\uff09` }) || ''; }
+      if (!c) { vscode.window.showWarningMessage('\u5185\u5bb9\u4e3a\u7a7a\uff0c\u5df2\u53d6\u6d88'); break; }
       items.push({ path: p, content: c });
     }
-    if (!items.length) { vscode.window.showWarningMessage('未收集到文件'); return; }
+    if (!items.length) { vscode.window.showWarningMessage('\u672a\u6536\u96c6\u5230\u6587\u4ef6'); return; }
     const out = await client.request('tools/call', { name: 'fs.apply_patch', arguments: { files: items, runChecks: true, strict: true, dryRun: true } });
     try {
       const previewLines: string[] = [];
@@ -655,7 +710,7 @@ export function activate(context: vscode.ExtensionContext) {
       vscode.window.showInformationMessage('fs.apply_patch (multi dry-run): ' + (out && out.ok ? 'OK' : 'Done'));
       try { await client.request('tools/call', { name: 'memory.append_turn', arguments: { role: 'assistant', content: `fs.apply_patch: dry-run multi, files=${items.length}`, meta: { source: 'vscode', action: 'fs.apply_patch', dryRun: true, files: items.length } } }); } catch {}
     } catch (e:any) {
-      vscode.window.showErrorMessage('预览失败：' + String(e));
+      vscode.window.showErrorMessage('\u9884\u89c8\u5931\u8d25\uff1a' + String(e));
     }
   }));
   context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant.openMemory', async () => {
@@ -674,14 +729,14 @@ export function activate(context: vscode.ExtensionContext) {
         }
         const inside = real.startsWith(mcpDir + path.sep) || real === mcpDir;
         if (!inside) {
-          vscode.window.showErrorMessage('出于隔离安全，已拒绝打开位于工作区之外的记忆文件');
+          vscode.window.showErrorMessage('\u51fa\u4e8e\u9694\u79bb\u5b89\u5168\uff0c\u5df2\u62d2\u7edd\u6253\u5f00\u4f4d\u4e8e\u5de5\u4f5c\u533a\u4e4b\u5916\u7684\u8bb0\u5fc6\u6587\u4ef6');
           return;
         }
         // Detect hardlink count > 1 and warn/abort (conservative default)
         const st = fs.statSync(real);
         const isHardLinked = (st.nlink && st.nlink > 1);
         if (isHardLinked && String(process.env.MCP_MEMORY_TRUST_HARDLINK || '').trim().toLowerCase() !== '1') {
-          vscode.window.showWarningMessage('检测到 memory.json 可能为硬链接；为防跨项目共享，默认不打开（设置 MCP_MEMORY_TRUST_HARDLINK=1 可放宽）。');
+          vscode.window.showWarningMessage('\u68c0\u6d4b\u5230 memory.json \u53ef\u80fd\u4e3a\u786c\u94fe\u63a5\uff1b\u4e3a\u9632\u8de8\u9879\u76ee\u5171\u4eab\uff0c\u9ed8\u8ba4\u4e0d\u6253\u5f00\uff08\u8bbe\u7f6e MCP_MEMORY_TRUST_HARDLINK=1 \u53ef\u653e\u5bbd\uff09\u3002');
           return;
         }
       } catch { /* ignore and continue best-effort */ }
@@ -693,7 +748,7 @@ export function activate(context: vscode.ExtensionContext) {
   }));
 
   const disposable = vscode.commands.registerCommand('mcpRulesAssistant.openPanel', async () => {
-    // 先渲染一个最小占位以避免空白，并提供快速修复入口
+    // \u5148\u6e32\u67d3\u4e00\u4e2a\u6700\u5c0f\u5360\u4f4d\u4ee5\u907f\u514d\u7a7a\u767d\uff0c\u5e76\u63d0\u4f9b\u5feb\u901f\u4fee\u590d\u5165\u53e3
     const renderFallback = (msg: string) => `
       <html><body style="font-family:-apple-system,Segoe UI,Arial;">
       <style>
@@ -701,14 +756,14 @@ export function activate(context: vscode.ExtensionContext) {
         #modeBar{display:flex;gap:6px;align-items:center;margin:6px 0;}
         #modeBar button{padding:4px 8px;}
       </style>
-      <h2>RuleFlow 面板</h2>
-      <div id="modeBar"><span>显示模式：</span> <button id="btnModeSimple" title="仅展示常用操作；不会自动修改文件或配置">新手模式</button> <button id="btnModeAdvanced" title="展示全部功能；每项操作都需要你确认后才执行">高级模式</button></div>
+      <h2>RuleFlow \u9762\u677f</h2>
+      <div id="modeBar"><span>\u663e\u793a\u6a21\u5f0f\uff1a</span> <button id="btnModeSimple" title="\u4ec5\u5c55\u793a\u5e38\u7528\u64cd\u4f5c\uff1b\u4e0d\u4f1a\u81ea\u52a8\u4fee\u6539\u6587\u4ef6\u6216\u914d\u7f6e">\u65b0\u624b\u6a21\u5f0f</button> <button id="btnModeAdvanced" title="\u5c55\u793a\u5168\u90e8\u529f\u80fd\uff1b\u6bcf\u9879\u64cd\u4f5c\u90fd\u9700\u8981\u4f60\u786e\u8ba4\u540e\u624d\u6267\u884c">\u9ad8\u7ea7\u6a21\u5f0f</button></div>
       <div id="simpleBar" style="border:1px solid #ddd; padding:8px; background:#f9fbff;">
-        <div style="color:#666; font-size:12px;">${msg || '正在连接 MCP …'}</div>
+        <div style="color:#666; font-size:12px;">${msg || '\u6b63\u5728\u8fde\u63a5 MCP \u2026'}</div>
         <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;">
-          <button id="btnRetry" title="重新尝试连接 MCP 后端（安全，只进行握手/健康检查）">重试连接</button>
-          <button id="btnEnableFake" title="写入 .mcp/dashboard/fake_mode 以启用离线演示；可随时删除该文件恢复">切换为演示模式</button>
-          <button id="btnOpenLog" title="打开 .mcp/dashboard/server.log 日志用于排查（只读）">打开 server.log</button>
+          <button id="btnRetry" title="\u91cd\u65b0\u5c1d\u8bd5\u8fde\u63a5 MCP \u540e\u7aef\uff08\u5b89\u5168\uff0c\u53ea\u8fdb\u884c\u63e1\u624b/\u5065\u5eb7\u68c0\u67e5\uff09">\u91cd\u8bd5\u8fde\u63a5</button>
+          <button id="btnEnableFake" title="\u5199\u5165 .mcp/dashboard/fake_mode \u4ee5\u542f\u7528\u79bb\u7ebf\u6f14\u793a\uff1b\u53ef\u968f\u65f6\u5220\u9664\u8be5\u6587\u4ef6\u6062\u590d">\u5207\u6362\u4e3a\u6f14\u793a\u6a21\u5f0f</button>
+          <button id="btnOpenLog" title="\u6253\u5f00 .mcp/dashboard/server.log \u65e5\u5fd7\u7528\u4e8e\u6392\u67e5\uff08\u53ea\u8bfb\uff09">\u6253\u5f00 server.log</button>
         </div>
       </div>
       <script>
@@ -735,6 +790,16 @@ export function activate(context: vscode.ExtensionContext) {
         enableCommandUris: true
       }
     );
+    // Early message queue to avoid losing clicks before full handler is ready
+    const __preMsgs: any[] = [];
+    if (!(panel as any).__earlyHandlerInstalled) {
+      (panel as any).__earlyHandlerInstalled = true;
+      panel.webview.onDidReceiveMessage(async (msg) => {
+        // If full handler already set up, do nothing here
+        if ((panel as any).__fullHandlerReady) return;
+        try { __preMsgs.push(msg); } catch {}
+      });
+    }
     const csp = panel.webview.cspSource;
     const nonce = getNonce();
     const __fallbackHtml = `
@@ -748,14 +813,14 @@ export function activate(context: vscode.ExtensionContext) {
             #modeBar{display:flex;gap:6px;align-items:center;margin:6px 0;}
             #modeBar button{padding:4px 8px;}
           </style>
-          <h2>RuleFlow 面板</h2>
-          <div id="modeBar"><span>显示模式：</span> <button id="btnModeSimple" title="仅展示常用操作；不会自动修改文件或配置">新手模式</button> <button id="btnModeAdvanced" title="展示全部功能；每项操作都需要你确认后才执行">高级模式</button></div>
+          <h2>RuleFlow \u9762\u677f</h2>
+          <div id="modeBar"><span>\u663e\u793a\u6a21\u5f0f\uff1a</span> <button id="btnModeSimple" title="\u4ec5\u5c55\u793a\u5e38\u7528\u64cd\u4f5c\uff1b\u4e0d\u4f1a\u81ea\u52a8\u4fee\u6539\u6587\u4ef6\u6216\u914d\u7f6e">\u65b0\u624b\u6a21\u5f0f</button> <button id="btnModeAdvanced" title="\u5c55\u793a\u5168\u90e8\u529f\u80fd\uff1b\u6bcf\u9879\u64cd\u4f5c\u90fd\u9700\u8981\u4f60\u786e\u8ba4\u540e\u624d\u6267\u884c">\u9ad8\u7ea7\u6a21\u5f0f</button></div>
           <div id="simpleBar" style="border:1px solid #ddd; padding:8px; background:#f9fbff;">
-            <div style="color:#666; font-size:12px;">正在连接 MCP …</div>
+            <div style="color:#666; font-size:12px;">\u6b63\u5728\u8fde\u63a5 MCP \u2026</div>
             <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;">
-              <button id="btnRetry" title="重新尝试连接 MCP 后端（安全，只进行握手/健康检查）">重试连接</button>
-              <button id="btnEnableFake" title="写入 .mcp/dashboard/fake_mode 以启用离线演示；可随时删除该文件恢复">切换为演示模式</button>
-              <button id="btnOpenLog" title="打开 .mcp/dashboard/server.log 日志用于排查（只读）">打开 server.log</button>
+              <button id="btnRetry" title="\u91cd\u65b0\u5c1d\u8bd5\u8fde\u63a5 MCP \u540e\u7aef\uff08\u5b89\u5168\uff0c\u53ea\u8fdb\u884c\u63e1\u624b/\u5065\u5eb7\u68c0\u67e5\uff09">\u91cd\u8bd5\u8fde\u63a5</button>
+              <button id="btnEnableFake" title="\u5199\u5165 .mcp/dashboard/fake_mode \u4ee5\u542f\u7528\u79bb\u7ebf\u6f14\u793a\uff1b\u53ef\u968f\u65f6\u5220\u9664\u8be5\u6587\u4ef6\u6062\u590d">\u5207\u6362\u4e3a\u6f14\u793a\u6a21\u5f0f</button>
+              <button id="btnOpenLog" title="\u6253\u5f00 .mcp/dashboard/server.log \u65e5\u5fd7\u7528\u4e8e\u6392\u67e5\uff08\u53ea\u8bfb\uff09">\u6253\u5f00 server.log</button>
             </div>
           </div>
           <script nonce="${nonce}">
@@ -773,7 +838,7 @@ export function activate(context: vscode.ExtensionContext) {
         </body>
       </html>`;
     panel.webview.html = __fallbackHtml;
-    // 按需启动后端 Python 服务器
+    // \u6309\u9700\u542f\u52a8\u540e\u7aef Python \u670d\u52a1\u5668
     try { client.start(context); } catch {}
     // make postMessage safe after dispose
     let __panelDisposed = false;
@@ -793,8 +858,8 @@ export function activate(context: vscode.ExtensionContext) {
     const render = (csp: string, nonceVal: string, md: string, toolsListHtml: string, sugg: string = '') => `
       <html>
       <head>
-        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${csp} data:; style-src ${csp} 'unsafe-inline'; script-src ${csp} 'nonce-${nonceVal}'; font-src ${csp} data:">
-        <script nonce="${nonceVal}" src="@@PANEL_BOOTSTRAP@@"></script>
+        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${csp} data:; style-src ${csp} 'unsafe-inline'; script-src ${csp} 'nonce-${nonceVal}'; font-src ${csp} data:; connect-src ${csp}; frame-src 'none';">
+        <script nonce="${nonceVal}" src="@@PANEL_BOOTSTRAP@@" defer></script>
       </head>
       <body class="simple" style="font-family: -apple-system,Segoe UI,Arial;">
         <style>
@@ -802,235 +867,235 @@ export function activate(context: vscode.ExtensionContext) {
           body.simple #simpleBar { display: block; }
           body.advanced #simpleBar { display: none; }
           body.advanced .adv { display: block; }
-{{ ... }}
+          /* Additional styles */
           #modeBar { display:flex; gap:6px; align-items:center; margin:6px 0; }
           #modeBar button { padding:4px 8px; }
           #simpleBar button { padding:6px 10px; margin:2px 4px; }
           .hint { color:#666; font-size:12px; }
         </style>
-        <h2 id="hdrTitle">MCP 规则与上下文助手</h2>
-        <p id="pConnected">已连接到 Python MCP Server（最小协议）。默认快速内环：保存轻、推送重。</p>
+        <h2 id="hdrTitle">MCP \u89c4\u5219\u4e0e\u4e0a\u4e0b\u6587\u52a9\u624b</h2>
+        <p id="pConnected">\u5df2\u8fde\u63a5\u5230 Python MCP Server\uff08\u6700\u5c0f\u534f\u8bae\uff09\u3002\u9ed8\u8ba4\u5feb\u901f\u5185\u73af\uff1a\u4fdd\u5b58\u8f7b\u3001\u63a8\u9001\u91cd\u3002</p>
         <div id="modeBar">
-          <span id="lblDisplayMode" class="hint">显示模式：</span>
-          <button id="btnModeSimple" title="仅展示常用操作；不会自动修改文件或配置">新手模式</button>
-          <button id="btnModeAdvanced" title="展示全部功能；每项操作都需要你确认后才执行">高级模式</button>
-          <button id="btnLang" title="切换中/英文界面标签">中文/English</button>
-          <button id="btnReloadPanel" title="重载面板（重新渲染并握手）">重载面板</button>
+          <span id="lblDisplayMode" class="hint">\u663e\u793a\u6a21\u5f0f\uff1a</span>
+          <button id="btnModeSimple" title="\u4ec5\u5c55\u793a\u5e38\u7528\u64cd\u4f5c\uff1b\u4e0d\u4f1a\u81ea\u52a8\u4fee\u6539\u6587\u4ef6\u6216\u914d\u7f6e">\u65b0\u624b\u6a21\u5f0f</button>
+          <button id="btnModeAdvanced" title="\u5c55\u793a\u5168\u90e8\u529f\u80fd\uff1b\u6bcf\u9879\u64cd\u4f5c\u90fd\u9700\u8981\u4f60\u786e\u8ba4\u540e\u624d\u6267\u884c">\u9ad8\u7ea7\u6a21\u5f0f</button>
+          <button id="btnLang" title="\u5207\u6362\u4e2d/\u82f1\u6587\u754c\u9762\u6807\u7b7e">\u4e2d\u6587/English</button>
+          <button id="btnReloadPanel" title="\u91cd\u8f7d\u9762\u677f\uff08\u91cd\u65b0\u6e32\u67d3\u5e76\u63e1\u624b\uff09">\u91cd\u8f7d\u9762\u677f</button>
         </div>
         <div id="ticker" style="height:auto; background:#f6f6f6; border:1px solid #ddd; padding:4px 8px; margin:6px 0;">
           <span id="tickerText" style="display:inline-block; white-space:nowrap; font-size:12px; color:#333;"></span>
         </div>
         <div id="proj" style="padding:4px 6px; border:1px solid #ddd; background:#fafafa; margin:6px 0; display:flex; align-items:center; gap:8px;">
-          <b id="lblCurProject">当前项目:</b> <span id="curProject">(检测中)</span>
-          <button id="btnSelectProject" title="在当前 IDE 窗口内选择/切换项目根；所有读写限定在所选项目的 .mcp/ 目录">选择/切换项目…</button>
+          <b id="lblCurProject">\u5f53\u524d\u9879\u76ee:</b> <span id="curProject">(\u68c0\u6d4b\u4e2d)</span>
+          <button id="btnSelectProject" title="\u5728\u5f53\u524d IDE \u7a97\u53e3\u5185\u9009\u62e9/\u5207\u6362\u9879\u76ee\u6839\uff1b\u6240\u6709\u8bfb\u5199\u9650\u5b9a\u5728\u6240\u9009\u9879\u76ee\u7684 .mcp/ \u76ee\u5f55">\u9009\u62e9/\u5207\u6362\u9879\u76ee\u2026</button>
         </div>
         <div id="lic" style="padding:4px 6px; border:1px solid #ddd; background:#fafafa; margin:6px 0; display:flex; align-items:center; gap:8px;">
           <b>License:</b> <span id="licText">(loading)</span>
-          <button id="btnLicVerify" title="校验许可状态（本地只读，不出网）">Verify</button>
-          <button id="btnLicActivate" title="从本地文件激活许可（仅写入许可配置，不改源码）">Activate…</button>
+          <button id="btnLicVerify" title="\u6821\u9a8c\u8bb8\u53ef\u72b6\u6001\uff08\u672c\u5730\u53ea\u8bfb\uff0c\u4e0d\u51fa\u7f51\uff09">Verify</button>
+          <button id="btnLicActivate" title="\u4ece\u672c\u5730\u6587\u4ef6\u6fc0\u6d3b\u8bb8\u53ef\uff08\u4ec5\u5199\u5165\u8bb8\u53ef\u914d\u7f6e\uff0c\u4e0d\u6539\u6e90\u7801\uff09">Activate\u2026</button>
         </div>
         <pre id="licDetail" style="white-space:pre-wrap; display:none; font-size:11px; color:#555; background:#f7f7f7; padding:4px;"></pre>
         <div id="info" style="margin:6px 0; color:#d33;"></div>
         <div id="simpleBar" style="margin:10px 0; padding:8px; border:1px solid #ddd; background:#f9fbff;">
-          <div id="hintQuick" class="hint">三步上手：</div>
+          <div id="hintQuick" class="hint">\u4e09\u6b65\u4e0a\u624b\uff1a</div>
           <div>
-            <button id="btnSimpleInstall" title="为当前项目创建 .mcp/venv 并安装基础工具链（ruff/black/mypy/pytest）">1) 准备并安装环境</button>
-            <button id="btnSimpleCoverage" title="读取 coverage.xml 汇总弱项/分组/近阈值并输出到 .mcp/dashboard">2) 加载覆盖率</button>
-            <button id="btnSimplePlan" title="打开 .mcp/plan.md（项目任务与进度的唯一权威来源）">3) 打开计划</button>
+            <button id="btnSimpleInstall" title="\u4e3a\u5f53\u524d\u9879\u76ee\u521b\u5efa .mcp/venv \u5e76\u5b89\u88c5\u57fa\u7840\u5de5\u5177\u94fe\uff08ruff/black/mypy/pytest\uff09">1) \u51c6\u5907\u5e76\u5b89\u88c5\u73af\u5883</button>
+            <button id="btnSimpleCoverage" title="\u8bfb\u53d6 coverage.xml \u6c47\u603b\u5f31\u9879/\u5206\u7ec4/\u8fd1\u9608\u503c\u5e76\u8f93\u51fa\u5230 .mcp/dashboard">2) \u52a0\u8f7d\u8986\u76d6\u7387</button>
+            <button id="btnSimplePlan" title="\u6253\u5f00 .mcp/plan.md\uff08\u9879\u76ee\u4efb\u52a1\u4e0e\u8fdb\u5ea6\u7684\u552f\u4e00\u6743\u5a01\u6765\u6e90\uff09">3) \u6253\u5f00\u8ba1\u5212</button>
           </div>
           <div>
-            <button id="btnSimpleIngest" title="将 README/docs 转换为规则（写入 .mcp/rules_*），不改现有源码">摄取规则（README.md, docs/）</button>
-            <button id="btnSimpleStatus" title="刷新状态并写入 .mcp/dashboard/status.json（只读源码）">刷新状态</button>
+            <button id="btnSimpleIngest" title="\u5c06 README/docs \u8f6c\u6362\u4e3a\u89c4\u5219\uff08\u5199\u5165 .mcp/rules_*\uff09\uff0c\u4e0d\u6539\u73b0\u6709\u6e90\u7801">\u6444\u53d6\u89c4\u5219\uff08README.md, docs/\uff09</button>
+            <button id="btnSimpleStatus" title="\u5237\u65b0\u72b6\u6001\u5e76\u5199\u5165 .mcp/dashboard/status.json\uff08\u53ea\u8bfb\u6e90\u7801\uff09">\u5237\u65b0\u72b6\u6001</button>
           </div>
-          <div class="hint">遇到问题 → 点击“刷新状态”，或切换到“高级模式”查看更多功能。</div>
+          <div class="hint">\u9047\u5230\u95ee\u9898 \u2192 \u70b9\u51fb\u201c\u5237\u65b0\u72b6\u6001\u201d\uff0c\u6216\u5207\u6362\u5230\u201c\u9ad8\u7ea7\u6a21\u5f0f\u201d\u67e5\u770b\u66f4\u591a\u529f\u80fd\u3002</div>
         </div>
         <div class="adv" style="margin:8px 0;">
-          <input id="nlInput" placeholder="自然语言指令：如 摄取规则 README.md, docs/ / 加载覆盖率 / 开启滚动记忆" style="width:65%;" title="在此输入中文或英文指令，按“执行”按钮运行；示例可点击下方快速填充" />
-          <button id="nlSend" title="执行输入框中的自然语言指令，仅作用于当前项目">执行</button>
-          <button id="nlExamples" title="插入常用指令示例到输入框，不会直接执行">范例</button>
-          <button id="nlClear" title="清空面板中的历史显示（仅 UI，不写磁盘）">清空历史</button>
-          <button id="btnStatusUpdate" title="刷新状态摘要并更新 .mcp/dashboard/status.json">刷新状态</button>
-          <span style="margin-left:6px;">近阈值%:</span>
-          <input id="nearPct" value="3" style="width:40px;" title="显示覆盖率距离阈值≤该百分比的文件（默认3%）" />
-          <button id="btnCovNearInline" title="在面板内显示“近阈值”文件（仅 UI 过滤）">显示近阈值</button>
-          <button id="btnIdeScaffold" title="生成当前 IDE 的最小配置/脚本（仅写入项目内配置目录）">生成 IDE 集成配置</button>
-          <button id="btnCompliance" title="生成合规承诺文档（写入 .mcp/compliance.md）">生成合规承诺</button>
-          <button id="btnOpenCompliance" title="打开合规承诺文档（只读）">打开合规承诺</button>
-          <button id="btnOpenIdeDir" title="打开 IDE 相关目录（如 .vscode/，只读）">打开 IDE 目录</button>
-          <button id="btnEvents" title="显示近期事件（只读 .mcp/dashboard/cmd_events.jsonl）">事件历史</button>
-          <button id="btnAudit" title="显示安全审计（只读 .mcp/dashboard/security_audit.jsonl）">安全审计</button>
-          <button id="btnInfo" title="显示状态摘要信息（只读 .mcp/dashboard/status.json）">状态摘要 Info</button>
-          <button id="btnCopyEvents" title="复制事件内容到剪贴板（仅 UI，不写磁盘）">复制事件</button>
-          <button id="btnCopyInfo" title="复制状态摘要到剪贴板（仅 UI，不写磁盘）">复制摘要</button>
-          <button id="btnOpenStatusFile" title="打开 .mcp/dashboard/status.json（只读）">打开 status.json</button>
-          <button id="btnOpenEventsFile" title="打开 .mcp/dashboard/cmd_events.jsonl（只读）">打开 events</button>
-          <button id="btnOpenAuditFile" title="打开 .mcp/dashboard/security_audit.jsonl（只读）">打开 audit</button>
+          <input id="nlInput" placeholder="\u81ea\u7136\u8bed\u8a00\u6307\u4ee4\uff1a\u5982 \u6444\u53d6\u89c4\u5219 README.md, docs/ / \u52a0\u8f7d\u8986\u76d6\u7387 / \u5f00\u542f\u6eda\u52a8\u8bb0\u5fc6" style="width:65%;" title="\u5728\u6b64\u8f93\u5165\u4e2d\u6587\u6216\u82f1\u6587\u6307\u4ee4\uff0c\u6309\u201c\u6267\u884c\u201d\u6309\u94ae\u8fd0\u884c\uff1b\u793a\u4f8b\u53ef\u70b9\u51fb\u4e0b\u65b9\u5feb\u901f\u586b\u5145" />
+          <button id="nlSend" title="\u6267\u884c\u8f93\u5165\u6846\u4e2d\u7684\u81ea\u7136\u8bed\u8a00\u6307\u4ee4\uff0c\u4ec5\u4f5c\u7528\u4e8e\u5f53\u524d\u9879\u76ee">\u6267\u884c</button>
+          <button id="nlExamples" title="\u63d2\u5165\u5e38\u7528\u6307\u4ee4\u793a\u4f8b\u5230\u8f93\u5165\u6846\uff0c\u4e0d\u4f1a\u76f4\u63a5\u6267\u884c">\u8303\u4f8b</button>
+          <button id="nlClear" title="\u6e05\u7a7a\u9762\u677f\u4e2d\u7684\u5386\u53f2\u663e\u793a\uff08\u4ec5 UI\uff0c\u4e0d\u5199\u78c1\u76d8\uff09">\u6e05\u7a7a\u5386\u53f2</button>
+          <button id="btnStatusUpdate" title="\u5237\u65b0\u72b6\u6001\u6458\u8981\u5e76\u66f4\u65b0 .mcp/dashboard/status.json">\u5237\u65b0\u72b6\u6001</button>
+          <span style="margin-left:6px;">\u8fd1\u9608\u503c%:</span>
+          <input id="nearPct" value="3" style="width:40px;" title="\u663e\u793a\u8986\u76d6\u7387\u8ddd\u79bb\u9608\u503c\u2264\u8be5\u767e\u5206\u6bd4\u7684\u6587\u4ef6\uff08\u9ed8\u8ba43%\uff09" />
+          <button id="btnCovNearInline" title="\u5728\u9762\u677f\u5185\u663e\u793a\u201c\u8fd1\u9608\u503c\u201d\u6587\u4ef6\uff08\u4ec5 UI \u8fc7\u6ee4\uff09">\u663e\u793a\u8fd1\u9608\u503c</button>
+          <button id="btnIdeScaffold" title="\u751f\u6210\u5f53\u524d IDE \u7684\u6700\u5c0f\u914d\u7f6e/\u811a\u672c\uff08\u4ec5\u5199\u5165\u9879\u76ee\u5185\u914d\u7f6e\u76ee\u5f55\uff09">\u751f\u6210 IDE \u96c6\u6210\u914d\u7f6e</button>
+          <button id="btnCompliance" title="\u751f\u6210\u5408\u89c4\u627f\u8bfa\u6587\u6863\uff08\u5199\u5165 .mcp/compliance.md\uff09">\u751f\u6210\u5408\u89c4\u627f\u8bfa</button>
+          <button id="btnOpenCompliance" title="\u6253\u5f00\u5408\u89c4\u627f\u8bfa\u6587\u6863\uff08\u53ea\u8bfb\uff09">\u6253\u5f00\u5408\u89c4\u627f\u8bfa</button>
+          <button id="btnOpenIdeDir" title="\u6253\u5f00 IDE \u76f8\u5173\u76ee\u5f55\uff08\u5982 .vscode/\uff0c\u53ea\u8bfb\uff09">\u6253\u5f00 IDE \u76ee\u5f55</button>
+          <button id="btnEvents" title="\u663e\u793a\u8fd1\u671f\u4e8b\u4ef6\uff08\u53ea\u8bfb .mcp/dashboard/cmd_events.jsonl\uff09">\u4e8b\u4ef6\u5386\u53f2</button>
+          <button id="btnAudit" title="\u663e\u793a\u5b89\u5168\u5ba1\u8ba1\uff08\u53ea\u8bfb .mcp/dashboard/security_audit.jsonl\uff09">\u5b89\u5168\u5ba1\u8ba1</button>
+          <button id="btnInfo" title="\u663e\u793a\u72b6\u6001\u6458\u8981\u4fe1\u606f\uff08\u53ea\u8bfb .mcp/dashboard/status.json\uff09">\u72b6\u6001\u6458\u8981 Info</button>
+          <button id="btnCopyEvents" title="\u590d\u5236\u4e8b\u4ef6\u5185\u5bb9\u5230\u526a\u8d34\u677f\uff08\u4ec5 UI\uff0c\u4e0d\u5199\u78c1\u76d8\uff09">\u590d\u5236\u4e8b\u4ef6</button>
+          <button id="btnCopyInfo" title="\u590d\u5236\u72b6\u6001\u6458\u8981\u5230\u526a\u8d34\u677f\uff08\u4ec5 UI\uff0c\u4e0d\u5199\u78c1\u76d8\uff09">\u590d\u5236\u6458\u8981</button>
+          <button id="btnOpenStatusFile" title="\u6253\u5f00 .mcp/dashboard/status.json\uff08\u53ea\u8bfb\uff09">\u6253\u5f00 status.json</button>
+          <button id="btnOpenEventsFile" title="\u6253\u5f00 .mcp/dashboard/cmd_events.jsonl\uff08\u53ea\u8bfb\uff09">\u6253\u5f00 events</button>
+          <button id="btnOpenAuditFile" title="\u6253\u5f00 .mcp/dashboard/security_audit.jsonl\uff08\u53ea\u8bfb\uff09">\u6253\u5f00 audit</button>
         </div>
         <div id="nlExamplesBox" class="adv" style="display:none; margin:4px 0 10px 0;">
-          <span style="opacity:.8">快速范例：</span>
-          <button data-nl="摄取规则 README.md, docs/">摄取规则</button>
-          <button data-nl="加载覆盖率">加载覆盖率</button>
-          <button data-nl="仅看近阈值 3">仅看近阈值</button>
-          <button data-nl="开启滚动记忆">开启记忆</button>
-          <button data-nl="生成 CI">生成 CI</button>
-          <button data-nl="校验 CI">校验 CI</button>
-          <button data-nl="规则 摘要">规则摘要</button>
+          <span style="opacity:.8">\u5feb\u901f\u8303\u4f8b\uff1a</span>
+          <button data-nl="\u6444\u53d6\u89c4\u5219 README.md, docs/">\u6444\u53d6\u89c4\u5219</button>
+          <button data-nl="\u52a0\u8f7d\u8986\u76d6\u7387">\u52a0\u8f7d\u8986\u76d6\u7387</button>
+          <button data-nl="\u4ec5\u770b\u8fd1\u9608\u503c 3">\u4ec5\u770b\u8fd1\u9608\u503c</button>
+          <button data-nl="\u5f00\u542f\u6eda\u52a8\u8bb0\u5fc6">\u5f00\u542f\u8bb0\u5fc6</button>
+          <button data-nl="\u751f\u6210 CI">\u751f\u6210 CI</button>
+          <button data-nl="\u6821\u9a8c CI">\u6821\u9a8c CI</button>
+          <button data-nl="\u89c4\u5219 \u6458\u8981">\u89c4\u5219\u6458\u8981</button>
         </div>
         <div id="nlCatalog" style="margin:6px 0;">
           <fieldset style="border:1px solid #ddd; padding:6px;">
-            <legend>自然语言命令示例（点击即执行）</legend>
-            <div class="hint">触发词：摄取规则 / 加载覆盖率 / 近阈值 / 打开计划 / 开启滚动记忆 / 生成 CI / 校验 CI / 安装钩子</div>
-            <div style="margin-top:6px;"><b>规则</b>：
-              <button data-nl="摄取规则 README.md, docs/">摄取规则 README.md, docs/</button>
-              <button data-nl="载入编译规则">载入编译规则</button>
-              <button data-nl="校验 规则">校验 规则</button>
+            <legend>\u81ea\u7136\u8bed\u8a00\u547d\u4ee4\u793a\u4f8b\uff08\u70b9\u51fb\u5373\u6267\u884c\uff09</legend>
+            <div class="hint">\u89e6\u53d1\u8bcd\uff1a\u6444\u53d6\u89c4\u5219 / \u52a0\u8f7d\u8986\u76d6\u7387 / \u8fd1\u9608\u503c / \u6253\u5f00\u8ba1\u5212 / \u5f00\u542f\u6eda\u52a8\u8bb0\u5fc6 / \u751f\u6210 CI / \u6821\u9a8c CI / \u5b89\u88c5\u94a9\u5b50</div>
+            <div style="margin-top:6px;"><b>\u89c4\u5219</b>\uff1a
+              <button data-nl="\u6444\u53d6\u89c4\u5219 README.md, docs/">\u6444\u53d6\u89c4\u5219 README.md, docs/</button>
+              <button data-nl="\u8f7d\u5165\u7f16\u8bd1\u89c4\u5219">\u8f7d\u5165\u7f16\u8bd1\u89c4\u5219</button>
+              <button data-nl="\u6821\u9a8c \u89c4\u5219">\u6821\u9a8c \u89c4\u5219</button>
             </div>
-            <div style="margin-top:6px;"><b>覆盖率</b>：
-              <button data-nl="加载覆盖率">加载覆盖率</button>
-              <button data-nl="仅看弱项">仅看弱项</button>
-              <button data-nl="仅看近阈值 3">仅看近阈值 3</button>
+            <div style="margin-top:6px;"><b>\u8986\u76d6\u7387</b>\uff1a
+              <button data-nl="\u52a0\u8f7d\u8986\u76d6\u7387">\u52a0\u8f7d\u8986\u76d6\u7387</button>
+              <button data-nl="\u4ec5\u770b\u5f31\u9879">\u4ec5\u770b\u5f31\u9879</button>
+              <button data-nl="\u4ec5\u770b\u8fd1\u9608\u503c 3">\u4ec5\u770b\u8fd1\u9608\u503c 3</button>
             </div>
-            <div style="margin-top:6px;"><b>计划与记忆</b>：
-              <button data-nl="打开 计划">打开 计划</button>
-              <button data-nl="开启滚动记忆">开启滚动记忆</button>
+            <div style="margin-top:6px;"><b>\u8ba1\u5212\u4e0e\u8bb0\u5fc6</b>\uff1a
+              <button data-nl="\u6253\u5f00 \u8ba1\u5212">\u6253\u5f00 \u8ba1\u5212</button>
+              <button data-nl="\u5f00\u542f\u6eda\u52a8\u8bb0\u5fc6">\u5f00\u542f\u6eda\u52a8\u8bb0\u5fc6</button>
             </div>
-            <div style="margin-top:6px;"><b>CI</b>：
-              <button data-nl="生成 CI">生成 CI</button>
-              <button data-nl="校验 CI">校验 CI</button>
-              <button data-nl="安装 钩子">安装 钩子</button>
+            <div style="margin-top:6px;"><b>CI</b>\uff1a
+              <button data-nl="\u751f\u6210 CI">\u751f\u6210 CI</button>
+              <button data-nl="\u6821\u9a8c CI">\u6821\u9a8c CI</button>
+              <button data-nl="\u5b89\u88c5 \u94a9\u5b50">\u5b89\u88c5 \u94a9\u5b50</button>
             </div>
           </fieldset>
         </div>
         <div>
-          <h4 style="margin:8px 0 4px;">最近指令</h4>
+          <h4 style="margin:8px 0 4px;">\u6700\u8fd1\u6307\u4ee4</h4>
           <ul id="nlHistory" style="padding-left:18px;"></ul>
         </div>
         <div style="margin:8px 0;">
           <fieldset style="border:1px solid #ddd; padding:6px;">
-            <legend>工作流常用操作</legend>
-            <button id="btnLoad" title="从 .mcp/rules_compiled.* 读取并展示编译后的规则（只读）">载入编译规则 / Load Rules</button>
-            <button id="btnIngest" title="将 README、docs 等文档转换为规则（写入 .mcp/rules_*）">摄取规则 / Ingest</button>
-            <button id="btnValidate" title="重新编译并校验规则，输出冲突与建议（只读展示）">校验规则 / Validate</button>
-            <button id="btnHooks" title="安装 pre-commit/commit-msg/pre-push 钩子（便于在提交前自动检查）">安装钩子 / Install Hooks</button>
-            <button id="btnLoadSugg" title="读取并展示规则建议（冲突与优化提示）">载入建议 / Load Suggestions</button>
-            <button id="btnCoverage" title="读取 coverage.xml 并生成薄弱/分组/近阈值摘要（只读）">加载覆盖率 / Load Coverage</button>
-            <button id="btnShowWeak" title="只显示低于阈值的薄弱文件（更易聚焦问题）">仅看弱项 / Show Weak</button>
-            <button id="btnCovTree" title="按目录展示薄弱文件（层级浏览，便于定位）">加载目录树 / Load Weak Tree</button>
-            <button id="btnCovNear" title="显示距离阈值很近（默认≤3%）但尚未跌破的文件（快速补齐）">仅看近阈值 / Show Near</button>
-            <button id="btnCovExport" title="导出 CSV/JSON 报表到 .mcp/dashboard（供审阅与归档）">导出覆盖率报表 / Export Coverage</button>
-            <button id="btnPrepareEnvDry" title="预览将要创建的虚拟环境与安装的工具链（不做任何改动）">准备环境(预览) / Prepare Env (dry-run)</button>
-            <button id="btnPrepareEnvInstall" title="创建 .mcp/venv 并安装 ruff/black/mypy/pytest 等基础工具">准备并安装环境 / Prepare & Install</button>
+            <legend>\u5de5\u4f5c\u6d41\u5e38\u7528\u64cd\u4f5c</legend>
+            <button id="btnLoad" title="\u4ece .mcp/rules_compiled.* \u8bfb\u53d6\u5e76\u5c55\u793a\u7f16\u8bd1\u540e\u7684\u89c4\u5219\uff08\u53ea\u8bfb\uff09">\u8f7d\u5165\u7f16\u8bd1\u89c4\u5219 / Load Rules</button>
+            <button id="btnIngest" title="\u5c06 README\u3001docs \u7b49\u6587\u6863\u8f6c\u6362\u4e3a\u89c4\u5219\uff08\u5199\u5165 .mcp/rules_*\uff09">\u6444\u53d6\u89c4\u5219 / Ingest</button>
+            <button id="btnValidate" title="\u91cd\u65b0\u7f16\u8bd1\u5e76\u6821\u9a8c\u89c4\u5219\uff0c\u8f93\u51fa\u51b2\u7a81\u4e0e\u5efa\u8bae\uff08\u53ea\u8bfb\u5c55\u793a\uff09">\u6821\u9a8c\u89c4\u5219 / Validate</button>
+            <button id="btnHooks" title="\u5b89\u88c5 pre-commit/commit-msg/pre-push \u94a9\u5b50\uff08\u4fbf\u4e8e\u5728\u63d0\u4ea4\u524d\u81ea\u52a8\u68c0\u67e5\uff09">\u5b89\u88c5\u94a9\u5b50 / Install Hooks</button>
+            <button id="btnLoadSugg" title="\u8bfb\u53d6\u5e76\u5c55\u793a\u89c4\u5219\u5efa\u8bae\uff08\u51b2\u7a81\u4e0e\u4f18\u5316\u63d0\u793a\uff09">\u8f7d\u5165\u5efa\u8bae / Load Suggestions</button>
+            <button id="btnCoverage" title="\u8bfb\u53d6 coverage.xml \u5e76\u751f\u6210\u8584\u5f31/\u5206\u7ec4/\u8fd1\u9608\u503c\u6458\u8981\uff08\u53ea\u8bfb\uff09">\u52a0\u8f7d\u8986\u76d6\u7387 / Load Coverage</button>
+            <button id="btnShowWeak" title="\u53ea\u663e\u793a\u4f4e\u4e8e\u9608\u503c\u7684\u8584\u5f31\u6587\u4ef6\uff08\u66f4\u6613\u805a\u7126\u95ee\u9898\uff09">\u4ec5\u770b\u5f31\u9879 / Show Weak</button>
+            <button id="btnCovTree" title="\u6309\u76ee\u5f55\u5c55\u793a\u8584\u5f31\u6587\u4ef6\uff08\u5c42\u7ea7\u6d4f\u89c8\uff0c\u4fbf\u4e8e\u5b9a\u4f4d\uff09">\u52a0\u8f7d\u76ee\u5f55\u6811 / Load Weak Tree</button>
+            <button id="btnCovNear" title="\u663e\u793a\u8ddd\u79bb\u9608\u503c\u5f88\u8fd1\uff08\u9ed8\u8ba4\u22643%\uff09\u4f46\u5c1a\u672a\u8dcc\u7834\u7684\u6587\u4ef6\uff08\u5feb\u901f\u8865\u9f50\uff09">\u4ec5\u770b\u8fd1\u9608\u503c / Show Near</button>
+            <button id="btnCovExport" title="\u5bfc\u51fa CSV/JSON \u62a5\u8868\u5230 .mcp/dashboard\uff08\u4f9b\u5ba1\u9605\u4e0e\u5f52\u6863\uff09">\u5bfc\u51fa\u8986\u76d6\u7387\u62a5\u8868 / Export Coverage</button>
+            <button id="btnPrepareEnvDry" title="\u9884\u89c8\u5c06\u8981\u521b\u5efa\u7684\u865a\u62df\u73af\u5883\u4e0e\u5b89\u88c5\u7684\u5de5\u5177\u94fe\uff08\u4e0d\u505a\u4efb\u4f55\u6539\u52a8\uff09">\u51c6\u5907\u73af\u5883(\u9884\u89c8) / Prepare Env (dry-run)</button>
+            <button id="btnPrepareEnvInstall" title="\u521b\u5efa .mcp/venv \u5e76\u5b89\u88c5 ruff/black/mypy/pytest \u7b49\u57fa\u7840\u5de5\u5177">\u51c6\u5907\u5e76\u5b89\u88c5\u73af\u5883 / Prepare & Install</button>
           </fieldset>
         </div>
         <div class="adv" style="margin:8px 0;">
-          <button id="btnOpenUserGuide" title="打开上手文档（只读），包含常见流程与截图示例">打开用户上手 / Open User Guide</button>
-          <button id="btnOpenIdeSupport" title="打开 IDE 集成说明（只读），包含 VS Code/Cursor/JetBrains 的最小配置">打开 IDE 支持 / Open IDE Support</button>
+          <button id="btnOpenUserGuide" title="\u6253\u5f00\u4e0a\u624b\u6587\u6863\uff08\u53ea\u8bfb\uff09\uff0c\u5305\u542b\u5e38\u89c1\u6d41\u7a0b\u4e0e\u622a\u56fe\u793a\u4f8b">\u6253\u5f00\u7528\u6237\u4e0a\u624b / Open User Guide</button>
+          <button id="btnOpenIdeSupport" title="\u6253\u5f00 IDE \u96c6\u6210\u8bf4\u660e\uff08\u53ea\u8bfb\uff09\uff0c\u5305\u542b VS Code/Cursor/JetBrains \u7684\u6700\u5c0f\u914d\u7f6e">\u6253\u5f00 IDE \u652f\u6301 / Open IDE Support</button>
         </div>
         <div class="adv">
-          <h3 id="hdrTools">可用工具（示例）</h3>
+          <h3 id="hdrTools">\u53ef\u7528\u5de5\u5177\uff08\u793a\u4f8b\uff09</h3>
           <ul>${toolsListHtml}</ul>
         </div>
         <div class="adv">
-          <h3 id="hdrCompiled">项目规则（编译版）</h3>
-          <pre id="rules" style="white-space:pre-wrap; background:#1112; padding:8px;">${md || '暂无内容 / No content'}</pre>
+          <h3 id="hdrCompiled">\u9879\u76ee\u89c4\u5219\uff08\u7f16\u8bd1\u7248\uff09</h3>
+          <pre id="rules" style="white-space:pre-wrap; background:#1112; padding:8px;">${md || '\u6682\u65e0\u5185\u5bb9 / No content'}</pre>
         </div>
         <div class="adv">
-          <h3 id="hdrConflictsNav">冲突定位（可点击跳转）</h3>
+          <h3 id="hdrConflictsNav">\u51b2\u7a81\u5b9a\u4f4d\uff08\u53ef\u70b9\u51fb\u8df3\u8f6c\uff09</h3>
           <ul id="conflicts"></ul>
         </div>
         <div class="adv">
-          <h3 id="hdrConflictsSugg">冲突与建议（Conflicts & Suggestions）</h3>
-          <pre id="sugg" style="white-space:pre-wrap; background:#1111; padding:8px;">${sugg || '暂无建议 / No suggestions'}</pre>
+          <h3 id="hdrConflictsSugg">\u51b2\u7a81\u4e0e\u5efa\u8bae\uff08Conflicts & Suggestions\uff09</h3>
+          <pre id="sugg" style="white-space:pre-wrap; background:#1111; padding:8px;">${sugg || '\u6682\u65e0\u5efa\u8bae / No suggestions'}</pre>
         </div>
         <div class="adv">
-          <h3 id="hdrOnboard">规则引导（Onboard）</h3>
+          <h3 id="hdrOnboard">\u89c4\u5219\u5f15\u5bfc\uff08Onboard\uff09</h3>
           <div style="margin:6px 0;">
-            <button id="btnOnboardPreview" title="预览推荐的规则与阈值（只读展示，不做修改）">预览推荐 / Preview</button>
-            <button id="btnOnboardApply" title="一键采纳推荐（仅写入 .mcp/assistant.yaml 或相关配置，不改源码）">一键采纳 / Apply</button>
+            <button id="btnOnboardPreview" title="\u9884\u89c8\u63a8\u8350\u7684\u89c4\u5219\u4e0e\u9608\u503c\uff08\u53ea\u8bfb\u5c55\u793a\uff0c\u4e0d\u505a\u4fee\u6539\uff09">\u9884\u89c8\u63a8\u8350 / Preview</button>
+            <button id="btnOnboardApply" title="\u4e00\u952e\u91c7\u7eb3\u63a8\u8350\uff08\u4ec5\u5199\u5165 .mcp/assistant.yaml \u6216\u76f8\u5173\u914d\u7f6e\uff0c\u4e0d\u6539\u6e90\u7801\uff09">\u4e00\u952e\u91c7\u7eb3 / Apply</button>
           </div>
-          <pre id="onboardSummary" style="white-space:pre-wrap; background:#f7f7f7; padding:8px; font-size:12px; color:#333;">（点击“预览推荐”查看将启用的规则摘要）</pre>
+          <pre id="onboardSummary" style="white-space:pre-wrap; background:#f7f7f7; padding:8px; font-size:12px; color:#333;">\uff08\u70b9\u51fb\u201c\u9884\u89c8\u63a8\u8350\u201d\u67e5\u770b\u5c06\u542f\u7528\u7684\u89c4\u5219\u6458\u8981\uff09</pre>
         </div>
         <div class="adv">
-          <h3 id="hdrChat">Chat（可选）</h3>
+          <h3 id="hdrChat">Chat\uff08\u53ef\u9009\uff09</h3>
           <div style="margin:6px 0;">
-            <button id="btnChatEnable" title="启用“对话摘要追加”功能（默认仍不写记忆，除非显式允许）">启用追加摘要 / Enable</button>
-            <button id="btnChatDisable" title="禁用“对话摘要追加”功能">禁用 / Disable</button>
-            <button id="btnChatPreview" title="预览将要追加的摘要内容（只读）">预览摘要 / Preview</button>
+            <button id="btnChatEnable" title="\u542f\u7528\u201c\u5bf9\u8bdd\u6458\u8981\u8ffd\u52a0\u201d\u529f\u80fd\uff08\u9ed8\u8ba4\u4ecd\u4e0d\u5199\u8bb0\u5fc6\uff0c\u9664\u975e\u663e\u5f0f\u5141\u8bb8\uff09">\u542f\u7528\u8ffd\u52a0\u6458\u8981 / Enable</button>
+            <button id="btnChatDisable" title="\u7981\u7528\u201c\u5bf9\u8bdd\u6458\u8981\u8ffd\u52a0\u201d\u529f\u80fd">\u7981\u7528 / Disable</button>
+            <button id="btnChatPreview" title="\u9884\u89c8\u5c06\u8981\u8ffd\u52a0\u7684\u6458\u8981\u5185\u5bb9\uff08\u53ea\u8bfb\uff09">\u9884\u89c8\u6458\u8981 / Preview</button>
           </div>
-          <pre id="chatPreview" style="white-space:pre-wrap; background:#f7f7f7; padding:8px; font-size:12px; color:#666;">（默认关闭；启用后，每轮对话可追加“上一轮问答摘要”至记忆。无遥测，不出网。）</pre>
+          <pre id="chatPreview" style="white-space:pre-wrap; background:#f7f7f7; padding:8px; font-size:12px; color:#666;">\uff08\u9ed8\u8ba4\u5173\u95ed\uff1b\u542f\u7528\u540e\uff0c\u6bcf\u8f6e\u5bf9\u8bdd\u53ef\u8ffd\u52a0\u201c\u4e0a\u4e00\u8f6e\u95ee\u7b54\u6458\u8981\u201d\u81f3\u8bb0\u5fc6\u3002\u65e0\u9065\u6d4b\uff0c\u4e0d\u51fa\u7f51\u3002\uff09</pre>
         </div>
         <div class="adv">
-          <h3 id="hdrCovGroups">覆盖率分组</h3>
+          <h3 id="hdrCovGroups">\u8986\u76d6\u7387\u5206\u7ec4</h3>
           <ul id="covGroups"></ul>
         </div>
         <div class="adv">
-          <h3 id="hdrWeakTop">覆盖率薄弱（Top 20）</h3>
-          <input id="covFilter" placeholder="过滤文件名关键词..." title="在薄弱列表中过滤包含该关键词的文件名" />
-          <button id="btnCovFilter" title="应用上方的文件名关键词过滤（仅 UI）">过滤</button>
-          <button id="btnOpenWeakCsv" title="查看薄弱文件 TopN 的 CSV">打开 weak_top.csv</button>
-          <button id="btnOpenNearCsv" title="查看近阈值文件 TopN 的 CSV">打开 near_top.csv</button>
-          <button id="btnOpenGroupsCsv" title="查看覆盖率分组聚合的 CSV">打开 groups.csv</button>
-          <button id="btnOpenGroupsMd" title="为 JetBrains UI 预览的分组摘要">打开 jb_groups.md</button>
+          <h3 id="hdrWeakTop">\u8986\u76d6\u7387\u8584\u5f31\uff08Top 20\uff09</h3>
+          <input id="covFilter" placeholder="\u8fc7\u6ee4\u6587\u4ef6\u540d\u5173\u952e\u8bcd..." title="\u5728\u8584\u5f31\u5217\u8868\u4e2d\u8fc7\u6ee4\u5305\u542b\u8be5\u5173\u952e\u8bcd\u7684\u6587\u4ef6\u540d" />
+          <button id="btnCovFilter" title="\u5e94\u7528\u4e0a\u65b9\u7684\u6587\u4ef6\u540d\u5173\u952e\u8bcd\u8fc7\u6ee4\uff08\u4ec5 UI\uff09">\u8fc7\u6ee4</button>
+          <button id="btnOpenWeakCsv" title="\u67e5\u770b\u8584\u5f31\u6587\u4ef6 TopN \u7684 CSV">\u6253\u5f00 weak_top.csv</button>
+          <button id="btnOpenNearCsv" title="\u67e5\u770b\u8fd1\u9608\u503c\u6587\u4ef6 TopN \u7684 CSV">\u6253\u5f00 near_top.csv</button>
+          <button id="btnOpenGroupsCsv" title="\u67e5\u770b\u8986\u76d6\u7387\u5206\u7ec4\u805a\u5408\u7684 CSV">\u6253\u5f00 groups.csv</button>
+          <button id="btnOpenGroupsMd" title="\u4e3a JetBrains UI \u9884\u89c8\u7684\u5206\u7ec4\u6458\u8981">\u6253\u5f00 jb_groups.md</button>
           <ul id="covWeak"></ul>
-          <h4 id="hdrCsvPreview">CSV 预览</h4>
+          <h4 id="hdrCsvPreview">CSV \u9884\u89c8</h4>
           <pre id="csvPreview" style="white-space:pre-wrap; background:#f7f7f7; padding:4px; font-size:11px;"></pre>
           <div>
-            <label id="lblCsvSwitch">切换预览：</label>
-            <select id="csvSelect" title="选择要预览的 CSV 报表">
+            <label id="lblCsvSwitch">\u5207\u6362\u9884\u89c8\uff1a</label>
+            <select id="csvSelect" title="\u9009\u62e9\u8981\u9884\u89c8\u7684 CSV \u62a5\u8868">
               <option value="weak_top.csv">weak_top.csv</option>
               <option value="near_top.csv">near_top.csv</option>
               <option value="groups.csv">groups.csv</option>
             </select>
-            <button id="btnCsvReload" title="重新渲染上面选择的 CSV 报表头部">重新加载预览</button>
+            <button id="btnCsvReload" title="\u91cd\u65b0\u6e32\u67d3\u4e0a\u9762\u9009\u62e9\u7684 CSV \u62a5\u8868\u5934\u90e8">\u91cd\u65b0\u52a0\u8f7d\u9884\u89c8</button>
         </div>
         </div>
         <div class="adv">
-          <h3 id="hdrCovTree">覆盖率目录树（弱项）</h3>
+          <h3 id="hdrCovTree">\u8986\u76d6\u7387\u76ee\u5f55\u6811\uff08\u5f31\u9879\uff09</h3>
           <ul id="covTree"></ul>
         </div>
         <div class="adv">
-          <h3 id="hdrRecent">最近记忆与计划</h3>
-          <pre id="memory" style="white-space:pre-wrap; background:#1102; padding:8px;">（点击“加载记忆 / 加载计划 / 事件历史”获取）</pre>
+          <h3 id="hdrRecent">\u6700\u8fd1\u8bb0\u5fc6\u4e0e\u8ba1\u5212</h3>
+          <pre id="memory" style="white-space:pre-wrap; background:#1102; padding:8px;">\uff08\u70b9\u51fb\u201c\u52a0\u8f7d\u8bb0\u5fc6 / \u52a0\u8f7d\u8ba1\u5212 / \u4e8b\u4ef6\u5386\u53f2\u201d\u83b7\u53d6\uff09</pre>
           <pre id="plan" style="white-space:pre-wrap; background:#1101; padding:8px;"></pre>
-          <h4 id="hdrEvents">事件历史（最近）</h4>
+          <h4 id="hdrEvents">\u4e8b\u4ef6\u5386\u53f2\uff08\u6700\u8fd1\uff09</h4>
           <pre id="events" style="white-space:pre-wrap; background:#0211; padding:8px;"></pre>
-          <h4 id="hdrAudit">安全审计（最近）</h4>
+          <h4 id="hdrAudit">\u5b89\u5168\u5ba1\u8ba1\uff08\u6700\u8fd1\uff09</h4>
           <pre id="audit" style="white-space:pre-wrap; background:#0211; padding:8px;"></pre>
-          <h4 id="hdrStatus">状态摘要（最近）</h4>
+          <h4 id="hdrStatus">\u72b6\u6001\u6458\u8981\uff08\u6700\u8fd1\uff09</h4>
           <pre id="infolist" style="white-space:pre-wrap; background:#1021; padding:8px;"></pre>
         </div>
         <div class="adv">
-          <h3 id="hdrTasksPending">剩余任务（来自 .mcp/plan.md）</h3>
+          <h3 id="hdrTasksPending">\u5269\u4f59\u4efb\u52a1\uff08\u6765\u81ea .mcp/plan.md\uff09</h3>
           <ul id="tasksPending"></ul>
-          <h3 id="hdrTasksDone">已完成</h3>
+          <h3 id="hdrTasksDone">\u5df2\u5b8c\u6210</h3>
           <ul id="tasksDone"></ul>
         </div>
         <div class="adv">
-          <h3 id="hdrCI">CI 配置（hadolint / semgrep / mutation）</h3>
-          <label><input type="checkbox" id="ciHadolint"> 启用 hadolint</label><br/>
-          镜像: <input id="ciHadolintImage" style="width:260px" placeholder="hadolint/hadolint:latest"/>
-          参数: <input id="ciHadolintArgs" style="width:260px" placeholder="--ignore DL3008"/><br/>
-          semgrep 规则: <input id="ciSemgrepConfig" style="width:180px" placeholder="auto / p/ci"/>
+          <h3 id="hdrCI">CI \u914d\u7f6e\uff08hadolint / semgrep / mutation\uff09</h3>
+          <label><input type="checkbox" id="ciHadolint"> \u542f\u7528 hadolint</label><br/>
+          \u955c\u50cf: <input id="ciHadolintImage" style="width:260px" placeholder="hadolint/hadolint:latest"/>
+          \u53c2\u6570: <input id="ciHadolintArgs" style="width:260px" placeholder="--ignore DL3008"/><br/>
+          semgrep \u89c4\u5219: <input id="ciSemgrepConfig" style="width:180px" placeholder="auto / p/ci"/>
           <div style="margin-top:4px;">
-            <label><input type="checkbox" id="ciMutGateStrict"> 严格模式变异门禁（strict 或显式开启）</label>
+            <label><input type="checkbox" id="ciMutGateStrict"> \u4e25\u683c\u6a21\u5f0f\u53d8\u5f02\u95e8\u7981\uff08strict \u6216\u663e\u5f0f\u5f00\u542f\uff09</label>
           </div>
           <div style="margin-top:4px;">
-            <label><input type="checkbox" id="execChecksDelegate"> checks 委托至统一 runner（process.run_cmd）</label>
+            <label><input type="checkbox" id="execChecksDelegate"> checks \u59d4\u6258\u81f3\u7edf\u4e00 runner\uff08process.run_cmd\uff09</label>
           </div>
-          <button id="btnCiSave" title="保存 CI 配置到项目（写入 .github/workflows 或配置文件）">保存 CI 配置</button>
-          <button id="btnCiGen" title="生成 CI 工作流文件（写入 .github/workflows）">生成 CI</button>
-          <button id="btnCiPreview" title="在面板内预览 CI 内容（只读）">预览 CI</button>
-          <button id="btnCiOpen" title="打开 CI 工作流文件（只读）">打开 CI 文件</button>
-          <button id="btnInsertRules" title="插入 .semgrep.yml / .hadolint.yaml 示例规则（便于快速启用基础检查）">插入示例规则</button>
+          <button id="btnCiSave" title="\u4fdd\u5b58 CI \u914d\u7f6e\u5230\u9879\u76ee\uff08\u5199\u5165 .github/workflows \u6216\u914d\u7f6e\u6587\u4ef6\uff09">\u4fdd\u5b58 CI \u914d\u7f6e</button>
+          <button id="btnCiGen" title="\u751f\u6210 CI \u5de5\u4f5c\u6d41\u6587\u4ef6\uff08\u5199\u5165 .github/workflows\uff09">\u751f\u6210 CI</button>
+          <button id="btnCiPreview" title="\u5728\u9762\u677f\u5185\u9884\u89c8 CI \u5185\u5bb9\uff08\u53ea\u8bfb\uff09">\u9884\u89c8 CI</button>
+          <button id="btnCiOpen" title="\u6253\u5f00 CI \u5de5\u4f5c\u6d41\u6587\u4ef6\uff08\u53ea\u8bfb\uff09">\u6253\u5f00 CI \u6587\u4ef6</button>
+          <button id="btnInsertRules" title="\u63d2\u5165 .semgrep.yml / .hadolint.yaml \u793a\u4f8b\u89c4\u5219\uff08\u4fbf\u4e8e\u5feb\u901f\u542f\u7528\u57fa\u7840\u68c0\u67e5\uff09">\u63d2\u5165\u793a\u4f8b\u89c4\u5219</button>
           <span id="ciStatus" style="margin-left:8px;color:#888;"></span>
           <div style="margin-top:6px;">
-            <h4>CI 预览（内联）</h4>
-            <pre id="ciPreviewBox" style="white-space:pre-wrap; background:#1111; padding:6px; max-height:200px; overflow:auto;"></pre>
-            <h4>CI 校验结果</h4>
+            <h4>CI \u9884\u89c8\uff08\u5185\u8054\uff09</h4>
+            <pre id="ciPreviewBox" style="white-space:pre-wrap; background:#f1f1f1; padding:6px; max-height:200px; overflow:auto;"></pre>
+            <h4>CI \u6821\u9a8c\u7ed3\u679c</h4>
             <ul id="ciChecks"></ul>
           </div>
         </div>
-        <script nonce="${nonceVal}">
+        <script nonce="${nonceVal}" defer>
           const vscode = acquireVsCodeApi();
           // Collect front-end errors for diagnostics
           try {
@@ -1048,61 +1113,61 @@ export function activate(context: vscode.ExtensionContext) {
           (function(){
             try {
               const state = (vscode.getState && vscode.getState()) || {};
-              let mode = (state && state.uiMode) || (typeof localStorage!=='undefined' ? localStorage.getItem('ruleflow.uiMode') : '') || 'simple';
-              const apply = (m: string) => {
+              let mode = (state && state.uiMode) || (typeof localStorage !== 'undefined' ? localStorage.getItem('ruleflow.uiMode') : '') || 'simple';
+              const apply = (m) => {
                 try { document.body.classList.remove('simple','advanced'); document.body.classList.add(m); } catch {}
                 try { vscode.setState && vscode.setState({ ...(state||{}), uiMode: m }); } catch {}
                 try { localStorage && localStorage.setItem('ruleflow.uiMode', m); } catch {}
               };
-              const applyLang = (lang: string) => {
+              const applyLang = (lang) => {
                 const zh = lang === 'zh';
-                const set = (id:string, text?:string, title?:string) => { try { const el = document.getElementById(id); if (el && text!==undefined) el.textContent = text; if (el && title!==undefined) el.title = title; } catch {} };
-                set('hdrTitle', zh? 'MCP 规则与上下文助手' : 'MCP Rules & Context Assistant');
-                set('pConnected', zh? '已连接到 Python MCP Server（最小协议）。默认快速内环：保存轻、推送重。' : 'Connected to Python MCP Server (minimal protocol). Fast inner loop: light save, gated push.');
-                set('lblDisplayMode', zh? '显示模式：' : 'Display mode:');
-                set('lblCurProject', zh? '当前项目:' : 'Project:');
-                set('hintQuick', zh? '三步上手：' : 'Quick start:');
-                set('btnModeSimple', zh? '新手模式' : 'Simple', zh? '仅展示常用操作；不会自动修改文件或配置' : 'Show common actions only; no writes');
-                set('btnModeAdvanced', zh? '高级模式' : 'Advanced', zh? '展示全部功能；每项操作都需要你确认后才执行' : 'Show all features; confirm before actions');
-                set('btnLang', zh? '中文/English' : 'English/中文', zh? '切换中/英文界面标签' : 'Toggle Chinese/English labels');
-                set('btnSimpleInstall', zh? '1) 准备并安装环境' : '1) Prepare & Install Env', zh? '为当前项目创建 .mcp/venv 并安装基础工具链（ruff/black/mypy/pytest）' : 'Create .mcp/venv and install basics');
-                set('btnSimpleCoverage', zh? '2) 加载覆盖率' : '2) Load Coverage', zh? '读取 coverage.xml 汇总弱项/分组/近阈值并输出到 .mcp/dashboard' : 'Read coverage.xml and summarize');
-                set('btnSimplePlan', zh? '3) 打开计划' : '3) Open Plan', zh? '打开 .mcp/plan.md（项目任务与进度的唯一权威来源）' : 'Open .mcp/plan.md');
-                set('btnSimpleIngest', zh? '摄取规则（README.md, docs/）' : 'Ingest Rules (README.md, docs/)', zh? '将 README/docs 转换为规则（写入 .mcp/rules_*），不改现有源码' : 'Convert README/docs to rules into .mcp');
-                set('btnSimpleStatus', zh? '刷新状态' : 'Refresh Status', zh? '刷新状态并写入 .mcp/dashboard/status.json（只读源码）' : 'Refresh status and write dashboard');
-                set('nlSend', zh? '执行' : 'Run', zh? '执行输入框中的自然语言指令，仅作用于当前项目' : 'Run natural-language command');
-                set('nlExamples', zh? '范例' : 'Examples');
-                set('nlClear', zh? '清空历史' : 'Clear');
-                set('btnIdeScaffold', zh? '生成 IDE 集成配置' : 'Generate IDE Scaffold');
-                set('btnCompliance', zh? '生成合规承诺' : 'Gen Compliance');
-                set('btnOpenCompliance', zh? '打开合规承诺' : 'Open Compliance');
-                set('btnOpenIdeDir', zh? '打开 IDE 目录' : 'Open IDE Dir');
-                set('btnReloadPanel', zh? '重载面板' : 'Reload Panel', zh? '重载面板（重新渲染并握手）' : 'Reload panel (re-render & handshake)');
-                set('btnEvents', zh? '事件历史' : 'Events', zh? '显示近期事件（只读 .mcp/dashboard/cmd_events.jsonl）' : 'Show recent events');
-                set('btnAudit', zh? '安全审计' : 'Security Audit', zh? '显示安全审计（只读 .mcp/dashboard/security_audit.jsonl）' : 'Show security audit');
-                set('btnInfo', zh? '状态摘要 Info' : 'Status Info');
-                set('btnDiag', zh? '诊断' : 'Diagnostics', zh? '收集前端错误、环境与审计信息到 .mcp/dashboard/panel_diag.json' : 'Collect front-end errors and audit report');
+                const set = (id, text, title) => { try { const el = document.getElementById(id); if (el && text!==undefined) el.textContent = text; if (el && title!==undefined) el.title = title; } catch {} };
+                set('hdrTitle', zh ? 'MCP \u89c4\u5219\u4e0e\u4e0a\u4e0b\u6587\u52a9\u624b' : 'MCP Rules & Context Assistant');
+                set('pConnected', zh ? '\u5df2\u8fde\u63a5\u5230 Python MCP Server\uff08\u6700\u5c0f\u534f\u8bae\uff09\u3002\u9ed8\u8ba4\u5feb\u901f\u5185\u73af\uff1a\u4fdd\u5b58\u8f7b\u3001\u63a8\u9001\u91cd\u3002' : 'Connected to Python MCP Server (minimal protocol). Fast inner loop: light save, gated push.');
+                set('lblDisplayMode', zh ? '\u663e\u793a\u6a21\u5f0f\uff1a' : 'Display mode:');
+                set('lblCurProject', zh ? '\u5f53\u524d\u9879\u76ee:' : 'Project:');
+                set('hintQuick', zh ? '\u4e09\u6b65\u4e0a\u624b\uff1a' : 'Quick start:');
+                set('btnModeSimple', zh ? '\u65b0\u624b\u6a21\u5f0f' : 'Simple', zh ? '\u4ec5\u5c55\u793a\u5e38\u7528\u64cd\u4f5c\uff1b\u4e0d\u4f1a\u81ea\u52a8\u4fee\u6539\u6587\u4ef6\u6216\u914d\u7f6e' : 'Show common actions only; no writes');
+                set('btnModeAdvanced', zh ? '\u9ad8\u7ea7\u6a21\u5f0f' : 'Advanced', zh ? '\u5c55\u793a\u5168\u90e8\u529f\u80fd\uff1b\u6bcf\u9879\u64cd\u4f5c\u90fd\u9700\u8981\u4f60\u786e\u8ba4\u540e\u624d\u6267\u884c' : 'Show all features; confirm before actions');
+                set('btnLang', zh ? '\u4e2d\u6587/English' : 'English/\u4e2d\u6587', zh ? '\u5207\u6362\u4e2d/\u82f1\u6587\u754c\u9762\u6807\u7b7e' : 'Toggle Chinese/English labels');
+                set('btnSimpleInstall', zh ? '1) \u51c6\u5907\u5e76\u5b89\u88c5\u73af\u5883' : '1) Prepare & Install Env', zh ? '\u4e3a\u5f53\u524d\u9879\u76ee\u521b\u5efa .mcp/venv \u5e76\u5b89\u88c5\u57fa\u7840\u5de5\u5177\u94fe\uff08ruff/black/mypy/pytest\uff09' : 'Create .mcp/venv and install basics');
+                set('btnSimpleCoverage', zh ? '2) \u52a0\u8f7d\u8986\u76d6\u7387' : '2) Load Coverage', zh ? '\u8bfb\u53d6 coverage.xml \u6c47\u603b\u5f31\u9879/\u5206\u7ec4/\u8fd1\u9608\u503c\u5e76\u8f93\u51fa\u5230 .mcp/dashboard' : 'Read coverage.xml and summarize');
+                set('btnSimplePlan', zh ? '3) \u6253\u5f00\u8ba1\u5212' : '3) Open Plan', zh ? '\u6253\u5f00 .mcp/plan.md\uff08\u9879\u76ee\u4efb\u52a1\u4e0e\u8fdb\u5ea6\u7684\u552f\u4e00\u6743\u5a01\u6765\u6e90\uff09' : 'Open .mcp/plan.md');
+                set('btnSimpleIngest', zh ? '\u6444\u53d6\u89c4\u5219\uff08README.md, docs/\uff09' : 'Ingest Rules (README.md, docs/)', zh ? '\u5c06 README/docs \u8f6c\u6362\u4e3a\u89c4\u5219\uff08\u5199\u5165 .mcp/rules_*\uff09\uff0c\u4e0d\u6539\u73b0\u6709\u6e90\u7801' : 'Convert README/docs to rules into .mcp');
+                set('btnSimpleStatus', zh ? '\u5237\u65b0\u72b6\u6001' : 'Refresh Status', zh ? '\u5237\u65b0\u72b6\u6001\u5e76\u5199\u5165 .mcp/dashboard/status.json\uff08\u53ea\u8bfb\u6e90\u7801\uff09' : 'Refresh status and write dashboard');
+                set('nlSend', zh ? '\u6267\u884c' : 'Run', zh ? '\u6267\u884c\u8f93\u5165\u6846\u4e2d\u7684\u81ea\u7136\u8bed\u8a00\u6307\u4ee4\uff0c\u4ec5\u4f5c\u7528\u4e8e\u5f53\u524d\u9879\u76ee' : 'Run natural-language command');
+                set('nlExamples', zh ? '\u8303\u4f8b' : 'Examples');
+                set('nlClear', zh ? '\u6e05\u7a7a\u5386\u53f2' : 'Clear');
+                set('btnIdeScaffold', zh ? '\u751f\u6210 IDE \u96c6\u6210\u914d\u7f6e' : 'Generate IDE Scaffold');
+                set('btnCompliance', zh ? '\u751f\u6210\u5408\u89c4\u627f\u8bfa' : 'Gen Compliance');
+                set('btnOpenCompliance', zh ? '\u6253\u5f00\u5408\u89c4\u627f\u8bfa' : 'Open Compliance');
+                set('btnOpenIdeDir', zh ? '\u6253\u5f00 IDE \u76ee\u5f55' : 'Open IDE Dir');
+                set('btnReloadPanel', zh ? '\u91cd\u8f7d\u9762\u677f' : 'Reload Panel', zh ? '\u91cd\u8f7d\u9762\u677f\uff08\u91cd\u65b0\u6e32\u67d3\u5e76\u63e1\u624b\uff09' : 'Reload panel (re-render & handshake)');
+                set('btnEvents', zh ? '\u4e8b\u4ef6\u5386\u53f2' : 'Events', zh ? '\u663e\u793a\u8fd1\u671f\u4e8b\u4ef6\uff08\u53ea\u8bfb .mcp/dashboard/cmd_events.jsonl\uff09' : 'Show recent events');
+                set('btnAudit', zh ? '\u5b89\u5168\u5ba1\u8ba1' : 'Security Audit', zh ? '\u663e\u793a\u5b89\u5168\u5ba1\u8ba1\uff08\u53ea\u8bfb .mcp/dashboard/security_audit.jsonl\uff09' : 'Show security audit');
+                set('btnInfo', zh ? '\u72b6\u6001\u6458\u8981 Info' : 'Status Info');
+                set('btnDiag', zh ? '\u8bca\u65ad' : 'Diagnostics', zh ? '\u6536\u96c6\u524d\u7aef\u9519\u8bef\u3001\u73af\u5883\u4e0e\u5ba1\u8ba1\u4fe1\u606f\u5230 .mcp/dashboard/panel_diag.json' : 'Collect front-end errors and audit report');
                 // Section headings
-                set('hdrTools', zh? '可用工具（示例）' : 'Available Tools (samples)');
-                set('hdrCompiled', zh? '项目规则（编译版）' : 'Compiled Project Rules');
-                set('hdrConflictsNav', zh? '冲突定位（可点击跳转）' : 'Conflicts (click to open)');
-                set('hdrConflictsSugg', zh? '冲突与建议（Conflicts & Suggestions）' : 'Conflicts & Suggestions');
-                set('hdrOnboard', zh? '规则引导（Onboard）' : 'Rules Onboarding');
-                set('hdrChat', zh? 'Chat（可选）' : 'Chat (optional)');
-                set('hdrCovGroups', zh? '覆盖率分组' : 'Coverage Groups');
-                set('hdrWeakTop', zh? '覆盖率薄弱（Top 20）' : 'Weak Coverage (Top 20)');
-                set('hdrCsvPreview', zh? 'CSV 预览' : 'CSV Preview');
-                set('lblCsvSwitch', zh? '切换预览：' : 'Switch preview:');
-                set('hdrCovTree', zh? '覆盖率目录树（弱项）' : 'Coverage Tree (weak)');
-                set('hdrRecent', zh? '最近记忆与计划' : 'Recent Memory & Plan');
-                set('hdrEvents', zh? '事件历史（最近）' : 'Recent Events');
-                set('hdrAudit', zh? '安全审计（最近）' : 'Security Audit (recent)');
-                set('hdrStatus', zh? '状态摘要（最近）' : 'Status Summary (recent)');
-                set('hdrTasksPending', zh? '剩余任务（来自 .mcp/plan.md）' : 'Pending Tasks (from .mcp/plan.md)');
-                set('hdrTasksDone', zh? '已完成' : 'Done');
-                set('hdrCI', zh? 'CI 配置（hadolint / semgrep / mutation）' : 'CI Config (hadolint / semgrep / mutation)');
+                set('hdrTools', zh ? '\u53ef\u7528\u5de5\u5177\uff08\u793a\u4f8b\uff09' : 'Available Tools (samples)');
+                set('hdrCompiled', zh ? '\u9879\u76ee\u89c4\u5219\uff08\u7f16\u8bd1\u7248\uff09' : 'Compiled Project Rules');
+                set('hdrConflictsNav', zh ? '\u51b2\u7a81\u5b9a\u4f4d\uff08\u53ef\u70b9\u51fb\u8df3\u8f6c\uff09' : 'Conflicts (click to open)');
+                set('hdrConflictsSugg', zh ? '\u51b2\u7a81\u4e0e\u5efa\u8bae\uff08Conflicts & Suggestions\uff09' : 'Conflicts & Suggestions');
+                set('hdrOnboard', zh ? '\u89c4\u5219\u5f15\u5bfc\uff08Onboard\uff09' : 'Rules Onboarding');
+                set('hdrChat', zh ? 'Chat\uff08\u53ef\u9009\uff09' : 'Chat (optional)');
+                set('hdrCovGroups', zh ? '\u8986\u76d6\u7387\u5206\u7ec4' : 'Coverage Groups');
+                set('hdrWeakTop', zh ? '\u8986\u76d6\u7387\u8584\u5f31\uff08Top 20\uff09' : 'Weak Coverage (Top 20)');
+                set('hdrCsvPreview', zh ? 'CSV \u9884\u89c8' : 'CSV Preview');
+                set('lblCsvSwitch', zh ? '\u5207\u6362\u9884\u89c8\uff1a' : 'Switch preview:');
+                set('hdrCovTree', zh ? '\u8986\u76d6\u7387\u76ee\u5f55\u6811\uff08\u5f31\u9879\uff09' : 'Coverage Tree (weak)');
+                set('hdrRecent', zh ? '\u6700\u8fd1\u8bb0\u5fc6\u4e0e\u8ba1\u5212' : 'Recent Memory & Plan');
+                set('hdrEvents', zh ? '\u4e8b\u4ef6\u5386\u53f2\uff08\u6700\u8fd1\uff09' : 'Recent Events');
+                set('hdrAudit', zh ? '\u5b89\u5168\u5ba1\u8ba1\uff08\u6700\u8fd1\uff09' : 'Security Audit (recent)');
+                set('hdrStatus', zh ? '\u72b6\u6001\u6458\u8981\uff08\u6700\u8fd1\uff09' : 'Status Summary (recent)');
+                set('hdrTasksPending', zh ? '\u5269\u4f59\u4efb\u52a1\uff08\u6765\u81ea .mcp/plan.md\uff09' : 'Pending Tasks (from .mcp/plan.md)');
+                set('hdrTasksDone', zh ? '\u5df2\u5b8c\u6210' : 'Done');
+                set('hdrCI', zh ? 'CI \u914d\u7f6e\uff08hadolint / semgrep / mutation\uff09' : 'CI Config (hadolint / semgrep / mutation)');
                 // Placeholders
-                try { const ip = document.getElementById('nlInput'); if (ip) ip.placeholder = zh? '自然语言指令：如 摄取规则 README.md, docs/ / 加载覆盖率 / 开启滚动记忆' : 'NL command: e.g. Ingest README.md, docs/ / Load Coverage / Enable memory'; } catch {}
+                try { const ip = document.getElementById('nlInput'); if (ip) ip.placeholder = zh ? '\u81ea\u7136\u8bed\u8a00\u6307\u4ee4\uff1a\u5982 \u6444\u53d6\u89c4\u5219 README.md, docs/ / \u52a0\u8f7d\u8986\u76d6\u7387 / \u5f00\u542f\u6eda\u52a8\u8bb0\u5fc6' : 'NL command: e.g. Ingest README.md, docs/ / Load Coverage / Enable memory'; } catch {}
                 try { window.applyLang = applyLang; } catch {}
               };
               apply(mode);
@@ -1114,11 +1179,11 @@ export function activate(context: vscode.ExtensionContext) {
               if (btnL) btnL.onclick = () => {
                 try {
                   const st = (vscode.getState && vscode.getState()) || {};
-                  const cur = (st && st.lang) || (typeof localStorage!=='undefined' ? localStorage.getItem('ruleflow.lang') : '') || 'zh';
+                  const cur = (st && st.lang) || (typeof localStorage !== 'undefined' ? localStorage.getItem('ruleflow.lang') : '') || 'zh';
                   const next = (String(cur) === 'zh') ? 'en' : 'zh';
                   if (vscode.setState) vscode.setState({ ...(st||{}), lang: next });
                   try { localStorage && localStorage.setItem('ruleflow.lang', next); } catch {}
-                  vscode.postMessage({ t: 'info', text: (next==='zh' ? '已切换到中文' : 'Switched to English') });
+                  vscode.postMessage({ t: 'info', text: (next==='zh' ? '\u5df2\u5207\u6362\u5230\u4e2d\u6587' : 'Switched to English') });
                   applyLang(next);
                   // persist to workspace (shared across windows)
                   try { vscode.postMessage({ t: 'lang.set', value: next }); } catch {}
@@ -1126,7 +1191,7 @@ export function activate(context: vscode.ExtensionContext) {
               };
               try {
                 const st = (vscode.getState && vscode.getState()) || {};
-                const savedLang = (st && st.lang) || (typeof localStorage!=='undefined' ? localStorage.getItem('ruleflow.lang') : '') || 'zh';
+                const savedLang = (st && st.lang) || (typeof localStorage !== 'undefined' ? localStorage.getItem('ruleflow.lang') : '') || 'zh';
                 applyLang(String(savedLang));
                 // ask extension to override from workspace if present
                 try { vscode.postMessage({ t: 'lang.get' }); } catch {}
@@ -1142,7 +1207,7 @@ export function activate(context: vscode.ExtensionContext) {
           try { const el = document.getElementById('btnSimpleStatus'); if (el) el.onclick = ()=> vscode.postMessage({ t: 'statusUpdate' }); } catch {}
           // Event delegation fallback: ensure clicks still work even if nodes are re-rendered
           try {
-            const clickMap: any = {
+            const clickMap = {
               'btnLicVerify': { t: 'licenseVerify' },
               'btnLicActivate': { t: 'licenseActivate' },
               'btnSimpleInstall': { t: 'prepareEnvInstall' },
@@ -1154,7 +1219,7 @@ export function activate(context: vscode.ExtensionContext) {
               'btnAudit': { t: 'auditLoad' },
               'btnInfo': { t: 'statusInfo' },
             };
-            document.addEventListener('click', (ev:any) => {
+            document.addEventListener('click', (ev) => {
               try {
                 const el = ev.target;
                 if (!el || !el.id) return;
@@ -1170,8 +1235,8 @@ export function activate(context: vscode.ExtensionContext) {
           try { const el = document.getElementById('btnSelectProject'); if (el) el.onclick = () => vscode.postMessage({ t: 'selectProject' }); } catch {}
           try { const el = document.getElementById('btnIngest'); if (el) el.onclick = () => vscode.postMessage({ t: 'ingestRules' }); } catch {}
           try { const el = document.getElementById('btnValidate'); if (el) el.onclick = () => vscode.postMessage({ t: 'validateRules' }); } catch {}
-          // 预览并回写门禁（rules.resolve）
-          const btnResolve = document.createElement('button'); btnResolve.id = 'btnRulesResolve'; btnResolve.textContent = '预览并应用门禁';
+          // \u9884\u89c8\u5e76\u56de\u5199\u95e8\u7981\uff08rules.resolve\uff09
+          const btnResolve = document.createElement('button'); btnResolve.id = 'btnRulesResolve'; btnResolve.textContent = '\u9884\u89c8\u5e76\u5e94\u7528\u95e8\u7981';
           const anchor = document.getElementById('btnValidate');
           if (anchor && anchor.parentElement) { anchor.parentElement.insertBefore(btnResolve, anchor.nextSibling); }
           btnResolve.onclick = () => vscode.postMessage({ t: 'rulesResolvePreview' });
@@ -1190,7 +1255,7 @@ export function activate(context: vscode.ExtensionContext) {
               const text = (el && el.textContent) ? String(el.textContent) : '';
               if (text && navigator.clipboard) {
                 await navigator.clipboard.writeText(text);
-                vscode.postMessage({ t: 'info', text: '已复制 CSV 预览到剪贴板' });
+                vscode.postMessage({ t: 'info', text: '\u5df2\u590d\u5236 CSV \u9884\u89c8\u5230\u526a\u8d34\u677f' });
               }
             } catch {}
           };
@@ -1201,16 +1266,20 @@ export function activate(context: vscode.ExtensionContext) {
               vscode.postMessage({ t: 'csvPreviewPick', which });
             } catch {}
           };
-          const btnMd = document.createElement('button'); btnMd.id = 'btnCopyCsvAsMd'; btnMd.textContent = '复制为 Markdown 表格';
+          const btnMd = document.createElement('button'); btnMd.id = 'btnCopyCsvAsMd'; btnMd.textContent = '\u590d\u5236\u4e3a Markdown \u8868\u683c';
           const weakBox = document.getElementById('covWeak');
           if (weakBox) { weakBox.parentElement?.insertBefore(btnMd, weakBox.nextSibling); }
           btnMd.onclick = async () => {
             try {
               const el = document.getElementById('csvPreview');
               const text = (el && el.textContent) ? String(el.textContent) : '';
-              const lines = text.split(/\r?\n/).filter(Boolean);
+              const lines = text.split('\\n').filter(Boolean);
               if (lines.length >= 2) {
-                const head = lines[0].replace(/^\[[^\]]*\]\s*/, '');
+                var head = lines[0] || '';
+                if (head.startsWith('[')) {
+                  var idx = head.indexOf(']');
+                  if (idx > 0) head = head.substring(idx + 1).trim();
+                }
                 const data = lines.slice(1);
                 const cols = (head.split(',').map(s=>s.trim()));
                 const tbl = [
@@ -1220,7 +1289,7 @@ export function activate(context: vscode.ExtensionContext) {
                 ].join('\n');
                 if (navigator.clipboard) {
                   await navigator.clipboard.writeText(tbl);
-                  vscode.postMessage({ t: 'info', text: '已复制 Markdown 表格到剪贴板' });
+                  vscode.postMessage({ t: 'info', text: '\u5df2\u590d\u5236 Markdown \u8868\u683c\u5230\u526a\u8d34\u677f' });
                 }
               }
             } catch {}
@@ -1232,7 +1301,7 @@ export function activate(context: vscode.ExtensionContext) {
           (document.getElementById('btnEvents')).onclick = () => vscode.postMessage({ t: 'eventsLoad' });
           document.getElementById('btnAudit').onclick = () => vscode.postMessage({ t: 'auditLoad' });
           const btnReload = document.getElementById('btnReloadPanel'); if (btnReload) btnReload.onclick = () => vscode.postMessage({ t: 'panel.reload' });
-          const btnDiag = document.createElement('button'); btnDiag.id='btnDiag'; btnDiag.textContent='诊断'; btnDiag.title='收集前端错误、环境与审计信息到 .mcp/dashboard/panel_diag.json';
+          const btnDiag = document.createElement('button'); btnDiag.id='btnDiag'; btnDiag.textContent='\u8bca\u65ad'; btnDiag.title='\u6536\u96c6\u524d\u7aef\u9519\u8bef\u3001\u73af\u5883\u4e0e\u5ba1\u8ba1\u4fe1\u606f\u5230 .mcp/dashboard/panel_diag.json';
           const advBar = document.querySelector('div.adv'); if (advBar) advBar.insertBefore(btnDiag, advBar.firstChild);
           btnDiag.onclick = () => { try { const errs = window.__panelErrors || []; vscode.postMessage({ t: 'panelDiagRequest', errors: errs }); } catch {} };
           const btnUG = document.getElementById('btnOpenUserGuide');
@@ -1248,10 +1317,10 @@ export function activate(context: vscode.ExtensionContext) {
           (document.getElementById('btnEvents')).onclick = () => vscode.postMessage({ t: 'eventsLoad' });
           document.getElementById('btnInfo').onclick = () => vscode.postMessage({ t: 'statusInfo' });
           document.getElementById('btnCopyEvents').onclick = async () => {
-            try { const el = document.getElementById('events'); const t = (el && el.textContent) || ''; if (navigator.clipboard) { await navigator.clipboard.writeText(String(t)); vscode.postMessage({ t: 'info', text: '已复制事件历史' }); } } catch {}
+            try { const el = document.getElementById('events'); const t = (el && el.textContent) || ''; if (navigator.clipboard) { await navigator.clipboard.writeText(String(t)); vscode.postMessage({ t: 'info', text: '\u5df2\u590d\u5236\u4e8b\u4ef6\u5386\u53f2' }); } } catch {}
           };
           (document.getElementById('btnCopyInfo')).onclick = async () => {
-            try { const el = document.getElementById('infolist'); const t = (el && el.textContent) || ''; if (navigator.clipboard) { await navigator.clipboard.writeText(String(t)); vscode.postMessage({ t: 'info', text: '已复制状态摘要' }); } } catch {}
+            try { const el = document.getElementById('infolist'); const t = (el && el.textContent) || ''; if (navigator.clipboard) { await navigator.clipboard.writeText(String(t)); vscode.postMessage({ t: 'info', text: '\u5df2\u590d\u5236\u72b6\u6001\u6458\u8981' }); } } catch {}
           };
           (document.getElementById('btnOpenStatusFile')).onclick = () => vscode.postMessage({ t: 'open', path: '.mcp/dashboard/status.json', line: 1 });
           (document.getElementById('btnOpenEventsFile')).onclick = () => vscode.postMessage({ t: 'open', path: '.mcp/dashboard/cmd_events.jsonl', line: 1 });
@@ -1261,7 +1330,7 @@ export function activate(context: vscode.ExtensionContext) {
             const all = window.__weakAll || [];
             const ulw = document.getElementById('covWeak');
             if (!ulw) return;
-            ulw.innerHTML = '';
+            while (ulw.firstChild) { ulw.removeChild(ulw.firstChild); }
             (all || []).forEach((w) => {
               const li = document.createElement('li');
               const a = document.createElement('a'); a.href = '#';
@@ -1269,11 +1338,11 @@ export function activate(context: vscode.ExtensionContext) {
               a.addEventListener('click', (ev)=>{ ev.preventDefault(); vscode.postMessage({ t: 'open', path: w.file, line: 1 }); });
               li.appendChild(a); ulw.appendChild(li);
             });
-            const inf = document.getElementById('info'); if (inf) inf.textContent = '当前视图：弱项';
+            const inf = document.getElementById('info'); if (inf) inf.textContent = '\u5f53\u524d\u89c6\u56fe\uff1a\u5f31\u9879';
           };
           (document.getElementById('btnCovNear')).onclick = async () => {
             const last = window.__nearPct || 3;
-            // 通过扩展侧获取输入与数据
+            // \u901a\u8fc7\u6269\u5c55\u4fa7\u83b7\u53d6\u8f93\u5165\u4e0e\u6570\u636e
             vscode.postMessage({ t: 'covNearPrompt', last });
           };
           (document.getElementById('btnCovNearInline')).onclick = () => {
@@ -1286,25 +1355,25 @@ export function activate(context: vscode.ExtensionContext) {
             vscode.postMessage({ t: 'covNearPrompt', last: v });
           };
           const memBtn = document.createElement('button');
-          memBtn.id = 'btnMemory'; memBtn.textContent = '加载记忆 / Load Memory';
+          memBtn.id = 'btnMemory'; memBtn.textContent = '\u52a0\u8f7d\u8bb0\u5fc6 / Load Memory';
           const planBtn = document.createElement('button');
-          planBtn.id = 'btnPlan'; planBtn.textContent = '加载计划 / Load Plan';
+          planBtn.id = 'btnPlan'; planBtn.textContent = '\u52a0\u8f7d\u8ba1\u5212 / Load Plan';
           const bar = document.querySelector('div[style*="margin:8px 0;"]');
           if (bar) { 
             bar.appendChild(memBtn); 
             bar.appendChild(planBtn);
-            const btnOpenPlan = document.createElement('button'); btnOpenPlan.textContent = '在编辑器打开计划';
-            const btnOpenMemory = document.createElement('button'); btnOpenMemory.textContent = '在编辑器打开记忆';
+            const btnOpenPlan = document.createElement('button'); btnOpenPlan.textContent = '\u5728\u7f16\u8f91\u5668\u6253\u5f00\u8ba1\u5212';
+            const btnOpenMemory = document.createElement('button'); btnOpenMemory.textContent = '\u5728\u7f16\u8f91\u5668\u6253\u5f00\u8bb0\u5fc6';
             btnOpenPlan.onclick = () => vscode.postMessage({ t: 'open', path: '.mcp/plan.md', line: 1 });
             btnOpenMemory.onclick = () => vscode.postMessage({ t: 'open', path: '.mcp/memory.json', line: 1 });
             bar.appendChild(btnOpenPlan); bar.appendChild(btnOpenMemory);
           }
           memBtn.onclick = () => vscode.postMessage({ t: 'memory' });
           planBtn.onclick = () => vscode.postMessage({ t: 'plan' });
-          // 读取 CI 配置
+          // \u8bfb\u53d6 CI \u914d\u7f6e
           vscode.postMessage({ t: 'ciFetch' });
           vscode.postMessage({ t: 'ciCheck' });
-          // 绑定 CI 操作按钮
+          // \u7ed1\u5b9a CI \u64cd\u4f5c\u6309\u94ae
           (document.getElementById('btnCiSave')).onclick = () => {
             const had = document.getElementById('ciHadolint').checked;
             const img = document.getElementById('ciHadolintImage').value;
@@ -1343,7 +1412,7 @@ export function activate(context: vscode.ExtensionContext) {
           if (btnClr) btnClr.onclick = () => { vscode.postMessage({ t: 'nlClearHistory' }); };
           vscode.postMessage({ t: 'nlFetchHistory' });
 
-          // 初始化 nearPct 值
+          // \u521d\u59cb\u5316 nearPct \u503c
           try {
             const st = vscode.getState && vscode.getState();
             const saved = (st && st.nearPct) || Number(localStorage.getItem('ruleflow.nearPct')||'0') || 0;
@@ -1364,10 +1433,10 @@ export function activate(context: vscode.ExtensionContext) {
               const topWeak = (weakAll || []).slice(0, 3).map((w)=> (w.coverage*100).toFixed(1) + '% ' + w.file);
               const topNear = (nearAll || []).slice(0, 3).map((n)=> (n.coverage*100).toFixed(1) + '% ' + n.file);
               const parts = [
-                '弱项 ' + String(weakAll.length),
-                '近阈值 ' + String(nearAll.length),
-                topWeak.length ? ('Top弱项: ' + topWeak.join(' | ')) : '',
-                topNear.length ? ('Top近阈值: ' + topNear.join(' | ')) : ''
+                '\u5f31\u9879 ' + String(weakAll.length),
+                '\u8fd1\u9608\u503c ' + String(nearAll.length),
+                topWeak.length ? ('Top\u5f31\u9879: ' + topWeak.join(' | ')) : '',
+                topNear.length ? ('Top\u8fd1\u9608\u503c: ' + topNear.join(' | ')) : ''
               ].filter(Boolean);
               t.textContent = parts.join('  ·  ');
             };
@@ -1377,124 +1446,54 @@ export function activate(context: vscode.ExtensionContext) {
               try {
                 const lang = String(window.__ruleflowLang || 'zh');
                 if (lang === 'en') {
-                  const map: any = {
-                    '未找到覆盖率资源': 'No coverage resources found',
-                    '覆盖率摘要不可用': 'Coverage summary unavailable',
-                    '状态已刷新': 'Status refreshed',
-                    '未找到事件历史': 'No event history found',
-                    '未找到编译规则': 'Compiled rules not found',
-                    '检测到': 'Detected',
-                    '处规则冲突': 'rule conflicts',
-                    '建议数': 'suggestions',
-                    'Onboard 预览完成': 'Onboard preview completed',
-                    '目录树不可用': 'Coverage tree unavailable',
-                    '已写入诊断': 'Diagnostics written',
-                    '已切换到中文': 'Switched to Chinese',
-                    '近阈值文件': 'Near-threshold files',
-                    '弱项': 'Weak items'
+                  const map = {
+                    '\u672a\u627e\u5230\u8986\u76d6\u7387\u8d44\u6e90': 'No coverage resources found',
+                    '\u8986\u76d6\u7387\u6458\u8981\u4e0d\u53ef\u7528': 'Coverage summary unavailable',
+                    '\u72b6\u6001\u5df2\u5237\u65b0': 'Status refreshed',
+                    '\u672a\u627e\u5230\u4e8b\u4ef6\u5386\u53f2': 'No event history found',
+                    '\u672a\u627e\u5230\u7f16\u8bd1\u89c4\u5219': 'Compiled rules not found',
+                    '\u68c0\u6d4b\u5230': 'Detected',
+                    '\u5904\u89c4\u5219\u51b2\u7a81': 'rule conflicts',
+                    '\u5efa\u8bae\u6570': 'suggestions',
+                    'Onboard \u9884\u89c8\u5b8c\u6210': 'Onboard preview completed',
+                    '\u76ee\u5f55\u6811\u4e0d\u53ef\u7528': 'Coverage tree unavailable',
+                    '\u5df2\u5199\u5165\u8bca\u65ad': 'Diagnostics written',
+                    '\u5df2\u5207\u6362\u5230\u4e2d\u6587': 'Switched to Chinese',
+                    '\u8fd1\u9608\u503c\u6587\u4ef6': 'Near-threshold files',
+                    '\u5f31\u9879': 'Weak items'
                   };
-                  Object.keys(map).forEach(k => { text = text.replace(new RegExp(k, 'g'), map[k]); });
+                  Object.keys(map).forEach(function(k){
+                    try {
+                      text = text.split(k).join(map[k]);
+                    } catch (e) {}
+                  });
                 }
               } catch {}
               if (inf) inf.textContent = text;
             }
-            if (msg.t === 'onboardShow') {
-              const el = document.getElementById('onboardSummary');
-              if (el) { el.textContent = String(msg.text || ''); }
-            }
-            if (msg.t === 'chatShow') {
-              const el = document.getElementById('chatPreview');
-              if (el) { el.textContent = String(msg.text || ''); }
-            }
-            if (msg.t === 'csvPreview') {
-              const el = document.getElementById('csvPreview');
-              if (el) {
-                const which = msg.which || 'weak_top.csv';
-                const arr: string[] = (msg.head || []);
-                const mapHeader = (h: string) => {
-                  const m = h.trim().toLowerCase();
-                  if (which === 'weak_top.csv' || which === 'near_top.csv') {
-                    return '文件,覆盖率%,阈值%,差值%';
-                  }
-                  if (which === 'groups.csv') {
-                    return '前缀,覆盖率%,阈值%,弱项,文件数';
-                  }
-                  return h;
-                };
-                if (arr.length) arr[0] = mapHeader(String(arr[0] || ''));
-                const lines = arr.join('\n');
-                el.textContent = '[' + which + ']\n' + lines;
-              }
-            }
-            if (msg.t === 'events') {
-              const el = document.getElementById('events');
-              if (el) el.textContent = String(msg.text || '');
-            }
-            if (msg.t === 'audit') {
-              const el = document.getElementById('audit');
-              if (el) el.textContent = String(msg.text || '');
-            }
-            if (msg.t === 'project') {
-              const el = document.getElementById('curProject');
-              if (el) el.textContent = String(msg.name || '(未知)');
-            }
-            if (msg.t === 'covNearDisplay') {
-              let items = msg.items || [];
-              const pct = msg.pct || 3;
-              const top = msg.top || items.length;
-              try { items = (items || []).slice().sort((a,b)=> (a.delta_up||0)-(b.delta_up||0)).slice(0, top); } catch {}
-              window.__nearPct = pct;
-              try { vscode.setState && vscode.setState({ nearPct: pct }); } catch {}
-              window.__near = items;
-              setTicker();
-              const ulw = document.getElementById('covWeak');
-              if (ulw) {
-                ulw.innerHTML = '';
-                (items || []).forEach((w) => {
-                  const li = document.createElement('li');
-                  const a = document.createElement('a');
-                  a.href = '#';
-                  a.textContent = (w.coverage*100).toFixed(1) + '% ≥ ' + Math.round((w.threshold||0)*100) + '% — ' + w.file + ' （距阈值 +' + ((w.delta_up||0)*100).toFixed(1) + '%）';
-                  a.addEventListener('click', (ev)=>{ ev.preventDefault(); vscode.postMessage({ t: 'open', path: w.file, line: 1 }); });
-                  li.appendChild(a);
-                  ulw.appendChild(li);
-                });
-              }
-              const inf = document.getElementById('info'); if (inf) inf.textContent = '当前视图：近阈值（≤' + pct + '%，Top ' + top + '） — ' + ((items||[]).length || 0) + ' 个';
-            }
-            if (msg.t === 'suggestIngest') {
-              const bar = document.querySelector('div[style*="margin:8px 0;"]');
-              if (bar && !document.getElementById('btnQuickIngest')) {
-                const qi = document.createElement('button');
-                qi.id = 'btnQuickIngest';
-                qi.textContent = '快速摄取 / Quick Ingest';
-                (qi).onclick = () => vscode.postMessage({ t: 'ingestRules' });
-                bar.appendChild(qi);
-              }
-            }
             if (msg.t === 'rules') {
-              document.getElementById('rules').textContent = msg.md || '暂无内容';
+              document.getElementById('rules').textContent = msg.md || '\u6682\u65e0\u5185\u5bb9';
             }
             if (msg.t === 'tasks') {
-              const pend = Array.isArray(msg.pending) ? msg.pending : [];
-              const done = Array.isArray(msg.done) ? msg.done : [];
+              const pend = msg.pending || [];
+              const done = msg.done || [];
               const up = document.getElementById('tasksPending');
               const ud = document.getElementById('tasksDone');
-              if (up) { up.innerHTML = ''; pend.forEach((t:string)=>{ const li=document.createElement('li'); li.textContent=t; up.appendChild(li); }); }
-              if (ud) { ud.innerHTML = ''; done.forEach((t:string)=>{ const li=document.createElement('li'); li.textContent=t; ud.appendChild(li); }); }
+              if (up) { while (up.firstChild) { up.removeChild(up.firstChild); } pend.forEach((t)=>{ const li=document.createElement('li'); li.textContent=t; up.appendChild(li); }); }
+              if (ud) { while (ud.firstChild) { ud.removeChild(ud.firstChild); } done.forEach((t)=>{ const li=document.createElement('li'); li.textContent=t; ud.appendChild(li); }); }
               const inf = document.getElementById('info');
-              if (inf) inf.textContent = '任务：剩余 ' + String(pend.length) + '，完成 ' + String(done.length);
+              if (inf) inf.textContent = '\u4efb\u52a1\uff1a\u5269\u4f59 ' + String(pend.length) + '\uff0c\u5b8c\u6210 ' + String(done.length);
             }
             if (msg.t === 'sugg') {
-              document.getElementById('sugg').textContent = msg.md || '暂无建议';
+              document.getElementById('sugg').textContent = msg.md || '\u6682\u65e0\u5efa\u8bae';
             }
             if (msg.t === 'covWeakAll') {
               window.__weakAll = msg.items || [];
-              // 自动构建目录树（弱项文件）
+              // \u81ea\u52a8\u6784\u5efa\u76ee\u5f55\u6811\uff08\u5f31\u9879\u6587\u4ef6\uff09
               const tree = document.getElementById('covTree');
               if (tree) {
                 const all = window.__weakAll || [];
-                // 构建 prefix -> children 的浅树（前 3 层）
+                // \u6784\u5efa prefix -> children \u7684\u6d45\u6811\uff08\u524d 3 \u5c42\uff09
                 const root = {};
                 (all || []).forEach((w) => {
                   const parts = String(w.file||'').split('/').slice(0, 3);
@@ -1508,7 +1507,7 @@ export function activate(context: vscode.ExtensionContext) {
                   node.files = node.files || [];
                   node.files.push(w);
                 });
-                const renderNode = (node:any, name:string, depth:number): HTMLElement => {
+                const renderNode = (node, name, depth) => {
                   const li = document.createElement('li');
                   const title = document.createElement('span');
                   title.textContent = name;
@@ -1518,7 +1517,7 @@ export function activate(context: vscode.ExtensionContext) {
                   if (weakFiles.length) {
                     title.style.color = '#d33';
                     const ulFiles = document.createElement('ul');
-                    weakFiles.forEach((w:any) => {
+                    weakFiles.forEach((w) => {
                       const lif = document.createElement('li');
                       const a = document.createElement('a'); a.href = '#'; a.style.color = '#d33';
                       a.textContent = (w.coverage*100).toFixed(1) + '% — ' + w.file;
@@ -1527,39 +1526,39 @@ export function activate(context: vscode.ExtensionContext) {
                     });
                     li.appendChild(ulFiles);
                     title.onclick = () => {
-                      const vis = (ulFiles as any)._collapsed;
+                      const vis = ulFiles._collapsed;
                       ulFiles._collapsed = false;
                       ulFiles.style.display = vis ? '' : 'none';
                     };
                   }
                   if (node.children) {
                     const ul = document.createElement('ul');
-                    (ul as any)._collapsed = false;
+                    ul._collapsed = false;
                     Object.keys(node.children).sort().forEach((k)=>{
                       ul.appendChild(renderNode(node.children[k], k, depth+1));
                     });
                     li.appendChild(ul);
                     title.onclick = () => {
-                      const vis = (ul as any)._collapsed;
-                      (ul as any)._collapsed = !vis;
+                      const vis = ul._collapsed;
+                      ul._collapsed = !vis;
                       ul.style.display = vis ? '' : 'none';
                     };
                   }
                   return li;
                 };
-                tree.innerHTML = '';
+                while (tree.firstChild) { tree.removeChild(tree.firstChild); }
                 const ulRoot = document.createElement('ul');
                 Object.keys(root.children||{}).sort().forEach((k)=>{
                   ulRoot.appendChild(renderNode(root.children[k], k, 0));
                 });
                 tree.appendChild(ulRoot);
               }
-              // 更新信息条（弱项/近阈值数量）
-              const w = ((msg.items||[]) as any[]).length;
-              const n = ((window as any).__near || []).length || 0;
+              // \u66f4\u65b0\u4fe1\u606f\u6761\uff08\u5f31\u9879/\u8fd1\u9608\u503c\u6570\u91cf\uff09
+              const w = (msg.items || []).length;
+              const n = (window.__near || []).length || 0;
               const inf = document.getElementById('info');
               if (inf) {
-                const s = '弱项 ' + w + ' 个' + (n ? ('；近阈值 ' + n + ' 个') : '');
+                const s = '\u5f31\u9879 ' + w + ' \u4e2a' + (n ? ('\uff1b\u8fd1\u9608\u503c ' + n + ' \u4e2a') : '');
                 inf.textContent = s;
               }
             }
@@ -1579,12 +1578,12 @@ export function activate(context: vscode.ExtensionContext) {
                 const strict = String(perf.mode || '').toLowerCase() === 'strict' || !!ci.mutation_gate_strict;
                 // Update status bar hint
                 globalThis.__ruleflowStrict = strict;
-                sb.text = strict ? 'RuleFlow [Strict]' : 'RuleFlow';
+                /* status bar is updated by extension host */
               } catch {}
             }
             if (msg.t === 'ciStatus') {
               const el = document.getElementById('ciStatus');
-              if (el) el.textContent = msg.exist ? 'CI: 已生成' : 'CI: 未生成';
+              if (el) el.textContent = msg.exist ? 'CI: \u5df2\u751f\u6210' : 'CI: \u672a\u751f\u6210';
               if (el) el.style.color = msg.exist ? '#2a2' : '#d33';
               try { vscode.postMessage({ t: 'ready2', topic: 'ciStatusReady' }); } catch {}
             }
@@ -1596,9 +1595,9 @@ export function activate(context: vscode.ExtensionContext) {
             if (msg.t === 'ciChecks') {
               const ul = document.getElementById('ciChecks');
               if (ul) {
-                ul.innerHTML = '';
+                while (ul.firstChild) { ul.removeChild(ul.firstChild); }
                 const checks = msg.checks || {};
-                const labels: any = { exists: '文件存在', has_precommit: 'Pre-commit 扫描', has_hadolint: 'Hadolint 检查', has_semgrep: 'Semgrep 扫描', has_tests: 'Pytest + 覆盖率', has_bandit: 'Bandit 扫描' };
+                const labels = { exists: '\u6587\u4ef6\u5b58\u5728', has_precommit: 'Pre-commit \u626b\u63cf', has_hadolint: 'Hadolint \u68c0\u67e5', has_semgrep: 'Semgrep \u626b\u63cf', has_tests: 'Pytest + \u8986\u76d6\u7387', has_bandit: 'Bandit \u626b\u63cf' };
                 Object.keys(labels).forEach((k) => {
                   const li = document.createElement('li');
                   li.textContent = labels[k] + '：' + (checks[k] ? '✔' : '✘');
@@ -1610,21 +1609,21 @@ export function activate(context: vscode.ExtensionContext) {
             if (msg.t === 'covGroups') {
               const ul = document.getElementById('covGroups');
               if (ul) {
-                ul.innerHTML = '';
+                while (ul.firstChild) { ul.removeChild(ul.firstChild); }
                 (msg.items || []).forEach((g) => {
                   const li = document.createElement('li');
                   const a = document.createElement('a');
                   a.href = '#';
-                  a.textContent = String(g.prefix) + ': ' + (g.coverage*100).toFixed(1) + '% < ' + Math.round((g.threshold||0)*100) + '% — 弱项 ' + g.weak_count + '/' + g.files_count;
+                  a.textContent = String(g.prefix) + ': ' + (g.coverage*100).toFixed(1) + '% < ' + Math.round((g.threshold||0)*100) + '% \u2014 \u5f31\u9879 ' + g.weak_count + '/' + g.files_count;
                   a.style.color = (g.coverage < g.threshold) ? '#d33' : '#2a2';
                   a.addEventListener('click', (ev) => {
                     ev.preventDefault();
-                    const all = (window as any).__weakAll || [];
-                    const filtered = g.prefix === 'other' ? all : all.filter((w:any)=> (w.file||'').startsWith(g.prefix));
+                    const all = window.__weakAll || [];
+                    const filtered = g.prefix === 'other' ? all : all.filter((w)=> (w.file||'').startsWith(g.prefix));
                     const ulw = document.getElementById('covWeak');
                     if (ulw) {
-                      ulw.innerHTML = '';
-                      (filtered || []).forEach((w:any) => {
+                      while (ulw.firstChild) { ulw.removeChild(ulw.firstChild); }
+                      (filtered || []).forEach((w) => {
                         const li2 = document.createElement('li');
                         const a2 = document.createElement('a');
                         a2.href = '#';
@@ -1646,24 +1645,24 @@ export function activate(context: vscode.ExtensionContext) {
               if (bar && !document.getElementById('btnQuickIngest')) {
                 const qi = document.createElement('button');
                 qi.id = 'btnQuickIngest';
-                qi.textContent = '快速摄取 / Quick Ingest';
+                qi.textContent = '\u5feb\u901f\u6444\u53d6 / Quick Ingest';
                 (qi).onclick = () => vscode.postMessage({ t: 'ingestRules' });
                 bar.appendChild(qi);
               }
             }
             if (msg.t === 'covNear') {
-              (window as any).__near = msg.items || [];
-              const n = ((msg.items||[]) as any[]).length;
-              const w = ((window as any).__weakAll || []).length || 0;
-              const s = (w ? ('弱项 ' + w + ' 个；') : '') + '近阈值 ' + n + ' 个（≤3%）';
+              window.__near = msg.items || [];
+              const n = (msg.items || []).length;
+              const w = (window.__weakAll || []).length || 0;
+              const s = (w ? ('\u5f31\u9879 ' + w + ' \u4e2a\uff1b') : '') + '\u8fd1\u9608\u503c ' + n + ' \u4e2a\uff08\u22643%\uff09';
               const inf = document.getElementById('info'); if (inf) inf.textContent = s;
               setTicker();
             }
             if (msg.t === 'covTreeData') {
               const container = document.getElementById('covTree');
               if (container) {
-                container.innerHTML = '';
-                const renderNode = (node: any): HTMLLIElement => {
+                while (container.firstChild) { container.removeChild(container.firstChild); }
+                const renderNode = (node) => {
                   const li = document.createElement('li');
                   const title = document.createElement('span');
                   title.textContent = String(node.name || '');
@@ -1672,11 +1671,11 @@ export function activate(context: vscode.ExtensionContext) {
                   const files = node.files || [];
                   if (files.length) {
                     const uf = document.createElement('ul');
-                    files.forEach((w: any) => {
+                    files.forEach((w) => {
                       const lif = document.createElement('li');
                       const a = document.createElement('a');
                       a.href = '#'; a.style.color = '#d33';
-                      a.textContent = ((w.coverage||0)*100).toFixed(1) + '% — ' + w.file;
+                      a.textContent = ((w.coverage||0)*100).toFixed(1) + '% \u2014 ' + w.file;
                       a.addEventListener('click', (ev) => { ev.preventDefault(); vscode.postMessage({ t: 'open', path: w.file, line: 1 }); });
                       lif.appendChild(a); uf.appendChild(lif);
                     });
@@ -1700,13 +1699,13 @@ export function activate(context: vscode.ExtensionContext) {
             if (msg.t === 'conflicts') {
               const ul = document.getElementById('conflicts');
               if (ul) {
-                ul.innerHTML = '';
+                while (ul.firstChild) { ul.removeChild(ul.firstChild); }
                 (msg.items || []).forEach((c) => {
                   const li = document.createElement('li');
                   const key = c.key;
                   const sources = c.sources || [];
                   li.textContent = key + ': ';
-                  sources.forEach((s: any, i: number) => {
+                  sources.forEach((s, i) => {
                     const a = document.createElement('a');
                     a.href = '#';
                     a.textContent = (s.file || '') + ':' + (s.line || 1);
@@ -1724,12 +1723,12 @@ export function activate(context: vscode.ExtensionContext) {
             if (msg.t === 'covWeak') {
               const ul = document.getElementById('covWeak');
               if (ul) {
-                ul.innerHTML = '';
+                while (ul.firstChild) { ul.removeChild(ul.firstChild); }
                 (msg.items || []).forEach((w) => {
                   const li = document.createElement('li');
                   const a = document.createElement('a');
                   a.href = '#';
-                  a.textContent = (w.coverage*100).toFixed(1) + '% < ' + Math.round((w.threshold||0)*100) + '% — ' + w.file;
+                  a.textContent = (w.coverage*100).toFixed(1) + '% < ' + Math.round((w.threshold||0)*100) + '% \u2014 ' + w.file;
                   a.addEventListener('click', (ev) => {
                     ev.preventDefault();
                     vscode.postMessage({ t: 'open', path: w.file, line: 1 });
@@ -1744,13 +1743,13 @@ export function activate(context: vscode.ExtensionContext) {
                     const kw = (filterInput.value || '').toLowerCase();
                     const all = window.__weakAll || [];
                     const filtered = kw ? all.filter((w)=> String(w.file||'').toLowerCase().includes(kw)) : all;
-                    // 直接重绘列表（不依赖扩展消息）
-                    ul.innerHTML = '';
+                    // \u76f4\u63a5\u91cd\u7ed8\u5217\u8868\uff08\u4e0d\u4f9d\u8d56\u6269\u5c55\u6d88\u606f\uff09
+                    while (ul.firstChild) { ul.removeChild(ul.firstChild); }
                     (filtered || []).forEach((w) => {
                       const li = document.createElement('li');
                       const a = document.createElement('a');
                       a.href = '#';
-                      a.textContent = (w.coverage*100).toFixed(1) + '% < ' + Math.round((w.threshold||0)*100) + '% — ' + w.file;
+                      a.textContent = (w.coverage*100).toFixed(1) + '% < ' + Math.round((w.threshold||0)*100) + '% \u2014 ' + w.file;
                       a.addEventListener('click', (ev) => { ev.preventDefault(); vscode.postMessage({ t: 'open', path: w.file, line: 1 }); });
                       li.appendChild(a);
                       ul.appendChild(li);
@@ -1758,7 +1757,7 @@ export function activate(context: vscode.ExtensionContext) {
                   };
                 }
                 // store for ticker
-                (window as any).__weakAll = msg.items || [];
+                window.__weakAll = msg.items || [];
                 setTicker();
               }
             }
@@ -1785,7 +1784,7 @@ export function activate(context: vscode.ExtensionContext) {
             }
             if (msg.t === 'ciStatus') {
               const el = document.getElementById('ciStatus');
-              if (el) el.textContent = msg.exist ? 'CI: 已生成' : 'CI: 未生成';
+              if (el) el.textContent = msg.exist ? 'CI: \u5df2\u751f\u6210' : 'CI: \u672a\u751f\u6210';
               if (el) el.style.color = msg.exist ? '#2a2' : '#d33';
             }
             if (msg.t === 'license') {
@@ -1795,9 +1794,9 @@ export function activate(context: vscode.ExtensionContext) {
               if (activated && !ok) { label = 'Invalid'; }
               if (activated && ok && !dateok) { label = 'Expired'; }
               if (activated && ok && dateok) { label = 'Valid'; color = '#2a2'; }
-              if (el) { el.textContent = label + (exp ? (' (expires ' + exp + ')') : ''); (el as any).style = 'color:' + color; }
+              if (el) { el.textContent = label + (exp ? (' (expires ' + exp + ')') : ''); try { el.style.color = color; } catch {} }
               const det = document.getElementById('licDetail');
-              if (det) { try { (det as any).textContent = JSON.stringify(L, null, 2); (det as any).style = 'display:block'; } catch { (det as any).textContent=''; (det as any).style='display:none'; } }
+              if (det) { try { det.textContent = JSON.stringify(L, null, 2); det.style.display = 'block'; } catch { try { det.textContent=''; det.style.display='none'; } catch {} } }
             }
             try { vscode.postMessage({ t: 'ready2', topic: String(msg.t||'any') }); } catch {}
         });
@@ -1809,7 +1808,7 @@ export function activate(context: vscode.ExtensionContext) {
       client.start(context);
       await client.request('initialize', {});
       const tools = await client.request('tools/list', {});
-      const list = (tools.tools || []).map((t: any) => `<li><code>${t.name}</code> — ${t.description}</li>`).join('');
+      const list = (tools.tools || []).map((t: any) => `<li><code>${t.name}</code> \u2014 ${t.description}</li>`).join('');
       const csp = panel.webview.cspSource;
       const scriptUri = panel.webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'media', 'panel_bootstrap.js'));
       let html = render(csp, nonce, '', list);
@@ -1834,7 +1833,7 @@ export function activate(context: vscode.ExtensionContext) {
         panel.webview.postMessage({ t: 'project', name: getWorkspaceLabel() });
         const diag = await client.request('tools/call', { name: 'env.diagnose', arguments: {} });
         panel.webview.postMessage({ t: 'license', license: (diag && (diag as any).license) || {} });
-        // 缺少工具或 venv 时，提示一键准备环境
+        // \u7f3a\u5c11\u5de5\u5177\u6216 venv \u65f6\uff0c\u63d0\u793a\u4e00\u952e\u51c6\u5907\u73af\u5883
         const toolsMap = (diag && (diag as any).tools) || {};
         const missing: string[] = [];
         ['pytest', 'pre-commit', 'ruff', 'mypy', 'bandit'].forEach(k => { if (!toolsMap[k]) missing.push(k); });
@@ -1847,20 +1846,20 @@ export function activate(context: vscode.ExtensionContext) {
           }
         } catch { venvMissing = true; }
         if ((venvMissing || missing.length) && (process.env.RULEFLOW_TEST_FAKE || '') !== '1') {
-          panel.webview.postMessage({ t: 'info', text: `检测到开发环境不完整（venv: ${venvMissing ? '缺失' : '存在'}；缺少工具: ${missing.join(', ') || '无'}）。建议点击“准备并安装环境”。` });
-          const pick = await vscode.window.showInformationMessage('检测到缺少开发环境，是否一键创建并安装基础工具？', '立即创建', '稍后');
-          if (pick === '立即创建') {
+          panel.webview.postMessage({ t: 'info', text: `\u68c0\u6d4b\u5230\u5f00\u53d1\u73af\u5883\u4e0d\u5b8c\u6574\uff08venv: ${venvMissing ? '\u7f3a\u5931' : '\u5b58\u5728'}\uff1b\u7f3a\u5c11\u5de5\u5177: ${missing.join(', ') || '\u65e0'}\uff09\u3002\u5efa\u8bae\u70b9\u51fb\u201c\u51c6\u5907\u5e76\u5b89\u88c5\u73af\u5883\u201d\u3002` });
+          const pick = await vscode.window.showInformationMessage('\u68c0\u6d4b\u5230\u7f3a\u5c11\u5f00\u53d1\u73af\u5883\uff0c\u662f\u5426\u4e00\u952e\u521b\u5efa\u5e76\u5b89\u88c5\u57fa\u7840\u5de5\u5177\uff1f', '\u7acb\u5373\u521b\u5efa', '\u7a0d\u540e');
+          if (pick === '\u7acb\u5373\u521b\u5efa') {
             try {
               await client.request('tools/call', { name: 'env.prepare', arguments: { create: true, install: true } });
-              vscode.window.showInformationMessage('已创建并安装基础环境 (.mcp/venv)。');
+              vscode.window.showInformationMessage('\u5df2\u521b\u5efa\u5e76\u5b89\u88c5\u57fa\u7840\u73af\u5883 (.mcp/venv)\u3002');
             } catch (e:any) {
-              vscode.window.showErrorMessage('创建环境失败：' + String(e));
+              vscode.window.showErrorMessage('\u521b\u5efa\u73af\u5883\u5931\u8d25\uff1a' + String(e));
             }
           }
         }
       } catch {}
     } catch (e: any) {
-      panel.webview.html = renderFallback('连接 MCP 失败：' + String(e));
+      panel.webview.html = renderFallback('\u8fde\u63a5 MCP \u5931\u8d25\uff1a' + String(e));
     }
 
     const __panelDispatch = async (msg: any) => {
@@ -1870,7 +1869,7 @@ export function activate(context: vscode.ExtensionContext) {
         __testWebviewHandler = async (m:any) => { await handleOpenMessage(m); };
         if (msg.t === 'retryConnect') {
           try { client.start(context); } catch {}
-          vscode.window.setStatusBarMessage('正在尝试重新连接 MCP…', 2000);
+          vscode.window.setStatusBarMessage('\u6b63\u5728\u5c1d\u8bd5\u91cd\u65b0\u8fde\u63a5 MCP\u2026', 2000);
         }
         else if (msg.t === 'enableFake') {
           try {
@@ -1878,16 +1877,16 @@ export function activate(context: vscode.ExtensionContext) {
             const dash = path.join(ws, '.mcp', 'dashboard');
             fs.mkdirSync(dash, { recursive: true });
             fs.writeFileSync(path.join(dash, 'fake_mode'), '1');
-            vscode.window.showInformationMessage('已切换为演示模式（fake）。');
+            vscode.window.showInformationMessage('\u5df2\u5207\u6362\u4e3a\u6f14\u793a\u6a21\u5f0f\uff08fake\uff09\u3002');
             (client as any).fakeMode = true; // best-effort
             await vscode.commands.executeCommand('mcpRulesAssistant.openPanel');
             return;
           } catch (e:any) {
-            vscode.window.showErrorMessage('切换演示模式失败：' + String(e));
+            vscode.window.showErrorMessage('\u5207\u6362\u6f14\u793a\u6a21\u5f0f\u5931\u8d25\uff1a' + String(e));
           }
         }
         else if (msg.t === 'handshake') {
-          try { panel.webview.postMessage({ t: 'info', text: 'Webview 已连接（handshake_ok）' }); } catch {}
+          try { panel.webview.postMessage({ t: 'info', text: 'Webview \u5df2\u8fde\u63a5\uff08handshake_ok\uff09' }); } catch {}
         }
         else if (msg.t === 'panel.click') {
           try {
@@ -1910,7 +1909,7 @@ export function activate(context: vscode.ExtensionContext) {
             await vscode.workspace.fs.stat(uri);
             const doc = await vscode.workspace.openTextDocument(uri);
             await vscode.window.showTextDocument(doc, { preview: false });
-          } catch { vscode.window.showInformationMessage('未找到 .mcp/dashboard/server.log'); }
+          } catch { vscode.window.showInformationMessage('\u672a\u627e\u5230 .mcp/dashboard/server.log'); }
         }
         else if (msg.t === 'panelDiagRequest') {
           try {
@@ -1931,9 +1930,9 @@ export function activate(context: vscode.ExtensionContext) {
             const enc = new TextEncoder();
             await vscode.workspace.fs.writeFile(outUri, enc.encode(JSON.stringify(diag, null, 2)));
             try { const doc = await vscode.workspace.openTextDocument(outUri); await vscode.window.showTextDocument(doc, { preview: false }); } catch {}
-            panel.webview.postMessage({ t: 'info', text: '已写入诊断：.mcp/dashboard/panel_diag.json' });
+            panel.webview.postMessage({ t: 'info', text: '\u5df2\u5199\u5165\u8bca\u65ad\uff1a.mcp/dashboard/panel_diag.json' });
           } catch (e:any) {
-            vscode.window.showWarningMessage('生成诊断失败：' + String(e));
+            vscode.window.showWarningMessage('\u751f\u6210\u8bca\u65ad\u5931\u8d25\uff1a' + String(e));
           }
         }
         else if (msg.t === 'lang.set') {
@@ -1967,16 +1966,16 @@ export function activate(context: vscode.ExtensionContext) {
           const cwd = getWorkspaceRoot() || process.cwd();
           execFile(pyBin, ['-m', 'mcp_rules_assistant.cli', 'status-update', '--json'], { cwd }, (err: any, stdout: string, stderr: string) => {
             if (err) {
-              vscode.window.showErrorMessage('状态刷新失败：' + String(err));
+              vscode.window.showErrorMessage('\u72b6\u6001\u5237\u65b0\u5931\u8d25\uff1a' + String(err));
               return;
             }
             try {
               const data = JSON.parse(stdout || '{}');
-              panel.webview.postMessage({ t: 'info', text: '状态已刷新。弱项：' + (((data.coverage||{}).weak||[]).length || 0) });
+              panel.webview.postMessage({ t: 'info', text: '\u72b6\u6001\u5df2\u5237\u65b0\u3002\u5f31\u9879\uff1a' + (((data.coverage||{}).weak||[]).length || 0) });
               const tk = (data.tasks||{});
               panel.webview.postMessage({ t: 'tasks', pending: tk.pending || [], done: tk.done || [] });
             } catch (e) {
-              vscode.window.showInformationMessage('状态已刷新');
+              vscode.window.showInformationMessage('\u72b6\u6001\u5df2\u5237\u65b0');
             }
           });
           return;
@@ -1986,8 +1985,8 @@ export function activate(context: vscode.ExtensionContext) {
           const compiledUri = (resList.resources || []).find((r: any) => String(r.uri || '').endsWith('/compiled'))?.uri;
           const jsonUri = (resList.resources || []).find((r: any) => String(r.uri || '').endsWith('/compiled.json'))?.uri;
           if (!compiledUri) {
-            panel.webview.postMessage({ t: 'rules', md: '未找到规则资源，请先“摄取规则”' });
-            panel.webview.postMessage({ t: 'info', text: '未找到编译规则，请点击“摄取规则 / Ingest”进行摄取。' });
+            panel.webview.postMessage({ t: 'rules', md: '\u672a\u627e\u5230\u89c4\u5219\u8d44\u6e90\uff0c\u8bf7\u5148\u201c\u6444\u53d6\u89c4\u5219\u201d' });
+            panel.webview.postMessage({ t: 'info', text: '\u672a\u627e\u5230\u7f16\u8bd1\u89c4\u5219\uff0c\u8bf7\u70b9\u51fb\u201c\u6444\u53d6\u89c4\u5219 / Ingest\u201d\u8fdb\u884c\u6444\u53d6\u3002' });
             panel.webview.postMessage({ t: 'suggestIngest' });
             return;
           }
@@ -2001,9 +2000,9 @@ export function activate(context: vscode.ExtensionContext) {
               const n = Array.isArray(data.conflicts) ? data.conflicts.length : 0;
               const m = Array.isArray(data.suggestions) ? data.suggestions.length : 0;
               if (n > 0) {
-                panel.webview.postMessage({ t: 'info', text: `检测到 ${n} 处规则冲突，已在下方列出。建议数：${m}` });
+                panel.webview.postMessage({ t: 'info', text: `\u68c0\u6d4b\u5230 ${n} \u5904\u89c4\u5219\u51b2\u7a81\uff0c\u5df2\u5728\u4e0b\u65b9\u5217\u51fa\u3002\u5efa\u8bae\u6570\uff1a${m}` });
               } else {
-                panel.webview.postMessage({ t: 'info', text: `未检测到规则冲突。建议数：${m}` });
+                panel.webview.postMessage({ t: 'info', text: `\u672a\u68c0\u6d4b\u5230\u89c4\u5219\u51b2\u7a81\u3002\u5efa\u8bae\u6570\uff1a${m}` });
               }
             } catch {}
           }
@@ -2011,7 +2010,7 @@ export function activate(context: vscode.ExtensionContext) {
           try {
             const resList = await client.request('resources/list', {});
             const jsonUri = (resList.resources || []).find((r: any) => String(r.uri || '').endsWith('/compiled.json'))?.uri;
-            if (!jsonUri) { vscode.window.showWarningMessage('未找到编译规则，请先摄取规则'); return; }
+            if (!jsonUri) { vscode.window.showWarningMessage('\u672a\u627e\u5230\u7f16\u8bd1\u89c4\u5219\uff0c\u8bf7\u5148\u6444\u53d6\u89c4\u5219'); return; }
             const compiled = await client.request('resources/read', { uri: jsonUri });
             const data = JSON.parse(compiled.text || '{}');
             const pol = data.policy || {};
@@ -2027,17 +2026,17 @@ export function activate(context: vscode.ExtensionContext) {
             if (wantHadolint) lines.push('ci.hadolint = true');
             if (wantSemgrep) lines.push('ci.semgrep_config = auto');
             lines.push(`conflicts = ${conflicts}; suggestions = ${sugg}`);
-            const confirm = await vscode.window.showInformationMessage('将应用以下门禁到配置:\n' + lines.join('\n'), { modal: true }, '应用', '取消');
-            if (confirm === '应用') {
+            const confirm = await vscode.window.showInformationMessage('\u5c06\u5e94\u7528\u4ee5\u4e0b\u95e8\u7981\u5230\u914d\u7f6e:\n' + lines.join('\n'), { modal: true }, '\u5e94\u7528', '\u53d6\u6d88');
+            if (confirm === '\u5e94\u7528') {
               const out = await client.request('tools/call', { name: 'rules.resolve', arguments: {} });
               const changed = out && out.changed;
               const enforced = (out && out.enforced) || [];
-              const summary = `门禁已应用：${changed? '配置已更新' : '无变化'}；` + (Array.isArray(enforced)? enforced.join(', ') : '');
+              const summary = `\u95e8\u7981\u5df2\u5e94\u7528\uff1a${changed? '\u914d\u7f6e\u5df2\u66f4\u65b0' : '\u65e0\u53d8\u5316'}\uff1b` + (Array.isArray(enforced)? enforced.join(', ') : '');
               vscode.window.showInformationMessage(summary);
               try { panel.webview.postMessage({ t: 'info', text: summary }); } catch {}
             }
           } catch (e:any) {
-            vscode.window.showErrorMessage('预览失败：' + String(e));
+            vscode.window.showErrorMessage('\u9884\u89c8\u5931\u8d25\uff1a' + String(e));
           }
         } else if (msg.t === 'coverage') {
           // Quick combined report for toast summary
@@ -2057,20 +2056,20 @@ export function activate(context: vscode.ExtensionContext) {
           const treeUri = (resList.resources || []).find((r: any) => String(r.uri || '').endsWith('/tree'))?.uri;
           const nearUri = (resList.resources || []).find((r:any)=> String(r.uri||'').endsWith('/near'))?.uri;
           if (!covUri) {
-            vscode.window.showWarningMessage('未找到覆盖率资源，请先在推送/CI 生成 coverage.xml');
-            panel.webview.postMessage({ t: 'info', text: '未找到覆盖率资源，请先运行 pytest 生成 coverage.xml（或在 CI 推送生成）。' });
+            vscode.window.showWarningMessage('\u672a\u627e\u5230\u8986\u76d6\u7387\u8d44\u6e90\uff0c\u8bf7\u5148\u5728\u63a8\u9001/CI \u751f\u6210 coverage.xml');
+            panel.webview.postMessage({ t: 'info', text: '\u672a\u627e\u5230\u8986\u76d6\u7387\u8d44\u6e90\uff0c\u8bf7\u5148\u8fd0\u884c pytest \u751f\u6210 coverage.xml\uff08\u6216\u5728 CI \u63a8\u9001\u751f\u6210\uff09\u3002' });
             return;
           }
           const res = await client.request('resources/read', { uri: covUri });
           const data = JSON.parse(res.text || '{}');
           if (!data.ok) {
-            vscode.window.showWarningMessage(data.message || '未找到 coverage.xml，请先在推送/CI 生成');
-            panel.webview.postMessage({ t: 'info', text: data.message || '覆盖率摘要不可用，请生成 coverage.xml' });
+            vscode.window.showWarningMessage(data.message || '\u672a\u627e\u5230 coverage.xml\uff0c\u8bf7\u5148\u5728\u63a8\u9001/CI \u751f\u6210');
+            panel.webview.postMessage({ t: 'info', text: data.message || '\u8986\u76d6\u7387\u6458\u8981\u4e0d\u53ef\u7528\uff0c\u8bf7\u751f\u6210 coverage.xml' });
           } else {
             panel.webview.postMessage({ t: 'covWeakAll', items: data.weak || [] });
             panel.webview.postMessage({ t: 'covWeak', items: data.weak || [] });
             const wcnt = (data.weak || []).length;
-            panel.webview.postMessage({ t: 'info', text: `弱项 ${wcnt} 个` });
+            panel.webview.postMessage({ t: 'info', text: `\u5f31\u9879 ${wcnt} \u4e2a` });
           }
           if (groupsUri) {
             const gres = await client.request('resources/read', { uri: groupsUri });
@@ -2096,7 +2095,7 @@ export function activate(context: vscode.ExtensionContext) {
                 const items = ndata.near || [];
                 panel.webview.postMessage({ t: 'covNear', items });
                 const n = Array.isArray(items) ? items.length : 0;
-                panel.webview.postMessage({ t: 'info', text: `近阈值文件：${n} 个（≤3%）` });
+                panel.webview.postMessage({ t: 'info', text: `\u8fd1\u9608\u503c\u6587\u4ef6\uff1a${n} \u4e2a\uff08\u22643%\uff09` });
               }
             } catch {}
           }
@@ -2118,7 +2117,7 @@ export function activate(context: vscode.ExtensionContext) {
             client.start(context);
             try { await client.request('initialize', {}); } catch {}
             const tools = await client.request('tools/list', {});
-            const list = (tools.tools || []).map((t: any) => `<li><code>${t.name}</code> — ${t.description}</li>`).join('');
+            const list = (tools.tools || []).map((t: any) => `<li><code>${t.name}</code> \u2014 ${t.description}</li>`).join('');
             const nonce2 = getNonce();
             panel.webview.html = render(csp, nonce2, '', list);
             // re-apply workspace language preference after reload
@@ -2137,36 +2136,36 @@ export function activate(context: vscode.ExtensionContext) {
             } catch {}
             vscode.window.setStatusBarMessage('Panel reloaded', 2000);
           } catch (e:any) {
-            vscode.window.showWarningMessage('重载失败：' + String(e));
+            vscode.window.showWarningMessage('\u91cd\u8f7d\u5931\u8d25\uff1a' + String(e));
           }
         } else if (msg.t === 'coverageTree') {
           const resList = await client.request('resources/list', {});
           const treeUri = (resList.resources || []).find((r: any) => String(r.uri || '').endsWith('/tree'))?.uri;
           if (!treeUri) {
-            panel.webview.postMessage({ t: 'info', text: '未找到目录树资源，请先生成 coverage.xml 或点击“加载覆盖率”。' });
+            panel.webview.postMessage({ t: 'info', text: '\u672a\u627e\u5230\u76ee\u5f55\u6811\u8d44\u6e90\uff0c\u8bf7\u5148\u751f\u6210 coverage.xml \u6216\u70b9\u51fb\u201c\u52a0\u8f7d\u8986\u76d6\u7387\u201d\u3002' });
             return;
           }
           const tres = await client.request('resources/read', { uri: treeUri });
           try {
             const data = JSON.parse((tres as any).text || '{}');
             if (!data.ok) {
-              panel.webview.postMessage({ t: 'info', text: '目录树不可用，请先生成 coverage.xml。' });
+              panel.webview.postMessage({ t: 'info', text: '\u76ee\u5f55\u6811\u4e0d\u53ef\u7528\uff0c\u8bf7\u5148\u751f\u6210 coverage.xml\u3002' });
               return;
             }
             panel.webview.postMessage({ t: 'covTreeData', tree: data.tree || { name: '/', children: {} } });
           } catch {
-            panel.webview.postMessage({ t: 'info', text: '解析目录树失败。' });
+            panel.webview.postMessage({ t: 'info', text: '\u89e3\u6790\u76ee\u5f55\u6811\u5931\u8d25\u3002' });
           }
         } else if (msg.t === 'ingestRules') {
           const pathsInput = await vscode.window.showInputBox({
-            title: '输入要摄取的文件或目录（逗号分隔）',
-            placeHolder: '如：rules.md, docs/rules',
+            title: '\u8f93\u5165\u8981\u6444\u53d6\u7684\u6587\u4ef6\u6216\u76ee\u5f55\uff08\u9017\u53f7\u5206\u9694\uff09',
+            placeHolder: '\u5982\uff1arules.md, docs/rules',
           });
           if (!pathsInput) return;
           const paths = pathsInput.split(',').map(s => s.trim()).filter(Boolean);
           await client.request('tools/call', { name: 'rules.ingest', arguments: { paths } });
-          vscode.window.setStatusBarMessage('规则摄取完成', 3000);
-          // 自动刷新
+          vscode.window.setStatusBarMessage('\u89c4\u5219\u6444\u53d6\u5b8c\u6210', 3000);
+          // \u81ea\u52a8\u5237\u65b0
           const resList = await client.request('resources/list', {});
           const compiledUri = (resList.resources || []).find((r: any) => String(r.uri || '').endsWith('/compiled'))?.uri;
           const suggUri = (resList.resources || []).find((r: any) => String(r.uri || '').endsWith('/suggestions'))?.uri;
@@ -2186,14 +2185,14 @@ export function activate(context: vscode.ExtensionContext) {
               panel.webview.postMessage({ t: 'conflicts', items: data.conflicts || [] });
               const n = Array.isArray(data.conflicts) ? data.conflicts.length : 0;
               const m = Array.isArray(data.suggestions) ? data.suggestions.length : 0;
-              panel.webview.postMessage({ t: 'info', text: (n > 0) ? `检测到 ${n} 处规则冲突，已在下方列出。建议数：${m}` : `未检测到规则冲突。建议数：${m}` });
+              panel.webview.postMessage({ t: 'info', text: (n > 0) ? `\u68c0\u6d4b\u5230 ${n} \u5904\u89c4\u5219\u51b2\u7a81\uff0c\u5df2\u5728\u4e0b\u65b9\u5217\u51fa\u3002\u5efa\u8bae\u6570\uff1a${m}` : `\u672a\u68c0\u6d4b\u5230\u89c4\u5219\u51b2\u7a81\u3002\u5efa\u8bae\u6570\uff1a${m}` });
             } catch {
-              panel.webview.postMessage({ t: 'info', text: '解析规则 JSON 失败。' });
+              panel.webview.postMessage({ t: 'info', text: '\u89e3\u6790\u89c4\u5219 JSON \u5931\u8d25\u3002' });
             }
           }
         } else if (msg.t === 'validateRules') {
           await client.request('tools/call', { name: 'rules.validate', arguments: {} });
-          vscode.window.setStatusBarMessage('规则校验完成', 3000);
+          vscode.window.setStatusBarMessage('\u89c4\u5219\u6821\u9a8c\u5b8c\u6210', 3000);
           const resList = await client.request('resources/list', {});
           const compiledUri = (resList.resources || []).find((r: any) => String(r.uri || '').endsWith('/compiled'))?.uri;
           const suggUri = (resList.resources || []).find((r: any) => String(r.uri || '').endsWith('/suggestions'))?.uri;
@@ -2213,16 +2212,16 @@ export function activate(context: vscode.ExtensionContext) {
               panel.webview.postMessage({ t: 'conflicts', items: data.conflicts || [] });
               const n = Array.isArray(data.conflicts) ? data.conflicts.length : 0;
               const m = Array.isArray(data.suggestions) ? data.suggestions.length : 0;
-              panel.webview.postMessage({ t: 'info', text: (n > 0) ? `检测到 ${n} 处规则冲突，已在下方列出。建议数：${m}` : `未检测到规则冲突。建议数：${m}` });
+              panel.webview.postMessage({ t: 'info', text: (n > 0) ? `\u68c0\u6d4b\u5230 ${n} \u5904\u89c4\u5219\u51b2\u7a81\uff0c\u5df2\u5728\u4e0b\u65b9\u5217\u51fa\u3002\u5efa\u8bae\u6570\uff1a${m}` : `\u672a\u68c0\u6d4b\u5230\u89c4\u5219\u51b2\u7a81\u3002\u5efa\u8bae\u6570\uff1a${m}` });
             } catch {
-              panel.webview.postMessage({ t: 'info', text: '解析规则 JSON 失败。' });
+              panel.webview.postMessage({ t: 'info', text: '\u89e3\u6790\u89c4\u5219 JSON \u5931\u8d25\u3002' });
             }
           }
         } else if (msg.t === 'covExport') {
           try {
             const out = await client.request('tools/call', { name: 'coverage.export', arguments: {} });
-            vscode.window.showInformationMessage('Coverage 导出完成: ' + (out.out_dir || ''));
-            // 预览 weak_top.csv 前 3 行
+            vscode.window.showInformationMessage('Coverage \u5bfc\u51fa\u5b8c\u6210: ' + (out.out_dir || ''));
+            // \u9884\u89c8 weak_top.csv \u524d 3 \u884c
             const ws = getWorkspaceRoot();
             if (ws) {
               const uri = vscode.Uri.file(ws + '/.mcp/dashboard/weak_top.csv');
@@ -2248,7 +2247,7 @@ export function activate(context: vscode.ExtensionContext) {
                   panel.webview.postMessage({ t: 'csvPreview', which: 'weak_top.csv', head: outLines });
                 }
               } catch {}
-              // 预览 near_top.csv 前 3 行
+              // \u9884\u89c8 near_top.csv \u524d 3 \u884c
               try {
                 const uri2 = vscode.Uri.file(ws + '/.mcp/dashboard/near_top.csv');
                 const data2 = await vscode.workspace.fs.readFile(uri2);
@@ -2272,7 +2271,7 @@ export function activate(context: vscode.ExtensionContext) {
                   panel.webview.postMessage({ t: 'csvPreview', which: 'near_top.csv', head: out2 });
                 }
               } catch {}
-              // 预览 groups.csv 前 3 行
+              // \u9884\u89c8 groups.csv \u524d 3 \u884c
               try {
                 const uri3 = vscode.Uri.file(ws + '/.mcp/dashboard/groups.csv');
                 const data3 = await vscode.workspace.fs.readFile(uri3);
@@ -2299,7 +2298,7 @@ export function activate(context: vscode.ExtensionContext) {
               } catch {}
             }
           } catch (e:any) {
-            vscode.window.showWarningMessage('Coverage 导出失败：' + String(e));
+            vscode.window.showWarningMessage('Coverage \u5bfc\u51fa\u5931\u8d25\uff1a' + String(e));
           }
         } else if (msg.t === 'csvPreviewPick') {
           try {
@@ -2337,14 +2336,14 @@ export function activate(context: vscode.ExtensionContext) {
             }
             panel.webview.postMessage({ t: 'csvPreview', which, head: out });
           } catch (e:any) {
-            vscode.window.showWarningMessage('读取 CSV 失败：' + String(e));
+            vscode.window.showWarningMessage('\u8bfb\u53d6 CSV \u5931\u8d25\uff1a' + String(e));
           }
         } else if (msg.t === 'loadSugg') {
           const resList = await client.request('resources/list', {});
           const suggUri = (resList.resources || []).find((r: any) => String(r.uri || '').endsWith('/suggestions'))?.uri;
           if (!suggUri) {
-            panel.webview.postMessage({ t: 'sugg', md: '未找到建议资源，请先“摄取规则”或“校验规则”' });
-            panel.webview.postMessage({ t: 'info', text: '未找到规则建议，请点击“摄取规则 / Ingest”进行摄取。' });
+            panel.webview.postMessage({ t: 'sugg', md: '\u672a\u627e\u5230\u5efa\u8bae\u8d44\u6e90\uff0c\u8bf7\u5148\u201c\u6444\u53d6\u89c4\u5219\u201d\u6216\u201c\u6821\u9a8c\u89c4\u5219\u201d' });
+            panel.webview.postMessage({ t: 'info', text: '\u672a\u627e\u5230\u89c4\u5219\u5efa\u8bae\uff0c\u8bf7\u70b9\u51fb\u201c\u6444\u53d6\u89c4\u5219 / Ingest\u201d\u8fdb\u884c\u6444\u53d6\u3002' });
             panel.webview.postMessage({ t: 'suggestIngest' });
             return;
           }
@@ -2352,29 +2351,29 @@ export function activate(context: vscode.ExtensionContext) {
           panel.webview.postMessage({ t: 'sugg', md: sug.text || '' });
         } else if (msg.t === 'installHooks') {
           await client.request('tools/call', { name: 'git.install_hooks', arguments: {} });
-          vscode.window.setStatusBarMessage('钩子安装完成', 3000);
+          vscode.window.setStatusBarMessage('\u94a9\u5b50\u5b89\u88c5\u5b8c\u6210', 3000);
           try {
             await client.request('tools/call', { name: 'memory.append_turn', arguments: { role: 'assistant', content: 'Git hooks installed', meta: { source: 'vscode', action: 'git.install_hooks' } } });
           } catch {}
         } else if (msg.t === 'memory') {
           const resList = await client.request('resources/list', {});
           const memUri = (resList.resources || []).find((r: any) => String(r.uri || '').startsWith('memory://'))?.uri;
-          if (!memUri) { panel.webview.postMessage({ t: 'memory', text: '无记忆资源' }); return; }
+          if (!memUri) { panel.webview.postMessage({ t: 'memory', text: '\u65e0\u8bb0\u5fc6\u8d44\u6e90' }); return; }
           const res = await client.request('resources/read', { uri: memUri });
           panel.webview.postMessage({ t: 'memory', text: res.text || '' });
         } else if (msg.t === 'plan') {
           const resList = await client.request('resources/list', {});
           const planUri = (resList.resources || []).find((r: any) => String(r.uri || '').startsWith('progress://'))?.uri;
-          if (!planUri) { panel.webview.postMessage({ t: 'plan', text: '无计划资源' }); return; }
+          if (!planUri) { panel.webview.postMessage({ t: 'plan', text: '\u65e0\u8ba1\u5212\u8d44\u6e90' }); return; }
           const res = await client.request('resources/read', { uri: planUri });
           panel.webview.postMessage({ t: 'plan', text: res.text || '' });
-          const act = await vscode.window.showQuickPick(['标记进行中 / In progress', '标记完成 / Done', '仅查看 / View'], { title: '计划操作' });
-          if (act && act.startsWith('标记进行中')) {
-            const cur = await vscode.window.showInputBox({ title: '当前步骤 / Current step', placeHolder: '例如：实现 MCP 协议方法' });
+          const act = await vscode.window.showQuickPick(['\u6807\u8bb0\u8fdb\u884c\u4e2d / In progress', '\u6807\u8bb0\u5b8c\u6210 / Done', '\u4ec5\u67e5\u770b / View'], { title: '\u8ba1\u5212\u64cd\u4f5c' });
+          if (act && act.startsWith('\u6807\u8bb0\u8fdb\u884c\u4e2d')) {
+            const cur = await vscode.window.showInputBox({ title: '\u5f53\u524d\u6b65\u9aa4 / Current step', placeHolder: '\u4f8b\u5982\uff1a\u5b9e\u73b0 MCP \u534f\u8bae\u65b9\u6cd5' });
             if (cur) await client.request('tools/call', { name: 'plan.set', arguments: { status: 'in_progress', current: cur } });
             const res2 = await client.request('resources/read', { uri: planUri });
             panel.webview.postMessage({ t: 'plan', text: res2.text || '' });
-          } else if (act && act.startsWith('标记完成')) {
+          } else if (act && act.startsWith('\u6807\u8bb0\u5b8c\u6210')) {
             await client.request('tools/call', { name: 'plan.set', arguments: { status: 'done' } });
             const res2 = await client.request('resources/read', { uri: planUri });
             panel.webview.postMessage({ t: 'plan', text: res2.text || '' });
@@ -2382,7 +2381,7 @@ export function activate(context: vscode.ExtensionContext) {
         } else if (msg.t === 'ciFetch') {
           const cfg = await client.request('tools/call', { name: 'config.get', arguments: {} });
           panel.webview.postMessage({ t: 'ci', config: cfg.config || {} });
-          vscode.window.setStatusBarMessage('已加载 CI 配置', 2000);
+          vscode.window.setStatusBarMessage('\u5df2\u52a0\u8f7d CI \u914d\u7f6e', 2000);
         } else if (msg.t === 'ciCheck') {
           try {
           const ws = getWorkspaceRoot();
@@ -2396,10 +2395,10 @@ export function activate(context: vscode.ExtensionContext) {
         } else if (msg.t === 'ciSave') {
           const data = msg.data || {};
           await client.request('tools/call', { name: 'config.update', arguments: { data } });
-          vscode.window.setStatusBarMessage('CI 配置已保存', 2000);
+          vscode.window.setStatusBarMessage('CI \u914d\u7f6e\u5df2\u4fdd\u5b58', 2000);
         } else if (msg.t === 'ciGen') {
           const out = await client.request('tools/call', { name: 'ci.generate', arguments: {} });
-          vscode.window.showInformationMessage('已生成 CI: ' + (out.path || ''));        
+          vscode.window.showInformationMessage('\u5df2\u751f\u6210 CI: ' + (out.path || ''));        
           vscode.commands.executeCommand('workbench.action.files.refresh');
           panel.webview.postMessage({ t: 'ciCheck' });
           try { await client.request('tools/call', { name: 'memory.append_turn', arguments: { role: 'assistant', content: 'CI generated', meta: { source: 'vscode', action: 'ci.generate', path: out && out.path } } }); } catch {}
@@ -2410,7 +2409,7 @@ export function activate(context: vscode.ExtensionContext) {
         } else if (msg.t === 'ciPreviewInline') {
           const resList = await client.request('resources/list', {});
           const ciUri = (resList.resources || []).find((r:any)=> String(r.uri||'').startsWith('ci://'))?.uri;
-          if (!ciUri) { panel.webview.postMessage({ t: 'ciPreviewContent', text: '（未生成 CI）' }); return; }
+          if (!ciUri) { panel.webview.postMessage({ t: 'ciPreviewContent', text: '\uff08\u672a\u751f\u6210 CI\uff09' }); return; }
           const res = await client.request('resources/read', { uri: ciUri });
           panel.webview.postMessage({ t: 'ciPreviewContent', text: res.text || '' });
         } else if (msg.t === 'ciOpen') {
@@ -2421,12 +2420,12 @@ export function activate(context: vscode.ExtensionContext) {
             const doc = await vscode.workspace.openTextDocument(target);
             await vscode.window.showTextDocument(doc, { preview: false });
           } catch {
-            vscode.window.showWarningMessage('CI 文件不存在，请先生成');
+            vscode.window.showWarningMessage('CI \u6587\u4ef6\u4e0d\u5b58\u5728\uff0c\u8bf7\u5148\u751f\u6210');
           }
         } else if (msg.t === 'ciPreview') {
           const resList = await client.request('resources/list', {});
           const ciUri = (resList.resources || []).find((r:any)=> String(r.uri||'').startsWith('ci://'))?.uri;
-          if (!ciUri) { vscode.window.showWarningMessage('未找到 CI 资源'); return; }
+          if (!ciUri) { vscode.window.showWarningMessage('\u672a\u627e\u5230 CI \u8d44\u6e90'); return; }
           const res = await client.request('resources/read', { uri: ciUri });
           const doc = await vscode.workspace.openTextDocument({ language: 'yaml', content: res.text || '' });
           await vscode.window.showTextDocument(doc, { preview: true });
@@ -2438,7 +2437,7 @@ export function activate(context: vscode.ExtensionContext) {
             const doc = await vscode.workspace.openTextDocument(target);
             await vscode.window.showTextDocument(doc, { preview: false });
           } catch {
-            vscode.window.showWarningMessage('CI 文件不存在，请先生成');
+            vscode.window.showWarningMessage('CI \u6587\u4ef6\u4e0d\u5b58\u5728\uff0c\u8bf7\u5148\u751f\u6210');
           }
         } else if (msg.t === 'ideScaffold') {
           const pick = await vscode.window.showQuickPick([
@@ -2446,13 +2445,13 @@ export function activate(context: vscode.ExtensionContext) {
             { label: 'Cursor', val: 'cursor' },
             { label: 'JetBrains', val: 'jetbrains' },
             { label: 'Neovim', val: 'neovim' },
-          ], { title: '选择 IDE' });
+          ], { title: '\u9009\u62e9 IDE' });
           if (!pick) return;
           const out = await client.request('tools/call', { name: 'ide.scaffold', arguments: { editor: pick.val } });
-          vscode.window.showInformationMessage('已生成 IDE 集成配置: ' + JSON.stringify(out.files || []));
+          vscode.window.showInformationMessage('\u5df2\u751f\u6210 IDE \u96c6\u6210\u914d\u7f6e: ' + JSON.stringify(out.files || []));
         } else if (msg.t === 'compliance') {
           const out = await client.request('tools/call', { name: 'compliance.commitment', arguments: { write: true } });
-          vscode.window.showInformationMessage('已生成合规承诺: ' + (out.path || '.mcp/compliance.md'));
+          vscode.window.showInformationMessage('\u5df2\u751f\u6210\u5408\u89c4\u627f\u8bfa: ' + (out.path || '.mcp/compliance.md'));
         } else if (msg.t === 'openCompliance') {
           try {
             // ensure file exists, then open
@@ -2463,7 +2462,7 @@ export function activate(context: vscode.ExtensionContext) {
             const doc = await vscode.workspace.openTextDocument(p);
             await vscode.window.showTextDocument(doc, { preview: false });
           } catch (e:any) {
-            vscode.window.showWarningMessage('无法打开合规承诺：' + String(e));
+            vscode.window.showWarningMessage('\u65e0\u6cd5\u6253\u5f00\u5408\u89c4\u627f\u8bfa\uff1a' + String(e));
           }
         } else if (msg.t === 'openIdeDir') {
           try {
@@ -2471,7 +2470,7 @@ export function activate(context: vscode.ExtensionContext) {
             const p = vscode.Uri.file(ws + '/.mcp/ide');
             await vscode.commands.executeCommand('revealFileInOS', p);
           } catch (e:any) {
-            vscode.window.showWarningMessage('无法打开 IDE 目录：' + String(e));
+            vscode.window.showWarningMessage('\u65e0\u6cd5\u6253\u5f00 IDE \u76ee\u5f55\uff1a' + String(e));
           }
         } else if (msg.t === 'eventsLoad') {
           try {
@@ -2481,7 +2480,7 @@ export function activate(context: vscode.ExtensionContext) {
             const text = Buffer.from(data).toString('utf8');
             panel.webview.postMessage({ t: 'events', text });
           } catch {
-            panel.webview.postMessage({ t: 'info', text: '未找到事件历史' });
+            panel.webview.postMessage({ t: 'info', text: '\u672a\u627e\u5230\u4e8b\u4ef6\u5386\u53f2' });
           }
         } else if (msg.t === 'auditLoad') {
           try {
@@ -2491,7 +2490,7 @@ export function activate(context: vscode.ExtensionContext) {
             const text = Buffer.from(data).toString('utf8');
             panel.webview.postMessage({ t: 'audit', text });
           } catch {
-            panel.webview.postMessage({ t: 'info', text: '未找到安全审计（security_audit.jsonl）' });
+            panel.webview.postMessage({ t: 'info', text: '\u672a\u627e\u5230\u5b89\u5168\u5ba1\u8ba1\uff08security_audit.jsonl\uff09' });
           }
         } else if (msg.t === 'statusInfo') {
           try {
@@ -2507,8 +2506,8 @@ export function activate(context: vscode.ExtensionContext) {
                 return String(it);
               });
               panel.webview.postMessage({ t: 'infoList', items: lines });
-            } catch { panel.webview.postMessage({ t: 'info', text: '状态摘要解析失败' }); }
-          } catch { panel.webview.postMessage({ t: 'info', text: '未找到 status.json' }); }
+            } catch { panel.webview.postMessage({ t: 'info', text: '\u72b6\u6001\u6458\u8981\u89e3\u6790\u5931\u8d25' }); }
+          } catch { panel.webview.postMessage({ t: 'info', text: '\u672a\u627e\u5230 status.json' }); }
     } else if (msg.t === 'insertSamples') {
           const semgrep = `rules:\n  - id: py-no-eval\n    message: \"Avoid eval() — security risk\"\n    languages: [python]\n    severity: ERROR\n    pattern: eval(...)\n\n  - id: py-no-exec\n    message: \"Avoid exec() — security risk\"\n    languages: [python]\n    severity: ERROR\n    pattern: exec(...)\n`;
           const hadolint = `ignored:\n  - DL3008\n  - DL3059\n\noverrides:\n  DL3007: warning\n`;
@@ -2516,38 +2515,38 @@ export function activate(context: vscode.ExtensionContext) {
             { path: '.semgrep.yml', content: semgrep },
             { path: '.hadolint.yaml', content: hadolint }
           ] } });
-          vscode.window.setStatusBarMessage('已插入示例规则（.semgrep.yml / .hadolint.yaml）', 3000);
+          vscode.window.setStatusBarMessage('\u5df2\u63d2\u5165\u793a\u4f8b\u89c4\u5219\uff08.semgrep.yml / .hadolint.yaml\uff09', 3000);
         } else if (msg.t === 'prepareEnvDry') {
           try {
             const out = await client.request('tools/call', { name: 'env.prepare', arguments: { create: false, install: false } });
-            vscode.window.showInformationMessage('env.prepare 计划: ' + JSON.stringify(out.plan || out));
-          // 严格隔离：默认不写入任何上下文记忆（需显式允许）
+            vscode.window.showInformationMessage('env.prepare \u8ba1\u5212: ' + JSON.stringify(out.plan || out));
+          // \u4e25\u683c\u9694\u79bb\uff1a\u9ed8\u8ba4\u4e0d\u5199\u5165\u4efb\u4f55\u4e0a\u4e0b\u6587\u8bb0\u5fc6\uff08\u9700\u663e\u5f0f\u5141\u8bb8\uff09
           // if (process.env.RULEFLOW_ALLOW_MEMORY_APPEND === '1') {
           //   try { await client.request('tools/call', { name: 'memory.append_turn', arguments: { role: 'assistant', content: 'env.prepare dry-run', meta: { source: 'vscode', action: 'env.prepare', create: false, install: false } } }); } catch {}
           // }
           } catch (e:any) {
-            vscode.window.showErrorMessage('env.prepare 执行失败：' + String(e));
+            vscode.window.showErrorMessage('env.prepare \u6267\u884c\u5931\u8d25\uff1a' + String(e));
           }
         } else if (msg.t === 'prepareEnvInstall') {
           try {
             const out = await client.request('tools/call', { name: 'env.prepare', arguments: { create: true, install: true } });
-            const msgInfo = (out && (out as any).ok) ? ('已创建并安装：' + String((out as any).venv || '')) : '执行失败';
+            const msgInfo = (out && (out as any).ok) ? ('\u5df2\u521b\u5efa\u5e76\u5b89\u88c5\uff1a' + String((out as any).venv || '')) : '\u6267\u884c\u5931\u8d25';
             vscode.window.showInformationMessage('env.prepare: ' + msgInfo);
             // if (process.env.RULEFLOW_ALLOW_MEMORY_APPEND === '1') {
             //   try { await client.request('tools/call', { name: 'memory.append_turn', arguments: { role: 'assistant', content: 'env.prepare install', meta: { source: 'vscode', action: 'env.prepare', create: true, install: true } } }); } catch {}
             // }
           } catch (e:any) {
-            vscode.window.showErrorMessage('env.prepare 执行失败：' + String(e));
+            vscode.window.showErrorMessage('env.prepare \u6267\u884c\u5931\u8d25\uff1a' + String(e));
           }
         } else if (msg.t === 'selectProject') {
           const folders = vscode.workspace.workspaceFolders || [];
-          if (!folders.length) { vscode.window.showWarningMessage('未找到工作区'); return; }
-          const pick = await vscode.window.showQuickPick(folders.map(f=>({ label: f.name, description: f.uri.fsPath })), { title: '选择项目根目录' });
+          if (!folders.length) { vscode.window.showWarningMessage('\u672a\u627e\u5230\u5de5\u4f5c\u533a'); return; }
+          const pick = await vscode.window.showQuickPick(folders.map(f=>({ label: f.name, description: f.uri.fsPath })), { title: '\u9009\u62e9\u9879\u76ee\u6839\u76ee\u5f55' });
           if (!pick) return;
           try {
             __lockedRoot = pick.description;
             await context.workspaceState.update('ruleflow.lockRoot', __lockedRoot);
-            // 写入 ui_prefs.json 以共享选择
+            // \u5199\u5165 ui_prefs.json \u4ee5\u5171\u4eab\u9009\u62e9
             try {
               const dash = path.join(__lockedRoot, '.mcp', 'dashboard');
               fs.mkdirSync(dash, { recursive: true });
@@ -2555,13 +2554,13 @@ export function activate(context: vscode.ExtensionContext) {
               let obj: any = {}; try { obj = JSON.parse(fs.readFileSync(up, 'utf8')||'{}'); } catch {}
               obj.projectRoot = __lockedRoot; fs.writeFileSync(up, JSON.stringify(obj, null, 2));
             } catch {}
-            // 重启后端以应用新的 MCP_PROJECT_ROOT
+            // \u91cd\u542f\u540e\u7aef\u4ee5\u5e94\u7528\u65b0\u7684 MCP_PROJECT_ROOT
             try { (client as any).proc?.kill(); (client as any).proc=null; } catch {}
             try { client.start(context); } catch {}
             panel.webview.postMessage({ t: 'project', name: pick.label });
-            panel.webview.postMessage({ t: 'info', text: '已切换至项目：' + pick.label });
+            panel.webview.postMessage({ t: 'info', text: '\u5df2\u5207\u6362\u81f3\u9879\u76ee\uff1a' + pick.label });
           } catch (e:any) {
-            vscode.window.showErrorMessage('切换项目失败：' + String(e));
+            vscode.window.showErrorMessage('\u5207\u6362\u9879\u76ee\u5931\u8d25\uff1a' + String(e));
           }
         }
         else if (msg.t === 'onboardPreview') {
@@ -2573,40 +2572,40 @@ export function activate(context: vscode.ExtensionContext) {
             try {
               const p = ob.profile || {};
               const cov = p.coverage || {}; const sec = p.security || {}; const cont = p.container || {}; const lic = p.license || {}; const ci = p.ci || {};
-              lines.push('— coverage.min_module=' + (cov.min_module!==undefined? String(cov.min_module):'-'));
-              lines.push('— security: secrets_scan=' + String(!!sec.secrets_scan) + ', sast_strict=' + String(!!sec.sast_strict));
-              lines.push('— container: baseline=' + String(!!cont.baseline) + ', required=' + String(!!cont.required));
-              lines.push('— license.required=' + String(!!lic.required));
+              lines.push('\u2014 coverage.min_module=' + (cov.min_module!==undefined? String(cov.min_module):'-'));
+              lines.push('\u2014 security: secrets_scan=' + String(!!sec.secrets_scan) + ', sast_strict=' + String(!!sec.sast_strict));
+              lines.push('\u2014 container: baseline=' + String(!!cont.baseline) + ', required=' + String(!!cont.required));
+              lines.push('\u2014 license.required=' + String(!!lic.required));
               if (ci && (ci.hadolint || ci.semgrep_config)) {
-                lines.push('— ci: hadolint=' + String(!!ci.hadolint) + (ci.semgrep_config? (', semgrep_config=' + String(ci.semgrep_config)) : ''));
+                lines.push('\u2014 ci: hadolint=' + String(!!ci.hadolint) + (ci.semgrep_config? (', semgrep_config=' + String(ci.semgrep_config)) : ''));
               }
             } catch {}
             panel.webview.postMessage({ t: 'onboardShow', text: lines.join('\n') });
-            panel.webview.postMessage({ t: 'info', text: 'Onboard 预览完成' });
+            panel.webview.postMessage({ t: 'info', text: 'Onboard \u9884\u89c8\u5b8c\u6210' });
           } catch (e:any) {
-            panel.webview.postMessage({ t: 'info', text: 'Onboard 预览失败：' + String(e) });
+            panel.webview.postMessage({ t: 'info', text: 'Onboard \u9884\u89c8\u5931\u8d25\uff1a' + String(e) });
           }
         } else if (msg.t === 'onboardApply') {
           try {
             const out = await client.request('tools/call', { name: 'rules.onboard', arguments: { apply: true } });
-            vscode.window.showInformationMessage('Onboard 已采纳：' + JSON.stringify({ applied: out && out.applied }));
+            vscode.window.showInformationMessage('Onboard \u5df2\u91c7\u7eb3\uff1a' + JSON.stringify({ applied: out && out.applied }));
             try { await client.request('tools/call', { name: 'memory.append_turn', arguments: { role: 'assistant', content: 'Onboard applied', meta: { source: 'vscode', action: 'rules.onboard' } } }); } catch {}
           } catch (e:any) {
-            vscode.window.showErrorMessage('Onboard 采纳失败：' + String(e));
+            vscode.window.showErrorMessage('Onboard \u91c7\u7eb3\u5931\u8d25\uff1a' + String(e));
           }
         } else if (msg.t === 'chatEnable') {
           await context.workspaceState.update('ruleflow.chat.appendEnabled', true);
-          panel.webview.postMessage({ t: 'chatShow', text: 'Chat 追加摘要：已启用（默认摘要短小，不含源码/个人信息）' });
+          panel.webview.postMessage({ t: 'chatShow', text: 'Chat \u8ffd\u52a0\u6458\u8981\uff1a\u5df2\u542f\u7528\uff08\u9ed8\u8ba4\u6458\u8981\u77ed\u5c0f\uff0c\u4e0d\u542b\u6e90\u7801/\u4e2a\u4eba\u4fe1\u606f\uff09' });
         } else if (msg.t === 'chatDisable') {
           await context.workspaceState.update('ruleflow.chat.appendEnabled', false);
-          panel.webview.postMessage({ t: 'chatShow', text: 'Chat 追加摘要：已禁用' });
+          panel.webview.postMessage({ t: 'chatShow', text: 'Chat \u8ffd\u52a0\u6458\u8981\uff1a\u5df2\u7981\u7528' });
         } else if (msg.t === 'chatPreview') {
           const enabled = !!context.workspaceState.get('ruleflow.chat.appendEnabled');
-          const demo = 'Chat: 这里将显示上一轮问答的简要摘要（示例）';
-          panel.webview.postMessage({ t: 'chatShow', text: (enabled ? '（启用）' : '（禁用）') + ' ' + demo });
+          const demo = 'Chat: \u8fd9\u91cc\u5c06\u663e\u793a\u4e0a\u4e00\u8f6e\u95ee\u7b54\u7684\u7b80\u8981\u6458\u8981\uff08\u793a\u4f8b\uff09';
+          panel.webview.postMessage({ t: 'chatShow', text: (enabled ? '\uff08\u542f\u7528\uff09' : '\uff08\u7981\u7528\uff09') + ' ' + demo });
         }
       } catch (e: any) {
-        vscode.window.showErrorMessage('操作失败：' + String(e));
+        vscode.window.showErrorMessage('\u64cd\u4f5c\u5931\u8d25\uff1a' + String(e));
       } finally {
         try { if (__panelInFlightResolve) { __panelInFlightResolve(); } } catch {}
         __panelInFlightResolve = null;
@@ -2615,6 +2614,22 @@ export function activate(context: vscode.ExtensionContext) {
     };
     // 统一的消息处理器 - 处理所有webview消息
     panel.webview.onDidReceiveMessage(async (msg) => { 
+      // Mark full handler ready and flush any early queued messages once
+      if (!(panel as any).__fullHandlerReady) {
+        (panel as any).__fullHandlerReady = true;
+        try {
+          if (Array.isArray(__preMsgs) && __preMsgs.length) {
+            const queued = __preMsgs.splice(0, __preMsgs.length);
+            for (const m of queued) {
+              try {
+                console.log('[MCP Rules Assistant] (flush) Webview message received:', JSON.stringify(m));
+                await __panelDispatch(m);
+                await handleOpenMessage(m);
+              } catch {}
+            }
+          }
+        } catch {}
+      }
       console.log('[MCP Rules Assistant] Webview message received:', JSON.stringify(msg));
       
       // 处理面板调度消息
@@ -2638,21 +2653,21 @@ export function activate(context: vscode.ExtensionContext) {
           if (!text) return;
           const res = await client.request('tools/call', { name: 'nl.command', arguments: { text } });
           const mapped = (res && (res as any).parsed && (res as any).parsed.tool) || '';
-          // 简易调度：根据映射调用常用工具
+          // \u7b80\u6613\u8c03\u5ea6\uff1a\u6839\u636e\u6620\u5c04\u8c03\u7528\u5e38\u7528\u5de5\u5177
           const lower = text.toLowerCase();
           const runIngest = async () => {
-            // 粗略提取可能的路径
-            const cand = text.split(/[，,\s]+/).filter(s => /[./]/.test(s));
-            const paths = cand.filter(p => !/摄取|规则|ingest|load|载入|加载/.test(p));
-            const final = paths.length ? paths : (await vscode.window.showInputBox({ title: '输入要摄取的文件或目录（逗号分隔）' }))?.split(',').map(s=>s.trim()).filter(Boolean) || [];
+            // \u7c97\u7565\u63d0\u53d6\u53ef\u80fd\u7684\u8def\u5f84
+            const cand = text.split(/[\uff0c,\s]+/).filter(s => /[./]/.test(s));
+            const paths = cand.filter(p => !/\u6444\u53d6|\u89c4\u5219|ingest|load|\u8f7d\u5165|\u52a0\u8f7d/.test(p));
+            const final = paths.length ? paths : (await vscode.window.showInputBox({ title: '\u8f93\u5165\u8981\u6444\u53d6\u7684\u6587\u4ef6\u6216\u76ee\u5f55\uff08\u9017\u53f7\u5206\u9694\uff09' }))?.split(',').map(s=>s.trim()).filter(Boolean) || [];
             if (!final.length) return;
             await client.request('tools/call', { name: 'rules.ingest', arguments: { paths: final } });
-            panel.webview.postMessage({ t: 'info', text: '规则摄取完成：' + final.join(', ') });
+            panel.webview.postMessage({ t: 'info', text: '\u89c4\u5219\u6444\u53d6\u5b8c\u6210\uff1a' + final.join(', ') });
           };
           const runCoverage = async () => {
             const resList = await client.request('resources/list', {});
             const summaryUri = (resList.resources || []).find((r: any) => String(r.uri || '').endsWith('/summary'))?.uri;
-            if (!summaryUri) { panel.webview.postMessage({ t: 'info', text: '未找到覆盖率资源，请先生成 coverage.xml。' }); return; }
+            if (!summaryUri) { panel.webview.postMessage({ t: 'info', text: '\u672a\u627e\u5230\u8986\u76d6\u7387\u8d44\u6e90\uff0c\u8bf7\u5148\u751f\u6210 coverage.xml\u3002' }); return; }
             const r = await client.request('resources/read', { uri: summaryUri });
             try { const data = JSON.parse((r as any).text || '{}'); panel.webview.postMessage({ t: 'covWeakAll', items: data.weak || [] }); } catch {}
           };
@@ -2676,48 +2691,48 @@ export function activate(context: vscode.ExtensionContext) {
             }
           };
           const runToggleMemory = async () => {
-            const on = !/(关闭|disable)/.test(text);
+            const on = !/(\u5173\u95ed|disable)/.test(text);
             await client.request('tools/call', { name: 'memory.toggle_auto', arguments: { on } });
-            panel.webview.postMessage({ t: 'info', text: on ? '已开启滚动记忆' : '已关闭滚动记忆' });
+            panel.webview.postMessage({ t: 'info', text: on ? '\u5df2\u5f00\u542f\u6eda\u52a8\u8bb0\u5fc6' : '\u5df2\u5173\u95ed\u6eda\u52a8\u8bb0\u5fc6' });
           };
           const runMemorySnapshot = async () => {
             const snap = await client.request('tools/call', { name: 'memory.snapshot', arguments: {} });
             panel.webview.postMessage({ t: 'memory', text: JSON.stringify(snap || {}, null, 2) });
           };
-          const runCiGen = async () => { await client.request('tools/call', { name: 'ci.generate', arguments: {} }); panel.webview.postMessage({ t: 'info', text: '已生成 CI' }); };
-          const runCiValidate = async () => { const v = await client.request('tools/call', { name: 'ci.validate', arguments: {} }); panel.webview.postMessage({ t: 'info', text: 'CI 校验完成' }); };
-          const runCiAutofix = async () => { await client.request('tools/call', { name: 'ci.autofix', arguments: {} }); panel.webview.postMessage({ t: 'info', text: 'CI 已自修复' }); };
-          const runInstallHooks = async () => { await client.request('tools/call', { name: 'git.install_hooks', arguments: {} }); panel.webview.postMessage({ t: 'info', text: '钩子安装完成' }); };
-          const runEnforce = async () => { await client.request('tools/call', { name: 'rules.enforce', arguments: {} }); panel.webview.postMessage({ t: 'info', text: '已应用门禁策略到配置' }); };
+          const runCiGen = async () => { await client.request('tools/call', { name: 'ci.generate', arguments: {} }); panel.webview.postMessage({ t: 'info', text: '\u5df2\u751f\u6210 CI' }); };
+          const runCiValidate = async () => { const v = await client.request('tools/call', { name: 'ci.validate', arguments: {} }); panel.webview.postMessage({ t: 'info', text: 'CI \u6821\u9a8c\u5b8c\u6210' }); };
+          const runCiAutofix = async () => { await client.request('tools/call', { name: 'ci.autofix', arguments: {} }); panel.webview.postMessage({ t: 'info', text: 'CI \u5df2\u81ea\u4fee\u590d' }); };
+          const runInstallHooks = async () => { await client.request('tools/call', { name: 'git.install_hooks', arguments: {} }); panel.webview.postMessage({ t: 'info', text: '\u94a9\u5b50\u5b89\u88c5\u5b8c\u6210' }); };
+          const runEnforce = async () => { await client.request('tools/call', { name: 'rules.enforce', arguments: {} }); panel.webview.postMessage({ t: 'info', text: '\u5df2\u5e94\u7528\u95e8\u7981\u7b56\u7565\u5230\u914d\u7f6e' }); };
           const runRulesOnboard = async () => {
             const pick = await vscode.window.showQuickPick([
-              { label: '个人 / personal', val: 'personal' },
-              { label: '专业 / pro', val: 'pro' },
-              { label: '企业 / enterprise', val: 'enterprise' },
-              { label: '机构 / institution', val: 'institution' },
-            ], { title: '选择应用场景 / Scenario' });
+              { label: '\u4e2a\u4eba / personal', val: 'personal' },
+              { label: '\u4e13\u4e1a / pro', val: 'pro' },
+              { label: '\u4f01\u4e1a / enterprise', val: 'enterprise' },
+              { label: '\u673a\u6784 / institution', val: 'institution' },
+            ], { title: '\u9009\u62e9\u5e94\u7528\u573a\u666f / Scenario' });
             if (!pick) return;
             const pickC = await vscode.window.showQuickPick([
-              { label: '小 / small', val: 'small' },
-              { label: '中 / medium', val: 'medium' },
-              { label: '大 / large', val: 'large' },
-            ], { title: '选择复杂度 / Complexity' });
+              { label: '\u5c0f / small', val: 'small' },
+              { label: '\u4e2d / medium', val: 'medium' },
+              { label: '\u5927 / large', val: 'large' },
+            ], { title: '\u9009\u62e9\u590d\u6742\u5ea6 / Complexity' });
             if (!pickC) return;
             const pickM = await vscode.window.showQuickPick([
               { label: 'TDD', val: 'tdd' },
               { label: 'BDD', val: 'bdd' },
-              { label: '文档驱动 / doc', val: 'doc' },
-              { label: '原型 / spike', val: 'spike' },
-            ], { title: '选择开发模式 / Dev Mode' });
+              { label: '\u6587\u6863\u9a71\u52a8 / doc', val: 'doc' },
+              { label: '\u539f\u578b / spike', val: 'spike' },
+            ], { title: '\u9009\u62e9\u5f00\u53d1\u6a21\u5f0f / Dev Mode' });
             if (!pickM) return;
             const out = await client.request('tools/call', { name: 'rules.onboard', arguments: { scenario: pick.val, complexity: pickC.val, devMode: pickM.val, apply: true } });
-            vscode.window.showInformationMessage('已应用规则档：' + JSON.stringify(out));
+            vscode.window.showInformationMessage('\u5df2\u5e94\u7528\u89c4\u5219\u6863\uff1a' + JSON.stringify(out));
           };
-          const runPrepareEnv = async () => { const out = await client.request('tools/call', { name: 'env.prepare', arguments: { create: false, install: false } }); vscode.window.showInformationMessage('env.prepare 计划: ' + JSON.stringify(out.plan || out)); };
+          const runPrepareEnv = async () => { const out = await client.request('tools/call', { name: 'env.prepare', arguments: { create: false, install: false } }); vscode.window.showInformationMessage('env.prepare \u8ba1\u5212: ' + JSON.stringify(out.plan || out)); };
 
           if (mapped === 'rules.ingest') await runIngest();
           else if (mapped === 'coverage.near') await runNear();
-          else if (mapped === 'resources.read') { if (/覆盖率|coverage/.test(lower)) await runCoverage(); else await runLoadRules(); }
+          else if (mapped === 'resources.read') { if (/\u8986\u76d6\u7387|coverage/.test(lower)) await runCoverage(); else await runLoadRules(); }
           else if (mapped === 'memory.toggle_auto') await runToggleMemory();
           else if (mapped === 'memory.snapshot') await runMemorySnapshot();
           else if (mapped === 'ci.generate') await runCiGen();
@@ -2728,9 +2743,9 @@ export function activate(context: vscode.ExtensionContext) {
           else if (mapped === 'rules.enforce') await runEnforce();
           else if (mapped === 'env.prepare') await runPrepareEnv();
 
-          vscode.window.setStatusBarMessage('已执行：' + (mapped || 'nl.command'), 3000);
-          panel.webview.postMessage({ t: 'info', text: '已执行：' + (text || '') });
-          // 请求刷新历史
+          vscode.window.setStatusBarMessage('\u5df2\u6267\u884c\uff1a' + (mapped || 'nl.command'), 3000);
+          panel.webview.postMessage({ t: 'info', text: '\u5df2\u6267\u884c\uff1a' + (text || '') });
+          // \u8bf7\u6c42\u5237\u65b0\u5386\u53f2
           vscode.commands.executeCommand('setContext', 'ruleflow.lastNL', text);
           panel.webview.postMessage({ t: 'nlRunOk', text });
           const h = context.workspaceState.get<string[]>('ruleflow.nl.history') || [];
@@ -2738,15 +2753,15 @@ export function activate(context: vscode.ExtensionContext) {
           await context.workspaceState.update('ruleflow.nl.history', nh);
           panel.webview.postMessage({ t: 'nlHistory', items: nh });
         } catch (e:any) {
-          vscode.window.showWarningMessage('自然语言执行失败：' + String(e));
-          panel.webview.postMessage({ t: 'info', text: '自然语言执行失败' });
+          vscode.window.showWarningMessage('\u81ea\u7136\u8bed\u8a00\u6267\u884c\u5931\u8d25\uff1a' + String(e));
+          panel.webview.postMessage({ t: 'info', text: '\u81ea\u7136\u8bed\u8a00\u6267\u884c\u5931\u8d25' });
         }
       }
-      // Webview 请求“近阈值”交互：扩展侧弹出输入框并计算
+      // Webview \u8bf7\u6c42\u201c\u8fd1\u9608\u503c\u201d\u4ea4\u4e92\uff1a\u6269\u5c55\u4fa7\u5f39\u51fa\u8f93\u5165\u6846\u5e76\u8ba1\u7b97
       if (msg && msg.t === 'covNearPrompt') {
         try {
           const last = Number(msg.last || 3) || 3;
-          const val = await vscode.window.showInputBox({ title: '近阈值窗口（百分比）', value: String(last), prompt: '单位 %（1–10），例如 3 表示 ≤3%' });
+          const val = await vscode.window.showInputBox({ title: '\u8fd1\u9608\u503c\u7a97\u53e3\uff08\u767e\u5206\u6bd4\uff09', value: String(last), prompt: '\u5355\u4f4d %\uff081\u201310\uff09\uff0c\u4f8b\u5982 3 \u8868\u793a \u22643%' });
           if (!val) { return; }
           const pct = Math.max(1, Math.min(10, parseFloat(val))) || 3;
           const top = 50;
@@ -2754,14 +2769,14 @@ export function activate(context: vscode.ExtensionContext) {
           const items = (res && (res as any).near) ? (res as any).near : [];
           panel.webview.postMessage({ t: 'covNearDisplay', items, pct, top });
         } catch (e:any) {
-          vscode.window.showWarningMessage('获取近阈值失败：' + String(e));
+          vscode.window.showWarningMessage('\u83b7\u53d6\u8fd1\u9608\u503c\u5931\u8d25\uff1a' + String(e));
         }
       }
       if (msg && msg.t === 'nlClearHistory') {
         try {
           await context.workspaceState.update('ruleflow.nl.history', []);
           panel.webview.postMessage({ t: 'nlHistory', items: [] });
-          panel.webview.postMessage({ t: 'info', text: '已清空自然语言历史' });
+          panel.webview.postMessage({ t: 'info', text: '\u5df2\u6e05\u7a7a\u81ea\u7136\u8bed\u8a00\u5386\u53f2' });
         } catch {}
       }
       if (msg && msg.t === 'nlFetchHistory') {
@@ -2774,29 +2789,29 @@ export function activate(context: vscode.ExtensionContext) {
         try {
           const diag = await client.request('tools/call', { name: 'env.diagnose', arguments: {} });
           panel.webview.postMessage({ t: 'license', license: (diag && (diag as any).license) || {} });
-          panel.webview.postMessage({ t: 'info', text: 'License 已校验' });
+          panel.webview.postMessage({ t: 'info', text: 'License \u5df2\u6821\u9a8c' });
         } catch (e:any) {
-          vscode.window.showWarningMessage('License 校验失败：' + String(e));
+          vscode.window.showWarningMessage('License \u6821\u9a8c\u5931\u8d25\uff1a' + String(e));
         }
       }
       if (msg && msg.t === 'licenseActivate') {
         try {
-          const files = await vscode.window.showOpenDialog({ title: '选择 License JSON 文件', canSelectMany: false, filters: { 'JSON': ['json'], 'All Files': ['*'] } });
+          const files = await vscode.window.showOpenDialog({ title: '\u9009\u62e9 License JSON \u6587\u4ef6', canSelectMany: false, filters: { 'JSON': ['json'], 'All Files': ['*'] } });
           if (!files || !files.length) return;
           const p = files[0].fsPath;
           await client.request('tools/call', { name: 'license.activate', arguments: { path: p } });
           const diag = await client.request('tools/call', { name: 'env.diagnose', arguments: {} });
           panel.webview.postMessage({ t: 'license', license: (diag && (diag as any).license) || {} });
-          panel.webview.postMessage({ t: 'info', text: 'License 已激活' });
+          panel.webview.postMessage({ t: 'info', text: 'License \u5df2\u6fc0\u6d3b' });
         } catch (e:any) {
-          vscode.window.showWarningMessage('License 激活失败：' + String(e));
+          vscode.window.showWarningMessage('License \u6fc0\u6d3b\u5931\u8d25\uff1a' + String(e));
         }
       }
     });
   });
-  // 注：quickActions 命令已在上文注册；此处重复注册已移除以避免测试中重复激活导致冲突
+  // \u6ce8\uff1aquickActions \u547d\u4ee4\u5df2\u5728\u4e0a\u6587\u6ce8\u518c\uff1b\u6b64\u5904\u91cd\u590d\u6ce8\u518c\u5df2\u79fb\u9664\u4ee5\u907f\u514d\u6d4b\u8bd5\u4e2d\u91cd\u590d\u6fc0\u6d3b\u5bfc\u81f4\u51b2\u7a81
 
-  // 许可状态（只读）：调用 license.verify 并展示结果
+  // \u8bb8\u53ef\u72b6\u6001\uff08\u53ea\u8bfb\uff09\uff1a\u8c03\u7528 license.verify \u5e76\u5c55\u793a\u7ed3\u679c
   context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant.licenseStatus', async () => {
     try { client.start(context); } catch {}
     try {
@@ -2873,23 +2888,23 @@ export function activate(context: vscode.ExtensionContext) {
     try { client.start(context); } catch {}
     try {
       const enabled = !!context.workspaceState.get('ruleflow.chat.appendEnabled');
-      if (!enabled) { vscode.window.showInformationMessage('Chat 追加摘要未启用'); return true; }
+      if (!enabled) { vscode.window.showInformationMessage('Chat \u8ffd\u52a0\u6458\u8981\u672a\u542f\u7528'); return true; }
       let summary = (typeof text === 'string' && text.trim()) ? String(text).trim() : '';
       if (!summary) {
-        summary = await vscode.window.showInputBox({ placeHolder: '输入要追加的上一轮问答摘要' }) || '';
+        summary = await vscode.window.showInputBox({ placeHolder: '\u8f93\u5165\u8981\u8ffd\u52a0\u7684\u4e0a\u4e00\u8f6e\u95ee\u7b54\u6458\u8981' }) || '';
       }
       if (!summary) { return false; }
       const content = 'ChatSummary: ' + summary;
       await client.request('tools/call', { name: 'memory.append_turn', arguments: { role: 'assistant', content, meta: { source: 'vscode', action: 'chat.append' } } });
-      vscode.window.showInformationMessage('已追加 Chat 摘要');
+      vscode.window.showInformationMessage('\u5df2\u8ffd\u52a0 Chat \u6458\u8981');
       return true;
     } catch (e:any) {
-      vscode.window.showErrorMessage('Chat 摘要追加失败：' + String(e));
+      vscode.window.showErrorMessage('Chat \u6458\u8981\u8ffd\u52a0\u5931\u8d25\uff1a' + String(e));
       return false;
     }
   }));
 
-  // test-only: 直接触发部分 quick actions（不依赖后端与真实 webview 事件），便于在无 Python 的环境覆盖 UI 分支
+  // test-only: \u76f4\u63a5\u89e6\u53d1\u90e8\u5206 quick actions\uff08\u4e0d\u4f9d\u8d56\u540e\u7aef\u4e0e\u771f\u5b9e webview \u4e8b\u4ef6\uff09\uff0c\u4fbf\u4e8e\u5728\u65e0 Python \u7684\u73af\u5883\u8986\u76d6 UI \u5206\u652f
   context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant._test_dispatchQuick', async (which: string) => {
     try {
       switch (which) {
@@ -2939,7 +2954,7 @@ export function activate(context: vscode.ExtensionContext) {
           // ensure directory exists or silently skip
           try { await vscode.workspace.fs.createDirectory(uri); } catch {}
           // reveal directory by opening a dummy README if present in subtree, else no-op
-          // (避免额外复杂度：不强制创建文件)
+          // (\u907f\u514d\u989d\u5916\u590d\u6742\u5ea6\uff1a\u4e0d\u5f3a\u5236\u521b\u5efa\u6587\u4ef6)
           break;
         }
         default:
@@ -2948,12 +2963,12 @@ export function activate(context: vscode.ExtensionContext) {
       }
       return true;
     } catch (e:any) {
-      // 和真实分支保持一致：若不存在则静默或以信息提示，这里统一不抛异常
+      // \u548c\u771f\u5b9e\u5206\u652f\u4fdd\u6301\u4e00\u81f4\uff1a\u82e5\u4e0d\u5b58\u5728\u5219\u9759\u9ed8\u6216\u4ee5\u4fe1\u606f\u63d0\u793a\uff0c\u8fd9\u91cc\u7edf\u4e00\u4e0d\u629b\u5f02\u5e38
       return false;
     }
   }));
 
-  // test-only: 模拟 Panel 消息分支（无后端），覆盖部分 onDidReceiveMessage 的典型路径
+  // test-only: \u6a21\u62df Panel \u6d88\u606f\u5206\u652f\uff08\u65e0\u540e\u7aef\uff09\uff0c\u8986\u76d6\u90e8\u5206 onDidReceiveMessage \u7684\u5178\u578b\u8def\u5f84
   context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant._test_dispatchPanel', async (which: string) => {
     try {
       const ws = getWorkspaceRoot() || process.cwd();
@@ -3019,13 +3034,13 @@ export function activate(context: vscode.ExtensionContext) {
     }
   }));
 
-  // test-only: 直接向 panel 消息处理器发送消息（需要先打开 openPanel 创建面板）
+  // test-only: \u76f4\u63a5\u5411 panel \u6d88\u606f\u5904\u7406\u5668\u53d1\u9001\u6d88\u606f\uff08\u9700\u8981\u5148\u6253\u5f00 openPanel \u521b\u5efa\u9762\u677f\uff09
   context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant._test_sendPanelMessage', async (msg: any) => {
     if (__testPanelHandler) { await __testPanelHandler(msg); return true; }
     return false;
   }));
 
-  // test-only: NL 历史 add/clear（不依赖后端）
+  // test-only: NL \u5386\u53f2 add/clear\uff08\u4e0d\u4f9d\u8d56\u540e\u7aef\uff09
   context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant._test_nlHistory', async (op: 'add'|'clear', text?: string) => {
     if (op === 'add') {
       const h = context.workspaceState.get<string[]>('ruleflow.nl.history') || [];
@@ -3041,47 +3056,47 @@ export function activate(context: vscode.ExtensionContext) {
     return -1;
   }));
 
-  // 轻量保存拦截：不做重操作，仅后续可扩展（保持性能）
+  // \u8f7b\u91cf\u4fdd\u5b58\u62e6\u622a\uff1a\u4e0d\u505a\u91cd\u64cd\u4f5c\uff0c\u4ec5\u540e\u7eed\u53ef\u6269\u5c55\uff08\u4fdd\u6301\u6027\u80fd\uff09
   context.subscriptions.push(vscode.workspace.onWillSaveTextDocument(async (_e) => {
-    // 预留：可在此做改动文件 lint 的触发或统计，无阻塞
+    // \u9884\u7559\uff1a\u53ef\u5728\u6b64\u505a\u6539\u52a8\u6587\u4ef6 lint \u7684\u89e6\u53d1\u6216\u7edf\u8ba1\uff0c\u65e0\u963b\u585e
   }));
 
-  // 软拦截：提交（运行 pre-commit commit 阶段）
+  // \u8f6f\u62e6\u622a\uff1a\u63d0\u4ea4\uff08\u8fd0\u884c pre-commit commit \u9636\u6bb5\uff09
   context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant.commit', async () => {
     try {
       const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-      if (!ws) { vscode.window.showWarningMessage('未找到工作区'); return; }
-      const msg = await vscode.window.showInputBox({ title: '提交说明 / Commit message' });
+      if (!ws) { vscode.window.showWarningMessage('\u672a\u627e\u5230\u5de5\u4f5c\u533a'); return; }
+      const msg = await vscode.window.showInputBox({ title: '\u63d0\u4ea4\u8bf4\u660e / Commit message' });
       if (msg === undefined) return;
-      // 先运行 pre-commit commit 阶段
+      // \u5148\u8fd0\u884c pre-commit commit \u9636\u6bb5
       await runShell('pre-commit', ['run', '--hook-stage', 'commit', '--all-files'], ws);
       await runShell('git', ['add', '-A'], ws);
       await runShell('git', ['commit', '-m', msg || 'chore: commit via mcp'], ws);
-      vscode.window.setStatusBarMessage('提交完成（commit checks 通过）', 3000);
+      vscode.window.setStatusBarMessage('\u63d0\u4ea4\u5b8c\u6210\uff08commit checks \u901a\u8fc7\uff09', 3000);
     } catch (e: any) {
-      vscode.window.showErrorMessage('提交失败：' + String(e));
+      vscode.window.showErrorMessage('\u63d0\u4ea4\u5931\u8d25\uff1a' + String(e));
     }
   }));
 
-  // 软拦截：推送（触发 pre-push 钩子，跑重型门禁）
+  // \u8f6f\u62e6\u622a\uff1a\u63a8\u9001\uff08\u89e6\u53d1 pre-push \u94a9\u5b50\uff0c\u8dd1\u91cd\u578b\u95e8\u7981\uff09
   context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant.push', async () => {
     try {
       const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-      if (!ws) { vscode.window.showWarningMessage('未找到工作区'); return; }
+      if (!ws) { vscode.window.showWarningMessage('\u672a\u627e\u5230\u5de5\u4f5c\u533a'); return; }
       await runShell('git', ['push'], ws);
-      vscode.window.setStatusBarMessage('推送完成（push gates 通过）', 3000);
+      vscode.window.setStatusBarMessage('\u63a8\u9001\u5b8c\u6210\uff08push gates \u901a\u8fc7\uff09', 3000);
     } catch (e: any) {
-      vscode.window.showErrorMessage('推送失败：' + String(e));
+      vscode.window.showErrorMessage('\u63a8\u9001\u5931\u8d25\uff1a' + String(e));
     }
   }));
 
-  // 自然语言命令：在输入框中输入“摄取规则/开启记忆”等短语
+  // \u81ea\u7136\u8bed\u8a00\u547d\u4ee4\uff1a\u5728\u8f93\u5165\u6846\u4e2d\u8f93\u5165\u201c\u6444\u53d6\u89c4\u5219/\u5f00\u542f\u8bb0\u5fc6\u201d\u7b49\u77ed\u8bed
   context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant.nlCommand', async () => {
     try {
       client.start(context);
       const text = await vscode.window.showInputBox({
-        title: 'RuleFlow 自然语言命令',
-        placeHolder: '例如：摄取规则 README.md, docs/ 或 开启滚动记忆'
+        title: 'RuleFlow \u81ea\u7136\u8bed\u8a00\u547d\u4ee4',
+        placeHolder: '\u4f8b\u5982\uff1a\u6444\u53d6\u89c4\u5219 README.md, docs/ \u6216 \u5f00\u542f\u6eda\u52a8\u8bb0\u5fc6'
       });
       if (!text) return;
       const res = await client.request('tools/call', { name: 'nl.command', arguments: { text } });
@@ -3093,63 +3108,63 @@ export function activate(context: vscode.ExtensionContext) {
       };
       const runIngestRules = async () => {
         // Try to parse simple CSV paths from input, else default to README.md, docs/
-        const m = text.split(/摄取规则|ingest rules|规则|ingest/i).slice(-1)[0] || '';
-        let paths = m.split(/[,，]/).map(s=>s.trim()).filter(Boolean);
+        const m = text.split(/\u6444\u53d6\u89c4\u5219|ingest rules|\u89c4\u5219|ingest/i).slice(-1)[0] || '';
+        let paths = m.split(/[,\uff0c]/).map(s=>s.trim()).filter(Boolean);
         if (paths.length === 0) paths = ['README.md', 'docs/'];
         await client.request('tools/call', { name: 'rules.ingest', arguments: { paths } });
-        vscode.window.showInformationMessage('规则摄取完成');
+        vscode.window.showInformationMessage('\u89c4\u5219\u6444\u53d6\u5b8c\u6210');
       };
       const runCiGenerate = async () => {
         const out = await client.request('tools/call', { name: 'ci.generate', arguments: {} });
-        vscode.window.showInformationMessage('CI 已生成: ' + (out && out.path ? String(out.path) : ''));        
+        vscode.window.showInformationMessage('CI \u5df2\u751f\u6210: ' + (out && out.path ? String(out.path) : ''));        
       };
       const runCiValidate = async () => {
         const out = await client.request('tools/call', { name: 'ci.validate', arguments: {} });
-        vscode.window.showInformationMessage('CI 校验完成');
+        vscode.window.showInformationMessage('CI \u6821\u9a8c\u5b8c\u6210');
       };
       const runInstallHooks = async () => {
         await client.request('tools/call', { name: 'git.install_hooks', arguments: {} });
-        vscode.window.showInformationMessage('Git hooks 已安装');
+        vscode.window.showInformationMessage('Git hooks \u5df2\u5b89\u88c5');
       };
       const runEnvPrepare = async () => {
-        const choice = await vscode.window.showQuickPick(['预览 / Dry-run', '创建并安装 / Create+Install'], { title: '准备环境' });
+        const choice = await vscode.window.showQuickPick(['\u9884\u89c8 / Dry-run', '\u521b\u5efa\u5e76\u5b89\u88c5 / Create+Install'], { title: '\u51c6\u5907\u73af\u5883' });
         if (!choice) return;
-        const args = choice.startsWith('预览') ? { create: false, install: false } : { create: true, install: true };
+        const args = choice.startsWith('\u9884\u89c8') ? { create: false, install: false } : { create: true, install: true };
         const out = await client.request('tools/call', { name: 'env.prepare', arguments: args });
-        vscode.window.showInformationMessage('环境准备: ' + (out && out.ok ? 'OK' : 'Done'));
+        vscode.window.showInformationMessage('\u73af\u5883\u51c6\u5907: ' + (out && out.ok ? 'OK' : 'Done'));
       };
       const runRulesEnforce = async () => {
         const out = await client.request('tools/call', { name: 'rules.enforce', arguments: {} });
-        vscode.window.showInformationMessage('Enforce: ' + (out && out.changed ? '配置已更新' : '无变化'));
+        vscode.window.showInformationMessage('Enforce: ' + (out && out.changed ? '\u914d\u7f6e\u5df2\u66f4\u65b0' : '\u65e0\u53d8\u5316'));
       };
       const runCompliance = async () => {
         const out = await client.request('tools/call', { name: 'compliance.commitment', arguments: { write: true } });
-        vscode.window.showInformationMessage('合规承诺已生成');
+        vscode.window.showInformationMessage('\u5408\u89c4\u627f\u8bfa\u5df2\u751f\u6210');
       };
       // Dispatch
-      if (tool === 'coverage.report' || /加载覆盖率|load coverage/.test(lower)) {
+      if (tool === 'coverage.report' || /\u52a0\u8f7d\u8986\u76d6\u7387|load coverage/.test(lower)) {
         await runLoadCoverage();
-      } else if (tool === 'rules.ingest' || /摄取规则|ingest rules/.test(lower)) {
+      } else if (tool === 'rules.ingest' || /\u6444\u53d6\u89c4\u5219|ingest rules/.test(lower)) {
         await runIngestRules();
-      } else if (tool === 'ci.generate' || /生成 ci|生成ci|generate ci/.test(lower)) {
+      } else if (tool === 'ci.generate' || /\u751f\u6210 ci|\u751f\u6210ci|generate ci/.test(lower)) {
         await runCiGenerate();
-      } else if (tool === 'ci.validate' || /校验 ci|validate ci/.test(lower)) {
+      } else if (tool === 'ci.validate' || /\u6821\u9a8c ci|validate ci/.test(lower)) {
         await runCiValidate();
-      } else if (tool === 'git.install_hooks' || /安装钩子|install hooks/.test(lower)) {
+      } else if (tool === 'git.install_hooks' || /\u5b89\u88c5\u94a9\u5b50|install hooks/.test(lower)) {
         await runInstallHooks();
-      } else if (tool === 'env.prepare' || /准备环境|prepare env/.test(lower)) {
+      } else if (tool === 'env.prepare' || /\u51c6\u5907\u73af\u5883|prepare env/.test(lower)) {
         await runEnvPrepare();
-      } else if (tool === 'rules.enforce' || /应用门禁|生成门禁|enforce/.test(lower)) {
+      } else if (tool === 'rules.enforce' || /\u5e94\u7528\u95e8\u7981|\u751f\u6210\u95e8\u7981|enforce/.test(lower)) {
         await runRulesEnforce();
-      } else if (tool === 'compliance.commitment' || /合规承诺|compliance/.test(lower)) {
+      } else if (tool === 'compliance.commitment' || /\u5408\u89c4\u627f\u8bfa|compliance/.test(lower)) {
         await runCompliance();
-      } else if (tool === 'plan.set' || /计划\s*设置|plan set|计划[:：]/.test(lower)) {
-        const mSt = /状态\s*[:=]\s*(进行中|in_progress|完成|done|planned)/i.exec(text);
-        const stMap: any = { '进行中':'in_progress', '完成':'done' };
+      } else if (tool === 'plan.set' || /\u8ba1\u5212\s*\u8bbe\u7f6e|plan set|\u8ba1\u5212[:\uff1a]/.test(lower)) {
+        const mSt = /\u72b6\u6001\s*[:=]\s*(\u8fdb\u884c\u4e2d|in_progress|\u5b8c\u6210|done|planned)/i.exec(text);
+        const stMap: any = { '\u8fdb\u884c\u4e2d':'in_progress', '\u5b8c\u6210':'done' };
         const status = mSt ? (stMap[mSt[1]] || mSt[1]) : undefined;
-        const mCur = /当前(步骤)?\s*[:=]\s*([^;，]+)/i.exec(text);
+        const mCur = /\u5f53\u524d(\u6b65\u9aa4)?\s*[:=]\s*([^;\uff0c]+)/i.exec(text);
         const current = mCur ? mCur[2].trim() : undefined;
-        const mNext = /(下一步|next)\s*[:=]\s*([^;，]+)/i.exec(text);
+        const mNext = /(\u4e0b\u4e00\u6b65|next)\s*[:=]\s*([^;\uff0c]+)/i.exec(text);
         const next = mNext ? mNext[2].trim() : undefined;
         const args:any = {}; if (status) args.status = status; if (current) args.current = current; if (next) args.next = next;
         if (Object.keys(args).length === 0) {
@@ -3158,21 +3173,21 @@ export function activate(context: vscode.ExtensionContext) {
           await client.request('tools/call', { name: 'plan.set', arguments: args });
           vscode.window.showInformationMessage('Plan updated');
         }
-      } else if (tool === 'fs.apply_patch' || /受控写入|guarded write/.test(lower)) {
+      } else if (tool === 'fs.apply_patch' || /\u53d7\u63a7\u5199\u5165|guarded write/.test(lower)) {
         await vscode.commands.executeCommand('mcpRulesAssistant.fsApplyPatch');
-      } else if (tool === 'rules.onboard' || /初始化规则|规则引导|setup rules|questionnaire/.test(lower)) {
+      } else if (tool === 'rules.onboard' || /\u521d\u59cb\u5316\u89c4\u5219|\u89c4\u5219\u5f15\u5bfc|setup rules|questionnaire/.test(lower)) {
         await client.request('tools/call', { name: 'rules.onboard', arguments: {} });
-        vscode.window.showInformationMessage('已执行规则引导（默认参数）');
+        vscode.window.showInformationMessage('\u5df2\u6267\u884c\u89c4\u5219\u5f15\u5bfc\uff08\u9ed8\u8ba4\u53c2\u6570\uff09');
       } else {
-        vscode.window.showInformationMessage('已执行：' + tool);
+        vscode.window.showInformationMessage('\u5df2\u6267\u884c\uff1a' + tool);
       }
       
-      // 存历史
+      // \u5b58\u5386\u53f2
       const h = context.workspaceState.get<string[]>('ruleflow.nl.history') || [];
       const nh = [text, ...h.filter(x=>x!==text)].slice(0, 10);
       await context.workspaceState.update('ruleflow.nl.history', nh);
     } catch (e: any) {
-      vscode.window.showErrorMessage('执行自然语言命令失败：' + String(e));
+      vscode.window.showErrorMessage('\u6267\u884c\u81ea\u7136\u8bed\u8a00\u547d\u4ee4\u5931\u8d25\uff1a' + String(e));
     }
   }));
 
@@ -3180,13 +3195,13 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant.licenseActivate', async () => {
     try {
       client.start(context);
-      const pick = await vscode.window.showOpenDialog({ canSelectMany: false, openLabel: '选择许可文件 (JSON)' });
+      const pick = await vscode.window.showOpenDialog({ canSelectMany: false, openLabel: '\u9009\u62e9\u8bb8\u53ef\u6587\u4ef6 (JSON)' });
       if (!pick || !pick[0]) { return; }
       const path = pick[0].fsPath;
       await client.request('tools/call', { name: 'license.activate', arguments: { path } });
-      vscode.window.showInformationMessage('License 已激活');
+      vscode.window.showInformationMessage('License \u5df2\u6fc0\u6d3b');
     } catch (e:any) {
-      vscode.window.showErrorMessage('激活失败：' + String(e));
+      vscode.window.showErrorMessage('\u6fc0\u6d3b\u5931\u8d25\uff1a' + String(e));
     }
   }));
   context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant.licenseVerify', async () => {
@@ -3194,17 +3209,17 @@ export function activate(context: vscode.ExtensionContext) {
       client.start(context);
       const res = await client.request('tools/call', { name: 'license.verify', arguments: {} });
       const lic = res && (res.license || res);
-      let msg = '未找到许可';
+      let msg = '\u672a\u627e\u5230\u8bb8\u53ef';
       try {
         const exp = lic && lic.expires; const ok = lic && lic.ok;
         if (exp) {
           const days = Math.ceil((new Date(exp).getTime() - Date.now()) / (1000*3600*24));
-          msg = `许可状态：${ok? '有效' : '无效'}；到期：${exp}（剩余 ${days} 天）`;
+          msg = `许可状态：${ok? '\u6709\u6548' : '\u65e0\u6548'}；到期：${exp}（剩余 ${days} 天）`;
         }
       } catch {}
       vscode.window.showInformationMessage(msg);
     } catch (e:any) {
-      vscode.window.showErrorMessage('校验失败：' + String(e));
+      vscode.window.showErrorMessage('\u6821\u9a8c\u5931\u8d25\uff1a' + String(e));
     }
   }));
 }

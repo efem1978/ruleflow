@@ -8,6 +8,8 @@
     try { 
       vscode.postMessage({ t: 'handshake' }); 
       console.log('[panel_bootstrap] Handshake sent');
+      // Redundant ready signal to help extension mark panel as ready even if inline script fails
+      try { vscode.postMessage({ t: 'ready' }); } catch {}
     } catch (e) {
       console.error('[panel_bootstrap] Handshake failed:', e);
     }
@@ -136,8 +138,27 @@
       } catch (e) {
         console.error('[panel_bootstrap] Click handler error:', e);
       }
-    }, true);
+    }, { passive: false, capture: true });
+    
+    // Add wheel event listener with passive option
+    document.addEventListener('wheel', function(ev) {
+      // Handle wheel events if needed
+    }, { passive: true });
+    
+    // Add touchstart event listener with passive option
+    document.addEventListener('touchstart', function(ev) {
+      // Handle touch events if needed
+    }, { passive: true });
     console.log('[panel_bootstrap] Event listener attached');
+    // Diagnostics: verify DOM presence
+    try {
+      var blen = (document && document.body && document.body.innerHTML && document.body.innerHTML.length) || 0;
+      console.log('[panel_bootstrap] body.innerHTML length =', blen);
+      console.log('[panel_bootstrap] has #simpleBar =', !!document.getElementById('simpleBar'));
+      console.log('[panel_bootstrap] has #hdrTitle =', !!document.getElementById('hdrTitle'));
+    } catch (e) {
+      console.error('[panel_bootstrap] DOM diagnostics failed:', e);
+    }
   } catch (e) {
     console.error('[panel_bootstrap] Initialization failed:', e);
   }

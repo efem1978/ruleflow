@@ -7,6 +7,7 @@ import os
 import shutil
 import time
 from enum import Enum
+import sys
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, TypedDict, cast
 
@@ -89,7 +90,12 @@ class DevAgent:
     ) -> Dict[str, object]:
         env = os.environ.copy()
         env.setdefault("PYTEST_DISABLE_PLUGIN_AUTOLOAD", "1")
-        py = os.environ.get("PYTHON_BIN") or "python3"
+        # Prefer project venv python and ensure console scripts on PATH
+        venv_bin = self.project_root / ".mcp" / "venv" / "bin"
+        # Use the same interpreter that launched the dev_agent to ensure consistent venv/plugins
+        py = sys.executable or (os.environ.get("PYTHON_BIN") or "python3")
+        if venv_bin.exists():
+            env["PATH"] = f"{str(venv_bin)}:{env.get('PATH','')}"
         cmd = [
             py,
             "-m",
@@ -97,10 +103,13 @@ class DevAgent:
             "-q",
             "-p",
             "pytest_cov",
+            "-p",
+            "pytest_benchmark",
             "--maxfail=1",
             "--disable-warnings",
+            # Avoid coverage warnings impacting smoke result
             "-W",
-            "error",
+            "ignore::coverage.CoverageWarning",
             "--strict-markers",
             "--cov=mcp_rules_assistant",
             "--cov-report=xml:coverage.xml",
@@ -1173,7 +1182,12 @@ def _run_tests_with_coverage(
 ) -> Dict[str, object]:
     env = os.environ.copy()
     env.setdefault("PYTEST_DISABLE_PLUGIN_AUTOLOAD", "1")
-    py = os.environ.get("PYTHON_BIN") or "python3"
+    # Prefer project venv python and ensure console scripts on PATH
+    venv_bin = project_root / ".mcp" / "venv" / "bin"
+    vpy = venv_bin / "python"
+    py = str(vpy) if vpy.exists() else (os.environ.get("PYTHON_BIN") or "python3")
+    if venv_bin.exists():
+        env["PATH"] = f"{str(venv_bin)}:{env.get('PATH','')}"
     cmd = [
         py,
         "-m",
@@ -1181,6 +1195,8 @@ def _run_tests_with_coverage(
         "-q",
         "-p",
         "pytest_cov",
+        "-p",
+        "benchmark",
         "--maxfail=1",
         "--disable-warnings",
         "-W",

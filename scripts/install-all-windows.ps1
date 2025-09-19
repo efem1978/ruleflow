@@ -188,19 +188,23 @@ function Install-VSCodeExtension {
     }
     
     try {
+        & npm --prefix extensions/vscode install
         & npm --prefix extensions/vscode run compile
         & npm --prefix extensions/vscode run package
     } catch {
         Write-Error "Failed to build VSCode extension"
         return $false
     }
-    
-    $vsixFile = "extensions/vscode/mcp-rules-assistant-0.2.6.vsix"
-    if (-not (Test-Path $vsixFile)) {
-        Write-Error "VSIX file not found: $vsixFile"
+
+    $vsixFiles = Get-ChildItem -Path "extensions/vscode" -Filter "mcp-rules-assistant-*.vsix" | Sort-Object Name
+    if (-not $vsixFiles) {
+        Write-Error "VSIX file not found after packaging"
         return $false
     }
-    
+    $vsixFile = $vsixFiles[-1].FullName
+    New-Item -ItemType Directory -Path "extensions/artifacts" -Force | Out-Null
+    Copy-Item -Path $vsixFile -Destination "extensions/artifacts/" -Force -ErrorAction SilentlyContinue | Out-Null
+
     # Install for VSCode
     if (Get-Command "code" -ErrorAction SilentlyContinue) {
         try {
@@ -209,6 +213,13 @@ function Install-VSCodeExtension {
         } catch {
             Write-Error "Failed to install VSCode extension"
             return $false
+        }
+    } elseif (Get-Command "code-insiders" -ErrorAction SilentlyContinue) {
+        try {
+            & code-insiders --install-extension $vsixFile --force
+            Write-Success "VS Code Insiders extension installed"
+        } catch {
+            Write-Warn "Failed to install VS Code Insiders extension"
         }
     }
     
@@ -539,3 +550,9 @@ foreach ($ide in $availableIDEs) {
 }
 
 Test-Installation
+
+# Summary
+Write-Info "Latest VSIX: $vsixFile"
+if (Test-Path ".mcp/dashboard/install_report.md") {
+  Write-Info "Install report: $(Resolve-Path .mcp/dashboard/install_report.md)"
+}

@@ -17,6 +17,30 @@
       "options": { "cwd": "${workspaceFolder}" },
       "problemMatcher": [],
       "group": "test"
+    },
+    {
+      "label": "Install: All (STRICT_TESTS=0, RUN_VERIFY=1)",
+      "type": "shell",
+      "command": "STRICT_TESTS=0 RUN_VERIFY=1 bash scripts/install-all.sh",
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": [],
+      "group": "build"
+    },
+    {
+      "label": "Diagnose: Environment",
+      "type": "shell",
+      "command": "bash scripts/diagnose-env.sh",
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": [],
+      "group": "build"
+    },
+    {
+      "label": "Verify: Full Workflow",
+      "type": "shell",
+      "command": "bash scripts/verify-all.sh",
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": [],
+      "group": "test"
     }
   ]
 }

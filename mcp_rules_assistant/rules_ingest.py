@@ -4,8 +4,10 @@ import json
 import json as _json
 import re
 from dataclasses import asdict, dataclass
+import platform
+import shutil
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 RAW_PATH = Path(".mcp/rules_raw.json")
 COMPILED_JSON = Path(".mcp/rules_compiled.json")
@@ -26,6 +28,8 @@ class RuleItem:
     text: str
     source: Source
     severity: str = "must"  # must/should
+    # Optional conditions parsed from tags like [env:container] [ide:vscode] [os:windows|linux|darwin]
+    conditions: Optional[Dict[str, List[str]]] = None
 
 
 def _iter_files(paths: Iterable[Path]) -> Iterable[Path]:
@@ -60,14 +64,47 @@ def _parse_text_file(path: Path) -> List[RuleItem]:
             continue
         if in_code:
             continue
+        # 提取条件标签并清洗文本
+        conds, clean = _extract_conditions(t)
         # 仅解析条目风格的行（列表/编号/短句）
-        if re.match(r"^(?:[-*] |\d+\.|[•·] )", t) or len(t) < 160:
-            mapped = _interpret_policy(t)
+        if re.match(r"^(?:[-*] |\d+\.|[•·] )", clean) or len(clean) < 160:
+            mapped = _interpret_policy(clean)
             for key, val in mapped.items():
                 items.append(
-                    RuleItem(key=key, value=val, text=t, source=Source(str(path), i))
+                    RuleItem(
+                        key=key,
+                        value=val,
+                        text=clean,
+                        source=Source(str(path), i),
+                        conditions=(conds or None),
+                    )
                 )
     return items
+
+
+def _extract_conditions(text: str) -> Tuple[Dict[str, List[str]], str]:
+    """Extract condition tags from text and return (conditions, clean_text).
+
+    Supported tags: [env:container], [ide:vscode], [os:windows|linux|darwin]
+    Multiple values can be separated by comma or '|'. Unknown tags are ignored.
+    """
+    conds: Dict[str, List[str]] = {}
+    clean = text
+    # Find all [key:value] tags
+    pattern = re.compile(r"\[(\w+):([^\]]+)\]")
+    for m in list(pattern.finditer(text)):
+        key = m.group(1).strip().lower()
+        vals = [v.strip().lower() for v in re.split(r"[|,]", m.group(2)) if v.strip()]
+        if key in {"env", "ide", "os"} and vals:
+            conds.setdefault(key, [])
+            for v in vals:
+                if v not in conds[key]:
+                    conds[key].append(v)
+        # remove this tag from clean text
+        clean = clean.replace(m.group(0), "").strip()
+    # normalize whitespace
+    clean = re.sub(r"\s+", " ", clean)
+    return conds, clean
 
 
 def _interpret_policy(text: str) -> Dict[str, Any]:
@@ -642,9 +679,51 @@ def compile_rules(project_root: Optional[Path] = None) -> Dict[str, Any]:
             return abs(float(old) - float(new)) > float(d)
         return False
 
+    # Environment snapshot for conditional rules
+    os_name = platform.system().lower()
+    is_windows = os_name.startswith("win")
+    is_linux = os_name == "linux"
+    is_darwin = os_name == "darwin"
+    docker_ok = shutil.which("docker") is not None
+    code_ok = (shutil.which("code") is not None) or (shutil.which("code-insiders") is not None)
+    dockerfile_exists = (root / "Dockerfile").exists()
+
+    def _match_conditions(conds: Optional[Dict[str, List[str]]]) -> bool:
+        if not conds:
+            return True
+        # OS
+        os_vals = set((conds.get("os") or []))
+        if os_vals:
+            ok = False
+            if ("windows" in os_vals and is_windows) or ("linux" in os_vals and is_linux) or ("darwin" in os_vals and is_darwin):
+                ok = True
+            if not ok:
+                return False
+        # IDE
+        ide_vals = set((conds.get("ide") or []))
+        if ide_vals:
+            # Consider vscode if code CLI exists
+            if "vscode" in ide_vals and not code_ok:
+                return False
+        # ENV
+        env_vals = set((conds.get("env") or []))
+        if env_vals:
+            # container: either docker CLI available or Dockerfile exists
+            if "container" in env_vals or "docker" in env_vals:
+                if not (docker_ok or dockerfile_exists):
+                    return False
+        return True
+
     maxima: Dict[str, float] = {}
     maxima_origins: Dict[str, List[Source]] = {}
     for it in items:
+        # Skip items whose conditions do not match current environment
+        try:
+            if not _match_conditions(getattr(it, "conditions", None)):
+                continue
+        except Exception:
+            # If any error happens evaluating conditions, be permissive
+            pass
         k, v = it.key, it.value
         # 收集 coverage.max_* 到 meta，不并入 policy
         if k.startswith("coverage.max_"):

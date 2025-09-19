@@ -85,3 +85,13 @@ MCP 调用
 rules:
   conflict_delta: 0.05  # 数值分歧 > 该阈值（默认 0.05=5%）判定为冲突
 ```
+
+条件化规则标签（可选）
+- 支持在文本规则中使用条件标签，仅当条件匹配当前环境时才参与编译：
+  - `[env:container]` 或 `[env:docker]`：本机有 docker CLI 或仓库存在 `Dockerfile` 时生效
+  - `[ide:vscode]`：本机存在 `code`/`code-insiders` CLI 时生效
+  - `[os:windows|linux|darwin]`：按操作系统生效（可多选，`|` 或 `,` 分隔）
+- 示例：
+  - `- [env:container] 覆盖率 95%` → 仅在容器化场景编译为 `coverage.min_module: 0.95`
+  - `- [os:windows] 禁止 skip/xfail` → 仅在 Windows 环境编译为 `test.no_skip_xfail: true`
+- 详见：`docs/RULES_CONDITIONAL_TAGS.md`

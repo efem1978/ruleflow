@@ -13,8 +13,12 @@ def test_jb_ui_verify_includes_memory_turns(tmp_path: Path) -> None:
     root = tmp_path
     scripts = root / "scripts"
     scripts.mkdir(parents=True)
-    # copy the verify script
-    src = Path("scripts/jb-ui-verify.sh").resolve()
+    # copy the verify script (resolve from repo root to avoid CWD issues)
+    repo_root = Path(__file__).resolve().parent.parent.parent
+    candidate = repo_root / "scripts" / "jb-ui-verify.sh"
+    if not candidate.exists():
+        candidate = Path("scripts/jb-ui-verify.sh")
+    src = candidate.resolve()
     text = src.read_text(encoding="utf-8")
     (scripts / "jb-ui-verify.sh").write_text(text, encoding="utf-8")
     os.chmod(scripts / "jb-ui-verify.sh", stat.S_IRWXU)

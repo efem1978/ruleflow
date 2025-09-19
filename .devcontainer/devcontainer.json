@@ -6,7 +6,7 @@
       "version": "20"
     }
   },
-  "postCreateCommand": "pip install -e . && pip install ruff black isort mypy bandit pytest pytest-cov pre-commit && npm --prefix extensions/vscode install",
+  "postCreateCommand": "pip install -e . && pip install ruff black isort mypy bandit pytest pytest-cov pre-commit && npm --prefix extensions/vscode install && npm --prefix extensions/vscode run compile",
   "customizations": {
     "vscode": {
       "settings": {
@@ -14,7 +14,8 @@
       },
       "extensions": [
         "ms-python.python",
-        "ms-python.vscode-pylance"
+        "ms-python.vscode-pylance",
+        "ruleflow.mcp-rules-assistant"
       ]
     }
   }

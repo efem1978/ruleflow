@@ -2,9 +2,14 @@
   "copilot.mcp.tools": {
     "mcp.servers": {
       "mcp-rules-assistant": {
-        "command": "python",
+        "command": "python3",
         "args": ["-m", "mcp_rules_assistant.cli", "start"],
-        "cwd": "/Users/aifei/Desktop/人工智能编程/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool"
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "PYTHONUNBUFFERED": "1",
+          "MCP_PROJECT_ROOT": "${workspaceFolder}",
+          "MCP_STRICT_ISOLATION": "1"
+        }
       }
     }
   },
@@ -15,6 +20,8 @@
   "git.autofetch": false,
   "markdown.validate.enabled": true,
   "ruleflow.python.path": "${workspaceFolder}/.mcp/venv/bin/python",
+  "ruff.path": ["${workspaceFolder}/.mcp/venv/bin/ruff"],
+  "ruff.interpreter": ["${workspaceFolder}/.mcp/venv/bin/python"],
   "java.configuration.updateBuildConfiguration": "disabled",
   "java.import.gradle.enabled": false,
   "java.compile.nullAnalysis.mode": "disabled",

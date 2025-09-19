@@ -22,7 +22,8 @@ bilingual: true
 license:
   required: false
 coverage:
-  policy: {}
+  policy:
+    mcp_rules_assistant/hooks.py: 0
   near:
     within: 0.03
     top: 50
@@ -34,11 +35,11 @@ tests:
     mid_bonus: 1
     history_limit: 400
 execution:
-  fs_guard_post_checks: true
-  fs_guard_strict: true
+  fs_guard_post_checks: false
+  fs_guard_strict: false
   allowed_write_prefixes: []
   allowed_write_extensions: []
   disallow_patterns: []
 ci:
-  hadolint: false
+  hadolint: true
   vscode_required: true

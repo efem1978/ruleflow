@@ -130,8 +130,8 @@ class TestPerformanceBenchmarks:
             # Monitor memory during heavy operation
             process = subprocess.Popen(
                 ["mcp-rules-assistant", "diagnose"],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
             )
 
             max_memory = 0

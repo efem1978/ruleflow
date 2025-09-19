@@ -470,6 +470,140 @@ def rules_onboard(
         )
 
 
+@app.command("env-autotune")
+def env_autotune(
+    apply: bool = typer.Option(False, "--apply/--dry-run", help="写入配置或仅显示 diff"),
+    verbose: bool = typer.Option(False, "--verbose", help="打印更多诊断信息"),
+):
+    """根据本地环境与已编译规则，自动建议/应用配置调整（hadolint/vscode_required 等）。
+
+    - 探测：docker/code/code-insiders/node/WSL、是否存在 Dockerfile、已编译策略.
+    - 逻辑：
+      * 若 docker 可用且 (policy.container.required 或 policy.container.policy.baseline 或存在 Dockerfile)，则建议启用 ci.hadolint.
+      * 若本机无 code/code-insiders CLI，则建议将 ci.vscode_required=false（避免 CI 严格依赖 VS Code job）。
+      * 不覆盖用户已显式设置的项（仅在未设置时添加，或在明显不匹配时给出建议）。
+    """
+    root = Path.cwd().resolve()
+    ensure_project_config(DEFAULT_PROJECT_CONFIG_PATH)
+    try:
+        data = yaml.safe_load(DEFAULT_PROJECT_CONFIG_PATH.read_text(encoding="utf-8")) or {}
+    except Exception:
+        data = {}
+
+    # Helpers
+    def _get(d: dict, path: list[str], default=None):
+        cur = d
+        for k in path:
+            if not isinstance(cur, dict) or k not in cur:
+                return default
+            cur = cur[k]
+        return cur
+
+    def _set(d: dict, path: list[str], value):
+        cur = d
+        for k in path[:-1]:
+            if k not in cur or not isinstance(cur[k], dict):
+                cur[k] = {}
+            cur = cur[k]
+        cur[path[-1]] = value
+
+    def _read_compiled_policy(rootp: Path) -> dict:
+        p = rootp / ".mcp/rules_compiled.json"
+        if not p.exists():
+            return {}
+        try:
+            return _json.loads(p.read_text(encoding="utf-8")).get("policy", {}) or {}
+        except Exception:
+            return {}
+
+    # Detect tools / env
+    def _which(name: str) -> bool:
+        return shutil.which(name) is not None
+
+    docker_ok = _which("docker")
+    code_ok = _which("code") or _which("code-insiders")
+    node_ok = _which("node")
+    is_wsl = False
+    try:
+        if platform.system().lower() == "linux":
+            vtxt = Path("/proc/version").read_text(encoding="utf-8", errors="ignore")
+            is_wsl = "microsoft" in vtxt.lower()
+    except Exception:
+        is_wsl = False
+    dockerfile_exists = (root / "Dockerfile").exists()
+    policy = _read_compiled_policy(root)
+
+    # Proposals
+    proposals: dict = {"set": {}, "advice": []}
+    def _propose(path: list[str], value, reason: str):
+        proposals["set"]["/".join(path)] = {"value": value, "reason": reason}
+
+    # ci.hadolint
+    need_hadolint = bool(policy.get("container.required") or policy.get("container.policy.baseline") or dockerfile_exists)
+    if docker_ok and need_hadolint:
+        cur = _get(data, ["ci", "hadolint"], None)
+        if cur is None:
+            _propose(["ci", "hadolint"], True, "docker 可用且容器策略/文件存在，建议启用 hadolint")
+        elif cur is False:
+            proposals["advice"].append("建议启用 ci.hadolint=true（docker 可用且容器策略/文件存在）")
+    elif need_hadolint and not docker_ok:
+        proposals["advice"].append("检测到容器策略/文件，但本机未安装 docker；CI 可启用 hadolint，或在 devcontainer 中本地执行")
+
+    # ci.vscode_required
+    if not code_ok:
+        cur = _get(data, ["ci", "vscode_required"], None)
+        if cur is True or cur is None:
+            _propose(["ci", "vscode_required"], False, "本机无 code/code-insiders CLI，避免 CI 严格依赖 VS Code job")
+
+    # Optional hints
+    if is_wsl:
+        proposals["advice"].append("检测到 WSL：建议在 Windows 侧 VS Code 安装 Remote - WSL 扩展，并在 Windows 侧用 VSIX 安装前端")
+    if not node_ok:
+        proposals["advice"].append("未检测到 node：若需要构建 VS Code 前端，请安装 Node.js 20+")
+
+    # Apply diff (non-destructive)
+    changed = False
+    final_data = dict(data)
+    for k, v in proposals["set"].items():
+        path = k.split("/")
+        before = _get(final_data, path, None)
+        if before != v["value"]:
+            _set(final_data, path, v["value"])  # type: ignore[arg-type]
+            changed = True
+
+    out = {
+        "env": {
+            "docker": docker_ok,
+            "code": code_ok,
+            "node": node_ok,
+            "wsl": is_wsl,
+            "dockerfile": dockerfile_exists,
+        },
+        "policy_flags": {
+            "container.required": bool(policy.get("container.required")),
+            "container.policy.baseline": bool(policy.get("container.policy.baseline")),
+        },
+        "proposals": proposals,
+        "changed": changed,
+        "applied": False,
+        "path": str(DEFAULT_PROJECT_CONFIG_PATH),
+    }
+
+    if not apply:
+        print(_json.dumps(out, ensure_ascii=False))
+        return
+
+    if changed:
+        try:
+            DEFAULT_PROJECT_CONFIG_PATH.write_text(
+                yaml.safe_dump(final_data, sort_keys=False, allow_unicode=True),
+                encoding="utf-8",
+            )
+            out["applied"] = True
+        except Exception:
+            out["applied"] = False
+    print(_json.dumps(out, ensure_ascii=False))
+
 @app.command("ide-scaffold")
 def ide_scaffold(
     editor: str = typer.Option(..., "--editor", help="vscode/cursor/jetbrains/neovim")
