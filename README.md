@@ -220,11 +220,11 @@ security:
 
 下载与发布说明 / Download & Release Notes
 - 查看发布说明索引：`docs/releases/`
-- 当前版本说明：`docs/releases/v0.2.5.md`
+- 当前版本说明：`docs/releases/v0.2.6.md`
 - 发布物料与报告（本地生成）：
-  - VSIX：`extensions/vscode/mcp-rules-assistant-0.2.5.vsix`
-  - Python 包：`dist/mcp_rules_assistant-0.2.5-py3-none-any.whl` | `dist/mcp_rules_assistant-0.2.5.tar.gz`
-  - 归档：`dist/release-bundle-0.2.5.tar.gz`
+  - VSIX：`extensions/vscode/mcp-rules-assistant-0.2.6.vsix`
+  - Python 包：`dist/mcp_rules_assistant-0.2.6-py3-none-any.whl` | `dist/mcp_rules_assistant-0.2.6.tar.gz`
+  - 归档：`dist/release-bundle-0.2.6.tar.gz`
 - 预发布报告：`.mcp/dashboard/pre_release_report.md`
 
 发布操作清单 / Publishing Checklist
@@ -254,11 +254,11 @@ pip-audit || true
   - `ls -lh dist/release-bundle-*.tar.gz`
   - `tar tzf dist/release-bundle-*.tar.gz | sed -n '1,50p'`
 - 试装 VSIX（可卸载）：
-  - `code --install-extension extensions/vscode/mcp-rules-assistant-0.2.5.vsix`
+  - `code --install-extension extensions/vscode/mcp-rules-assistant-0.2.6.vsix`
   - 验证：VS Code 命令面板 `RuleFlow: Open Panel`
   - 卸载：`code --uninstall-extension ruleflow.mcp-rules-assistant`
 - 试装 Python 包（可卸载）：
-  - `pip install dist/mcp_rules_assistant-0.2.5-py3-none-any.whl`
+  - `pip install dist/mcp_rules_assistant-0.2.6-py3-none-any.whl`
   - 验证：`python -m mcp_rules_assistant.cli status-update --json | jq .plan`
   - 卸载：`pip uninstall -y mcp_rules_assistant`
 
