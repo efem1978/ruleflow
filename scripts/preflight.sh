@@ -50,8 +50,7 @@ else
 fi
 
 echo "[preflight] running docs anchors tests..."
-python3 -c "import importlib,sys; sys.exit(0 if importlib.util.find_spec('pytest') else 1)" >/dev/null 2>&1
-if [ $? -eq 0 ]; then
+if python3 -c "import importlib,sys; sys.exit(0 if importlib.util.find_spec('pytest') else 1)" >/dev/null 2>&1; then
   PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest -q tests/docs/test_docs_anchors.py
 else
   echo "[preflight] pytest not found; running lightweight anchors check" >&2
