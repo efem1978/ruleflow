@@ -5,6 +5,7 @@ Python 包 Packaging
 - 打包：`make package`（或 `python -m build`）
 - 发布：`python -m pip install --upgrade twine && twine upload dist/*`
 - 检查：`make release-check`（执行 `twine check dist/*`）
+ - 依赖安全：`python -m pip install --upgrade pip-audit && pip-audit || true`
 
 VS Code 扩展（可选）
 - 编译：`npm --prefix extensions/vscode run compile`

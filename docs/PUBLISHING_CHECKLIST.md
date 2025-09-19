@@ -9,23 +9,27 @@
 - 本地打包（Wheel + VSIX + 归档）：
   - `sh scripts/release-local-pack.sh`
   - 校验 `dist/release-bundle-<ver>.tar.gz` 内容：`tar tzf dist/release-bundle-*.tar.gz | head -n 50`
+- 本地构建与验证：
+  - `python -m build`
+  - `python -m twine check dist/*`
+  - `pip-audit || true`
 - 可选：容器内 VS Code 无头测试与 lcov（CI/容器环境）：
   - `make docker-vscode-test`
 
 ## 1) Git 标签（本地打 Tag 后手动推送）
-- 确认 `pyproject.toml` 的版本号与 VSIX 版本一致（本仓库 v0.2.5 示例）。
+- 确认 `pyproject.toml` 的版本号与 VSIX 版本一致（本仓库 v0.2.6 示例）。
 - 命令模板：
-  - `git tag -a v0.2.5 -m "RuleFlow v0.2.5"`
-  - `git push origin v0.2.5`
+  - `git tag -a v0.2.6 -m "RuleFlow v0.2.6"`
+  - `git push origin v0.2.6`
 
 ## 2) GitHub Release（人工在 Web 上操作）
-- 新建 Release（指向标签 v0.2.5）：
+- 新建 Release（指向标签 v0.2.6）：
   - 正文建议粘贴 `.mcp/dashboard/release_body.md` 或 `RELEASE.md` 摘要段（本仓库附 `.mcp/dashboard/release_github_draft.md` 草案）。
   - 附件：
-    - `extensions/vscode/mcp-rules-assistant-0.2.5.vsix`
-    - `dist/mcp_rules_assistant-0.2.5-py3-none-any.whl`
-    - `dist/mcp_rules_assistant-0.2.5.tar.gz`
-    - `dist/release-bundle-0.2.5.tar.gz`（可选）
+    - `extensions/vscode/mcp-rules-assistant-0.2.6.vsix`
+    - `dist/mcp_rules_assistant-0.2.6-py3-none-any.whl`
+    - `dist/mcp_rules_assistant-0.2.6.tar.gz`
+    - `dist/release-bundle-0.2.6.tar.gz`（可选）
 
 ## 3) PyPI 发布（示例指令，需 PyPI 凭据）
 - 环境：`python -m pip install --upgrade build twine`
@@ -42,8 +46,8 @@
 
 ## 5) 验收与回滚准备
 - 下载安装验证：
-  - VSIX：`code --install-extension extensions/vscode/mcp-rules-assistant-0.2.5.vsix`
-  - Wheel：`pip install dist/mcp_rules_assistant-0.2.5-py3-none-any.whl`
+  - VSIX：`code --install-extension extensions/vscode/mcp-rules-assistant-0.2.6.vsix`
+  - Wheel：`pip install dist/mcp_rules_assistant-0.2.6-py3-none-any.whl`
 - 失败回滚：删除标签/撤销 Release；PyPI/VSCE 按各平台回滚或撤销流程执行。
 
 > 提示：本地/CI 发布操作建议使用只读或最小权限令牌；所有操作均应由人工确认后再执行。

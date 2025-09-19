@@ -22,12 +22,18 @@ if [ -d ".mcp/venv/bin" ]; then
   export PATH="$(pwd)/.mcp/venv/bin:$PATH"
 fi
 
+# Quiet mode (optional): set VERIFY_QUIET=1 for extra-silent pytest (-qq)
+PYTEST_Q="-q"
+if [ "${VERIFY_QUIET:-0}" = "1" ]; then
+  PYTEST_Q="-qq"
+fi
+
 # Ensure required test plugins are installed (benchmark, psutil)
 "$PY" -m pip install -U pytest-benchmark psutil >/dev/null 2>&1 || true
 if [ "${COVERAGE_WARN_FILTER:-0}" = "1" ] && [ -x scripts/coverage-warn-filter.sh ]; then
-  PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 "$PY" -m pytest -q -p pytest_cov -p benchmark --maxfail=1 --disable-warnings -W error --strict-markers --cov=mcp_rules_assistant --cov-report=xml:coverage.xml --cov-report=term-missing --junitxml=pytest-junit.xml 2> >(bash scripts/coverage-warn-filter.sh 1>&2)
+  PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 "$PY" -m pytest $PYTEST_Q -p pytest_cov -p pytest_benchmark --maxfail=1 --disable-warnings -W error --strict-markers --cov=mcp_rules_assistant --cov-report=xml:coverage.xml --cov-report=term-missing --junitxml=pytest-junit.xml 2> >(bash scripts/coverage-warn-filter.sh 1>&2)
 else
-  PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 "$PY" -m pytest -q -p pytest_cov -p benchmark --maxfail=1 --disable-warnings -W error --strict-markers --cov=mcp_rules_assistant --cov-report=xml:coverage.xml --cov-report=term-missing --junitxml=pytest-junit.xml
+  PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 "$PY" -m pytest $PYTEST_Q -p pytest_cov -p pytest_benchmark --maxfail=1 --disable-warnings -W error --strict-markers --cov=mcp_rules_assistant --cov-report=xml:coverage.xml --cov-report=term-missing --junitxml=pytest-junit.xml
 fi
 
 echo "[verify] Skip/XFail Summary (non-blocking)"
