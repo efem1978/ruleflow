@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from typer.testing import CliRunner
-import json
 
 from mcp_rules_assistant.cli import app
 
@@ -33,5 +33,3 @@ def test_cli_env_autotune_json_and_apply(tmp_path: Path, monkeypatch):
     assert cfg.exists()
     text = cfg.read_text(encoding="utf-8")
     assert "ci:" in text or "vscode_required" in text
-
-

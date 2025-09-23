@@ -5,10 +5,32 @@ set -euo pipefail
 # Usage: scripts/install-remote-vsix.sh [VSIX_PATH]
 
 WS_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-VSIX_PATH="${1:-${WS_ROOT}/extensions/vscode/mcp-rules-assistant-0.2.7.vsix}"
 
-if [[ ! -f "${VSIX_PATH}" ]]; then
-  echo "[remote-vsix] VSIX not found: ${VSIX_PATH}" >&2
+# Auto-detect latest VSIX if not provided
+if [[ -n "${1-}" ]]; then
+  VSIX_PATH="$1"
+else
+  # Search both extension build dir and artifacts dir
+  CANDIDATE=""
+  if ls -1 "${WS_ROOT}/extensions/vscode"/mcp-rules-assistant-*.vsix >/dev/null 2>&1; then
+    CANDIDATE="$(ls -1 "${WS_ROOT}/extensions/vscode"/mcp-rules-assistant-*.vsix | sort -V | tail -n1)"
+  fi
+  if ls -1 "${WS_ROOT}/extensions/artifacts"/mcp-rules-assistant-*.vsix >/dev/null 2>&1; then
+    ART_LAST="$(ls -1 "${WS_ROOT}/extensions/artifacts"/mcp-rules-assistant-*.vsix | sort -V | tail -n1)"
+    # Prefer artifacts dir if newer
+    if [[ -z "${CANDIDATE}" ]]; then
+      CANDIDATE="${ART_LAST}"
+    else
+      # Compare by version-sort order
+      NEWER="$(printf '%s\n%s\n' "${CANDIDATE}" "${ART_LAST}" | sort -V | tail -n1)"
+      CANDIDATE="${NEWER}"
+    fi
+  fi
+  VSIX_PATH="${CANDIDATE}"
+fi
+
+if [[ -z "${VSIX_PATH}" || ! -f "${VSIX_PATH}" ]]; then
+  echo "[remote-vsix] VSIX not found (auto-detect failed). Build first via: npm --prefix extensions/vscode run package" >&2
   exit 2
 fi
 
@@ -16,8 +38,12 @@ fi
 # This works inside remote windows and will install to the remote extension host.
 if command -v code >/dev/null 2>&1; then
   echo "[remote-vsix] Installing via 'code --install-extension' to current window target"
-  code --install-extension "${VSIX_PATH}" --force || true
-  exit 0
+  if code --install-extension "${VSIX_PATH}" --force; then
+    echo "[remote-vsix] Installed via code CLI"
+    exit 0
+  else
+    echo "[remote-vsix] WARN: code CLI invocation failed; falling back to manual copy"
+  fi
 fi
 
 # Fallback: write VSIX into workspace .mcp/ide and ask VS Code to install it via command (when possible)

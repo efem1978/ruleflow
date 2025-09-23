@@ -35,8 +35,8 @@ tests:
     mid_bonus: 1
     history_limit: 400
 execution:
-  fs_guard_post_checks: false
-  fs_guard_strict: false
+  fs_guard_post_checks: true
+  fs_guard_strict: true
   allowed_write_prefixes: []
   allowed_write_extensions: []
   disallow_patterns: []

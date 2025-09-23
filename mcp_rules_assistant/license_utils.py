@@ -9,9 +9,13 @@ from pathlib import Path
 from typing import Any, Dict, Optional, Tuple, cast
 
 LICENSE_PATH = Path.home() / ".mcp/license.json"
+
+
 # 说明：SALT 为对称验签演示；生产建议首选非对称验签（RS256/ECDSA）
 def _get_salt() -> str:
     return os.environ.get("MCP_LICENSE_SALT", "mcp-demo-salt-202409")
+
+
 _PUBKEY_ENV = "MCP_LICENSE_PUBKEY"  # PEM (RSA) in environment
 _ED25519_PUBKEY_ENV = "MCP_LICENSE_ED25519_PUBKEY"  # PEM (Ed25519) in environment
 
