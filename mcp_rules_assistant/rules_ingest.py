@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-import json
 import json as _json
-import re
-from dataclasses import asdict, dataclass
 import platform
+import re
 import shutil
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
@@ -487,7 +486,7 @@ def _english_words_to_int(s: str) -> Optional[int]:
 
 
 def _parse_yaml_json(path: Path) -> List[RuleItem]:
-    import yaml  # lazy
+    import yaml  # type: ignore[import-untyped]  # lazy
 
     items: List[RuleItem] = []
     try:
@@ -598,7 +597,7 @@ def ingest(paths: List[str], project_root: Optional[Path] = None) -> Dict[str, A
     raw = {"items": [asdict(i) for i in items], "files": [str(f) for f in files]}
     (root / RAW_PATH).parent.mkdir(parents=True, exist_ok=True)
     (root / RAW_PATH).write_text(
-        json.dumps(raw, ensure_ascii=False, indent=2), encoding="utf-8"
+        _json.dumps(raw, ensure_ascii=False, indent=2), encoding="utf-8"
     )
     # 落盘缓存
     try:
@@ -618,7 +617,7 @@ def compile_rules(project_root: Optional[Path] = None) -> Dict[str, Any]:
     raw_path = root / RAW_PATH
     if not raw_path.exists():
         return {"ok": False, "message": "no raw rules ingested"}
-    raw = json.loads(raw_path.read_text(encoding="utf-8"))
+    raw = _json.loads(raw_path.read_text(encoding="utf-8"))
     items = [
         RuleItem(**{**it, "source": Source(**it["source"])})
         for it in raw.get("items", [])
@@ -633,7 +632,7 @@ def compile_rules(project_root: Optional[Path] = None) -> Dict[str, Any]:
     conflict_delta = 0.05
     per_key_delta: Dict[str, float] = {}
     try:
-        import yaml  # lazy
+        import yaml  # type: ignore[import-untyped]  # lazy
 
         cfg_path = root / ".mcp/assistant.yaml"
         if cfg_path.exists():
@@ -685,7 +684,9 @@ def compile_rules(project_root: Optional[Path] = None) -> Dict[str, Any]:
     is_linux = os_name == "linux"
     is_darwin = os_name == "darwin"
     docker_ok = shutil.which("docker") is not None
-    code_ok = (shutil.which("code") is not None) or (shutil.which("code-insiders") is not None)
+    code_ok = (shutil.which("code") is not None) or (
+        shutil.which("code-insiders") is not None
+    )
     dockerfile_exists = (root / "Dockerfile").exists()
 
     def _match_conditions(conds: Optional[Dict[str, List[str]]]) -> bool:
@@ -695,7 +696,11 @@ def compile_rules(project_root: Optional[Path] = None) -> Dict[str, Any]:
         os_vals = set((conds.get("os") or []))
         if os_vals:
             ok = False
-            if ("windows" in os_vals and is_windows) or ("linux" in os_vals and is_linux) or ("darwin" in os_vals and is_darwin):
+            if (
+                ("windows" in os_vals and is_windows)
+                or ("linux" in os_vals and is_linux)
+                or ("darwin" in os_vals and is_darwin)
+            ):
                 ok = True
             if not ok:
                 return False
@@ -785,7 +790,7 @@ def compile_rules(project_root: Optional[Path] = None) -> Dict[str, Any]:
         },
     }
     (root / COMPILED_JSON).write_text(
-        json.dumps(compiled, ensure_ascii=False, indent=2), encoding="utf-8"
+        _json.dumps(compiled, ensure_ascii=False, indent=2), encoding="utf-8"
     )
     (root / COMPILED_MD).write_text(_to_markdown(compiled), encoding="utf-8")
     (root / SUGGESTIONS_MD).write_text(_to_suggestions_md(compiled), encoding="utf-8")

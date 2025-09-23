@@ -16,10 +16,19 @@ rm -rf ~/.vscode/extensions/.obsolete || true
 echo "3. 卸载现有扩展..."
 /Applications/Visual\ Studio\ Code.app/Contents/Resources/app/bin/code --uninstall-extension ruleflow.mcp-rules-assistant || true
 
-# 4. 安装扩展
+# 4. 安装扩展（自动选择最新 VSIX）
 echo "4. 安装扩展..."
 cd "/Users/aifei/Desktop/人工智能编程/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool/extensions/vscode"
-/Applications/Visual\ Studio\ Code.app/Contents/Resources/app/bin/code --install-extension mcp-rules-assistant-0.2.6.vsix --force
+LATEST_VSIX=$(ls -t mcp-rules-assistant-*.vsix | head -n 1)
+if [ -z "$LATEST_VSIX" ]; then
+  echo "未找到 VSIX 包，请先在 extensions/vscode 目录执行: npm run package" >&2
+  exit 1
+fi
+if command -v code >/dev/null 2>&1; then
+  code --install-extension "$LATEST_VSIX" --force
+else
+  /Applications/Visual\ Studio\ Code.app/Contents/Resources/app/bin/code --install-extension "$LATEST_VSIX" --force
+fi
 
 # 5. 验证安装
 echo "5. 验证安装..."

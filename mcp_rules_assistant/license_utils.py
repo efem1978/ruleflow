@@ -10,12 +10,14 @@ from typing import Any, Dict, Optional, Tuple, cast
 
 LICENSE_PATH = Path.home() / ".mcp/license.json"
 # 说明：SALT 为对称验签演示；生产建议首选非对称验签（RS256/ECDSA）
-_SALT = os.environ.get("MCP_LICENSE_SALT", "mcp-demo-salt-202409")
+def _get_salt() -> str:
+    return os.environ.get("MCP_LICENSE_SALT", "mcp-demo-salt-202409")
 _PUBKEY_ENV = "MCP_LICENSE_PUBKEY"  # PEM (RSA) in environment
 _ED25519_PUBKEY_ENV = "MCP_LICENSE_ED25519_PUBKEY"  # PEM (Ed25519) in environment
 
 
-def _read_license(path: Path = LICENSE_PATH) -> Tuple[Dict[str, Any], bool]:
+def _read_license(path: Optional[Path] = None) -> Tuple[Dict[str, Any], bool]:
+    path = path or (Path.home() / ".mcp" / "license.json")
     if not path.exists():
         return {}, False
     try:
@@ -35,10 +37,18 @@ def _verify_rs256(payload: bytes, signature_b64: str) -> bool:
     if not pem:
         return False
     try:
-        from cryptography.hazmat.primitives import hashes
-        from cryptography.hazmat.primitives.asymmetric import padding
-        from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
-        from cryptography.hazmat.primitives.serialization import load_pem_public_key
+        from cryptography.hazmat.primitives import (  # type: ignore[import-not-found]
+            hashes,
+        )
+        from cryptography.hazmat.primitives.asymmetric import (  # type: ignore[import-not-found]
+            padding,
+        )
+        from cryptography.hazmat.primitives.asymmetric.rsa import (  # type: ignore[import-not-found]
+            RSAPublicKey,
+        )
+        from cryptography.hazmat.primitives.serialization import (  # type: ignore[import-not-found]
+            load_pem_public_key,
+        )
 
         pub = load_pem_public_key(pem.encode("utf-8"))
         # 仅支持 RSA 公钥用于 RS256 校验；其他类型直接视为验证失败
@@ -59,8 +69,12 @@ def _verify_ed25519(payload: bytes, signature_b64: str) -> bool:
     if not pem:
         return False
     try:
-        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
-        from cryptography.hazmat.primitives.serialization import load_pem_public_key
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import (  # type: ignore[import-not-found]
+            Ed25519PublicKey,
+        )
+        from cryptography.hazmat.primitives.serialization import (  # type: ignore[import-not-found]
+            load_pem_public_key,
+        )
 
         pub = load_pem_public_key(pem.encode("utf-8"))
         if not isinstance(pub, Ed25519PublicKey):
@@ -72,7 +86,7 @@ def _verify_ed25519(payload: bytes, signature_b64: str) -> bool:
         return False
 
 
-def verify_license(path: Path = LICENSE_PATH) -> Dict[str, Any]:
+def verify_license(path: Optional[Path] = None) -> Dict[str, Any]:
     data, exists = _read_license(path)
     if not exists:
         return {"ok": False, "activated": False, "reason": "license file missing"}
@@ -98,7 +112,7 @@ def verify_license(path: Path = LICENSE_PATH) -> Dict[str, Any]:
             payload = f"{issued_to}|{expires}|{machine}".encode("utf-8")
             sig_ok = _verify_rs256(payload, signature)
         else:
-            raw = f"{issued_to}|{expires}|{machine}|{_SALT}".encode("utf-8")
+            raw = f"{issued_to}|{expires}|{machine}|{_get_salt()}".encode("utf-8")
             calc = hashlib.sha256(raw).hexdigest()
             sig_ok = bool(signature and signature.lower() == calc)
     except Exception:
@@ -117,10 +131,18 @@ def verify_license(path: Path = LICENSE_PATH) -> Dict[str, Any]:
 
 def _sign_rs256(payload: bytes, private_key_pem: bytes) -> str:
     try:
-        from cryptography.hazmat.primitives import hashes
-        from cryptography.hazmat.primitives.asymmetric import padding
-        from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey
-        from cryptography.hazmat.primitives.serialization import load_pem_private_key
+        from cryptography.hazmat.primitives import (
+            hashes,  # type: ignore[import-not-found]
+        )
+        from cryptography.hazmat.primitives.asymmetric import (
+            padding,  # type: ignore[import-not-found]
+        )
+        from cryptography.hazmat.primitives.asymmetric.rsa import (
+            RSAPrivateKey,  # type: ignore[import-not-found]
+        )
+        from cryptography.hazmat.primitives.serialization import (
+            load_pem_private_key,  # type: ignore[import-not-found]
+        )
 
         key = load_pem_private_key(private_key_pem, password=None)
         if not isinstance(key, RSAPrivateKey):
@@ -135,8 +157,12 @@ def _sign_rs256(payload: bytes, private_key_pem: bytes) -> str:
 
 def _sign_ed25519(payload: bytes, private_key_pem: bytes) -> str:
     try:
-        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
-        from cryptography.hazmat.primitives.serialization import load_pem_private_key
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import (
+            Ed25519PrivateKey,  # type: ignore[import-not-found]
+        )
+        from cryptography.hazmat.primitives.serialization import (
+            load_pem_private_key,  # type: ignore[import-not-found]
+        )
 
         key = load_pem_private_key(private_key_pem, password=None)
         if not isinstance(key, Ed25519PrivateKey):
@@ -184,7 +210,7 @@ def generate_license(
             raise ValueError("private key PEM required for ed25519")
         signature = _sign_ed25519(payload, private_key_pem)
     else:
-        raw = payload + ("|" + _SALT).encode("utf-8")
+        raw = payload + ("|" + _get_salt()).encode("utf-8")
         signature = hashlib.sha256(raw).hexdigest()
         alg = "hs256"
     return {

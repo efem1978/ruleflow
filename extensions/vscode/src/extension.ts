@@ -50,6 +50,20 @@ function getWorkspaceLabel(): string {
   }
 }
 
+// Prefer project venv python for all direct CLI calls
+function resolveProjectPython(): string {
+  try {
+    const ws = getWorkspaceRoot() || process.cwd();
+    const venvPy = process.platform === 'win32'
+      ? path.join(ws, '.mcp', 'venv', 'Scripts', 'python.exe')
+      : path.join(ws, '.mcp', 'venv', 'bin', 'python');
+    if (fs.existsSync(venvPy)) return venvPy;
+    const envBin = (process.env.MCP_PYTHON_BIN || '').trim();
+    if (envBin) return envBin;
+  } catch { /* ignore */ }
+  return process.platform === 'win32' ? 'python' : 'python3';
+}
+
 class McpClient {
   private proc: ChildProcessWithoutNullStreams | null = null;
   private seq = 0;
@@ -113,10 +127,23 @@ class McpClient {
       }
     }
     this.lastStartAt = Date.now();
+    // 为后端进程注入 venv 的 PATH，避免其子进程解析到系统 python/工具
+    const venvBinForPath = process.platform === 'win32'
+      ? path.join(ws, '.mcp', 'venv', 'Scripts')
+      : path.join(ws, '.mcp', 'venv', 'bin');
+    const envForServer = { ...process.env } as NodeJS.ProcessEnv;
+    try {
+      const oldPath = String(process.env.PATH || '');
+      envForServer.PATH = (fs.existsSync(venvBinForPath) ? (venvBinForPath + path.delimiter) : '') + oldPath;
+      envForServer.PYTHONUNBUFFERED = '1';
+      envForServer.PYTHONIOENCODING = 'utf-8';
+    } catch { /* ignore */ }
+    envForServer.MCP_PROJECT_ROOT = ws;
+    envForServer.MCP_STRICT_ISOLATION = '1';
     this.proc = spawn(pyBin, ['-m', 'mcp_rules_assistant.cli', 'start'], {
       cwd: ws,
       stdio: ['pipe', 'pipe', 'pipe'],
-      env: { ...process.env, MCP_PROJECT_ROOT: ws, MCP_STRICT_ISOLATION: '1' }
+      env: envForServer,
     });
     // log to .mcp/dashboard/server.log for troubleshooting
     try {
@@ -458,6 +485,8 @@ export function activate(context: vscode.ExtensionContext) {
   const outputChannel = vscode.window.createOutputChannel('MCP Rules Assistant');
   outputChannel.appendLine('MCP Rules Assistant extension activated');
   context.subscriptions.push(outputChannel);
+  // Only attempt remote auto-install from UI side; skip when already in remote (workspace host)
+  try { if (!vscode.env.remoteName) { autoInstallToRemote(context); } } catch {}
   
   console.log('[MCP Rules Assistant] Extension activated successfully');
   // \u6062\u590d\u9501\u5b9a\u6839\u76ee\u5f55\uff08\u82e5\u5b58\u5728\uff09\uff0c\u4f18\u5148\u4f7f\u7528\u6b64\u524d\u7528\u6237\u9009\u62e9\u7684\u9879\u76ee\u6839
@@ -520,6 +549,11 @@ export function activate(context: vscode.ExtensionContext) {
       vscode.window.showInformationMessage('.mcp/plan.md not found');
     }
   }));
+
+  // Conversational, panel-free commands (beginner-first)
+  context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant.oneClickSetup', async () => { await oneClickSetup(context); }));
+  context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant.newbieGuide', async () => { await newbieGuide(context); }));
+  context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant.ask', async () => { await askCommand(context); }));
   // \u4e3b\u52a8\u52a0\u8f7d\u8986\u76d6\u7387\uff1a\u8c03\u7528 MCP \u5de5\u5177 coverage.report\uff0c\u5e76\u7ed9\u51fa\u6458\u8981\u63d0\u793a
   context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant.loadCoverage', async () => {
     try { client.start(context); } catch {}
@@ -554,6 +588,7 @@ export function activate(context: vscode.ExtensionContext) {
     try { client.start(context); } catch {}
     const choice = await vscode.window.showQuickPick([
       'Open Panel',
+      'Backend Doctor',
       'Load Coverage',
       'Open Plan',
       'Open Status',
@@ -566,6 +601,7 @@ export function activate(context: vscode.ExtensionContext) {
     ], { placeHolder: 'RuleFlow Quick Actions' });
     if (!choice) return;
     if (choice === 'Open Panel') { await vscode.commands.executeCommand('mcpRulesAssistant.openPanel'); return; }
+    if (choice === 'Backend Doctor') { await vscode.commands.executeCommand('mcpRulesAssistant.backendDoctor'); return; }
     if (choice === 'Load Coverage') { await vscode.commands.executeCommand('mcpRulesAssistant.loadCoverage'); return; }
     if (choice === 'Open Plan') { await vscode.commands.executeCommand('mcpRulesAssistant.openPlan'); return; }
     if (choice === 'Open Status') { await vscode.commands.executeCommand('mcpRulesAssistant.openStatus'); return; }
@@ -581,10 +617,18 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant.statusUpdate', async () => {
     try {
       client.start(context);
-      const pyBin = process.env.MCP_PYTHON_BIN && process.env.MCP_PYTHON_BIN.trim() ? process.env.MCP_PYTHON_BIN.trim() : (process.platform === 'win32' ? 'python' : 'python3');
+      const pyBin = resolveProjectPython();
       const cwd = getWorkspaceRoot() || process.cwd();
       const { execFile } = require('child_process');
-      execFile(pyBin, ['-m', 'mcp_rules_assistant.cli', 'status-update', '--json'], { cwd }, async (err: any, stdout: string, stderr: string) => {
+      const venvBin = process.platform === 'win32' ? path.join(cwd, '.mcp', 'venv', 'Scripts') : path.join(cwd, '.mcp', 'venv', 'bin');
+      const env = { ...process.env } as NodeJS.ProcessEnv;
+      try {
+        const oldPath = String(process.env.PATH || '');
+        env.PATH = (fs.existsSync(venvBin) ? (venvBin + path.delimiter) : '') + oldPath;
+        env.PYTHONUNBUFFERED = '1';
+        env.PYTHONIOENCODING = 'utf-8';
+      } catch {}
+      execFile(pyBin, ['-m', 'mcp_rules_assistant.cli', 'status-update', '--json'], { cwd, env }, async (err: any, stdout: string, stderr: string) => {
         if (err) { vscode.window.showErrorMessage('\u72b6\u6001\u5237\u65b0\u5931\u8d25\uff1a' + String(err)); return; }
         try {
           const data = JSON.parse(stdout || '{}');
@@ -748,7 +792,23 @@ export function activate(context: vscode.ExtensionContext) {
   }));
 
   const disposable = vscode.commands.registerCommand('mcpRulesAssistant.openPanel', async () => {
-    // \u5148\u6e32\u67d3\u4e00\u4e2a\u6700\u5c0f\u5360\u4f4d\u4ee5\u907f\u514d\u7a7a\u767d\uff0c\u5e76\u63d0\u4f9b\u5feb\u901f\u4fee\u590d\u5165\u53e3
+    // If we are not in a remote window but there is a Dev Container config,
+    // reopen in container automatically to finish one-click installation.
+    try {
+      if (!vscode.env.remoteName) {
+        const ws = getWorkspaceRoot();
+        if (ws) {
+          const dc1 = path.join(ws, '.devcontainer', 'devcontainer.json');
+          const dc2 = path.join(ws, '.devcontainer.json');
+          if (fs.existsSync(dc1) || fs.existsSync(dc2)) {
+            vscode.window.setStatusBarMessage('检测到 Dev Container 配置，正在在容器中重开窗口以完成一键安装…', 3000);
+            try { await vscode.commands.executeCommand('devcontainers.reopenInContainer'); return; } catch {}
+            try { await vscode.commands.executeCommand('remote-containers.reopenInContainer'); return; } catch {}
+          }
+        }
+      }
+    } catch {}
+    // 先渲染一个最小占位以避免空白，并提供快速修复入口
     const renderFallback = (msg: string) => `
       <html><body style="font-family:-apple-system,Segoe UI,Arial;">
       <style>
@@ -790,6 +850,8 @@ export function activate(context: vscode.ExtensionContext) {
         enableCommandUris: true
       }
     );
+    // Only attempt remote auto-install when executing on UI side
+    try { if (!vscode.env.remoteName) { autoInstallToRemote(context); } } catch {}
     // Early message queue to avoid losing clicks before full handler is ready
     const __preMsgs: any[] = [];
     if (!(panel as any).__earlyHandlerInstalled) {
@@ -881,6 +943,7 @@ export function activate(context: vscode.ExtensionContext) {
           <button id="btnModeAdvanced" title="\u5c55\u793a\u5168\u90e8\u529f\u80fd\uff1b\u6bcf\u9879\u64cd\u4f5c\u90fd\u9700\u8981\u4f60\u786e\u8ba4\u540e\u624d\u6267\u884c">\u9ad8\u7ea7\u6a21\u5f0f</button>
           <button id="btnLang" title="\u5207\u6362\u4e2d/\u82f1\u6587\u754c\u9762\u6807\u7b7e">\u4e2d\u6587/English</button>
           <button id="btnReloadPanel" title="\u91cd\u8f7d\u9762\u677f\uff08\u91cd\u65b0\u6e32\u67d3\u5e76\u63e1\u624b\uff09">\u91cd\u8f7d\u9762\u677f</button>
+          <button id="btnDiagTop" title="\u6536\u96c6\u524d\u7aef\u9519\u8bef\u3001\u73af\u5883\u4e0e\u5ba1\u8ba1\u4fe1\u606f\uff08\u5199\u5165 .mcp/dashboard/panel_diag.json\uff09">\u8bca\u65ad</button>
         </div>
         <div id="ticker" style="height:auto; background:#f6f6f6; border:1px solid #ddd; padding:4px 8px; margin:6px 0;">
           <span id="tickerText" style="display:inline-block; white-space:nowrap; font-size:12px; color:#333;"></span>
@@ -1199,22 +1262,50 @@ export function activate(context: vscode.ExtensionContext) {
             } catch {}
           })();
 
+          // ---- Helpers ----
+          const tryCommandFallback = (cmdUri) => {
+            try {
+              const a = document.createElement('a');
+              a.href = cmdUri;
+              a.style.display = 'none';
+              document.body.appendChild(a);
+              setTimeout(()=>{ try { a.click(); } catch {} try { a.remove(); } catch {} }, 80);
+            } catch {}
+          };
+
           // ---- Beginner quick actions ----
-          try { const el = document.getElementById('btnSimpleInstall'); if (el) el.onclick = ()=> vscode.postMessage({ t: 'prepareEnvInstall' }); } catch {}
-          try { const el = document.getElementById('btnSimpleCoverage'); if (el) el.onclick = ()=> vscode.postMessage({ t: 'coverage' }); } catch {}
-          try { const el = document.getElementById('btnSimplePlan'); if (el) el.onclick = ()=> vscode.postMessage({ t: 'open', path: '.mcp/plan.md', line: 1 }); } catch {}
-          try { const el = document.getElementById('btnSimpleIngest'); if (el) el.onclick = ()=> vscode.postMessage({ t: 'ingestRules' }); } catch {}
-          try { const el = document.getElementById('btnSimpleStatus'); if (el) el.onclick = ()=> vscode.postMessage({ t: 'statusUpdate' }); } catch {}
+          // 带命令兜底：消息通道异常时改走 command: URI
+          try {
+            const el = document.getElementById('btnSimpleInstall');
+            if (el) el.onclick = () => { try { vscode.postMessage({ t: 'prepareEnvInstall' }); } catch {} try { tryCommandFallback('command:mcpRulesAssistant.envPrepareInstall'); } catch {} };
+          } catch {}
+          try {
+            const el = document.getElementById('btnSimpleCoverage');
+            if (el) el.onclick = () => { try { vscode.postMessage({ t: 'coverage' }); } catch {} try { tryCommandFallback('command:mcpRulesAssistant.loadCoverage'); } catch {} };
+          } catch {}
+          try {
+            const el = document.getElementById('btnSimplePlan');
+            if (el) el.onclick = () => { try { vscode.postMessage({ t: 'open', path: '.mcp/plan.md', line: 1 }); } catch {} try { tryCommandFallback('command:mcpRulesAssistant.openPlan'); } catch {} };
+          } catch {}
+          try {
+            const el = document.getElementById('btnSimpleIngest');
+            if (el) el.onclick = () => { try { vscode.postMessage({ t: 'ingestRules' }); } catch {} try { tryCommandFallback('command:mcpRulesAssistant.ingestQuick'); } catch {} };
+          } catch {}
+          try {
+            const el = document.getElementById('btnSimpleStatus');
+            if (el) el.onclick = () => { try { vscode.postMessage({ t: 'statusUpdate' }); } catch {} try { tryCommandFallback('command:mcpRulesAssistant.statusUpdate'); } catch {} };
+          } catch {}
           // Event delegation fallback: ensure clicks still work even if nodes are re-rendered
           try {
             const clickMap = {
               'btnLicVerify': { t: 'licenseVerify' },
               'btnLicActivate': { t: 'licenseActivate' },
-              'btnSimpleInstall': { t: 'prepareEnvInstall' },
-              'btnSimpleCoverage': { t: 'coverage' },
-              'btnSimplePlan': { t: 'open', path: '.mcp/plan.md', line: 1 },
-              'btnSimpleIngest': { t: 'ingestRules' },
-              'btnSimpleStatus': { t: 'statusUpdate' },
+              // 这些按钮已带 command: 兜底，避免在此处拦截默认行为
+              // 'btnSimpleInstall': { t: 'prepareEnvInstall' },
+              // 'btnSimpleCoverage': { t: 'coverage' },
+              // 'btnSimplePlan': { t: 'open', path: '.mcp/plan.md', line: 1 },
+              // 'btnSimpleIngest': { t: 'ingestRules' },
+              // 'btnSimpleStatus': { t: 'statusUpdate' },
               'btnEvents': { t: 'eventsLoad' },
               'btnAudit': { t: 'auditLoad' },
               'btnInfo': { t: 'statusInfo' },
@@ -1231,7 +1322,7 @@ export function activate(context: vscode.ExtensionContext) {
             }, true);
           } catch {}
           try { const el = document.getElementById('btnLoad'); if (el) el.onclick = () => vscode.postMessage({ t: 'loadRules' }); } catch {}
-          try { const el = document.getElementById('btnStatusUpdate'); if (el) el.onclick = () => vscode.postMessage({ t: 'statusUpdate' }); } catch {}
+          try { const el = document.getElementById('btnStatusUpdate'); if (el) el.onclick = () => { try { vscode.postMessage({ t: 'statusUpdate' }); } catch {} try { tryCommandFallback('command:mcpRulesAssistant.statusUpdate'); } catch {} }; } catch {}
           try { const el = document.getElementById('btnSelectProject'); if (el) el.onclick = () => vscode.postMessage({ t: 'selectProject' }); } catch {}
           try { const el = document.getElementById('btnIngest'); if (el) el.onclick = () => vscode.postMessage({ t: 'ingestRules' }); } catch {}
           try { const el = document.getElementById('btnValidate'); if (el) el.onclick = () => vscode.postMessage({ t: 'validateRules' }); } catch {}
@@ -1242,7 +1333,7 @@ export function activate(context: vscode.ExtensionContext) {
           btnResolve.onclick = () => vscode.postMessage({ t: 'rulesResolvePreview' });
           try { const el = document.getElementById('btnHooks'); if (el) el.onclick = () => vscode.postMessage({ t: 'installHooks' }); } catch {}
           try { const el = document.getElementById('btnLoadSugg'); if (el) el.onclick = () => vscode.postMessage({ t: 'loadSugg' }); } catch {}
-          try { const el = document.getElementById('btnCoverage'); if (el) el.onclick = () => vscode.postMessage({ t: 'coverage' }); } catch {}
+          try { const el = document.getElementById('btnCoverage'); if (el) el.onclick = () => { try { vscode.postMessage({ t: 'coverage' }); } catch {} try { tryCommandFallback('command:mcpRulesAssistant.loadCoverage'); } catch {} }; } catch {}
           try { const el = document.getElementById('btnCovTree'); if (el) el.onclick = () => vscode.postMessage({ t: 'coverageTree' }); } catch {}
           try { const el = document.getElementById('btnOpenWeakCsv'); if (el) el.onclick = () => vscode.postMessage({ t: 'open', path: '.mcp/dashboard/weak_top.csv', line: 1 }); } catch {}
           try { const el = document.getElementById('btnOpenNearCsv'); if (el) el.onclick = () => vscode.postMessage({ t: 'open', path: '.mcp/dashboard/near_top.csv', line: 1 }); } catch {}
@@ -1300,10 +1391,11 @@ export function activate(context: vscode.ExtensionContext) {
           document.getElementById('btnOpenIdeDir').onclick = () => vscode.postMessage({ t: 'openIdeDir' });
           (document.getElementById('btnEvents')).onclick = () => vscode.postMessage({ t: 'eventsLoad' });
           document.getElementById('btnAudit').onclick = () => vscode.postMessage({ t: 'auditLoad' });
-          const btnReload = document.getElementById('btnReloadPanel'); if (btnReload) btnReload.onclick = () => vscode.postMessage({ t: 'panel.reload' });
+          const btnReload = document.getElementById('btnReloadPanel'); if (btnReload) btnReload.onclick = () => { try { vscode.postMessage({ t: 'panel.reload' }); } catch {} try { tryCommandFallback('command:mcpRulesAssistant.openPanel'); } catch {} };
+          const btnDiagTop = document.getElementById('btnDiagTop'); if (btnDiagTop) btnDiagTop.onclick = () => { try { const errs = window.__panelErrors || []; vscode.postMessage({ t: 'panelDiagRequest', errors: errs }); } catch {} try { tryCommandFallback('command:mcpRulesAssistant.panelDiag'); } catch {} };
           const btnDiag = document.createElement('button'); btnDiag.id='btnDiag'; btnDiag.textContent='\u8bca\u65ad'; btnDiag.title='\u6536\u96c6\u524d\u7aef\u9519\u8bef\u3001\u73af\u5883\u4e0e\u5ba1\u8ba1\u4fe1\u606f\u5230 .mcp/dashboard/panel_diag.json';
           const advBar = document.querySelector('div.adv'); if (advBar) advBar.insertBefore(btnDiag, advBar.firstChild);
-          btnDiag.onclick = () => { try { const errs = window.__panelErrors || []; vscode.postMessage({ t: 'panelDiagRequest', errors: errs }); } catch {} };
+          btnDiag.onclick = () => { try { const errs = window.__panelErrors || []; vscode.postMessage({ t: 'panelDiagRequest', errors: errs }); } catch {} try { tryCommandFallback('command:mcpRulesAssistant.panelDiag'); } catch {} };
           const btnUG = document.getElementById('btnOpenUserGuide');
           if (btnUG) btnUG.onclick = () => vscode.postMessage({ t: 'open', path: 'docs/USER_GUIDE.md' });
           const btnIS = document.getElementById('btnOpenIdeSupport');
@@ -1470,6 +1562,7 @@ export function activate(context: vscode.ExtensionContext) {
                 }
               } catch {}
               if (inf) inf.textContent = text;
+              try { if (String(text).indexOf('handshake_ok') !== -1) { (window as any).__ruleflowHandshakeOk = true; } } catch {}
             }
             if (msg.t === 'rules') {
               document.getElementById('rules').textContent = msg.md || '\u6682\u65e0\u5185\u5bb9';
@@ -1960,11 +2053,18 @@ export function activate(context: vscode.ExtensionContext) {
           }
         }
         else if (msg.t === 'statusUpdate') {
-          const pyBin = process.env.MCP_PYTHON_BIN && process.env.MCP_PYTHON_BIN.trim()
-            ? process.env.MCP_PYTHON_BIN.trim()
-            : (process.platform === 'win32' ? 'python' : 'python3');
+          // Use the same interpreter resolution as commands, and ensure venv bin is on PATH
           const cwd = getWorkspaceRoot() || process.cwd();
-          execFile(pyBin, ['-m', 'mcp_rules_assistant.cli', 'status-update', '--json'], { cwd }, (err: any, stdout: string, stderr: string) => {
+          const pyBin = resolveProjectPython();
+          const venvBin = process.platform === 'win32'
+            ? path.join(cwd, '.mcp', 'venv', 'Scripts')
+            : path.join(cwd, '.mcp', 'venv', 'bin');
+          const env = { ...process.env } as NodeJS.ProcessEnv;
+          try {
+            const oldPath = String(process.env.PATH || '');
+            env.PATH = (fs.existsSync(venvBin) ? (venvBin + path.delimiter) : '') + oldPath;
+          } catch { /* ignore PATH injection errors */ }
+          execFile(pyBin, ['-m', 'mcp_rules_assistant.cli', 'status-update', '--json'], { cwd, env }, (err: any, stdout: string, stderr: string) => {
             if (err) {
               vscode.window.showErrorMessage('\u72b6\u6001\u5237\u65b0\u5931\u8d25\uff1a' + String(err));
               return;
@@ -2117,9 +2217,14 @@ export function activate(context: vscode.ExtensionContext) {
             client.start(context);
             try { await client.request('initialize', {}); } catch {}
             const tools = await client.request('tools/list', {});
-            const list = (tools.tools || []).map((t: any) => `<li><code>${t.name}</code> \u2014 ${t.description}</li>`).join('');
+            const list = (tools.tools || []).map((t: any) => `<li><code>${t.name}</code> — ${t.description}</li>`).join('');
             const nonce2 = getNonce();
-            panel.webview.html = render(csp, nonce2, '', list);
+            {
+              const scriptUri2 = panel.webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, 'media', 'panel_bootstrap.js'));
+              let html2 = render(csp, nonce2, '', list);
+              html2 = html2.replace('@@PANEL_BOOTSTRAP@@', String(scriptUri2));
+              panel.webview.html = html2;
+            }
             // re-apply workspace language preference after reload
             try {
               const ws = getWorkspaceRoot();
@@ -2349,6 +2454,29 @@ export function activate(context: vscode.ExtensionContext) {
           }
           const sug = await client.request('resources/read', { uri: suggUri });
           panel.webview.postMessage({ t: 'sugg', md: sug.text || '' });
+        } else if (msg.t === 'panel.click') {
+          // Fallback router for generic button clicks from the webview
+          // Expected: msg.action is a semantic key; gracefully degrade to Quick Actions when missing
+          try {
+            const a = String((msg && msg.action) || '').toLowerCase();
+            if (!a) { await vscode.commands.executeCommand('mcpRulesAssistant.quickActions'); return; }
+            if (a === 'openpanel' || a === 'panel') { await vscode.commands.executeCommand('mcpRulesAssistant.openPanel'); return; }
+            if (a === 'quick' || a === 'quickactions') { await vscode.commands.executeCommand('mcpRulesAssistant.quickActions'); return; }
+            if (a === 'coverage' || a === 'loadcoverage') { await vscode.commands.executeCommand('mcpRulesAssistant.loadCoverage'); return; }
+            if (a === 'status' || a === 'statusupdate') { await vscode.commands.executeCommand('mcpRulesAssistant.statusUpdate'); return; }
+            if (a === 'ingest' || a === 'ingestquick') { await vscode.commands.executeCommand('mcpRulesAssistant.ingestQuick'); return; }
+            if (a === 'openplan') { await vscode.commands.executeCommand('mcpRulesAssistant.openPlan'); return; }
+            if (a === 'openstatus') { await vscode.commands.executeCommand('mcpRulesAssistant.openStatus'); return; }
+            if (a === 'doctor' || a === 'backenddoctor') { await vscode.commands.executeCommand('mcpRulesAssistant.backendDoctor'); return; }
+            if (a === 'env.prepare' || a === 'prepareenv' || a === 'prepareenvinstall') { await vscode.commands.executeCommand('mcpRulesAssistant.envPrepareInstall'); return; }
+            if (a === 'ci.generate') { await client.request('tools/call', { name: 'ci.generate', arguments: {} }); vscode.window.showInformationMessage('CI 已生成'); return; }
+            if (a === 'ci.validate') { await client.request('tools/call', { name: 'ci.validate', arguments: {} }); vscode.window.showInformationMessage('CI 校验完成'); return; }
+            if (a === 'installhooks' || a === 'git.install_hooks') { await client.request('tools/call', { name: 'git.install_hooks', arguments: {} }); vscode.window.showInformationMessage('钩子安装完成'); return; }
+            // Default: open Quick Actions
+            await vscode.commands.executeCommand('mcpRulesAssistant.quickActions');
+          } catch (e:any) {
+            vscode.window.showWarningMessage('操作执行失败：' + String(e));
+          }
         } else if (msg.t === 'installHooks') {
           await client.request('tools/call', { name: 'git.install_hooks', arguments: {} });
           vscode.window.setStatusBarMessage('\u94a9\u5b50\u5b89\u88c5\u5b8c\u6210', 3000);
@@ -2529,14 +2657,37 @@ export function activate(context: vscode.ExtensionContext) {
           }
         } else if (msg.t === 'prepareEnvInstall') {
           try {
+            // 首选通过后端工具执行
             const out = await client.request('tools/call', { name: 'env.prepare', arguments: { create: true, install: true } });
             const msgInfo = (out && (out as any).ok) ? ('\u5df2\u521b\u5efa\u5e76\u5b89\u88c5\uff1a' + String((out as any).venv || '')) : '\u6267\u884c\u5931\u8d25';
             vscode.window.showInformationMessage('env.prepare: ' + msgInfo);
-            // if (process.env.RULEFLOW_ALLOW_MEMORY_APPEND === '1') {
-            //   try { await client.request('tools/call', { name: 'memory.append_turn', arguments: { role: 'assistant', content: 'env.prepare install', meta: { source: 'vscode', action: 'env.prepare', create: true, install: true } } }); } catch {}
-            // }
-          } catch (e:any) {
-            vscode.window.showErrorMessage('env.prepare \u6267\u884c\u5931\u8d25\uff1a' + String(e));
+          } catch (e1:any) {
+            // 兜底：直接在扩展侧创建 venv 并安装基础内容（最佳努力）
+            try {
+              const ws = getWorkspaceRoot() || process.cwd();
+              const venvDir = path.join(ws, '.mcp', 'venv');
+              const creator = (process.env.MCP_PYTHON_BIN && process.env.MCP_PYTHON_BIN.trim())
+                ? process.env.MCP_PYTHON_BIN.trim()
+                : (process.platform === 'win32' ? 'python' : 'python3');
+              await new Promise<void>((resolve) => {
+                try { const p = spawn(creator, ['-m', 'venv', venvDir], { cwd: ws }); p.on('close', ()=>resolve()); p.on('error', ()=>resolve()); } catch { resolve(); }
+              });
+              const vpy = process.platform === 'win32' ? path.join(venvDir, 'Scripts', 'python.exe') : path.join(venvDir, 'bin', 'python');
+              const run = (args: string[]) => new Promise<void>((resolve)=>{
+                try { const p = spawn(vpy, args, { cwd: ws }); p.on('close', ()=>resolve()); p.on('error', ()=>resolve()); } catch { resolve(); }
+              });
+              if (fs.existsSync(vpy)) {
+                await run(['-m', 'pip', 'install', '-U', 'pip', 'setuptools', 'wheel']);
+                // 优先从工作区安装本地包
+                const hasLocal = fs.existsSync(path.join(ws, 'pyproject.toml')) || fs.existsSync(path.join(ws, 'setup.py'));
+                if (hasLocal) await run(['-m', 'pip', 'install', '-e', ws]);
+                vscode.window.showInformationMessage('已创建并安装基础环境 (.mcp/venv)');
+              } else {
+                vscode.window.showWarningMessage('已尝试创建 .mcp/venv，但未检测到解释器');
+              }
+            } catch (e2:any) {
+              vscode.window.showErrorMessage('env.prepare 兜底失败：' + String(e2));
+            }
           }
         } else if (msg.t === 'selectProject') {
           const folders = vscode.workspace.workspaceFolders || [];
@@ -2631,6 +2782,22 @@ export function activate(context: vscode.ExtensionContext) {
         } catch {}
       }
       console.log('[MCP Rules Assistant] Webview message received:', JSON.stringify(msg));
+      // 记录关键操作到 .mcp/dashboard/cmd_events.jsonl 便于诊断
+      try {
+        const ws = getWorkspaceRoot();
+        if (ws) {
+          const uriE = vscode.Uri.file(ws + '/.mcp/dashboard/cmd_events.jsonl');
+          const enc = new TextEncoder();
+          const line = JSON.stringify({ time: new Date().toISOString(), kind: 'panel.msg', t: String(msg && msg.t || ''), ok: true }) + '\n';
+          try {
+            let old = '';
+            try { const b = await vscode.workspace.fs.readFile(uriE); old = Buffer.from(b).toString('utf8'); } catch {}
+            await vscode.workspace.fs.writeFile(uriE, enc.encode(old + line));
+          } catch {
+            await vscode.workspace.fs.writeFile(uriE, enc.encode(line));
+          }
+        }
+      } catch {}
       
       // 处理面板调度消息
       await __panelDispatch(msg);
@@ -3222,6 +3389,122 @@ export function activate(context: vscode.ExtensionContext) {
       vscode.window.showErrorMessage('\u6821\u9a8c\u5931\u8d25\uff1a' + String(e));
     }
   }));
+
+  // Backend Doctor: ensure venv/server ready and clear fake mode if needed
+  context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant.backendDoctor', async () => {
+    try {
+      // Try to start backend first (may trigger autoprep)
+      try { client.start(context); } catch {}
+      const sleep = (ms:number)=>new Promise(r=>setTimeout(r, ms));
+      await sleep(300);
+      const ws = getWorkspaceRoot() || process.cwd();
+      const venvPy = process.platform === 'win32'
+        ? path.join(ws, '.mcp', 'venv', 'Scripts', 'python.exe')
+        : path.join(ws, '.mcp', 'venv', 'bin', 'python');
+      const ensureVenv = async () => {
+        if (!fs.existsSync(venvPy)) {
+          await new Promise<void>((resolve)=>{
+            try {
+              const creator = (process.env.MCP_PYTHON_BIN && process.env.MCP_PYTHON_BIN.trim())
+                ? process.env.MCP_PYTHON_BIN.trim()
+                : (process.platform === 'win32' ? 'python' : 'python3');
+              const p = spawn(creator, ['-m', 'venv', path.join(ws, '.mcp', 'venv')], { cwd: ws });
+              p.on('close', ()=>resolve()); p.on('error', ()=>resolve());
+            } catch { resolve(); }
+          });
+        }
+      };
+      await ensureVenv();
+      const py = fs.existsSync(venvPy) ? venvPy : (process.platform==='win32' ? 'python' : 'python3');
+      const run = (args: string[]) => new Promise<{code:number, out:string, err:string}>((resolve)=>{
+        try {
+          const venvBinForPath = process.platform === 'win32'
+            ? path.join(ws, '.mcp', 'venv', 'Scripts')
+            : path.join(ws, '.mcp', 'venv', 'bin');
+          const env = { ...process.env } as NodeJS.ProcessEnv;
+          try {
+            const oldPath = String(process.env.PATH || '');
+            env.PATH = (fs.existsSync(venvBinForPath) ? (venvBinForPath + path.delimiter) : '') + oldPath;
+            env.PYTHONUNBUFFERED = '1';
+            env.PYTHONIOENCODING = 'utf-8';
+          } catch {}
+          const p = spawn(py, args, { cwd: ws, env });
+          let out = '', err = '';
+          p.stdout.on('data', d=> out += String(d||''));
+          p.stderr.on('data', d=> err += String(d||''));
+          p.on('close', (code)=> resolve({code: code??1, out, err}));
+          p.on('error', ()=> resolve({code: 1, out:'', err:'spawn error'}));
+        } catch { resolve({code:1, out:'', err:'spawn exception'}); }
+      });
+      // Run doctor (auto-fix, clear fake)
+      const res = await run(['-m', 'mcp_rules_assistant.cli', 'doctor', '--fix', '--clear-fake']);
+      if (res.code === 0 && res.out.trim()) {
+        try {
+          const obj = JSON.parse(res.out.trim());
+          const ok = !!obj.ok;
+          vscode.window.showInformationMessage(`Backend Doctor ${ok? 'OK' : 'issues found'} — actions: ${(obj.actions||[]).join(', ')}`);
+        } catch {
+          vscode.window.showInformationMessage('Backend Doctor completed.');
+        }
+      } else {
+        vscode.window.showWarningMessage('Backend Doctor encountered issues: ' + (res.err||'unknown'));
+      }
+      // Restart backend after fixes
+      try { client.start(context); } catch {}
+    } catch (e:any) {
+      vscode.window.showErrorMessage('Backend Doctor failed: ' + String(e));
+    }
+  }));
+
+  // Prepare environment (create venv + install basics) — fallback command for webview
+  context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant.envPrepareInstall', async () => {
+    try {
+      client.start(context);
+      await client.request('tools/call', { name: 'env.prepare', arguments: { create: true, install: true } });
+      vscode.window.showInformationMessage('已创建并安装基础环境 (.mcp/venv)');
+    } catch (e:any) {
+      vscode.window.showErrorMessage('env.prepare 执行失败：' + String(e));
+    }
+  }));
+
+  // Panel diagnostics fallback command — generate diagnostics without relying on webview message transport
+  context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant.panelDiag', async () => {
+    try {
+      client.start(context);
+      const ws = getWorkspaceRoot();
+      if (!ws) { vscode.window.showWarningMessage('No workspace'); return; }
+      const diag: any = { time: new Date().toISOString(), workspace: ws, strict: String(process.env.MCP_STRICT_ISOLATION||''), projectRootEnv: String(process.env.MCP_PROJECT_ROOT||'') };
+      try { const ext = vscode.extensions.getExtension('ruleflow.mcp-rules-assistant'); diag.version = (ext && (ext.packageJSON as any).version) || ''; } catch {}
+      try { diag.env = await client.request('tools/call', { name: 'env.diagnose', arguments: {} }); } catch {}
+      try { diag.audit = await client.request('tools/call', { name: 'security.audit_report', arguments: {} }); } catch {}
+      try {
+        const uriE = vscode.Uri.file(ws + '/.mcp/dashboard/cmd_events.jsonl');
+        const data = await vscode.workspace.fs.readFile(uriE);
+        const text = Buffer.from(data).toString('utf8');
+        const lines = text.split(/\r?\n/).filter(Boolean); diag.events_tail = lines.slice(-120);
+      } catch {}
+      const outUri = vscode.Uri.file(ws + '/.mcp/dashboard/panel_diag.json');
+      const enc = new TextEncoder();
+      await vscode.workspace.fs.writeFile(outUri, enc.encode(JSON.stringify(diag, null, 2)));
+      try { const doc = await vscode.workspace.openTextDocument(outUri); await vscode.window.showTextDocument(doc, { preview: false }); } catch {}
+      vscode.window.showInformationMessage('已写入诊断：.mcp/dashboard/panel_diag.json');
+    } catch (e:any) {
+      vscode.window.showErrorMessage('生成诊断失败：' + String(e));
+    }
+  }));
+
+  // Force re-install to remote (Dev Container/SSH/WSL)
+  context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant.installRemote', async () => {
+    try { await context.workspaceState.update('ruleflow.autoInstallRemoteTried', false); } catch {}
+    try {
+      const ok = await autoInstallToRemote(context);
+      if (!ok) {
+        vscode.window.showWarningMessage('安装到远程失败或未触发（可能当前不在远程窗口）。');
+      }
+    } catch (e:any) {
+      vscode.window.showErrorMessage('安装到远程失败：' + String(e));
+    }
+  }));
 }
 
 export function deactivate() {}
@@ -3235,4 +3518,218 @@ async function runShell(cmd: string, args: string[], cwd?: string): Promise<void
       if (code === 0) resolve(); else reject(new Error(stderr || `${cmd} exited with ${code}`));
     });
   });
+}
+
+// --- Auto-install helper: ensure this extension is installed in remote (Dev Container/SSH) ---
+async function autoInstallToRemote(context: vscode.ExtensionContext): Promise<boolean> {
+  try {
+    // Only meaningful when connected to a remote workspace (e.g. dev-container)
+    if (!vscode.env.remoteName) return false;
+
+    // Avoid repeated attempts in this window
+    const tried = !!context.workspaceState.get('ruleflow.autoInstallRemoteTried');
+    if (tried) return false;
+    await context.workspaceState.update('ruleflow.autoInstallRemoteTried', true);
+
+    const ws = getWorkspaceRoot();
+    if (!ws) return false;
+
+    // 1) Locate a VSIX we can use:
+    //    a) Prefer a prebuilt artifact in the workspace (extensions/artifacts/*.vsix)
+    //    b) Otherwise, try to package from the installed extension folder (extRoot)
+    const extRoot = context.extensionUri.fsPath;
+
+    const listVsixInDir = (dir: string): string | null => {
+      try {
+        const files = fs.readdirSync(dir).filter(f => /mcp-rules-assistant-.*\.vsix$/i.test(f));
+        if (!files.length) return null;
+        // pick the newest by mtime
+        let best = files[0];
+        let bestT = 0;
+        for (const f of files) {
+          const st = fs.statSync(path.join(dir, f));
+          const t = st.mtimeMs || 0;
+          if (t > bestT) { bestT = t; best = f; }
+        }
+        return path.join(dir, best);
+      } catch { return null; }
+    };
+
+    // a) Workspace artifact folder
+    let vsixPath = listVsixInDir(path.join(ws, 'extensions', 'artifacts'));
+
+    // b) Installed extension folder
+    const listVsixInExtRoot = () => listVsixInDir(extRoot);
+    if (!vsixPath) {
+      vsixPath = listVsixInExtRoot();
+    }
+    if (!vsixPath) {
+      try {
+        // Try "npm run package" (uses @vscode/vsce) in the extension folder
+        await runShell(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', 'package'], extRoot);
+        vsixPath = listVsixInExtRoot();
+      } catch (e) {
+        // Best-effort fallback to npx vsce
+        try {
+          await runShell(process.platform === 'win32' ? 'npx.cmd' : 'npx', ['-y', 'vsce', 'package', '--no-dependencies'], extRoot);
+          vsixPath = listVsixInExtRoot();
+        } catch {}
+      }
+    }
+    if (!vsixPath || !fs.existsSync(vsixPath)) {
+      // Fallback: install from Marketplace by extension identifier (requires network)
+      try {
+        await vscode.commands.executeCommand('workbench.extensions.installExtension', 'ruleflow.mcp-rules-assistant');
+        vscode.window.showInformationMessage('已从 Marketplace 自动安装到容器，正在重载窗口以启用扩展…');
+        try { await vscode.commands.executeCommand('workbench.action.reloadWindow'); } catch {}
+        return true;
+      } catch (e:any) {
+        vscode.window.showWarningMessage('无法自动打包 VSIX，且从 Marketplace 安装失败：' + String(e));
+        return false;
+      }
+    }
+
+    // 2) Copy VSIX into remote workspace path: .mcp/ide/
+    const remoteRoot = vscode.workspace.workspaceFolders?.[0]?.uri;
+    if (!remoteRoot) return false;
+    const remoteIdeDir = vscode.Uri.joinPath(remoteRoot, '.mcp', 'ide');
+    try { await vscode.workspace.fs.createDirectory(remoteIdeDir); } catch {}
+    const remoteVsix = vscode.Uri.joinPath(remoteIdeDir, path.basename(vsixPath));
+    try {
+      const data = fs.readFileSync(vsixPath);
+      await vscode.workspace.fs.writeFile(remoteVsix, data);
+    } catch (e:any) {
+      vscode.window.showWarningMessage('写入容器 VSIX 失败：' + String(e));
+      return false;
+    }
+
+    // 3) Install the VSIX into remote extension host
+    try {
+      await vscode.commands.executeCommand('workbench.extensions.installExtension', remoteVsix);
+      // Reload to activate remote side
+      vscode.window.showInformationMessage('已自动安装到容器，正在重载窗口以启用扩展…');
+      try { await vscode.commands.executeCommand('workbench.action.reloadWindow'); } catch {}
+      return true;
+    } catch (e:any) {
+      vscode.window.showWarningMessage('自动安装到容器失败：' + String(e));
+      return false;
+    }
+  } catch { return false; }
+}
+
+// ---- Beginner-first conversational guides (no panel) ----
+async function oneClickSetup(context: vscode.ExtensionContext): Promise<void> {
+  try {
+    client.start(context);
+    const ws = getWorkspaceRoot() || process.cwd();
+    // 1) Prepare environment (venv + basics)
+    try {
+      await client.request('tools/call', { name: 'env.prepare', arguments: { create: true, install: true } });
+      vscode.window.showInformationMessage('环境已准备（.mcp/venv 已就绪）。');
+    } catch (e:any) {
+      vscode.window.showWarningMessage('准备环境出现问题：' + String(e));
+    }
+    // 2) Ingest rules (best-effort default)
+    try {
+      const defaultPaths: string[] = [];
+      try { if (require('fs').existsSync(require('path').join(ws, 'README.md'))) defaultPaths.push('README.md'); } catch {}
+      try { if (require('fs').existsSync(require('path').join(ws, 'docs'))) defaultPaths.push('docs/'); } catch {}
+      const paths = defaultPaths.length ? defaultPaths : ['README.md'];
+      await client.request('tools/call', { name: 'rules.ingest', arguments: { paths } });
+      vscode.window.showInformationMessage('已摄取规则：' + paths.join(', '));
+    } catch (e:any) {
+      vscode.window.showWarningMessage('摄取规则失败：' + String(e));
+    }
+    // 3) Minimal gate: config/CI suggestion + status update
+    try {
+      await client.request('tools/call', { name: 'ci.generate', arguments: {} });
+    } catch {}
+    try { await vscode.commands.executeCommand('mcpRulesAssistant.statusUpdate'); } catch {}
+    vscode.window.showInformationMessage('一键设置完成。建议：运行测试以生成 coverage.xml 后再查看弱项与 near 列表。');
+  } catch (e:any) {
+    vscode.window.showErrorMessage('一键设置失败：' + String(e));
+  }
+}
+
+async function newbieGuide(context: vscode.ExtensionContext): Promise<void> {
+  try {
+    client.start(context);
+    // Step 1: Scenario/Complexity/Dev Mode
+    const pickScenario = await vscode.window.showQuickPick([
+      { label: '个人 / Personal', val: 'personal' },
+      { label: '专业 / Pro', val: 'pro' },
+      { label: '企业 / Enterprise', val: 'enterprise' },
+      { label: '机构 / Institution', val: 'institution' },
+    ], { title: '选择应用场景 / Scenario' });
+    if (!pickScenario) return;
+    const pickComplexity = await vscode.window.showQuickPick([
+      { label: '简 / Small', val: 'small' },
+      { label: '中 / Medium', val: 'medium' },
+      { label: '大 / Large', val: 'large' },
+    ], { title: '选择复杂度 / Complexity' });
+    if (!pickComplexity) return;
+    const pickMode = await vscode.window.showQuickPick([
+      { label: 'TDD（测试先行）', val: 'tdd' },
+      { label: '标准 / Standard', val: 'standard' },
+      { label: '严格 / Strict', val: 'strict' },
+    ], { title: '选择开发模式 / Dev Mode' });
+    if (!pickMode) return;
+    // Apply thresholds
+    try {
+      const out = await client.request('tools/call', { name: 'rules.onboard', arguments: { scenario: pickScenario.val, complexity: pickComplexity.val, devMode: pickMode.val, apply: true } });
+      vscode.window.showInformationMessage('已应用规则引导（Onboard）。');
+    } catch (e:any) {
+      vscode.window.showWarningMessage('规则引导失败：' + String(e));
+    }
+    // Step 2: Prepare environment
+    const prep = await vscode.window.showQuickPick(['创建并安装 / Create+Install', '跳过 / Skip'], { title: '准备环境 / Prepare Environment' });
+    if (prep && prep.startsWith('创建')) {
+      try { await client.request('tools/call', { name: 'env.prepare', arguments: { create: true, install: true } }); vscode.window.showInformationMessage('已准备环境。'); } catch (e:any) { vscode.window.showWarningMessage('准备环境失败：' + String(e)); }
+    }
+    // Step 3: Ingest rules
+    const ingest = await vscode.window.showQuickPick(['快速摄取（README.md, docs/）', '自定义路径', '跳过'], { title: '摄取规则 / Ingest Rules' });
+    if (ingest && ingest.startsWith('快速')) {
+      try { await client.request('tools/call', { name: 'rules.ingest', arguments: { paths: ['README.md', 'docs/'] } }); vscode.window.showInformationMessage('规则摄取完成。'); } catch (e:any) { vscode.window.showWarningMessage('摄取失败：' + String(e)); }
+    } else if (ingest && ingest.startsWith('自定义')) {
+      const ip = await vscode.window.showInputBox({ title: '输入要摄取的文件或目录（逗号分隔）', placeHolder: 'rules.md, docs/rules' });
+      if (ip) {
+        const paths = ip.split(',').map(s=>s.trim()).filter(Boolean);
+        try { await client.request('tools/call', { name: 'rules.ingest', arguments: { paths } }); vscode.window.showInformationMessage('规则摄取完成。'); } catch (e:any) { vscode.window.showWarningMessage('摄取失败：' + String(e)); }
+      }
+    }
+    // Step 4: Minimal gate / CI
+    const ci = await vscode.window.showQuickPick(['生成 CI', '安装钩子', '两者都做', '跳过'], { title: '持续集成与钩子 / CI & Hooks' });
+    try {
+      if (ci === '生成 CI' || ci === '两者都做') { await client.request('tools/call', { name: 'ci.generate', arguments: {} }); vscode.window.showInformationMessage('CI 已生成。'); }
+      if (ci === '安装钩子' || ci === '两者都做') { await client.request('tools/call', { name: 'git.install_hooks', arguments: {} }); vscode.window.showInformationMessage('Git hooks 已安装。'); }
+    } catch (e:any) { vscode.window.showWarningMessage('CI/Hooks 步骤遇到问题：' + String(e)); }
+    // Finish
+    vscode.window.showInformationMessage('向导完成。建议：运行测试生成 coverage.xml，然后使用“Load Coverage”查看薄弱点。');
+  } catch (e:any) {
+    vscode.window.showErrorMessage('向导失败：' + String(e));
+  }
+}
+
+async function askCommand(context: vscode.ExtensionContext): Promise<void> {
+  try {
+    client.start(context);
+    const text = await vscode.window.showInputBox({ title: '自然语言指令 / Natural Command', placeHolder: '例如：摄取规则 README.md, docs/ / 加载覆盖率 / 生成 CI / 安装钩子' });
+    if (!text) return;
+    // Delegate to server-side NL mapping first
+    try {
+      const res = await client.request('tools/call', { name: 'nl.command', arguments: { text } });
+      const tool = (res && (res.parsed && res.parsed.tool)) || '';
+      if (tool) { vscode.window.showInformationMessage('已执行：' + tool); return; }
+    } catch {}
+    // Lightweight local mapping fallback
+    const lower = text.toLowerCase();
+    if (/摄取|ingest/.test(lower)) { await client.request('tools/call', { name: 'rules.ingest', arguments: { paths: ['README.md','docs/'] } }); vscode.window.showInformationMessage('规则摄取完成。'); return; }
+    if (/覆盖率|coverage|load coverage/.test(lower)) { await vscode.commands.executeCommand('mcpRulesAssistant.loadCoverage'); return; }
+    if (/ci/.test(lower) && /生成|generate/.test(lower)) { await client.request('tools/call', { name: 'ci.generate', arguments: {} }); vscode.window.showInformationMessage('CI 已生成。'); return; }
+    if (/钩子|hooks|install hooks/.test(lower)) { await client.request('tools/call', { name: 'git.install_hooks', arguments: {} }); vscode.window.showInformationMessage('Git hooks 已安装。'); return; }
+    if (/准备|prepare|env/.test(lower)) { await client.request('tools/call', { name: 'env.prepare', arguments: { create: true, install: true } }); vscode.window.showInformationMessage('环境已准备。'); return; }
+    vscode.window.showInformationMessage('已记录你的指令：' + text);
+  } catch (e:any) {
+    vscode.window.showErrorMessage('执行自然语言指令失败：' + String(e));
+  }
 }

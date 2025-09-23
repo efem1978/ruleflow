@@ -5,9 +5,9 @@ import json
 import logging
 import os
 import shutil
+import sys
 import time
 from enum import Enum
-import sys
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, TypedDict, cast
 

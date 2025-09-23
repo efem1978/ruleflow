@@ -86,6 +86,8 @@
       'btnInfo': { t: 'statusInfo' },
       'btnStatusUpdate': { t: 'statusUpdate' },
       'btnDiag': { t: 'panelDiagRequest' },
+      // Some layouts place a top-level diagnostics button with a different id
+      'btnDiagTop': { t: 'panelDiagRequest' },
       
       // Natural language
       'nlSend': { t: 'nl' },
@@ -129,12 +131,36 @@
             try { window.__ruleflowLang = next; } catch {}
             try { const applyLang = (window).applyLang; if (typeof applyLang === 'function') applyLang(next); } catch {}
             console.log('[panel_bootstrap] Fallback applied: lang =', (window.__ruleflowLang||'zh'));
+            try { vscode.postMessage({ t: 'lang.set', value: next }); } catch {}
           }
         } catch {}
         // Post a generic diagnostic click event
         try { vscode.postMessage({ t: 'panel.click', id }); } catch {}
         console.log('[panel_bootstrap] Sending message:', m);
-        vscode.postMessage(m);
+        try { vscode.postMessage(m); } catch {}
+        // Robust fallback: only trigger command URI when postMessage may be unavailable
+        try {
+          var cmdMap = {
+            'prepareEnvInstall': 'mcpRulesAssistant.envPrepareInstall',
+            'statusUpdate': 'mcpRulesAssistant.statusUpdate',
+            'coverage': 'mcpRulesAssistant.loadCoverage',
+            'panelDiagRequest': 'mcpRulesAssistant.panelDiag'
+          };
+          var t = m && m.t;
+          var cmd = cmdMap[t];
+          var allowFallback = !(window.__ruleflowHandshakeOk);
+          if (cmd && allowFallback) {
+            var a = document.createElement('a');
+            a.href = 'command:' + cmd;
+            // Hide and click
+            a.style.display = 'none';
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(function(){ try { document.body.removeChild(a); } catch {} }, 0);
+          }
+        } catch (e) {
+          console.error('[panel_bootstrap] Fallback command URI failed:', e);
+        }
       } catch (e) {
         console.error('[panel_bootstrap] Click handler error:', e);
       }
@@ -163,6 +189,4 @@
     console.error('[panel_bootstrap] Initialization failed:', e);
   }
 })();
-
-
 

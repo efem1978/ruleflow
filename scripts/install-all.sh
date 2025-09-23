@@ -105,24 +105,29 @@ detect_os() {
 OS=$(detect_os)
 log_info "Detected OS: $OS"
 
-# Check Python version
+# Check Python version (no bc dependency)
 check_python() {
     local python_cmd=""
     for cmd in python3 python; do
         if command -v "$cmd" >/dev/null 2>&1; then
-            local version=$($cmd -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
-            if [[ $(echo "$version >= 3.10" | bc -l 2>/dev/null || echo "0") == "1" ]]; then
+            # Return 0 if version >= 3.10 else non-zero
+            if "$cmd" - >/dev/null 2>&1 <<'PY'
+import sys
+maj, min = sys.version_info[:2]
+sys.exit(0 if (maj > 3 or (maj == 3 and min >= 10)) else 1)
+PY
+            then
                 python_cmd="$cmd"
                 break
             fi
         fi
     done
-    
+
     if [[ -z "$python_cmd" ]]; then
         log_error "Python 3.10+ required but not found"
         exit 1
     fi
-    
+
     echo "$python_cmd"
 }
 
@@ -152,7 +157,7 @@ initialize_mcp() {
     source .mcp/venv/bin/activate
     
     if [[ ! -f ".mcp/assistant.yaml" ]]; then
-        mcp-rules-assistant init --mode fast
+        mcp-rules-assistant init
     fi
     
     # Only ingest specific rule directories to avoid memory issues
@@ -695,9 +700,14 @@ validate_installation() {
             log_info "5. JetBrains: Tools -> External Tools -> MCP Rules Assistant"
             log_info "6. Review commercial release report: .mcp/commercial-release-report.md"
         else
-            log_error "Commercial release validation FAILED"
-            log_error "Review validation reports in .mcp/ directory"
-            exit 1
+            if [[ "${STRICT_TESTS:-1}" == "0" ]]; then
+                log_warn "Commercial release validation FAILED (non-blocking: STRICT_TESTS=0)."
+                log_warn "Review validation reports in .mcp/ directory when convenient."
+            else
+                log_error "Commercial release validation FAILED"
+                log_error "Review validation reports in .mcp/ directory"
+                exit 1
+            fi
         fi
     else
         log_error "❌ Installation validation failed"
@@ -764,6 +774,14 @@ main() {
         bash scripts/diagnose-env.sh || log_warn "diagnose-env reported issues (non-blocking)"
         log_info "Install report: .mcp/dashboard/install_report.md"
     fi
+
+  # If running inside a remote/containers context, ensure the VSIX is installed to current window
+  if [[ -n "${REMOTE_CONTAINERS-}" || -n "${DEVCONTAINER-}" || -f "/.dockerenv" ]]; then
+    log_info "Detected container/remote context; attempting remote VSIX install"
+    if [[ -f "scripts/install-remote-vsix.sh" ]]; then
+      bash scripts/install-remote-vsix.sh || log_warn "remote vsix install encountered issues (non-blocking)"
+    fi
+  fi
 
     print_summary
 }

@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Optional
 
 import typer
-import yaml
+import yaml  # type: ignore[import-untyped]
 from rich import print as rprint
 
 from . import __version__
@@ -74,7 +74,10 @@ def license_activate(
 def license_verify() -> None:
     """校验许可文件（演示版：有效期与签名一致性）。"""
     res = verify_license()
-    rprint(res)
+    # 为便于测试与管道处理，这里输出标准 JSON 文本（其它命令保持原样）
+    import json as _json
+
+    print(_json.dumps(res, ensure_ascii=False))
 
 
 @app.command("license-generate")
@@ -472,7 +475,9 @@ def rules_onboard(
 
 @app.command("env-autotune")
 def env_autotune(
-    apply: bool = typer.Option(False, "--apply/--dry-run", help="写入配置或仅显示 diff"),
+    apply: bool = typer.Option(
+        False, "--apply/--dry-run", help="写入配置或仅显示 diff"
+    ),
     verbose: bool = typer.Option(False, "--verbose", help="打印更多诊断信息"),
 ):
     """根据本地环境与已编译规则，自动建议/应用配置调整（hadolint/vscode_required 等）。
@@ -486,7 +491,10 @@ def env_autotune(
     root = Path.cwd().resolve()
     ensure_project_config(DEFAULT_PROJECT_CONFIG_PATH)
     try:
-        data = yaml.safe_load(DEFAULT_PROJECT_CONFIG_PATH.read_text(encoding="utf-8")) or {}
+        data = (
+            yaml.safe_load(DEFAULT_PROJECT_CONFIG_PATH.read_text(encoding="utf-8"))
+            or {}
+        )
     except Exception:
         data = {}
 
@@ -535,31 +543,52 @@ def env_autotune(
 
     # Proposals
     proposals: dict = {"set": {}, "advice": []}
+
     def _propose(path: list[str], value, reason: str):
         proposals["set"]["/".join(path)] = {"value": value, "reason": reason}
 
     # ci.hadolint
-    need_hadolint = bool(policy.get("container.required") or policy.get("container.policy.baseline") or dockerfile_exists)
+    need_hadolint = bool(
+        policy.get("container.required")
+        or policy.get("container.policy.baseline")
+        or dockerfile_exists
+    )
     if docker_ok and need_hadolint:
         cur = _get(data, ["ci", "hadolint"], None)
         if cur is None:
-            _propose(["ci", "hadolint"], True, "docker 可用且容器策略/文件存在，建议启用 hadolint")
+            _propose(
+                ["ci", "hadolint"],
+                True,
+                "docker 可用且容器策略/文件存在，建议启用 hadolint",
+            )
         elif cur is False:
-            proposals["advice"].append("建议启用 ci.hadolint=true（docker 可用且容器策略/文件存在）")
+            proposals["advice"].append(
+                "建议启用 ci.hadolint=true（docker 可用且容器策略/文件存在）"
+            )
     elif need_hadolint and not docker_ok:
-        proposals["advice"].append("检测到容器策略/文件，但本机未安装 docker；CI 可启用 hadolint，或在 devcontainer 中本地执行")
+        proposals["advice"].append(
+            "检测到容器策略/文件，但本机未安装 docker；CI 可启用 hadolint，或在 devcontainer 中本地执行"
+        )
 
     # ci.vscode_required
     if not code_ok:
         cur = _get(data, ["ci", "vscode_required"], None)
         if cur is True or cur is None:
-            _propose(["ci", "vscode_required"], False, "本机无 code/code-insiders CLI，避免 CI 严格依赖 VS Code job")
+            _propose(
+                ["ci", "vscode_required"],
+                False,
+                "本机无 code/code-insiders CLI，避免 CI 严格依赖 VS Code job",
+            )
 
     # Optional hints
     if is_wsl:
-        proposals["advice"].append("检测到 WSL：建议在 Windows 侧 VS Code 安装 Remote - WSL 扩展，并在 Windows 侧用 VSIX 安装前端")
+        proposals["advice"].append(
+            "检测到 WSL：建议在 Windows 侧 VS Code 安装 Remote - WSL 扩展，并在 Windows 侧用 VSIX 安装前端"
+        )
     if not node_ok:
-        proposals["advice"].append("未检测到 node：若需要构建 VS Code 前端，请安装 Node.js 20+")
+        proposals["advice"].append(
+            "未检测到 node：若需要构建 VS Code 前端，请安装 Node.js 20+"
+        )
 
     # Apply diff (non-destructive)
     changed = False
@@ -603,6 +632,7 @@ def env_autotune(
         except Exception:
             out["applied"] = False
     print(_json.dumps(out, ensure_ascii=False))
+
 
 @app.command("ide-scaffold")
 def ide_scaffold(
@@ -1254,6 +1284,126 @@ def diagnose(
         rprint("[bold]Suggestions[/]")
         for s in suggestions:
             rprint(f" - {s}")
+
+
+@app.command("doctor")
+def doctor(
+    fix: bool = typer.Option(True, "--fix/--no-fix", help="自动修复常见问题"),
+    clear_fake: bool = typer.Option(
+        True,
+        "--clear-fake/--keep-fake",
+        help="清除演示模式开关 .mcp/dashboard/fake_mode",
+    ),
+    verbose: bool = typer.Option(False, "--verbose", help="输出详细日志"),
+) -> None:
+    """后端自检与修复（跨本机/容器/WSL 通用）。
+
+    - 校验/创建虚拟环境 .mcp/venv，并确保已安装本工作区包（editable）。
+    - 可选清除 fake 模式开关（导致面板按钮无效）。
+    - 返回诊断结果与采取的动作，便于 VS Code 扩展一键调用。
+    """
+    import subprocess
+
+    def _log(msg: str) -> None:
+        if verbose:
+            rprint(msg)
+
+    root = Path.cwd().resolve()
+    venv_dir = root / ".mcp" / "venv"
+    vpy = (
+        (venv_dir / "Scripts" / "python.exe")
+        if os.name == "nt"
+        else (venv_dir / "bin" / "python")
+    )
+    actions: list[str] = []
+    ok = True
+
+    try:
+        if not vpy.exists() and fix:
+            _log("[doctor] creating venv …")
+            venv_dir.mkdir(parents=True, exist_ok=True)
+            subprocess.run([sys.executable, "-m", "venv", str(venv_dir)], check=True)
+            actions.append("create_venv")
+
+        if vpy.exists():
+            # Ensure pip toolchain up-to-date (best-effort)
+            if fix:
+                _log("[doctor] upgrading pip/setuptools/wheel …")
+                subprocess.run(
+                    [
+                        str(vpy),
+                        "-m",
+                        "pip",
+                        "install",
+                        "-U",
+                        "pip",
+                        "setuptools",
+                        "wheel",
+                    ],
+                    check=False,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+            # Check server importable; if not, install -e .
+            _log("[doctor] verifying server import …")
+            rc = subprocess.run(
+                [str(vpy), "-c", "import mcp_rules_assistant,sys;print('ok')"],
+                capture_output=True,
+                text=True,
+            )
+            if rc.returncode != 0 and fix:
+                _log("[doctor] installing workspace package (editable) …")
+                subprocess.run(
+                    [str(vpy), "-m", "pip", "install", "-e", str(root)], check=True
+                )
+                actions.append("pip_install_editable")
+        else:
+            ok = False
+    except Exception as e:
+        ok = False
+        actions.append(f"error:{e}")
+
+    # Clear fake mode toggle if requested
+    fake = root / ".mcp" / "dashboard" / "fake_mode"
+    if clear_fake and fake.exists():
+        try:
+            fake.unlink()
+            actions.append("clear_fake_mode")
+        except Exception:
+            pass
+
+    # Final diagnose via existing command
+    diag = {}
+    try:
+        # Use current interpreter to keep output consistent when venv missing
+
+        p = subprocess.run(
+            [
+                str(vpy if vpy.exists() else sys.executable),
+                "-m",
+                "mcp_rules_assistant.cli",
+                "diagnose",
+                "--json",
+            ],
+            capture_output=True,
+            text=True,
+        )
+        if p.returncode == 0 and p.stdout.strip():
+            diag = _json.loads(p.stdout.strip())
+        else:
+            ok = False
+    except Exception as e:
+        ok = False
+        actions.append(f"diagnose_error:{e}")
+
+    payload = {
+        "ok": bool(ok),
+        "venv": {"path": str(venv_dir), "exists": vpy.exists()},
+        "python": str(vpy if vpy.exists() else sys.executable),
+        "actions": actions,
+        "diagnose": diag,
+    }
+    print(_json.dumps(payload, ensure_ascii=False))
 
 
 @app.command("status-update")

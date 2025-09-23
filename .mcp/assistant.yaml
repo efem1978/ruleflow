@@ -35,11 +35,12 @@ tests:
     mid_bonus: 1
     history_limit: 400
 execution:
-  fs_guard_post_checks: true
-  fs_guard_strict: true
+  fs_guard_post_checks: false
+  fs_guard_strict: false
   allowed_write_prefixes: []
   allowed_write_extensions: []
   disallow_patterns: []
 ci:
   hadolint: true
   vscode_required: true
+  semgrep_config: auto

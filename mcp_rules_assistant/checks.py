@@ -9,7 +9,7 @@ import time
 from pathlib import Path
 from typing import Dict, List, Optional, Set, cast
 
-import yaml
+import yaml  # type: ignore[import-untyped]
 
 # 可选委托到统一的 process.run_cmd（默认关闭，保持向后兼容测试桩行为）。
 # 开启方式：

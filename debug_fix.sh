@@ -33,7 +33,8 @@ npm run package
 
 # 6. 安装扩展
 echo "6. 安装扩展..."
-code --install-extension mcp-rules-assistant-0.2.6.vsix --force
+LATEST_VSIX=$(ls -t mcp-rules-assistant-*.vsix | head -n 1)
+code --install-extension "$LATEST_VSIX" --force
 
 # 7. 启动MCP服务
 echo "7. 启动MCP后端服务..."

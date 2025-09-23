@@ -85,6 +85,11 @@ install-all:
 uninstall-all:
 	bash scripts/uninstall-all.sh || true
 
+# ---------- One-click deploy aliases ----------
+.PHONY: deploy oneclick
+deploy: install-all
+oneclick: install-all
+
 .PHONY: release-harden-verify
 release-harden-verify:
 	sh scripts/release-harden-verify.sh

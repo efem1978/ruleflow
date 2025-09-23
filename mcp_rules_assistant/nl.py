@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Dict, Optional
 
-import yaml
+import yaml  # type: ignore[import-untyped]
 
 # Built-in synonyms (merged with optional .mcp/nl_synonyms.yaml at runtime)
 SYNONYMS: Dict[str, str] = {

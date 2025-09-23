@@ -41,6 +41,7 @@ MCP 规则与上下文助手 / MCP Rules & Context Assistant
 - 覆盖率：`PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q -p pytest_cov --cov=mcp_rules_assistant --cov-report=xml:coverage.xml`
 - 状态刷新：`mcp-rules-assistant status-update`（写入 `.mcp/dashboard/status.json`）
 - 诊断打包：`mcp-rules-assistant diagnose-bundle`（收集 coverage/pytest/near/.mcp 状态与规则/计划 → 生成 tar.gz）
+- 后端自检：`mcp-rules-assistant doctor --fix --clear-fake`（自动创建/修复 .mcp/venv、安装本地包，清除演示模式开关）
 - VS Code 面板：命令 `RuleFlow: Open Panel`；自然语言 `RuleFlow: Natural Command`
 - JetBrains 插件：见 `extensions/jetbrains/README.md`（工具窗口最小直连 MCP：启动/停止/Ping/资源/计划/摄取/覆盖率/CI/受控写入）
   - 最小路径：在仓库根先生成 `coverage.xml` 与 `.mcp/dashboard/*`（见 `docs/USAGE.md`），然后在 JetBrains 运行 `gradle runIde` 打开工具窗口“RuleFlow”加载资源；`scripts/jb-ui-verify.sh` 可生成 `jb_verify.json` 并由 CI/Nightly 上传为 `jb-verify` 构件。
@@ -94,6 +95,7 @@ RUN_VERIFY=1 bash scripts/install-all.sh
 
 Tips
 - Devcontainer: open the project in devcontainer, then use “RuleFlow: Open Panel”. Extension and backend will run in the container; first run auto-provisions .mcp/venv.
+- Remote install note: devcontainer 不再强制从 Marketplace 安装扩展；扩展内置的远程安装器会优先使用本仓库 VSIX（`extensions/artifacts/*.vsix`）。若未自动触发，请执行命令面板“RuleFlow: Install to Remote (Force)”。
 - WSL: if `code` CLI is not available in WSL, install “Remote - WSL” in Windows VS Code and install the extension via “Install from VSIX…”.
 - Strictness toggles: set `STRICT_TESTS=0` to continue install even if tests/security checks fail; set `RUN_VERIFY=1` to run full end-to-end verification after install.
 

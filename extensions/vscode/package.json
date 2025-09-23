@@ -2,7 +2,7 @@
   "name": "mcp-rules-assistant",
   "displayName": "RuleFlow: Rules & Memory (MCP)",
   "publisher": "ruleflow",
-  "version": "0.2.6",
+  "version": "0.3.0",
   "description": "Rules enforcement + rolling context memory across IDEs (VS Code + MCP server). No telemetry.",
   "repository": {
     "type": "git",
@@ -11,7 +11,7 @@
   "engines": {
     "vscode": "^1.84.0"
   },
-  "extensionKind": ["workspace", "ui"],
+  "extensionKind": ["workspace"],
   "categories": [
     "Other"
   ],
@@ -64,6 +64,18 @@
       {
         "command": "mcpRulesAssistant.openPanel",
         "title": "RuleFlow: Open Panel"
+      },
+      {
+        "command": "mcpRulesAssistant.oneClickSetup",
+        "title": "RuleFlow: One-Click Setup (Newbie)"
+      },
+      {
+        "command": "mcpRulesAssistant.newbieGuide",
+        "title": "RuleFlow: Newbie Guide (Conversational)"
+      },
+      {
+        "command": "mcpRulesAssistant.ask",
+        "title": "RuleFlow: Ask (Natural Command)"
       },
       {
         "command": "mcpRulesAssistant.quickActions",
@@ -128,6 +140,22 @@
       {
         "command": "mcpRulesAssistant.licenseVerify",
         "title": "RuleFlow: License Verify"
+      },
+      {
+        "command": "mcpRulesAssistant.envPrepareInstall",
+        "title": "RuleFlow: Prepare Env (Create + Install)"
+      },
+      {
+        "command": "mcpRulesAssistant.panelDiag",
+        "title": "RuleFlow: Panel Diagnostics (fallback)"
+      },
+      {
+        "command": "mcpRulesAssistant.backendDoctor",
+        "title": "RuleFlow: Backend Doctor"
+      },
+      {
+        "command": "mcpRulesAssistant.installRemote",
+        "title": "RuleFlow: Install to Remote (Force)"
       }
     ]
   },

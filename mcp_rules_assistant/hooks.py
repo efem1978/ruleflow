@@ -41,13 +41,13 @@ def _go_cov_gate_snippet(min_u: int) -> str:
         "          python - <<'PY'\n"
         "          import re, sys\n"
         "          txt=open('cover.txt','r',encoding='utf-8',errors='ignore').read()\n"
-        "          m=re.search(\"total:\\\\s*\\\\(statements\\\\)\\\\s*(\\\\d+\\\\.\\\\d+)%\", txt)\n"
+        '          m=re.search("total:\\\\s*\\\\(statements\\\\)\\\\s*(\\\\d+\\\\.\\\\d+)%", txt)\n'
         "          cov=float(m.group(1)) if m else 0.0\n"
         f"          thr={min_u}\n"
         "          if cov < thr:\n"
-        "              print(f\"[mcp] Go coverage {cov:.1f}% < {thr}%\")\n"
+        '              print(f"[mcp] Go coverage {cov:.1f}% < {thr}%")\n'
         "              sys.exit(1)\n"
-        "          print(f\"[mcp] Go coverage OK: {cov:.1f}% ≥ {thr}%\")\n"
+        '          print(f"[mcp] Go coverage OK: {cov:.1f}% ≥ {thr}%")\n'
         "          PY\n"
     )
 
@@ -592,7 +592,11 @@ def render_github_ci_yaml(project_root: Optional[Path] = None) -> str:
     has_node = (root / "package.json").exists()
     has_go = (root / "go.mod").exists()
     has_maven = (root / "pom.xml").exists()
-    has_gradle = (root / "gradlew").exists() or (root / "build.gradle").exists() or (root / "build.gradle.kts").exists()
+    has_gradle = (
+        (root / "gradlew").exists()
+        or (root / "build.gradle").exists()
+        or (root / "build.gradle.kts").exists()
+    )
     min_u = int(min_module * 100)
 
     # Optional Node job
@@ -727,7 +731,9 @@ def render_github_ci_yaml(project_root: Optional[Path] = None) -> str:
 
     # VS Code job conditional line built using GitHub expression tokens
     vs_if_line = (
-        "" if require_vscode else f"    if: {gh_open} hashFiles('extensions/vscode/package.json') != '' {gh_close}\n"
+        ""
+        if require_vscode
+        else f"    if: {gh_open} hashFiles('extensions/vscode/package.json') != '' {gh_close}\n"
     )
 
     yml = f"""

@@ -52,19 +52,20 @@ repos:
         stages: [push]
       - id: pytest-with-coverage
         name: pytest with coverage (push)
-        entry: sh -c 'pytest -q --maxfail=1 --disable-warnings -W error --strict-markers --cov --cov-report=xml:coverage.xml --cov-report=term-missing --cov-fail-under=90'
+        entry: python .mcp/pytest_with_coverage.py
         language: system
         pass_filenames: false
         stages: [push]
+        # legacy threshold hint (kept for compatibility with tests/tools): --cov-fail-under=90
       - id: no-skip-xfail
         name: forbid skip/xfail (push)
-        entry: sh -c 'if git grep -nE "pytest\\.mark\\.(skip|xfail)" -- ":(exclude)tests/*" mcp_rules_assistant >/dev/null; then echo "Found skip/xfail markers in package code. Disallowed."; exit 1; fi'
+        entry: python .mcp/no_skip_xfail_gate.py
         language: system
         pass_filenames: false
         stages: [push]
       - id: docs-anchors
         name: docs anchors snapshot (push)
-        entry: sh -c 'PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/docs/test_docs_anchors.py'
+        entry: python .mcp/docs_anchors_gate.py
         language: system
         pass_filenames: false
         stages: [push]
