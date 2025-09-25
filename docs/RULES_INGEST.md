@@ -8,7 +8,7 @@
 - 文本：`.md/.txt/.rst`（提取条目行，例如以 “- ”、“* ”、“1.” 开头，或较短的规则语句）
 - YAML/JSON：直接扁平化为 key-value
 
-识别的规则键（示例）
+识别的规则键（示例；注意：实际门槛与策略以 `.mcp/assistant.yaml` 为准，本文示例不构成最终阈值）
 - coverage.min_module（最低级模块覆盖率）
 - coverage.min_core（核心模块覆盖率）
 - test.no_skip_xfail（禁止 skip/xfail）
@@ -46,7 +46,7 @@ MCP 调用
   - 若存在 `container.policy.baseline`：会添加 Dockerfile 基线检查脚本（push 阶段），例如禁止 `USER root`、避免 `:latest`
   - 若存在 `security.sast_strict`：建议在 CI 中追加 `semgrep`（可自定义规则集），默认不在保存/提交阶段执行
 
-短语对照（示例）
+短语对照（示例；用于演示解析，不作为最终门槛，请以 `.mcp/assistant.yaml` 为准）
 （快速索引见：docs/RULES_PHRASES_INDEX.md）
 - 覆盖率（模块）
   - "覆盖率 90%" / "at least 90% (coverage)" → `coverage.min_module: 0.90`
@@ -65,7 +65,7 @@ MCP 调用
 - 变异测试
   - "变异测试" / "mutation test" / "mutmut" → `test.mutation_required: true`
  
-上限与区间（记录为提示，不作门禁）
+上限与区间（记录为提示，不作门禁；示例中的数值仅为说明）
 - 上限：
   - "覆盖率 不超过 95%" / "at most 95% (coverage)" → 记录 `coverage.max_module: 0.95`（作为建议 monitor）
   - "core at most 97 percent" → 记录 `coverage.max_core: 0.97`（作为建议 monitor）

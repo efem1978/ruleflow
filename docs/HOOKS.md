@@ -21,7 +21,7 @@ Git Hooks 与门禁（性能优先）
 - 分支命名（提交阶段）：默认要求分支名匹配 `main|master|develop|dev|feat/*|fix/*|chore/*|docs/*|test/*|refactor/*|release/*|hotfix/*`；
   - 可用环境变量覆盖：`MCP_BRANCH_REGEX`；或通过 `MCP_BRANCH_IGNORE=1` 临时跳过
 - pre-push（推送阶段，经 pre-commit 触发）：
-  - pytest + 覆盖率（最低模块≥90%，取自 `.mcp/assistant.yaml`）
+  - pytest + 覆盖率（阈值取自 `.mcp/assistant.yaml`，不在文档写死数值）
   - 禁止 skip/xfail（git grep 扫描）
   - bandit 安全扫描
   - 生成 `coverage.xml`（用于面板“加载覆盖率”与薄弱模块展示）

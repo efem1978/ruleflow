@@ -10,6 +10,8 @@
       console.log('[panel_bootstrap] Handshake sent');
       // Redundant ready signal to help extension mark panel as ready even if inline script fails
       try { vscode.postMessage({ t: 'ready' }); } catch {}
+      // Mark handshake as OK to disable intrusive command-URI fallbacks
+      try { window.__ruleflowHandshakeOk = true; } catch {}
     } catch (e) {
       console.error('[panel_bootstrap] Handshake failed:', e);
     }
@@ -100,6 +102,123 @@
       'btnModeAdvanced': { t: 'mode.advanced' },
       'btnLang': { t: 'lang.toggle' }
     };
+    // Local fallback helper: force-update a minimal set of labels when applyLang is unavailable
+    function __localApplyLang(lang){
+      try {
+        var zh = (String(lang||'zh') === 'zh');
+        var set = function(id, text, title){
+          try { var el=document.getElementById(id); if (el && text!==undefined) el.textContent=text; if (el && title!==undefined) el.title=title; } catch {}
+        };
+        // Header & connection
+        set('hdrTitle', zh ? 'MCP 规则与上下文助手' : 'MCP Rules & Context Assistant');
+        set('pConnected', zh ? '已连接到 Python MCP Server（最小协议）。默认快速内环：保存轻、推送重。' : 'Connected to Python MCP Server (minimal protocol). Fast inner loop: light save, gated push.');
+        // Top bar
+        set('lblDisplayMode', zh ? '显示模式：' : 'Display mode:');
+        set('btnModeSimple', zh ? '新手模式' : 'Simple', zh ? '仅展示常用操作；不会自动修改文件或配置' : 'Show common actions only; no writes');
+        set('btnModeAdvanced', zh ? '高级模式' : 'Advanced', zh ? '展示全部功能；每项操作都需要你确认后才执行' : 'Show all features; confirm before actions');
+        set('btnLang', zh ? '中文/English' : 'English/中文', zh ? '切换中/英文界面标签' : 'Toggle Chinese/English labels');
+        set('btnReloadPanel', zh ? '重载面板' : 'Reload Panel', zh ? '重载面板（重新渲染并握手）' : 'Reload panel (re-render & handshake)');
+        set('btnDiagTop', zh ? '诊断' : 'Diagnostics');
+        // Project & license
+        set('lblCurProject', zh ? '当前项目:' : 'Project:');
+        set('btnSelectProject', zh ? '选择/切换项目…' : 'Select/Switch Project…');
+        set('lblLicense', zh ? '授权：' : 'License:');
+        // Quick start
+        set('hintQuick', zh ? '三步上手：' : 'Quick start:');
+        set('btnSimpleInstall', zh ? '1) 准备并安装环境' : '1) Prepare & Install Env');
+        set('btnSimpleCoverage', zh ? '2) 加载覆盖率' : '2) Load Coverage');
+        set('btnSimplePlan', zh ? '3) 打开计划' : '3) Open Plan');
+        set('btnSimpleIngest', zh ? '摄取规则（README.md, docs/）' : 'Ingest Rules (README.md, docs/)');
+        set('btnSimpleStatus', zh ? '刷新状态' : 'Refresh Status');
+        set('hintTrouble', zh ? '遇到问题 → 点击“刷新状态”，或切换到“高级模式”查看更多功能。' : 'Having issues → Click "Refresh status", or switch to Advanced mode');
+        // NL input & actions
+        set('nlSend', zh ? '执行' : 'Run');
+        set('nlExamples', zh ? '范例' : 'Examples');
+        set('nlClear', zh ? '清空历史' : 'Clear');
+        set('btnStatusUpdate', zh ? '刷新状态' : 'Refresh Status');
+        set('lblNearPct', zh ? '近阈值%:' : 'Near-threshold %:');
+        set('btnCovNearInline', zh ? '显示近阈值' : 'Show Near');
+        set('btnIdeScaffold', zh ? '生成 IDE 集成配置' : 'Generate IDE Scaffold');
+        set('btnCompliance', zh ? '生成合规承诺' : 'Gen Compliance');
+        set('btnOpenCompliance', zh ? '打开合规承诺' : 'Open Compliance');
+        set('btnOpenIdeDir', zh ? '打开 IDE 目录' : 'Open IDE Dir');
+        set('btnEvents', zh ? '事件历史' : 'Events');
+        set('btnAudit', zh ? '安全审计' : 'Security Audit');
+        set('btnInfo', zh ? '状态摘要 Info' : 'Status Info');
+        // NL catalog headings
+        set('lgNlQuick', zh ? '自然语言命令示例（点击即执行）' : 'Natural language quick actions (click to run)');
+        set('nlTriggers', zh ? '触发词：摄取规则 / 加载覆盖率 / 近阈值 / 打开计划 / 开启滚动记忆 / 生成 CI / 校验 CI / 安装钩子' : 'Triggers: ingest rules / load coverage / near-threshold / open plan / enable memory / generate CI / validate CI / install hooks');
+        set('hdrRecentCmds', zh ? '最近指令' : 'Recent Commands');
+        // Shortcuts block
+        set('lgShortcuts', zh ? '工作流常用操作' : 'Workflow shortcuts');
+        set('btnLoad', zh ? '加载编译规则 / Load Rules' : 'Load Rules', zh ? '从 .mcp/rules_compiled.* 读取并展示编译后的规则（只读）' : 'Read compiled rules from .mcp/rules_compiled.* (read-only)');
+        set('btnIngest', zh ? '摄取规则 / Ingest' : 'Ingest Rules', zh ? '将 README、docs 等文档转换为规则（写入 .mcp/rules_*）' : 'Convert README/docs into rules (writes .mcp/rules_*)');
+        set('btnValidate', zh ? '校验规则 / Validate' : 'Validate Rules', zh ? '重新编译并校验规则，输出冲突与建议（只读展示）' : 'Recompile and validate; show conflicts & suggestions');
+        set('btnHooks', zh ? '安装钩子 / Install Hooks' : 'Install Hooks', zh ? '安装 pre-commit/commit-msg/pre-push 钩子' : 'Install pre-commit/commit-msg/pre-push hooks');
+        set('btnLoadSugg', zh ? '加载建议 / Load Suggestions' : 'Load Suggestions', zh ? '读取并展示规则建议' : 'Read and show rule suggestions');
+        set('btnCoverage', zh ? '加载覆盖率 / Load Coverage' : 'Load Coverage', zh ? '读取 coverage.xml 并生成薄弱/分组/近阈值摘要' : 'Read coverage.xml and summarize');
+        set('btnShowWeak', zh ? '仅看弱项 / Show Weak' : 'Show Weak', zh ? '只显示低于阈值的文件' : 'Show files below threshold');
+        set('btnCovTree', zh ? '加载目录树 / Load Weak Tree' : 'Load Weak Tree', zh ? '按目录展示薄弱文件' : 'Browse weak files by directory');
+        set('btnCovNear', zh ? '仅看近阈值 / Show Near' : 'Show Near', zh ? '显示距离阈值很近（默认≤3%）的文件' : 'Show near-threshold files (default ≤3%)');
+        set('btnCovExport', zh ? '导出覆盖率报表 / Export Coverage' : 'Export Coverage', zh ? '导出 CSV/JSON 到 .mcp/dashboard' : 'Export CSV/JSON to .mcp/dashboard');
+        set('btnPrepareEnvDry', zh ? '准备环境(预览) / Prepare Env (dry-run)' : 'Prepare Env (dry-run)', zh ? '预览将要创建的 venv 与工具链' : 'Preview venv and tools (no changes)');
+        set('btnPrepareEnvInstall', zh ? '准备并安装环境 / Prepare & Install' : 'Prepare & Install', zh ? '创建 .mcp/venv 并安装 ruff/black/mypy/pytest' : 'Create .mcp/venv and install ruff/black/mypy/pytest');
+        // Section headings
+        set('hdrTools', zh ? '可用工具（示例）' : 'Available Tools (samples)');
+        set('hdrCompiled', zh ? '项目规则（编译版）' : 'Compiled Project Rules');
+        set('hdrConflictsNav', zh ? '冲突定位（可点击跳转）' : 'Conflicts (click to open)');
+        set('hdrConflictsSugg', zh ? '冲突与建议（Conflicts & Suggestions）' : 'Conflicts & Suggestions');
+        set('hdrOnboard', zh ? '规则引导（Onboard）' : 'Rules Onboarding');
+        set('hdrChat', zh ? 'Chat（可选）' : 'Chat (optional)');
+        set('hdrCovGroups', zh ? '覆盖率分组' : 'Coverage Groups');
+        set('hdrWeakTop', zh ? '覆盖率薄弱（Top 20）' : 'Weak Coverage (Top 20)');
+        set('hdrCsvPreview', zh ? 'CSV 预览' : 'CSV Preview');
+        set('lblCsvSwitch', zh ? '切换预览：' : 'Switch preview:');
+        set('hdrCovTree', zh ? '覆盖率目录树（弱项）' : 'Coverage Tree (weak)');
+        set('hdrRecent', zh ? '最近记忆与计划' : 'Recent Memory & Plan');
+        set('hdrEvents', zh ? '事件历史（最近）' : 'Recent Events');
+        set('hdrAudit', zh ? '安全审计（最近）' : 'Security Audit (recent)');
+        set('hdrStatus', zh ? '状态摘要（最近）' : 'Status Summary (recent)');
+        set('hdrTasksPending', zh ? '剩余任务（来自 .mcp/plan.md）' : 'Pending Tasks (from .mcp/plan.md)');
+        set('hdrTasksDone', zh ? '已完成' : 'Done');
+        set('hdrCI', zh ? 'CI 配置（hadolint / semgrep / mutation）' : 'CI Config (hadolint / semgrep / mutation)');
+        set('hdrCiPreview', zh ? 'CI 预览（内联）' : 'CI Preview (inline)');
+        set('hdrCiChecks', zh ? 'CI 校验结果' : 'CI Check Results');
+        // Natural language quick actions buttons (explicit ids)
+        set('hdrNlRules', zh ? '规则' : 'Rules');
+        set('hdrNlCoverage', zh ? '覆盖率' : 'Coverage');
+        set('hdrNlPlanMem', zh ? '计划与记忆' : 'Plan & Memory');
+        set('hdrNlCI', 'CI');
+        set('btnNlIngestRules', zh ? '摄取规则 README.md, docs/' : 'Ingest rules README.md, docs/');
+        set('btnNlLoadCompiledRules', zh ? '载入编译规则' : 'Load compiled rules');
+        set('btnNlValidateRules', zh ? '校验 规则' : 'Validate rules');
+        set('btnNlLoadCoverage', zh ? '加载覆盖率' : 'Load coverage');
+        set('btnNlShowWeak', zh ? '仅看弱项' : 'Show weak only');
+        set('btnNlShowNear3', zh ? '仅看近阈值 3' : 'Show near 3');
+        set('btnNlOpenPlan', zh ? '打开 计划' : 'Open plan');
+        set('btnNlEnableMemory', zh ? '开启滚动记忆' : 'Enable memory');
+        set('btnNlGenCI', zh ? '生成 CI' : 'Generate CI');
+        set('btnNlValidateCI', zh ? '校验 CI' : 'Validate CI');
+        set('btnNlInstallHooks', zh ? '安装 钩子' : 'Install hooks');
+      } catch {}
+    }
+
+    // Listen for extension -> webview messages to apply language immediately
+    window.addEventListener('message', function(ev){
+      try {
+        var d = (ev && ev.data) || {};
+        if (!d) return;
+        if (d.t === 'setLang') {
+          var lang = String(d.value || 'zh');
+          try { window.__ruleflowLang = lang; } catch {}
+          try { var applyLang = (window).applyLang; if (typeof applyLang === 'function') { applyLang(lang); } else { __localApplyLang(lang); } }
+          catch { try { __localApplyLang(lang); } catch {} }
+        }
+      } catch (e) {
+        try { console.error('[panel_bootstrap] setLang handler error:', e); } catch {}
+      }
+    }, { passive: true });
+
     document.addEventListener('click', function(ev){
       try {
         let el = ev.target;
@@ -115,6 +234,25 @@
           console.log('[panel_bootstrap] No mapping found for ID:', id);
           return;
         }
+        // Handle language toggle deterministically at capture phase to ensure immediate UX
+        if (id === 'btnLang') {
+          try {
+            ev.preventDefault();
+            ev.stopPropagation();
+          } catch {}
+          try {
+            const cur = (window.__ruleflowLang || 'zh');
+            const next = (cur === 'zh') ? 'en' : 'zh';
+            try { window.__ruleflowLang = next; } catch {}
+            try {
+              const applyLang = (window).applyLang;
+              if (typeof applyLang === 'function') { applyLang(next); }
+              else { __localApplyLang(next); }
+            } catch { try { __localApplyLang(next); } catch {} }
+            try { vscode.postMessage({ t: 'lang.set', value: next }); } catch {}
+          } catch {}
+          return;
+        }
         ev.preventDefault();
         // Local fallback for immediate UX (mode/lang) even if extension not yet responding
         try {
@@ -125,14 +263,7 @@
             })();
             console.log('[panel_bootstrap] Fallback applied: mode =', mode);
           }
-          if (id === 'btnLang') {
-            const cur = (window.__ruleflowLang || 'zh');
-            const next = (cur === 'zh') ? 'en' : 'zh';
-            try { window.__ruleflowLang = next; } catch {}
-            try { const applyLang = (window).applyLang; if (typeof applyLang === 'function') applyLang(next); } catch {}
-            console.log('[panel_bootstrap] Fallback applied: lang =', (window.__ruleflowLang||'zh'));
-            try { vscode.postMessage({ t: 'lang.set', value: next }); } catch {}
-          }
+          // btnLang handled above
         } catch {}
         // Post a generic diagnostic click event
         try { vscode.postMessage({ t: 'panel.click', id }); } catch {}

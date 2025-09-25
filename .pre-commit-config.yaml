@@ -56,7 +56,7 @@ repos:
         language: system
         pass_filenames: false
         stages: [push]
-        # legacy threshold hint (kept for compatibility with tests/tools): --cov-fail-under=90
+        # legacy threshold hint (kept for compatibility with tests/tools): --cov-fail-under=99
       - id: no-skip-xfail
         name: forbid skip/xfail (push)
         entry: python .mcp/no_skip_xfail_gate.py

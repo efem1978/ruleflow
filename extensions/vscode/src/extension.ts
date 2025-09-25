@@ -489,15 +489,33 @@ export function activate(context: vscode.ExtensionContext) {
   try { if (!vscode.env.remoteName) { autoInstallToRemote(context); } } catch {}
   
   console.log('[MCP Rules Assistant] Extension activated successfully');
-  // \u6062\u590d\u9501\u5b9a\u6839\u76ee\u5f55\uff08\u82e5\u5b58\u5728\uff09\uff0c\u4f18\u5148\u4f7f\u7528\u6b64\u524d\u7528\u6237\u9009\u62e9\u7684\u9879\u76ee\u6839
+  // 恢复锁定根目录时进行路径有效性校验，避免移动项目后仍引用到旧路径
   try {
-    const saved = context.workspaceState.get<string>('ruleflow.lockRoot') || '';
-    if (saved && saved.trim()) { __lockedRoot = saved.trim(); }
-    else {
+    const wsFolders = (vscode.workspace.workspaceFolders || []).map(f => f.uri.fsPath);
+    const isUnderAnyWs = (p: string) => { try { const n = path.resolve(p); return wsFolders.some(w => n.startsWith(path.resolve(w))); } catch { return false; } };
+    const pathExists = (p: string) => { try { return fs.existsSync(p); } catch { return false; } };
+
+    const saved = (context.workspaceState.get<string>('ruleflow.lockRoot') || '').trim();
+    if (saved && pathExists(saved) && isUnderAnyWs(saved)) {
+      __lockedRoot = saved;
+    } else {
       const w0 = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
       if (w0) {
         const prefs = path.join(w0, '.mcp', 'dashboard', 'ui_prefs.json');
-        try { const txt = fs.readFileSync(prefs, 'utf8'); const obj = JSON.parse(txt||'{}'); if (obj && typeof obj.projectRoot==='string' && obj.projectRoot) __lockedRoot = obj.projectRoot; } catch {}
+        try {
+          const txt = fs.readFileSync(prefs, 'utf8');
+          const obj = JSON.parse(txt||'{}');
+          const pr = (obj && typeof obj.projectRoot==='string') ? (obj.projectRoot||'').trim() : '';
+          if (pr && pathExists(pr) && isUnderAnyWs(pr)) {
+            __lockedRoot = pr;
+          } else {
+            __lockedRoot = null;
+            try { const s = { ...(obj||{}), projectRoot: w0 }; fs.mkdirSync(path.dirname(prefs), { recursive: true }); fs.writeFileSync(prefs, JSON.stringify(s, null, 2)); } catch {}
+          }
+        } catch {}
+      }
+      if (saved && (!pathExists(saved) || !isUnderAnyWs(saved))) {
+        try { context.workspaceState.update('ruleflow.lockRoot', ''); } catch {}
       }
     }
   } catch {}
@@ -953,7 +971,7 @@ export function activate(context: vscode.ExtensionContext) {
           <button id="btnSelectProject" title="\u5728\u5f53\u524d IDE \u7a97\u53e3\u5185\u9009\u62e9/\u5207\u6362\u9879\u76ee\u6839\uff1b\u6240\u6709\u8bfb\u5199\u9650\u5b9a\u5728\u6240\u9009\u9879\u76ee\u7684 .mcp/ \u76ee\u5f55">\u9009\u62e9/\u5207\u6362\u9879\u76ee\u2026</button>
         </div>
         <div id="lic" style="padding:4px 6px; border:1px solid #ddd; background:#fafafa; margin:6px 0; display:flex; align-items:center; gap:8px;">
-          <b>License:</b> <span id="licText">(loading)</span>
+          <b id="lblLicense">License:</b> <span id="licText">(loading)</span>
           <button id="btnLicVerify" title="\u6821\u9a8c\u8bb8\u53ef\u72b6\u6001\uff08\u672c\u5730\u53ea\u8bfb\uff0c\u4e0d\u51fa\u7f51\uff09">Verify</button>
           <button id="btnLicActivate" title="\u4ece\u672c\u5730\u6587\u4ef6\u6fc0\u6d3b\u8bb8\u53ef\uff08\u4ec5\u5199\u5165\u8bb8\u53ef\u914d\u7f6e\uff0c\u4e0d\u6539\u6e90\u7801\uff09">Activate\u2026</button>
         </div>
@@ -970,7 +988,7 @@ export function activate(context: vscode.ExtensionContext) {
             <button id="btnSimpleIngest" title="\u5c06 README/docs \u8f6c\u6362\u4e3a\u89c4\u5219\uff08\u5199\u5165 .mcp/rules_*\uff09\uff0c\u4e0d\u6539\u73b0\u6709\u6e90\u7801">\u6444\u53d6\u89c4\u5219\uff08README.md, docs/\uff09</button>
             <button id="btnSimpleStatus" title="\u5237\u65b0\u72b6\u6001\u5e76\u5199\u5165 .mcp/dashboard/status.json\uff08\u53ea\u8bfb\u6e90\u7801\uff09">\u5237\u65b0\u72b6\u6001</button>
           </div>
-          <div class="hint">\u9047\u5230\u95ee\u9898 \u2192 \u70b9\u51fb\u201c\u5237\u65b0\u72b6\u6001\u201d\uff0c\u6216\u5207\u6362\u5230\u201c\u9ad8\u7ea7\u6a21\u5f0f\u201d\u67e5\u770b\u66f4\u591a\u529f\u80fd\u3002</div>
+          <div id="hintTrouble" class="hint">\u9047\u5230\u95ee\u9898 \u2192 \u70b9\u51fb\u201c\u5237\u65b0\u72b6\u6001\u201d\uff0c\u6216\u5207\u6362\u5230\u201c\u9ad8\u7ea7\u6a21\u5f0f\u201d\u67e5\u770b\u66f4\u591a\u529f\u80fd\u3002</div>
         </div>
         <div class="adv" style="margin:8px 0;">
           <input id="nlInput" placeholder="\u81ea\u7136\u8bed\u8a00\u6307\u4ee4\uff1a\u5982 \u6444\u53d6\u89c4\u5219 README.md, docs/ / \u52a0\u8f7d\u8986\u76d6\u7387 / \u5f00\u542f\u6eda\u52a8\u8bb0\u5fc6" style="width:65%;" title="\u5728\u6b64\u8f93\u5165\u4e2d\u6587\u6216\u82f1\u6587\u6307\u4ee4\uff0c\u6309\u201c\u6267\u884c\u201d\u6309\u94ae\u8fd0\u884c\uff1b\u793a\u4f8b\u53ef\u70b9\u51fb\u4e0b\u65b9\u5feb\u901f\u586b\u5145" />
@@ -978,7 +996,7 @@ export function activate(context: vscode.ExtensionContext) {
           <button id="nlExamples" title="\u63d2\u5165\u5e38\u7528\u6307\u4ee4\u793a\u4f8b\u5230\u8f93\u5165\u6846\uff0c\u4e0d\u4f1a\u76f4\u63a5\u6267\u884c">\u8303\u4f8b</button>
           <button id="nlClear" title="\u6e05\u7a7a\u9762\u677f\u4e2d\u7684\u5386\u53f2\u663e\u793a\uff08\u4ec5 UI\uff0c\u4e0d\u5199\u78c1\u76d8\uff09">\u6e05\u7a7a\u5386\u53f2</button>
           <button id="btnStatusUpdate" title="\u5237\u65b0\u72b6\u6001\u6458\u8981\u5e76\u66f4\u65b0 .mcp/dashboard/status.json">\u5237\u65b0\u72b6\u6001</button>
-          <span style="margin-left:6px;">\u8fd1\u9608\u503c%:</span>
+          <span id="lblNearPct" style="margin-left:6px;">\u8fd1\u9608\u503c%:</span>
           <input id="nearPct" value="3" style="width:40px;" title="\u663e\u793a\u8986\u76d6\u7387\u8ddd\u79bb\u9608\u503c\u2264\u8be5\u767e\u5206\u6bd4\u7684\u6587\u4ef6\uff08\u9ed8\u8ba43%\uff09" />
           <button id="btnCovNearInline" title="\u5728\u9762\u677f\u5185\u663e\u793a\u201c\u8fd1\u9608\u503c\u201d\u6587\u4ef6\uff08\u4ec5 UI \u8fc7\u6ee4\uff09">\u663e\u793a\u8fd1\u9608\u503c</button>
           <button id="btnIdeScaffold" title="\u751f\u6210\u5f53\u524d IDE \u7684\u6700\u5c0f\u914d\u7f6e/\u811a\u672c\uff08\u4ec5\u5199\u5165\u9879\u76ee\u5185\u914d\u7f6e\u76ee\u5f55\uff09">\u751f\u6210 IDE \u96c6\u6210\u914d\u7f6e</button>
@@ -995,7 +1013,7 @@ export function activate(context: vscode.ExtensionContext) {
           <button id="btnOpenAuditFile" title="\u6253\u5f00 .mcp/dashboard/security_audit.jsonl\uff08\u53ea\u8bfb\uff09">\u6253\u5f00 audit</button>
         </div>
         <div id="nlExamplesBox" class="adv" style="display:none; margin:4px 0 10px 0;">
-          <span style="opacity:.8">\u5feb\u901f\u8303\u4f8b\uff1a</span>
+          <span id="lblQuickExamples" style="opacity:.8">\u5feb\u901f\u8303\u4f8b\uff1a</span>
           <button data-nl="\u6444\u53d6\u89c4\u5219 README.md, docs/">\u6444\u53d6\u89c4\u5219</button>
           <button data-nl="\u52a0\u8f7d\u8986\u76d6\u7387">\u52a0\u8f7d\u8986\u76d6\u7387</button>
           <button data-nl="\u4ec5\u770b\u8fd1\u9608\u503c 3">\u4ec5\u770b\u8fd1\u9608\u503c</button>
@@ -1006,36 +1024,39 @@ export function activate(context: vscode.ExtensionContext) {
         </div>
         <div id="nlCatalog" style="margin:6px 0;">
           <fieldset style="border:1px solid #ddd; padding:6px;">
-            <legend>\u81ea\u7136\u8bed\u8a00\u547d\u4ee4\u793a\u4f8b\uff08\u70b9\u51fb\u5373\u6267\u884c\uff09</legend>
-            <div class="hint">\u89e6\u53d1\u8bcd\uff1a\u6444\u53d6\u89c4\u5219 / \u52a0\u8f7d\u8986\u76d6\u7387 / \u8fd1\u9608\u503c / \u6253\u5f00\u8ba1\u5212 / \u5f00\u542f\u6eda\u52a8\u8bb0\u5fc6 / \u751f\u6210 CI / \u6821\u9a8c CI / \u5b89\u88c5\u94a9\u5b50</div>
-            <div style="margin-top:6px;"><b>\u89c4\u5219</b>\uff1a
-              <button data-nl="\u6444\u53d6\u89c4\u5219 README.md, docs/">\u6444\u53d6\u89c4\u5219 README.md, docs/</button>
-              <button data-nl="\u8f7d\u5165\u7f16\u8bd1\u89c4\u5219">\u8f7d\u5165\u7f16\u8bd1\u89c4\u5219</button>
-              <button data-nl="\u6821\u9a8c \u89c4\u5219">\u6821\u9a8c \u89c4\u5219</button>
+            <legend id="lgNlQuick">\u81ea\u7136\u8bed\u8a00\u547d\u4ee4\u793a\u4f8b\uff08\u70b9\u51fb\u5373\u6267\u884c\uff09</legend>
+            <div id="nlTriggers" class="hint">\u89e6\u53d1\u8bcd\uff1a\u6444\u53d6\u89c4\u5219 / \u52a0\u8f7d\u8986\u76d6\u7387 / \u8fd1\u9608\u503c / \u6253\u5f00\u8ba1\u5212 / \u5f00\u542f\u6eda\u52a8\u8bb0\u5fc6 / \u751f\u6210 CI / \u6821\u9a8c CI / \u5b89\u88c5\u94a9\u5b50</div>
+            <div style="margin-top:6px;"><b id="hdrNlRules">\u89c4\u5219</b>\uff1a
+              <span id="lblNlRules" style="display:none"></span>
+              <button id="btnNlIngestRules" data-nl="\u6444\u53d6\u89c4\u5219 README.md, docs/">\u6444\u53d6\u89c4\u5219 README.md, docs/</button>
+              <button id="btnNlLoadCompiledRules" data-nl="\u8f7d\u5165\u7f16\u8bd1\u89c4\u5219">\u8f7d\u5165\u7f16\u8bd1\u89c4\u5219</button>
+              <button id="btnNlValidateRules" data-nl="\u6821\u9a8c \u89c4\u5219">\u6821\u9a8c \u89c4\u5219</button>
             </div>
-            <div style="margin-top:6px;"><b>\u8986\u76d6\u7387</b>\uff1a
-              <button data-nl="\u52a0\u8f7d\u8986\u76d6\u7387">\u52a0\u8f7d\u8986\u76d6\u7387</button>
-              <button data-nl="\u4ec5\u770b\u5f31\u9879">\u4ec5\u770b\u5f31\u9879</button>
-              <button data-nl="\u4ec5\u770b\u8fd1\u9608\u503c 3">\u4ec5\u770b\u8fd1\u9608\u503c 3</button>
+            <div style="margin-top:6px;"><b id="hdrNlCoverage">\u8986\u76d6\u7387</b>\uff1a
+              <span id="lblNlCoverage" style="display:none"></span>
+              <button id="btnNlLoadCoverage" data-nl="\u52a0\u8f7d\u8986\u76d6\u7387">\u52a0\u8f7d\u8986\u76d6\u7387</button>
+              <button id="btnNlShowWeak" data-nl="\u4ec5\u770b\u5f31\u9879">\u4ec5\u770b\u5f31\u9879</button>
+              <button id="btnNlShowNear3" data-nl="\u4ec5\u770b\u8fd1\u9608\u503c 3">\u4ec5\u770b\u8fd1\u9608\u503c 3</button>
             </div>
-            <div style="margin-top:6px;"><b>\u8ba1\u5212\u4e0e\u8bb0\u5fc6</b>\uff1a
-              <button data-nl="\u6253\u5f00 \u8ba1\u5212">\u6253\u5f00 \u8ba1\u5212</button>
-              <button data-nl="\u5f00\u542f\u6eda\u52a8\u8bb0\u5fc6">\u5f00\u542f\u6eda\u52a8\u8bb0\u5fc6</button>
+            <div style="margin-top:6px;"><b id="hdrNlPlanMem">\u8ba1\u5212\u4e0e\u8bb0\u5fc6</b>\uff1a
+              <span id="lblNlPlanMem" style="display:none"></span>
+              <button id="btnNlOpenPlan" data-nl="\u6253\u5f00 \u8ba1\u5212">\u6253\u5f00 \u8ba1\u5212</button>
+              <button id="btnNlEnableMemory" data-nl="\u5f00\u542f\u6eda\u52a8\u8bb0\u5fc6">\u5f00\u542f\u6eda\u52a8\u8bb0\u5fc6</button>
             </div>
-            <div style="margin-top:6px;"><b>CI</b>\uff1a
-              <button data-nl="\u751f\u6210 CI">\u751f\u6210 CI</button>
-              <button data-nl="\u6821\u9a8c CI">\u6821\u9a8c CI</button>
-              <button data-nl="\u5b89\u88c5 \u94a9\u5b50">\u5b89\u88c5 \u94a9\u5b50</button>
+            <div style="margin-top:6px;"><b id="hdrNlCI">CI</b>\uff1a
+              <button id="btnNlGenCI" data-nl="\u751f\u6210 CI">\u751f\u6210 CI</button>
+              <button id="btnNlValidateCI" data-nl="\u6821\u9a8c CI">\u6821\u9a8c CI</button>
+              <button id="btnNlInstallHooks" data-nl="\u5b89\u88c5 \u94a9\u5b50">\u5b89\u88c5 \u94a9\u5b50</button>
             </div>
           </fieldset>
         </div>
         <div>
-          <h4 style="margin:8px 0 4px;">\u6700\u8fd1\u6307\u4ee4</h4>
+          <h4 id="hdrRecentCmds" style="margin:8px 0 4px;">\u6700\u8fd1\u6307\u4ee4</h4>
           <ul id="nlHistory" style="padding-left:18px;"></ul>
         </div>
         <div style="margin:8px 0;">
           <fieldset style="border:1px solid #ddd; padding:6px;">
-            <legend>\u5de5\u4f5c\u6d41\u5e38\u7528\u64cd\u4f5c</legend>
+            <legend id="lgShortcuts">\u5de5\u4f5c\u6d41\u5e38\u7528\u64cd\u4f5c</legend>
             <button id="btnLoad" title="\u4ece .mcp/rules_compiled.* \u8bfb\u53d6\u5e76\u5c55\u793a\u7f16\u8bd1\u540e\u7684\u89c4\u5219\uff08\u53ea\u8bfb\uff09">\u8f7d\u5165\u7f16\u8bd1\u89c4\u5219 / Load Rules</button>
             <button id="btnIngest" title="\u5c06 README\u3001docs \u7b49\u6587\u6863\u8f6c\u6362\u4e3a\u89c4\u5219\uff08\u5199\u5165 .mcp/rules_*\uff09">\u6444\u53d6\u89c4\u5219 / Ingest</button>
             <button id="btnValidate" title="\u91cd\u65b0\u7f16\u8bd1\u5e76\u6821\u9a8c\u89c4\u5219\uff0c\u8f93\u51fa\u51b2\u7a81\u4e0e\u5efa\u8bae\uff08\u53ea\u8bfb\u5c55\u793a\uff09">\u6821\u9a8c\u89c4\u5219 / Validate</button>
@@ -1136,14 +1157,14 @@ export function activate(context: vscode.ExtensionContext) {
         <div class="adv">
           <h3 id="hdrCI">CI \u914d\u7f6e\uff08hadolint / semgrep / mutation\uff09</h3>
           <label><input type="checkbox" id="ciHadolint"> \u542f\u7528 hadolint</label><br/>
-          \u955c\u50cf: <input id="ciHadolintImage" style="width:260px" placeholder="hadolint/hadolint:latest"/>
-          \u53c2\u6570: <input id="ciHadolintArgs" style="width:260px" placeholder="--ignore DL3008"/><br/>
-          semgrep \u89c4\u5219: <input id="ciSemgrepConfig" style="width:180px" placeholder="auto / p/ci"/>
+          <span id="lblCiImage">\u955c\u50cf:</span> <input id="ciHadolintImage" style="width:260px" placeholder="hadolint/hadolint:latest"/>
+          <span id="lblCiArgs">\u53c2\u6570:</span> <input id="ciHadolintArgs" style="width:260px" placeholder="--ignore DL3008"/><br/>
+          <span id="lblCiSemgrep">semgrep \u89c4\u5219:</span> <input id="ciSemgrepConfig" style="width:180px" placeholder="auto / p/ci"/>
           <div style="margin-top:4px;">
-            <label><input type="checkbox" id="ciMutGateStrict"> \u4e25\u683c\u6a21\u5f0f\u53d8\u5f02\u95e8\u7981\uff08strict \u6216\u663e\u5f0f\u5f00\u542f\uff09</label>
+            <label><input type="checkbox" id="ciMutGateStrict"> <span id="lblCiMutStrictText">\u4e25\u683c\u6a21\u5f0f\u53d8\u5f02\u95e8\u7981\uff08strict \u6216\u663e\u5f0f\u5f00\u542f\uff09</span></label>
           </div>
           <div style="margin-top:4px;">
-            <label><input type="checkbox" id="execChecksDelegate"> checks \u59d4\u6258\u81f3\u7edf\u4e00 runner\uff08process.run_cmd\uff09</label>
+            <label><input type="checkbox" id="execChecksDelegate"> <span id="lblExecChecksDelegateText">checks \u59d4\u6258\u81f3\u7edf\u4e00 runner\uff08process.run_cmd\uff09</span></label>
           </div>
           <button id="btnCiSave" title="\u4fdd\u5b58 CI \u914d\u7f6e\u5230\u9879\u76ee\uff08\u5199\u5165 .github/workflows \u6216\u914d\u7f6e\u6587\u4ef6\uff09">\u4fdd\u5b58 CI \u914d\u7f6e</button>
           <button id="btnCiGen" title="\u751f\u6210 CI \u5de5\u4f5c\u6d41\u6587\u4ef6\uff08\u5199\u5165 .github/workflows\uff09">\u751f\u6210 CI</button>
@@ -1152,9 +1173,9 @@ export function activate(context: vscode.ExtensionContext) {
           <button id="btnInsertRules" title="\u63d2\u5165 .semgrep.yml / .hadolint.yaml \u793a\u4f8b\u89c4\u5219\uff08\u4fbf\u4e8e\u5feb\u901f\u542f\u7528\u57fa\u7840\u68c0\u67e5\uff09">\u63d2\u5165\u793a\u4f8b\u89c4\u5219</button>
           <span id="ciStatus" style="margin-left:8px;color:#888;"></span>
           <div style="margin-top:6px;">
-            <h4>CI \u9884\u89c8\uff08\u5185\u8054\uff09</h4>
+            <h4 id="hdrCiPreview">CI \u9884\u89c8\uff08\u5185\u8054\uff09</h4>
             <pre id="ciPreviewBox" style="white-space:pre-wrap; background:#f1f1f1; padding:6px; max-height:200px; overflow:auto;"></pre>
-            <h4>CI \u6821\u9a8c\u7ed3\u679c</h4>
+            <h4 id="hdrCiChecks">CI \u6821\u9a8c\u7ed3\u679c</h4>
             <ul id="ciChecks"></ul>
           </div>
         </div>
@@ -1188,8 +1209,10 @@ export function activate(context: vscode.ExtensionContext) {
                 set('hdrTitle', zh ? 'MCP \u89c4\u5219\u4e0e\u4e0a\u4e0b\u6587\u52a9\u624b' : 'MCP Rules & Context Assistant');
                 set('pConnected', zh ? '\u5df2\u8fde\u63a5\u5230 Python MCP Server\uff08\u6700\u5c0f\u534f\u8bae\uff09\u3002\u9ed8\u8ba4\u5feb\u901f\u5185\u73af\uff1a\u4fdd\u5b58\u8f7b\u3001\u63a8\u9001\u91cd\u3002' : 'Connected to Python MCP Server (minimal protocol). Fast inner loop: light save, gated push.');
                 set('lblDisplayMode', zh ? '\u663e\u793a\u6a21\u5f0f\uff1a' : 'Display mode:');
+                set('lblLicense', zh ? '\u6388\u6743\uff1a' : 'License:');
                 set('lblCurProject', zh ? '\u5f53\u524d\u9879\u76ee:' : 'Project:');
                 set('hintQuick', zh ? '\u4e09\u6b65\u4e0a\u624b\uff1a' : 'Quick start:');
+                set('hintTrouble', zh ? '\u9047\u5230\u95ee\u9898 \u2192 \u70b9\u51fb\u201c\u5237\u65b0\u72b6\u6001\u201d\u6216\u5207\u6362\u5230\u201c\u9ad8\u7ea7\u6a21\u5f0f\u201d' : 'Having issues → Click "Refresh status", or switch to Advanced mode');
                 set('btnModeSimple', zh ? '\u65b0\u624b\u6a21\u5f0f' : 'Simple', zh ? '\u4ec5\u5c55\u793a\u5e38\u7528\u64cd\u4f5c\uff1b\u4e0d\u4f1a\u81ea\u52a8\u4fee\u6539\u6587\u4ef6\u6216\u914d\u7f6e' : 'Show common actions only; no writes');
                 set('btnModeAdvanced', zh ? '\u9ad8\u7ea7\u6a21\u5f0f' : 'Advanced', zh ? '\u5c55\u793a\u5168\u90e8\u529f\u80fd\uff1b\u6bcf\u9879\u64cd\u4f5c\u90fd\u9700\u8981\u4f60\u786e\u8ba4\u540e\u624d\u6267\u884c' : 'Show all features; confirm before actions');
                 set('btnLang', zh ? '\u4e2d\u6587/English' : 'English/\u4e2d\u6587', zh ? '\u5207\u6362\u4e2d/\u82f1\u6587\u754c\u9762\u6807\u7b7e' : 'Toggle Chinese/English labels');
@@ -1229,9 +1252,69 @@ export function activate(context: vscode.ExtensionContext) {
                 set('hdrTasksPending', zh ? '\u5269\u4f59\u4efb\u52a1\uff08\u6765\u81ea .mcp/plan.md\uff09' : 'Pending Tasks (from .mcp/plan.md)');
                 set('hdrTasksDone', zh ? '\u5df2\u5b8c\u6210' : 'Done');
                 set('hdrCI', zh ? 'CI \u914d\u7f6e\uff08hadolint / semgrep / mutation\uff09' : 'CI Config (hadolint / semgrep / mutation)');
+                set('lgNlQuick', zh ? '\u81ea\u7136\u8bed\u8a00\u547d\u4ee4\u793a\u4f8b\uff08\u70b9\u51fb\u5373\u6267\u884c\uff09' : 'Natural language quick actions (click to run)');
+                set('nlTriggers', zh ? '\u89e6\u53d1\u8bcd\uff1a\u6444\u53d6\u89c4\u5219 / \u52a0\u8f7d\u8986\u76d6\u7387 / \u8fd1\u9608\u503c / \u6253\u5f00\u8ba1\u5212 / \u5f00\u542f\u6eda\u52a8\u8bb0\u5fc6 / \u751f\u6210 CI / \u6821\u9a8c CI / \u5b89\u88c5\u94a9\u5b50' : 'Triggers: ingest rules / load coverage / near-threshold / open plan / enable memory / generate CI / validate CI / install hooks');
+                set('lblNearPct', zh ? '\u8fd1\u9608\u503c%:' : 'Near-threshold %:');
+                set('lgShortcuts', zh ? '\u5de5\u4f5c\u6d41\u5e38\u7528\u64cd\u4f5c' : 'Workflow shortcuts');
+                set('hdrCiPreview', zh ? 'CI \u9884\u89c8\uff08\u5185\u8054\uff09' : 'CI Preview (inline)');
+                set('hdrCiChecks', zh ? 'CI \u6821\u9a8c\u7ed3\u679c' : 'CI Check Results');
+                set('hdrRecentCmds', zh ? '\u6700\u8fd1\u6307\u4ee4' : 'Recent Commands');
                 // Placeholders
                 try { const ip = document.getElementById('nlInput'); if (ip) ip.placeholder = zh ? '\u81ea\u7136\u8bed\u8a00\u6307\u4ee4\uff1a\u5982 \u6444\u53d6\u89c4\u5219 README.md, docs/ / \u52a0\u8f7d\u8986\u76d6\u7387 / \u5f00\u542f\u6eda\u52a8\u8bb0\u5fc6' : 'NL command: e.g. Ingest README.md, docs/ / Load Coverage / Enable memory'; } catch {}
+                // Extra labels that exist outside main sections
+                set('lblQuickExamples', zh ? '\u5feb\u901f\u8303\u4f8b\uff1a' : 'Quick examples:');
+                set('hdrNlRules', zh ? '\u89c4\u5219' : 'Rules');
+                set('hdrNlCoverage', zh ? '\u8986\u76d6\u7387' : 'Coverage');
+                set('hdrNlPlanMem', zh ? '\u8ba1\u5212\u4e0e\u8bb0\u5fc6' : 'Plan & Memory');
+                set('hdrNlCI', 'CI');
+                set('lblCiImage', zh ? '\u955c\u50cf:' : 'Image:');
+                set('lblCiArgs', zh ? '\u53c2\u6570:' : 'Args:');
+                set('lblCiSemgrep', zh ? 'semgrep \u89c4\u5219:' : 'semgrep rules:');
+                set('lblCiMutStrictText', zh ? '\u4e25\u683c\u6a21\u5f0f\u53d8\u5f02\u95e8\u7981\uff08strict \u6216\u663e\u5f0f\u5f00\u542f\uff09' : 'Strict mutation gate (strict or explicitly on)');
+                set('lblExecChecksDelegateText', zh ? 'checks \u59d4\u6258\u81f3\u7edf\u4e00 runner\uff08process.run_cmd\uff09' : 'checks delegated to unified runner (process.run_cmd)');
                 try { window.applyLang = applyLang; } catch {}
+                // NL Quick actions buttons
+                set('btnNlIngestRules', zh ? '\u6444\u53d6\u89c4\u5219 README.md, docs/' : 'Ingest rules README.md, docs/');
+                set('btnNlLoadCompiledRules', zh ? '\u8f7d\u5165\u7f16\u8bd1\u89c4\u5219' : 'Load compiled rules');
+                set('btnNlValidateRules', zh ? '\u6821\u9a8c \u89c4\u5219' : 'Validate rules');
+                set('btnNlLoadCoverage', zh ? '\u52a0\u8f7d\u8986\u76d6\u7387' : 'Load coverage');
+                set('btnNlShowWeak', zh ? '\u4ec5\u770b\u5f31\u9879' : 'Show weak only');
+                set('btnNlShowNear3', zh ? '\u4ec5\u770b\u8fd1\u9608\u503c 3' : 'Show near 3');
+                set('btnNlOpenPlan', zh ? '\u6253\u5f00 \u8ba1\u5212' : 'Open plan');
+                set('btnNlEnableMemory', zh ? '\u5f00\u542f\u6eda\u52a8\u8bb0\u5fc6' : 'Enable memory');
+                set('btnNlGenCI', zh ? '\u751f\u6210 CI' : 'Generate CI');
+                set('btnNlValidateCI', zh ? '\u6821\u9a8c CI' : 'Validate CI');
+                set('btnNlInstallHooks', zh ? '\u5b89\u88c5 \u94a9\u5b50' : 'Install hooks');
+                // CSV & filter
+                set('btnCsvReload', zh ? '\u91cd\u65b0\u52a0\u8f7d\u9884\u89c8' : 'Reload preview');
+                set('btnOpenWeakCsv', zh ? '\u6253\u5f00 weak_top.csv' : 'Open weak_top.csv');
+                set('btnOpenNearCsv', zh ? '\u6253\u5f00 near_top.csv' : 'Open near_top.csv');
+                set('btnOpenGroupsCsv', zh ? '\u6253\u5f00 groups.csv' : 'Open groups.csv');
+                set('btnOpenGroupsMd', zh ? '\u6253\u5f00 jb_groups.md' : 'Open jb_groups.md');
+                try { const f = document.getElementById('covFilter'); if (f) (f as HTMLInputElement).placeholder = zh ? '\u8fc7\u6ee4\u6587\u4ef6\u540d\u5173\u952e\u8bcd...' : 'Filter filename keyword...'; } catch {}
+                set('btnCovFilter', zh ? '\u8fc7\u6ee4' : 'Filter');
+                // Onboard & Chat texts
+                set('btnOnboardPreview', zh ? '\u9884\u89c8\u63a8\u8350 / Preview' : 'Preview');
+                set('btnOnboardApply', zh ? '\u4e00\u952e\u91c7\u7eb3 / Apply' : 'Apply');
+                try { const el = document.getElementById('onboardSummary'); if (el) el.textContent = zh ? '\uff08\u70b9\u51fb\u201c\u9884\u89c8\u63a8\u8350\u201d\u67e5\u770b\u5c06\u542f\u7528\u7684\u89c4\u5219\u6458\u8981\uff09' : '(Click "Preview" to see the rules to be enabled)'; } catch {}
+                set('btnChatEnable', zh ? '\u542f\u7528\u8ffd\u52a0\u6458\u8981 / Enable' : 'Enable');
+                set('btnChatDisable', zh ? '\u7981\u7528 / Disable' : 'Disable');
+                set('btnChatPreview', zh ? '\u9884\u89c8\u6458\u8981 / Preview' : 'Preview');
+                try { const el = document.getElementById('chatPreview'); if (el) el.textContent = zh ? '\uff08\u9ed8\u8ba4\u5173\u95ed\uff1b\u542f\u7528\u540e\uff0c\u6bcf\u8f6e\u5bf9\u8bdd\u53ef\u8ffd\u52a0\u201c\u4e0a\u4e00\u8f6e\u95ee\u7b54\u6458\u8981\u201d\u81f3\u8bb0\u5fc6\u3002\u65e0\u9065\u6d4b\uff0c\u4e0d\u51fa\u7f51\u3002\uff09' : '(Off by default; when enabled, each turn can append the previous Q&A summary to memory. No telemetry, offline.)'; } catch {}
+                try { const el = document.getElementById('memory'); if (el && !el.textContent) el.textContent = zh ? '\uff08\u70b9\u51fb\u201c\u52a0\u8f7d\u8bb0\u5fc6 / \u52a0\u8f7d\u8ba1\u5212 / \u4e8b\u4ef6\u5386\u53f2\u201d\u83b7\u53d6\uff09' : '(Click "Load Memory / Load Plan / Events" to fetch)'; } catch {}
+                // CI area buttons & file open
+                set('btnCiSave', zh ? '\u4fdd\u5b58 CI \u914d\u7f6e' : 'Save CI config');
+                set('btnCiGen', zh ? '\u751f\u6210 CI' : 'Generate CI');
+                set('btnCiPreview', zh ? '\u9884\u89c8 CI' : 'Preview CI');
+                set('btnCiOpen', zh ? '\u6253\u5f00 CI \u6587\u4ef6' : 'Open CI file');
+                set('btnInsertRules', zh ? '\u63d2\u5165\u793a\u4f8b\u89c4\u5219' : 'Insert sample rules');
+                // Generic file/actions
+                set('btnInfo', zh ? '\u72b6\u6001\u6458\u8981 Info' : 'Status Info');
+                set('btnCopyEvents', zh ? '\u590d\u5236\u4e8b\u4ef6' : 'Copy events');
+                set('btnCopyInfo', zh ? '\u590d\u5236\u6458\u8981' : 'Copy summary');
+                set('btnOpenStatusFile', zh ? '\u6253\u5f00 status.json' : 'Open status.json');
+                set('btnOpenEventsFile', zh ? '\u6253\u5f00 events' : 'Open events');
+                set('btnOpenAuditFile', zh ? '\u6253\u5f00 audit' : 'Open audit');
               };
               apply(mode);
               const btnS = document.getElementById('btnModeSimple');
@@ -1676,7 +1759,9 @@ export function activate(context: vscode.ExtensionContext) {
             }
             if (msg.t === 'ciStatus') {
               const el = document.getElementById('ciStatus');
-              if (el) el.textContent = msg.exist ? 'CI: \u5df2\u751f\u6210' : 'CI: \u672a\u751f\u6210';
+              const lang = (window as any).__ruleflowLang || 'zh';
+              const zh = String(lang) === 'zh';
+              if (el) el.textContent = msg.exist ? (zh ? 'CI: \u5df2\u751f\u6210' : 'CI: generated') : (zh ? 'CI: \u672a\u751f\u6210' : 'CI: not generated');
               if (el) el.style.color = msg.exist ? '#2a2' : '#d33';
               try { vscode.postMessage({ t: 'ready2', topic: 'ciStatusReady' }); } catch {}
             }
@@ -1690,10 +1775,14 @@ export function activate(context: vscode.ExtensionContext) {
               if (ul) {
                 while (ul.firstChild) { ul.removeChild(ul.firstChild); }
                 const checks = msg.checks || {};
-                const labels = { exists: '\u6587\u4ef6\u5b58\u5728', has_precommit: 'Pre-commit \u626b\u63cf', has_hadolint: 'Hadolint \u68c0\u67e5', has_semgrep: 'Semgrep \u626b\u63cf', has_tests: 'Pytest + \u8986\u76d6\u7387', has_bandit: 'Bandit \u626b\u63cf' };
+                const lang = (window as any).__ruleflowLang || 'zh';
+                const zh = String(lang) === 'zh';
+                const labels = zh
+                  ? { exists: '\u6587\u4ef6\u5b58\u5728', has_precommit: 'Pre-commit \u626b\u63cf', has_hadolint: 'Hadolint \u68c0\u67e5', has_semgrep: 'Semgrep \u626b\u63cf', has_tests: 'Pytest + \u8986\u76d6\u7387', has_bandit: 'Bandit \u626b\u63cf' }
+                  : { exists: 'File exists', has_precommit: 'Pre-commit scan', has_hadolint: 'Hadolint check', has_semgrep: 'Semgrep scan', has_tests: 'Pytest + coverage', has_bandit: 'Bandit scan' };
                 Object.keys(labels).forEach((k) => {
                   const li = document.createElement('li');
-                  li.textContent = labels[k] + '：' + (checks[k] ? '✔' : '✘');
+                  li.textContent = labels[k] + (zh ? '：' : ': ') + (checks[k] ? '✔' : '✘');
                   li.style.color = checks[k] ? '#2a2' : '#d33';
                   ul.appendChild(li);
                 });
@@ -2037,6 +2126,25 @@ export function activate(context: vscode.ExtensionContext) {
             const p = vscode.Uri.file(ws + '/.mcp/dashboard/ui_prefs.json');
             const enc = new TextEncoder();
             await vscode.workspace.fs.writeFile(p, enc.encode(JSON.stringify({ lang }, null, 2)));
+            // Immediately reflect language change in the webview UI
+            try { panel.webview.postMessage({ t: 'setLang', value: lang }); } catch {}
+          } catch {}
+        }
+        else if (msg.t === 'lang.toggle') {
+          try {
+            const ws = getWorkspaceRoot(); if (!ws) return;
+            const p = vscode.Uri.file(ws + '/.mcp/dashboard/ui_prefs.json');
+            let cur = 'zh';
+            try {
+              const data = await vscode.workspace.fs.readFile(p);
+              const text = Buffer.from(data).toString('utf8');
+              const obj = JSON.parse(text || '{}');
+              cur = (obj && typeof obj.lang === 'string' && obj.lang) ? obj.lang : 'zh';
+            } catch {}
+            const next = (String(cur) === 'zh') ? 'en' : 'zh';
+            const enc = new TextEncoder();
+            await vscode.workspace.fs.writeFile(p, enc.encode(JSON.stringify({ lang: next }, null, 2)));
+            try { panel.webview.postMessage({ t: 'setLang', value: next }); } catch {}
           } catch {}
         }
         else if (msg.t === 'lang.get') {
@@ -2455,11 +2563,10 @@ export function activate(context: vscode.ExtensionContext) {
           const sug = await client.request('resources/read', { uri: suggUri });
           panel.webview.postMessage({ t: 'sugg', md: sug.text || '' });
         } else if (msg.t === 'panel.click') {
-          // Fallback router for generic button clicks from the webview
-          // Expected: msg.action is a semantic key; gracefully degrade to Quick Actions when missing
+          // Diagnostics-only: do not pop Quick Actions for generic clicks without explicit action
           try {
             const a = String((msg && msg.action) || '').toLowerCase();
-            if (!a) { await vscode.commands.executeCommand('mcpRulesAssistant.quickActions'); return; }
+            if (!a) { return; }
             if (a === 'openpanel' || a === 'panel') { await vscode.commands.executeCommand('mcpRulesAssistant.openPanel'); return; }
             if (a === 'quick' || a === 'quickactions') { await vscode.commands.executeCommand('mcpRulesAssistant.quickActions'); return; }
             if (a === 'coverage' || a === 'loadcoverage') { await vscode.commands.executeCommand('mcpRulesAssistant.loadCoverage'); return; }
@@ -2472,8 +2579,7 @@ export function activate(context: vscode.ExtensionContext) {
             if (a === 'ci.generate') { await client.request('tools/call', { name: 'ci.generate', arguments: {} }); vscode.window.showInformationMessage('CI 已生成'); return; }
             if (a === 'ci.validate') { await client.request('tools/call', { name: 'ci.validate', arguments: {} }); vscode.window.showInformationMessage('CI 校验完成'); return; }
             if (a === 'installhooks' || a === 'git.install_hooks') { await client.request('tools/call', { name: 'git.install_hooks', arguments: {} }); vscode.window.showInformationMessage('钩子安装完成'); return; }
-            // Default: open Quick Actions
-            await vscode.commands.executeCommand('mcpRulesAssistant.quickActions');
+            // Unrecognized action: ignore silently
           } catch (e:any) {
             vscode.window.showWarningMessage('操作执行失败：' + String(e));
           }

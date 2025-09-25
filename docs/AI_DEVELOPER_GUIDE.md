@@ -8,7 +8,7 @@
 - 架构与模块：MCP Server（Python）+ VS Code 扩展（TypeScript）+ CLI/CI/Hooks
 - 性能模式：Fast（默认）/Standard/Strict，保存轻、推送与 CI 重
 - 规则与门禁：规则摄取/编译→配置/CI/Hooks 同步→覆盖率与安全门禁
-- 测试与覆盖率：核心模块≥98%，其余≥95%，严禁警告/跳过（CI）
+- 测试与覆盖率：阈值以 `.mcp/assistant.yaml`/policy 为准（严禁警告/跳过，CI 执行）
 - 开发流程：TDD→实现→重构；提交与推送进入分层门禁
 
 ## 仓库结构（关键路径）
@@ -50,7 +50,7 @@
 - 运行：`pytest -q -p pytest_cov --maxfail=1 --disable-warnings -W error --strict-markers --cov=mcp_rules_assistant --cov-report=xml:coverage.xml`
 - 汇总：`mcp-rules-assistant coverage-report --json`
 - 近阈值：`coverage-near --within 3 --top 20`（可用 `coverage.near-set` 调整窗口/Top）
-- 核心模块（≥98%）示例策略（已写入 `.mcp/assistant.yaml`）：
+- 核心模块（示例策略；最终以 `.mcp/assistant.yaml` 为准）：
   - `mcp_rules_assistant/config.py`
   - `mcp_rules_assistant/progress.py`
   - `mcp_rules_assistant/tools.py`

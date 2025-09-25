@@ -11,9 +11,10 @@
 
 ## VS Code / Cursor / Windsurf
 - 打开命令面板（Cmd/Ctrl+Shift+P）：
-  - “RuleFlow: Open Panel”：打开面板视图
-  - “RuleFlow: Quick Actions”：状态栏也可一键打开（左侧“RuleFlow”）
-  - “RuleFlow: Natural Command”：输入中文/英文短语即可操作（如“加载覆盖率/摄取规则/生成CI/校验CI/安装钩子/计划：当前=…/受控写入”）
+  - “RuleFlow: One-Click Setup (Newbie)”：新手一键配置（环境→规则→最小门禁→状态）
+  - “RuleFlow: Ask (Natural Command)”：自然语言指令入口（中英双语 + 模糊语义）
+  - （可选）“RuleFlow: Open Panel”：面板视图（便于查看规则/覆盖率/Near/树/CSV 预览）
+  - （可选）“RuleFlow: Quick Actions”：状态栏“RuleFlow”同名入口
 - 面板帮助入口：面板提供“打开用户上手 / Open User Guide”与“打开 IDE 支持 / Open IDE Support”按钮，可一键打开 `docs/USER_GUIDE.md` 与 `docs/IDE_SUPPORT.md`。
 - 新手建议短语：
   - “规则引导” → 工具会提出场景/复杂度/模式的简单选项（不会的可以直接回车采用默认）

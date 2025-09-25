@@ -18,7 +18,7 @@
 - `.mcp/dashboard/history.json`：历史摘要队列（最多 50 条）。
 - `.mcp/dashboard/fail_counters.json`：失败计数与冻结状态。
   - 简要：`.mcp/dashboard/status_brief.json`（overall/weak_count/timestamp），便于轻量查看。
-  - 覆盖率阈值遵循 `.mcp/assistant.yaml`（核心≥98%、其余≥95%；默认 min_module≥95%）。
+  - 覆盖率阈值遵循 `.mcp/assistant.yaml`（不在本文写死具体数字；默认值与分层策略以配置与 policy 为准）。
 
 文件与目录
 - 开发代理：`mcp_rules_assistant/dev_agent.py`（可独立运行：`python -m mcp_rules_assistant.dev_agent --interval 60`）。

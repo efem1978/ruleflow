@@ -13,7 +13,7 @@
 
 交接清单（模板）
 - 计划：状态=in_progress；当前=…；下一步=…（路径：`.mcp/plan.md`）
-- 覆盖率：weak=0；near 清单（若非空）；核心≥98%、其余≥95%（路径：`coverage.xml` / `.mcp/dashboard/coverage_summary.json`）
+- 覆盖率：weak=0；near 清单（若非空）；阈值以 `.mcp/assistant.yaml`/policy 为准（路径：`coverage.xml` / `.mcp/dashboard/coverage_summary.json`）
 - 规则：是否已刷新；是否存在冲突（路径：`.mcp/rules_compiled.{json,md}`）
 - 近期风险/阻断项：…（含复现指令）
 

@@ -5,15 +5,12 @@ TDD 开发计划 / TDD Development Plan
 - 快捷打开：`mcp-rules-assistant plan-open`
 
 目标与范围 Goals & Scope
-- 目标：以 TDD 模式完善本仓库，确保功能按文档落地；覆盖率达标（核心≥98%，非核心≥95%），测试全绿且无警告/跳过；CI/钩子具备生产级门禁。
+- 目标：以 TDD 模式完善本仓库，确保功能按文档落地；覆盖率达标（门槛以 `.mcp/assistant.yaml` 为准），测试全绿且无警告/跳过；CI/钩子具备生产级门禁。
 - 范围：Python MCP Server、规则摄取/编译、覆盖率摘要、受控写入检查、Hooks/CI 生成、VS Code 扩展交互的核心路径。
 
-覆盖率策略 Coverage Targets（目标示例，非门禁；门槛以 `.mcp/assistant.yaml` 为准）
-- 近期：目标区间 85–92%（建立基线并覆盖核心路径，非门禁）。
-- 达标（示例）：
-  - 全局目标 95% 以上（CI 可用 `--cov-fail-under` 控制；以配置为准）。
-  - 核心模块目标更高（如 98% 以上，受 `coverage.policy` 约束并在 CI 按政策阻断）。
-  - 其余模块目标 95% 以上。
+覆盖率策略 Coverage Targets（仅为目标示例；实际门槛以 `.mcp/assistant.yaml` 为准）
+- 近期：目标区间（示例）用于对齐节奏，非强制门禁。
+- 达标（示例）：以 `coverage.policy` 与 CI 配置为准，不在文档中写死具体数值。
 
 分阶段执行 Phased Plan（逐层推进）
 Phase A — 基线与修复（Red → Green → Refactor）
@@ -39,9 +36,7 @@ Phase C — 检查与门禁（边界与降级）
   - generate_pre_commit_config 启动 secrets 与 Docker 基线（push 阶段）。
 
 Phase D — 覆盖率与政策门禁（生产化）
- - 在 `.mcp/assistant.yaml` 中设置政策阈值：
-  - config.py/progress.py/tools.py/memory.py → 0.98
-  - 其余由 `min_module: 0.95` 统一控制；特殊覆盖的非核心模块最低不低于 0.95（如 license_utils.py ≥0.95）
+ - 在 `.mcp/assistant.yaml` 中设置政策阈值（作为唯一权威），避免在文档中写死具体数字；必要时用 `coverage.policy` 为关键模块单独设定。
 - CI 增加 “Coverage Policy Gate”：
   - 运行 `coverage-report --json`，若存在 `weak` 文件即失败
   - 新增无 skip/xfail 标记检查；继续维持 `-W error`

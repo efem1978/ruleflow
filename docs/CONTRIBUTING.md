@@ -14,7 +14,7 @@
 
 测试 Tests
 - Python：`make test`（禁用外部 PyTest 插件）或运行：
-  - `pytest -q --maxfail=1 --disable-warnings -W error --strict-markers --cov=mcp_rules_assistant --cov-report=term-missing --cov-fail-under=95`
+  - `pytest -q --maxfail=1 --disable-warnings -W error --strict-markers --cov=mcp_rules_assistant --cov-report=term-missing --cov-fail-under=$(python -m mcp_rules_assistant.cli print-config | jq -r '.performance.on_push.coverage.min_module * 100 | floor')`
   - 覆盖率缓存清理：`mcp-rules-assistant coverage-clean-cache`
 - VS Code：`make vscode-test`（受限环境可设置 `MCP_VSCODE_TEST_ARGS=""`）
 
@@ -24,7 +24,7 @@
 CI 与 Hooks
 - 生成：`mcp-rules-assistant generate-ci`，校验：`mcp-rules-assistant ci-validate`
 - 安装钩子：`mcp-rules-assistant install-hooks`
- - 覆盖率：CI 按 `.mcp/assistant.yaml` 的 `performance.on_push.coverage.min_module` 设置门槛，默认 0.95（95%）。CI 会上传 `coverage.xml` 至 Codecov 生成徽章（可选配置 `CODECOV_TOKEN`）。
+- 覆盖率：CI 按 `.mcp/assistant.yaml` 的 `performance.on_push.coverage.min_module` 渲染门槛（不在本文写死数值）。CI 会上传 `coverage.xml` 至 Codecov 生成徽章（可选配置 `CODECOV_TOKEN`）。
 
 Pre-commit
 - 安装并启用：`pip install pre-commit && pre-commit install && pre-commit install --hook-type commit-msg && pre-commit install --hook-type pre-push`
@@ -34,7 +34,7 @@ Pre-commit
 - 建议随机一次最小改动并以当前步骤提交，提交消息包含 `[step:<当前步骤>]`，验证本地 commit‑msg gate 放行；若被拒，检查 `.mcp/plan.md` 的状态是否为 in_progress 且“当前步骤”是否正确。
 
 GitHub 设置建议
-- Branch protection：保护 `main`，要求 CI 通过（含覆盖率 ≥95%）
+- Branch protection：保护 `main`，要求 CI 通过（覆盖率阈值以 `.mcp/assistant.yaml`/CI 渲染为准）
 - Secrets（可选）：
   - `PYPI_API_TOKEN`（用于 `release.yml` 发布 PyPI）
   - `VSCE_PAT`（用于 VS Code 扩展发布）

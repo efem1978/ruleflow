@@ -7,8 +7,8 @@
 ### VS Code
 - **状态**: ✅ 完全支持
 - **安装**: 通过 VSIX 包自动安装
-- **功能**: 完整面板界面，所有命令支持，实时状态更新
-- **命令**: `RuleFlow: Open Panel`, `RuleFlow: Load Coverage`, `RuleFlow: Natural Command`
+- **功能**: 对话式入口为主；面板为辅助视图
+- **命令**: `RuleFlow: One-Click Setup (Newbie)`, `RuleFlow: Ask (Natural Command)`, `RuleFlow: Open Panel`, `RuleFlow: Load Coverage`
 
 ### Cursor
 - **状态**: ✅ 完全支持（复用 VS Code 扩展）

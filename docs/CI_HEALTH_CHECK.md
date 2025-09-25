@@ -8,7 +8,7 @@ CI 健康检查 / CI Health Check
 - Type Check（core 阻断，其余非阻断）：核心模块（config/progress/tools/memory/mcp_server/cli/server）必须通过。
 - Tests + Coverage：
   - Python 测试全绿；生成 coverage.xml。
-  - Coverage Policy Gate：弱项 weak=0；若失败，日志中列出文件与差值；同时打印近阈值 TopN 作为补测建议。
+  - Coverage Policy Gate：以 `.mcp/assistant.yaml` 与 `coverage.policy` 的阈值为准；弱项 weak=0 为通过标准；若失败，日志中列出文件与差值；同时打印近阈值 TopN 作为补测建议。
   - 构件导出：CI/Nightly 自动运行 `mcp-rules-assistant coverage-export --out-dir .mcp/dashboard`，生成：
     `.mcp/dashboard/coverage_summary.json`、`weak_top.csv`、`near_top.csv`、`groups.csv`（便于下载与审阅）。
 - Forbid skip/xfail（包内）：包代码中不允许出现 pytest.skip/xfail 标记。

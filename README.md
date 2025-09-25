@@ -29,7 +29,7 @@ MCP 规则与上下文助手 / MCP Rules & Context Assistant
 - IDE 集成：VS Code（完整）、Cursor/Windsurf（复用 VSIX）、JetBrains（MVP 工具窗口）、Neovim（最小命令）
 - MCP/CLI：JSON-RPC/stdio MCP Server + Typer CLI（双语 + 模糊语义）
 - 规则门禁：规则摄取/编译/冲突建议 → 配置/CI/Hooks 一致性生成与校验
-- 覆盖率：weak/groups/near/tree 汇总；核心模块目标≥98%，其余≥95%（策略可配）
+- 覆盖率：weak/groups/near/tree 汇总；具体门槛以 `.mcp/assistant.yaml` 为准（本页任何数字仅作说明，不参与规则摄取）
 - 安全：bandit（高危阻断）/ semgrep（固定版本，策略可调）/ hadolint（固定镜像标签）
 - 遥测：无；仅在工作区写入 `.mcp/` 状态/规则/计划等本地工件
 
@@ -71,7 +71,7 @@ You can make certain textual rules apply only under specific environments/IDE/OS
 
 Examples:
 
-- `- [env:container] 覆盖率 95%` → compiles to `coverage.min_module: 0.95` only in containerized contexts
+- `- [env:container] 覆盖率 <阈值>` → compiles to `coverage.min_module: <value>` only in containerized contexts（示例不指定具体数值；以 `.mcp/assistant.yaml` 为准）
 - `- [os:windows] 禁止 skip/xfail` → compiles to `test.no_skip_xfail: true` only on Windows
 
 See `docs/RULES_CONDITIONAL_TAGS.md` for details.
@@ -275,14 +275,14 @@ pip-audit || true
 本地审计快照 / Local Audit Snapshot
 
 - 权威计划：`.mcp/plan.md` 当前状态为 completed（唯一权威任务清单）。
-- 覆盖率：Coverage Policy Gate 通过；weak=0，near=0；核心≥98%、其余≥95%。
+- 覆盖率：Coverage Policy Gate 通过；weak=0，near=0；阈值以 `.mcp/assistant.yaml`/policy 为准。
   - 详情与明细：`.mcp/dashboard/coverage_summary.json`、`/.mcp/dashboard/weak_top.csv`、`/.mcp/dashboard/near_top.csv`、`/.mcp/dashboard/groups.csv`
 - 规则编译：已刷新 `.mcp/rules_compiled.json` 与 `.mcp/rules_compiled.md`（如存在冲突将保留更严格值并在 MD 中给出来源）。
 - 发布物料（本地演练）：`.mcp/dashboard/release_check.md`、`/.mcp/dashboard/release_note_snippet.md`、`/.mcp/dashboard/release_changes.md`、`/.mcp/dashboard/release_body.md`
 - 一页交付摘要：`.mcp/dashboard/deliverable_summary.md`（覆盖率仪表/CI 关键步骤/发行物料一页览）。
 
 近阈值窗口（near）与 CI 说明
-- 默认示例使用 3% 窗口；本仓库为抛光核心模块将 `coverage.near.within` 覆盖为 0.8%（0.008）。可用命令快速调整：`mcp-rules-assistant coverage-near-set --within 3 --top 20`。
+- 示例默认使用 3% 窗口；实际 near 窗口与覆盖率门槛均以 `.mcp/assistant.yaml` 或 CI 配置为准（near 仅用于报告排序，不作门禁）。可用命令快速调整：`mcp-rules-assistant coverage-near-set --within 3 --top 20`。
 - CI 已包含 JetBrains 最小 smoke：读取 `.mcp/dashboard/status.json` 并校验关键字段；对应工件会随构建上传（见 `jetbrains-storyboard` 作业）。
 
 示意图 / Screenshots
@@ -344,10 +344,10 @@ JetBrains 头less UI Smoke（可选）
 - 禁止跨项目切换：`project.allow_switch: false`。
 - 批量加固与验证：可使用 `scripts/harden_projects.py --verify <proj1> <proj2> ...` 对多个项目设置硬禁用并产出 `./.mcp/dashboard/security_verify.json` 验证日志。
 
-覆盖率门禁 Coverage Gate
-- Python（门槛与策略）：核心≥98%，其余≥95%；coverage-report 弱项清零（weak 列表为空）。
-- VS Code 前端（阶段性）：CI 默认对 lcov 执行≥80% 的“非阻断”检查（仅警告）；可通过设置 `VSCODE_COVERAGE_GATE=1` 启用同阈值硬门禁，后续逐步提升至 90%/95%/97%/98%。
-  - 本仓库说明：当前 CI 已启用硬门禁且阈值为 98%（`VSCODE_COVERAGE_GATE=1` 且 `VSCODE_COVERAGE_THRESHOLD_WARN=98`）。参见下方“VS Code 98% 硬门禁（本仓库）”。
+- 覆盖率门禁 Coverage Gate
+- Python（门槛与策略）：具体阈值以 `.mcp/assistant.yaml` 与 `coverage.policy` 为准；`coverage-report` 弱项清零（weak 列表为空）。
+- VS Code 前端（阶段性）：CI 默认执行“非阻断”检查（仅警告）；可通过设置 `VSCODE_COVERAGE_GATE=1` 启用硬门禁；阈值以 CI/配置为准。
+  - 本仓库说明：已启用硬门禁，阈值以 CI/配置为准。参见下方“VS Code 硬门禁（本仓库）”。
  - 小贴士（coverage.policy 命中策略）：policy 键既支持“目录前缀”也支持“文件名后缀（basename）”。
    - 对单个关键模块设更高门槛，推荐直接使用文件名后缀（如 `mcp_server.py: 0.99`）。
    - 对一类目录设默认门槛，使用目录前缀（如 `mcp_rules_assistant/`: 0.95）。
@@ -358,10 +358,10 @@ JetBrains 头less UI Smoke（可选）
 coverage:
   policy:
     # 目录前缀（应用于整类目录）
-    mcp_rules_assistant/: 0.95
+    mcp_rules_assistant/: <value>
     # 文件名后缀（更精确，推荐用于关键模块）
-    cli.py: 0.98
-    mcp_server.py: 0.99
+    cli.py: <value>
+    mcp_server.py: <value>
 ```
 
 容器内一键验证
@@ -396,8 +396,9 @@ coverage:
 - 查看性能模式：`mcp-rules-assistant explain-performance`
 - 启动 MCP 服务：`mcp-rules-assistant start`
 - VS Code：
-  - 打开“RuleFlow: Open Panel”（或点击状态栏左侧“RuleFlow”）
-  - 自然语言：执行“RuleFlow: Natural Command”，输入“摄取规则 README.md, docs/ / 加载覆盖率 / 开启滚动记忆”等
+  - 对话式入口优先：运行“RuleFlow: One-Click Setup (Newbie)”完成环境与规则最小配置
+  - 自然语言：运行“RuleFlow: Ask (Natural Command)”输入“摄取规则/加载覆盖率/生成 CI/校验 CI/安装钩子/计划设置”等
+  - 面板（可选）：仍可使用“RuleFlow: Open Panel”查看规则/覆盖率/近阈值与目录树等
 - 环境准备（可选）：`mcp-rules-assistant prepare-env --install`（或 `--dry-run` 查看计划）
 - 一键维护：`python -m mcp_rules_assistant.cli maintenance`（安装 hooks + 自修复 CI）
 - 预检（无人值守快照）：`make preflight`
@@ -593,14 +594,14 @@ Docker 辅助（可选）
 - 本仓库说明：CI 已启用硬门禁且阈值为 98%（见“VS Code 98% 硬门禁（本仓库）”）。
 
 <a id="vscode-95-gate"></a>
-## VS Code 98% 硬门禁（本仓库）
+## VS Code 硬门禁（本仓库）
 
 - 目的：对前端扩展核心路径持续抛光，保持与 Python 端质量门禁一致的严苛标准。
-- CI 设置：`VSCODE_COVERAGE_GATE=1`、`VSCODE_COVERAGE_THRESHOLD_WARN=98`。
+- CI 设置：`VSCODE_COVERAGE_GATE=1`，阈值以 CI 环境变量或 `.mcp/assistant.yaml` 中的策略为准。
 - 近阈值/最低覆盖：失败时会在 CI 输出 near/worst 清单，便于快速补测（脚本 `scripts/lcov-near.sh`）。
 - 调优：如需过渡，先将阈值设为 80–90%，稳定后逐步提升至 95%。
 - 快速排障：本机无头测试报错时，先清空参数再测：`export MCP_VSCODE_TEST_ARGS="" && npm --prefix extensions/vscode test`；或使用容器运行：`docker compose run --rm vscode-test`。
- - 本地 near/worst 清单：
+- 本地 near/worst 清单：
    - 生成覆盖率：`npm --prefix extensions/vscode test`
    - 检查阈值并导出 near/worst：
      - `sh scripts/check-lcov.sh extensions/vscode/coverage/lcov.info 98 || true`
