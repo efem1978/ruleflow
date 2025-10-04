@@ -22,7 +22,7 @@ def test_verify_invalid_json(tmp_path: Path) -> None:
 
 
 def test_generate_hs256_and_verify(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     # Use a deterministic salt for reproducibility
     monkeypatch.setenv("MCP_LICENSE_SALT", "test-salt")

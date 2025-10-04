@@ -297,7 +297,7 @@ def test_memory_manager_compress_if_needed():
     with tempfile.TemporaryDirectory() as tmpdir:
         project_root = Path(tmpdir)
         mm = MemoryManager(
-            project_root, max_bytes=1000
+            project_root, max_bytes=1000,
         )  # Small limit to trigger compression
 
         # Create large data that exceeds max_bytes
@@ -313,7 +313,7 @@ def test_memory_manager_compress_if_needed():
         original_size = len(json.dumps(large_data, ensure_ascii=False).encode("utf-8"))
         compressed = mm._compress_if_needed(large_data)
         compressed_size = len(
-            json.dumps(compressed, ensure_ascii=False).encode("utf-8")
+            json.dumps(compressed, ensure_ascii=False).encode("utf-8"),
         )
 
         # Should be smaller than original (compression attempted)
@@ -466,7 +466,7 @@ def test_memory_manager_symlink_security():
         # Create a regular file first
         memory_file = mcp_dir / "memory.json"
         memory_file.write_text(
-            '{"turns": [], "summary": "", "links": []}', encoding="utf-8"
+            '{"turns": [], "summary": "", "links": []}', encoding="utf-8",
         )
 
         # Create a symlink to test symlink handling
@@ -505,7 +505,7 @@ def test_memory_manager_hardlink_security():
         # Create a regular file first
         memory_file = mcp_dir / "memory.json"
         memory_file.write_text(
-            '{"turns": [], "summary": "", "links": []}', encoding="utf-8"
+            '{"turns": [], "summary": "", "links": []}', encoding="utf-8",
         )
 
         # Create a hardlink to test hardlink handling
@@ -587,7 +587,7 @@ def test_memory_manager_symlink_trust_environment():
         # Create a regular file first
         memory_file = mcp_dir / "memory.json"
         memory_file.write_text(
-            '{"turns": [], "summary": "", "links": []}', encoding="utf-8"
+            '{"turns": [], "summary": "", "links": []}', encoding="utf-8",
         )
 
         # Create a symlink to test symlink handling
@@ -626,7 +626,7 @@ def test_memory_manager_hardlink_trust_environment():
         # Create a regular file first
         memory_file = mcp_dir / "memory.json"
         memory_file.write_text(
-            '{"turns": [], "summary": "", "links": []}', encoding="utf-8"
+            '{"turns": [], "summary": "", "links": []}', encoding="utf-8",
         )
 
         # Create a hardlink to test hardlink handling
@@ -749,7 +749,7 @@ def test_memory_manager_is_relative_to_fallback():
 
         # Mock is_relative_to to raise an exception to trigger fallback
         with patch.object(
-            Path, "is_relative_to", side_effect=AttributeError("No is_relative_to")
+            Path, "is_relative_to", side_effect=AttributeError("No is_relative_to"),
         ):
             target = mm._resolve_target_inside_project()
             # Should return None for path outside .mcp
@@ -758,7 +758,6 @@ def test_memory_manager_is_relative_to_fallback():
 
 def test_memory_manager_audit_exception_handling():
     """Test audit exception handling in various scenarios."""
-    import os
 
     with tempfile.TemporaryDirectory() as tmpdir:
         project_root = Path(tmpdir)
@@ -769,7 +768,7 @@ def test_memory_manager_audit_exception_handling():
 
         # Mock _audit to raise exceptions to test exception handling
         with patch(
-            "mcp_rules_assistant.memory._audit", side_effect=Exception("Audit error")
+            "mcp_rules_assistant.memory._audit", side_effect=Exception("Audit error"),
         ):
             target = mm._resolve_target_inside_project()
             # Should still return None despite audit exception
@@ -788,7 +787,7 @@ def test_memory_manager_symlink_audit_exception():
         # Create a regular file and symlink
         memory_file = mcp_dir / "memory.json"
         memory_file.write_text(
-            '{"turns": [], "summary": "", "links": []}', encoding="utf-8"
+            '{"turns": [], "summary": "", "links": []}', encoding="utf-8",
         )
 
         symlink_path = mcp_dir / "symlink_memory.json"
@@ -830,7 +829,7 @@ def test_memory_manager_hardlink_audit_exception():
         # Create a regular file and hardlink
         memory_file = mcp_dir / "memory.json"
         memory_file.write_text(
-            '{"turns": [], "summary": "", "links": []}', encoding="utf-8"
+            '{"turns": [], "summary": "", "links": []}', encoding="utf-8",
         )
 
         hardlink_path = mcp_dir / "hardlink_memory.json"
@@ -879,7 +878,6 @@ memory:
         mm = MemoryManager(project_root)
 
         # Create a mock regex that raises exception
-        import re
         from unittest.mock import Mock
 
         mock_regex = Mock()
@@ -913,7 +911,7 @@ def test_memory_manager_stat_exception_handling():
 
         memory_file = mcp_dir / "memory.json"
         memory_file.write_text(
-            '{"turns": [], "summary": "", "links": []}', encoding="utf-8"
+            '{"turns": [], "summary": "", "links": []}', encoding="utf-8",
         )
         mm = MemoryManager(project_root, file_override=memory_file)
 
@@ -933,7 +931,7 @@ def test_memory_manager_general_exception_in_resolve():
         # Test by calling a method that uses _resolve_target_inside_project
         # and mock it to raise an exception
         with patch.object(
-            mm, "_resolve_target_inside_project", side_effect=Exception("General error")
+            mm, "_resolve_target_inside_project", side_effect=Exception("General error"),
         ):
             # _ensure_file should handle the exception gracefully
             mm._ensure_file()

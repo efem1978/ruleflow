@@ -26,7 +26,7 @@ def test_cli_rules_explain_outputs_summary(tmp_path: Path) -> None:
         )
         assert "conflicts=1" in out and "suggestions=1" in out
         rj = runner.invoke(
-            app, ["rules-explain", "--json", "--with-suggestions", "short"]
+            app, ["rules-explain", "--json", "--with-suggestions", "short"],
         )
         assert rj.exit_code == 0
         jout = rj.stdout or ""

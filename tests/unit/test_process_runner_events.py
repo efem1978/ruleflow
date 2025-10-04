@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 import mcp_rules_assistant.process as proc
 
@@ -15,9 +15,9 @@ def test_run_cmd_on_event_success(monkeypatch, tmp_path: Path) -> None:
             self.stderr = ""
 
     monkeypatch.setattr(proc.subprocess, "run", lambda *a, **k: P())
-    events: List[Dict[str, Any]] = []
+    events: list[dict[str, Any]] = []
     out = proc.run_cmd(
-        ["echo", "ok"], cwd=tmp_path, on_event=lambda e: events.append(e)
+        ["echo", "ok"], cwd=tmp_path, on_event=lambda e: events.append(e),
     )
     assert out.returncode == 0
     phases = [e.get("phase") for e in events]
@@ -29,7 +29,7 @@ def test_run_cmd_on_event_error_timeout_only(monkeypatch, tmp_path: Path) -> Non
         raise subprocess.TimeoutExpired(cmd="x", timeout=0.1)
 
     monkeypatch.setattr(proc.subprocess, "run", boom)
-    events: List[Dict[str, Any]] = []
+    events: list[dict[str, Any]] = []
     try:
         proc.run_cmd(
             ["sleep", "1"],

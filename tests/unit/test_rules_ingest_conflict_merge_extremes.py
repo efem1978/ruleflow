@@ -21,7 +21,7 @@ def test_numeric_close_values_keep_stricter_without_conflict(tmp_path: Path) -> 
                 "text": "b",
                 "source": {"file": "b.md", "line": 2},
             },
-        ]
+        ],
     }
     (tmp_path / ".mcp").mkdir(parents=True, exist_ok=True)
     (tmp_path / ".mcp/rules_raw.json").write_text(json.dumps(raw), encoding="utf-8")
@@ -47,7 +47,7 @@ def test_boolean_conflict_detected_and_stricter_kept(tmp_path: Path) -> None:
                 "text": "b",
                 "source": {"file": "b.md", "line": 2},
             },
-        ]
+        ],
     }
     (tmp_path / ".mcp").mkdir(parents=True, exist_ok=True)
     (tmp_path / ".mcp/rules_raw.json").write_text(json.dumps(raw), encoding="utf-8")

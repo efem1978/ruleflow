@@ -8,7 +8,7 @@ from mcp_rules_assistant.dev_agent import DevAgent, update_failure_and_freeze
 
 
 def test_freeze_activate_and_recover(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     dash = tmp_path / ".mcp" / "dashboard"
     dash.mkdir(parents=True, exist_ok=True)

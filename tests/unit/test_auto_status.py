@@ -73,7 +73,7 @@ def test_status_with_coverage_memory_and_plan(tmp_path: Path) -> None:
     # run again to append history
     out2 = generate_status(project_root=tmp_path)
     hist = json.loads(
-        (tmp_path / ".mcp/dashboard/history.json").read_text(encoding="utf-8")
+        (tmp_path / ".mcp/dashboard/history.json").read_text(encoding="utf-8"),
     )
     assert isinstance(hist, list) and len(hist) >= 2
 

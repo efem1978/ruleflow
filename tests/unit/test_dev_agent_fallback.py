@@ -20,14 +20,14 @@ def test_compute_status_uses_dashboard_fallback_when_no_coverage(
                     "threshold": 0.96,
                     "weak_count": 0,
                     "files_count": 1,
-                }
+                },
             ],
             "near": [],
             "count": 1,
-        }
+        },
     }
     (dash / "status.json").write_text(
-        json.dumps(prev, ensure_ascii=False), encoding="utf-8"
+        json.dumps(prev, ensure_ascii=False), encoding="utf-8",
     )
 
     out = compute_status(tmp_path)

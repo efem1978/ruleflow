@@ -16,7 +16,7 @@ def test_summarize_groups_with_bad_coverage(monkeypatch, tmp_path: Path) -> None
                 "coverage": "bad",
                 "lines_valid": "20",
                 "lines_covered": "10",
-            }
+            },
         ]
 
     monkeypatch.setattr(cs, "_read_classes_with_cache", fake_read)
@@ -25,7 +25,7 @@ def test_summarize_groups_with_bad_coverage(monkeypatch, tmp_path: Path) -> None
 
 
 def test_summarize_delta_exception_with_policy_and_bad_coverage(
-    monkeypatch, tmp_path: Path
+    monkeypatch, tmp_path: Path,
 ) -> None:
     (tmp_path / "coverage.xml").write_text("<coverage></coverage>", encoding="utf-8")
 
@@ -60,7 +60,7 @@ def test_summarize_tree_deeper_nesting(monkeypatch, tmp_path: Path) -> None:
 
 
 def test_summarize_delta_try_except_with_bad_coverage_object(
-    monkeypatch, tmp_path: Path
+    monkeypatch, tmp_path: Path,
 ) -> None:
     (tmp_path / "coverage.xml").write_text("<coverage></coverage>", encoding="utf-8")
 

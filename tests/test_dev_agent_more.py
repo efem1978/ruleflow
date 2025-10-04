@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import types
 from pathlib import Path
 
 import pytest
@@ -10,7 +9,7 @@ from mcp_rules_assistant import dev_agent
 
 
 def test_run_tests_with_coverage_success(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     class P:
         def __init__(self):
@@ -24,17 +23,17 @@ def test_run_tests_with_coverage_success(
 
 
 def test_run_tests_with_coverage_not_found(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     monkeypatch.setattr(
-        dev_agent, "run_cmd", lambda *a, **k: (_ for _ in ()).throw(FileNotFoundError())
+        dev_agent, "run_cmd", lambda *a, **k: (_ for _ in ()).throw(FileNotFoundError()),
     )
     out = dev_agent._run_tests_with_coverage(tmp_path)
     assert out["ok"] is False and out["code"] == 127
 
 
 def test_git_changed_files_parse(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     class P:
         stdout = " M foo.py\nA  bar/baz.py\n?? ignored.txt\n"
@@ -46,14 +45,14 @@ def test_git_changed_files_parse(
 
 
 def test_run_impacted_or_full_quick_and_full(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     # 1) quick path（有改动文件 + quick 测试不跳过）
     monkeypatch.setattr(
-        dev_agent, "_git_changed_files", lambda *a, **k: [tmp_path / "a.py"]
+        dev_agent, "_git_changed_files", lambda *a, **k: [tmp_path / "a.py"],
     )
     monkeypatch.setattr(
-        dev_agent.checks, "run_quick_tests", lambda *a, **k: {"ok": True}
+        dev_agent.checks, "run_quick_tests", lambda *a, **k: {"ok": True},
     )
     out = dev_agent._run_impacted_or_full(tmp_path, cycle_idx=1, full_every=5)
     assert out["mode"] == "quick"
@@ -73,13 +72,13 @@ def test_run_impacted_or_full_quick_and_full(
 
 
 def test_bypass_activation_and_signature(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     # 准备 dashboard 目录
     dash = tmp_path / ".mcp" / "dashboard"
     dash.mkdir(parents=True, exist_ok=True)
     monkeypatch.setattr(
-        dev_agent, "_ensure_dashboard_dir", lambda root, rebuild=False: dash
+        dev_agent, "_ensure_dashboard_dir", lambda root, rebuild=False: dash,
     )
     # 设置阈值为 1，并允许绕过提交
     monkeypatch.setenv("DEV_AGENT_BYPASS", "1")
@@ -134,11 +133,11 @@ def test_bypass_activation_and_signature(
 
 
 def test_plan_fallback_next_section(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     # 不创建复选框，read_plan 返回“下一步”段落，触发降级解析
     monkeypatch.setattr(
-        dev_agent, "read_plan", lambda *a, **k: "摘要\n下一步\n- 任务A\n- 任务B\n"
+        dev_agent, "read_plan", lambda *a, **k: "摘要\n下一步\n- 任务A\n- 任务B\n",
     )
     out = dev_agent.compute_status(tmp_path)
     prog = out.get("progress", {})
@@ -146,16 +145,15 @@ def test_plan_fallback_next_section(
 
 
 def test_main_autocommit_and_tag(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     # 将工作目录切到临时项目
-    import subprocess as sp
 
     monkeypatch.chdir(tmp_path)
     dash = tmp_path / ".mcp" / "dashboard"
     dash.mkdir(parents=True, exist_ok=True)
     monkeypatch.setattr(
-        dev_agent, "_ensure_dashboard_dir", lambda root, rebuild=False: dash
+        dev_agent, "_ensure_dashboard_dir", lambda root, rebuild=False: dash,
     )
     # 环境：开启自动提交/推送/打标签，快速间隔
     monkeypatch.setenv("DEV_AGENT_AUTOCOMMIT", "1")
@@ -167,7 +165,7 @@ def test_main_autocommit_and_tag(
     p = tmp_path / ".mcp/plan.md"
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(
-        "- 状态: in_progress\n- 当前步骤: Step1\n- 下一步: N\n", encoding="utf-8"
+        "- 状态: in_progress\n- 当前步骤: Step1\n- 下一步: N\n", encoding="utf-8",
     )
     # 测试输出：通过 + full；状态：weak 空
     monkeypatch.setattr(

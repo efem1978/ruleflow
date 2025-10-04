@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import mcp_rules_assistant.rules_ingest as ri
@@ -43,7 +42,7 @@ def test_ingest_cache_and_conflict_deltas(tmp_path: Path) -> None:
     # conflict delta per key; set to 3% so 90 vs 92 has conflict (0.02>0.03? false) => no conflict
     (tmp_path / ".mcp").mkdir(parents=True, exist_ok=True)
     (tmp_path / ".mcp/assistant.yaml").write_text(
-        "rules:\n  conflict_delta:\n    __default__: 0.03\n", encoding="utf-8"
+        "rules:\n  conflict_delta:\n    __default__: 0.03\n", encoding="utf-8",
     )
     out1 = ri.ingest([str(d)], project_root=tmp_path)
     assert out1.get("files", 0) >= 1

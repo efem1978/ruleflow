@@ -9,7 +9,7 @@ from mcp_rules_assistant import dev_agent
 
 
 def test_git_changed_files_blank_and_error(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     # blank line should be ignored
     class P:
@@ -33,7 +33,7 @@ def test_git_changed_files_blank_and_error(
 
 
 def test_ensure_dashboard_rmtree_error(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     dash = tmp_path / ".mcp" / "dashboard"
     dash.mkdir(parents=True, exist_ok=True)
@@ -50,7 +50,7 @@ def test_ensure_dashboard_rmtree_error(
 
 
 def test_compute_status_exceptions_and_next_break(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     # 1) read_plan/load_config raise -> defaults, with summarize* returning count=0
     monkeypatch.setattr(
@@ -64,19 +64,19 @@ def test_compute_status_exceptions_and_next_break(
         lambda *a, **k: (_ for _ in ()).throw(RuntimeError("no cfg")),
     )
     monkeypatch.setattr(
-        dev_agent, "summarize", lambda **k: {"ok": True, "count": 0, "weak": []}
+        dev_agent, "summarize", lambda **k: {"ok": True, "count": 0, "weak": []},
     )
     monkeypatch.setattr(
-        dev_agent, "summarize_groups", lambda **k: {"ok": True, "groups": []}
+        dev_agent, "summarize_groups", lambda **k: {"ok": True, "groups": []},
     )
     monkeypatch.setattr(
-        dev_agent, "summarize_near", lambda **k: {"ok": True, "near": []}
+        dev_agent, "summarize_near", lambda **k: {"ok": True, "near": []},
     )
     out = dev_agent.compute_status(tmp_path)
     assert isinstance(out.get("coverage"), dict) and out["coverage"].get("count") == 0
     # 2) 手动“下一步”段落遇到空行后应停止采集（命中 break）
     monkeypatch.setattr(
-        dev_agent, "read_plan", lambda *a, **k: "摘要\n下一步\n- A\n\n# H\n- 忽略\n"
+        dev_agent, "read_plan", lambda *a, **k: "摘要\n下一步\n- A\n\n# H\n- 忽略\n",
     )
     out2 = dev_agent.compute_status(tmp_path)
     pending = out2.get("tasks", {}).get("pending") or []
@@ -84,14 +84,14 @@ def test_compute_status_exceptions_and_next_break(
 
 
 def test_main_initial_exceptions_and_history_invalid(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     # 工作目录切换 + dashboard 目录
     monkeypatch.chdir(tmp_path)
     dash = tmp_path / ".mcp" / "dashboard"
     dash.mkdir(parents=True, exist_ok=True)
     monkeypatch.setattr(
-        dev_agent, "_ensure_dashboard_dir", lambda root, rebuild=False: dash
+        dev_agent, "_ensure_dashboard_dir", lambda root, rebuild=False: dash,
     )
     # 初始阶段：_run_impacted_or_full & compute_status 抛出异常，覆盖 except 路径
     state = {"n": 0}
@@ -154,16 +154,15 @@ def test_main_initial_exceptions_and_history_invalid(
 
 
 def test_main_loop_excepts_and_counters_and_commits(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     # set cwd and dashboard
-    import subprocess as sp
 
     monkeypatch.chdir(tmp_path)
     dash = tmp_path / ".mcp" / "dashboard"
     dash.mkdir(parents=True, exist_ok=True)
     monkeypatch.setattr(
-        dev_agent, "_ensure_dashboard_dir", lambda root, rebuild=False: dash
+        dev_agent, "_ensure_dashboard_dir", lambda root, rebuild=False: dash,
     )
     # one loop only
     monkeypatch.setenv("DEV_AGENT_MAX_CYCLES", "1")
@@ -223,20 +222,20 @@ def test_main_loop_excepts_and_counters_and_commits(
 
 
 def test_bypass_signature_count_increment(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     monkeypatch.chdir(tmp_path)
     dash = tmp_path / ".mcp" / "dashboard"
     dash.mkdir(parents=True, exist_ok=True)
     monkeypatch.setattr(
-        dev_agent, "_ensure_dashboard_dir", lambda root, rebuild=False: dash
+        dev_agent, "_ensure_dashboard_dir", lambda root, rebuild=False: dash,
     )
     # two cycles to increment same failure signature; threshold high so not active
     monkeypatch.setenv("DEV_AGENT_MAX_CYCLES", "2")
     monkeypatch.setenv("DEV_AGENT_BYPASS_THRESHOLD", "99")
     # same failure signature in both cycles, and seed bypass_state to trigger 'equal' branch (339)
     (dash / "bypass_state.json").write_text(
-        json.dumps({"signature": "2|e|oops", "count": 1}), encoding="utf-8"
+        json.dumps({"signature": "2|e|oops", "count": 1}), encoding="utf-8",
     )
     # same failure signature in both cycles
     monkeypatch.setattr(

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 
 import pytest
@@ -19,7 +18,7 @@ def _srv(tmp_path: Path) -> JsonRpcServer:
             "disallow_patterns_hard": False,
             "allowed_write_prefixes": [],
             "allowed_write_extensions": [],
-        }
+        },
     }
     # 同步 FSGuard 的项目根与配置，避免落盘到仓库根
     srv.fs.project_root = tmp_path
@@ -55,7 +54,7 @@ def test_fs_apply_patch_strict_rejects_skip_marker(tmp_path: Path) -> None:
                     {
                         "path": "bar.py",
                         "content": "import pytest\npytest.mark.skip()\n",
-                    }
+                    },
                 ],
                 "runChecks": True,
                 "strict": True,
@@ -64,7 +63,7 @@ def test_fs_apply_patch_strict_rejects_skip_marker(tmp_path: Path) -> None:
 
 
 def test_prompts_enabled_list_and_get(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     srv = _srv(tmp_path)
     # 通过环境变量开启 prompts
@@ -72,12 +71,12 @@ def test_prompts_enabled_list_and_get(
     resp_list = srv.handle({"id": 1, "method": "prompts/list", "params": {}})
     assert resp_list["result"]["prompts"], "prompts should be listed when enabled"
     resp_get = srv.handle(
-        {"id": 2, "method": "prompts/get", "params": {"name": "rules.summary"}}
+        {"id": 2, "method": "prompts/get", "params": {"name": "rules.summary"}},
     )
     assert resp_get["result"].get("ok") is True
     # 未知名称返回 not found
     resp_bad = srv.handle(
-        {"id": 3, "method": "prompts/get", "params": {"name": "not.exists"}}
+        {"id": 3, "method": "prompts/get", "params": {"name": "not.exists"}},
     )
     assert resp_bad["result"].get("ok") is False
 
@@ -91,7 +90,7 @@ def test_rules_maxima_resource_and_missing(tmp_path: Path) -> None:
             "id": 1,
             "method": "resources/read",
             "params": {"uri": f"rules://project/{pid}/maxima"},
-        }
+        },
     )
     assert err["error"]["code"] in (-32602, -32001)
 
@@ -101,7 +100,7 @@ def test_rules_maxima_resource_and_missing(tmp_path: Path) -> None:
     pjson = d / "rules_compiled.json"
     pjson.write_text(
         json.dumps(
-            {"meta": {"maxima": {"coverage.max_core": 0.99}}}, ensure_ascii=False
+            {"meta": {"maxima": {"coverage.max_core": 0.99}}}, ensure_ascii=False,
         ),
         encoding="utf-8",
     )
@@ -110,7 +109,7 @@ def test_rules_maxima_resource_and_missing(tmp_path: Path) -> None:
             "id": 2,
             "method": "resources/read",
             "params": {"uri": f"rules://project/{pid}/maxima"},
-        }
+        },
     )
     text = ok["result"]["text"]
     data = json.loads(text)
@@ -118,7 +117,7 @@ def test_rules_maxima_resource_and_missing(tmp_path: Path) -> None:
 
 
 def test_fs_apply_patch_rejects_symlink_target(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     srv = _srv(tmp_path)
     # 先创建符号链接作为目标文件（或在不支持平台上用 monkeypatch 模拟行为）
@@ -201,7 +200,7 @@ def test_coverage_export_without_coverage_returns_error(tmp_path: Path) -> None:
 
 
 def test_license_verify_exception_path(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     srv = _srv(tmp_path)
     # 让 _verify_license 抛异常，覆盖异常返回分支
@@ -217,7 +216,7 @@ def test_license_verify_exception_path(
 
 
 def test_error_mapping_file_not_found(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     srv = _srv(tmp_path)
 
@@ -233,13 +232,13 @@ def test_error_mapping_file_not_found(
             "params": {
                 "uri": f"config://project/{srv._project_id()}/assistant.yaml",
             },
-        }
+        },
     )
     assert resp["error"]["code"] == -32001
 
 
 def test_tool_coverage_export_with_mock(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     srv = _srv(tmp_path)
     # 覆盖 covsum 输出，避免依赖真实 coverage.xml

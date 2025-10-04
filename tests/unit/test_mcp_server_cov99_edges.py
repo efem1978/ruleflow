@@ -20,7 +20,7 @@ def test_ci_validate_ok_with_project_license_hs256(tmp_path: Path) -> None:
     mcp.mkdir(parents=True, exist_ok=True)
     # enable license.required
     (mcp / "assistant.yaml").write_text(
-        "license:\n  required: true\n", encoding="utf-8"
+        "license:\n  required: true\n", encoding="utf-8",
     )
     # write a valid hs256 license into project scope
     lic = generate_license(issued_to="Alice", expires="2099-01-01", machine="")
@@ -31,7 +31,7 @@ def test_ci_validate_ok_with_project_license_hs256(tmp_path: Path) -> None:
 
 
 def test_ci_validate_gate_verify_raises_and_json_dump_fail(
-    tmp_path: Path, monkeypatch
+    tmp_path: Path, monkeypatch,
 ) -> None:
     srv = JsonRpcServer()
     srv.project_root = tmp_path
@@ -39,7 +39,7 @@ def test_ci_validate_gate_verify_raises_and_json_dump_fail(
     mcp.mkdir(parents=True, exist_ok=True)
     # enable license.required (but no project license file)
     (mcp / "assistant.yaml").write_text(
-        "license:\n  required: true\n", encoding="utf-8"
+        "license:\n  required: true\n", encoding="utf-8",
     )
     # force _verify_license to raise, and json.dumps to raise when writing summary json
     import mcp_rules_assistant.mcp_server as ms
@@ -50,7 +50,7 @@ def test_ci_validate_gate_verify_raises_and_json_dump_fail(
         lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom")),
     )
     monkeypatch.setattr(
-        ms.json, "dumps", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("dump"))
+        ms.json, "dumps", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("dump")),
     )
     with pytest.raises(Exception):
         srv._call_tool("ci.validate", {})
@@ -65,14 +65,14 @@ def test_ci_validate_success_json_dump_fail(tmp_path: Path, monkeypatch) -> None
     import mcp_rules_assistant.mcp_server as ms
 
     monkeypatch.setattr(
-        ms.json, "dumps", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("dump"))
+        ms.json, "dumps", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("dump")),
     )
     out = srv._call_tool("ci.validate", {})
     assert out.get("ok") is True
 
 
 def test_fs_apply_patch_disallow_hardflag_parse_exception(
-    tmp_path: Path, monkeypatch
+    tmp_path: Path, monkeypatch,
 ) -> None:
     srv = JsonRpcServer()
     srv.project_root = tmp_path
@@ -129,12 +129,12 @@ def test_coverage_export_delta_calc_exception(tmp_path: Path, monkeypatch) -> No
             return super().get(k, default)
 
     monkeypatch.setattr(
-        ms.covsum, "summarize", lambda **kw: {"ok": True, "weak": [FakeItem()]}
+        ms.covsum, "summarize", lambda **kw: {"ok": True, "weak": [FakeItem()]},
     )
     monkeypatch.setattr(ms.covsum, "summarize_groups", lambda **kw: {"groups": []})
     monkeypatch.setattr(ms.covsum, "summarize_near", lambda **kw: {"near": []})
     res = srv._tool_coverage_export(
-        {"outDir": str(out_dir), "weakTop": 5, "nearTop": 5}
+        {"outDir": str(out_dir), "weakTop": 5, "nearTop": 5},
     )
     assert res.get("ok") is True
     # files generated
@@ -145,14 +145,14 @@ def test_coverage_export_delta_calc_exception(tmp_path: Path, monkeypatch) -> No
 
 
 def test_config_update_license_gate_parse_exception(
-    tmp_path: Path, monkeypatch
+    tmp_path: Path, monkeypatch,
 ) -> None:
     srv = JsonRpcServer()
     srv.project_root = tmp_path
     (tmp_path / ".mcp").mkdir(parents=True, exist_ok=True)
     # enable license.required in config file
     (tmp_path / ".mcp/assistant.yaml").write_text(
-        "license:\n  required: true\n", encoding="utf-8"
+        "license:\n  required: true\n", encoding="utf-8",
     )
 
     def _boom() -> bool:

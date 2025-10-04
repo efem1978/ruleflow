@@ -78,12 +78,13 @@ mcp-rules-assistant memory-list --namespace project1
 
 ## ✅ 功能2: 智能压缩机制
 
-### 实现情况
+### 实现情况（功能2）
 - **状态**: ✅ **已完整实现**
 - **文件**: `mcp_rules_assistant/memory.py`
 - **功能**: 自动压缩超阈值记忆
 
-### 核心功能
+### 核心功能（功能2）
+
 ```python
 def compress_memory(
     data: list | dict,
@@ -100,18 +101,18 @@ def compress_memory(
 
 ### 压缩策略
 1. **优先级排序**: 最近 > 关键 > 最远
-2. **保留策略**: 
+2. **保留策略**:
    - 必保：最近5轮
    - 压缩：中间轮次摘要化
    - 删除：最远轮次（非关键）
 3. **阈值触发**: 默认100KB，可配置
 
-### 测试覆盖
+### 测试覆盖（功能2）
 
 - ✅ `tests/unit/test_memory_compress_*.py` - 压缩测试
 - ✅ `tests/unit/test_memory_edges.py` - 边界情况
 
-### 验证结果
+### 验证结果（功能2）
 
 - [x] 超阈值自动压缩
 - [x] 保留关键信息

@@ -17,7 +17,7 @@ def test_skip_code_fences_when_parsing_text(tmp_path: Path) -> None:
                 "test:",
                 "  warnings as errors: true",  # should be ignored
                 "```",  # code fence end
-            ]
+            ],
         ),
         encoding="utf-8",
     )

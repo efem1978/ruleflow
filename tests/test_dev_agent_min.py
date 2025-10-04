@@ -24,7 +24,7 @@ def test_compute_status_minimal(tmp_path: Path):
 
 
 def test_run_impacted_or_full_quick_path(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ):
     proj = tmp_path
 
@@ -49,7 +49,7 @@ def test_run_impacted_or_full_quick_path(
 
 
 def test_run_impacted_or_full_full_path(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ):
     proj = tmp_path
 

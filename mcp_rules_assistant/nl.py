@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Dict, Optional
 
 import yaml  # type: ignore[import-untyped]
 
 # Built-in synonyms (merged with optional .mcp/nl_synonyms.yaml at runtime)
-SYNONYMS: Dict[str, str] = {
+SYNONYMS: dict[str, str] = {
     # 记忆
     "开启滚动记忆": "memory.toggle_auto",
     "关闭滚动记忆": "memory.toggle_auto",
@@ -102,7 +101,7 @@ SYNONYMS: Dict[str, str] = {
 }
 
 
-def parse(text: str) -> Optional[str]:
+def parse(text: str) -> str | None:
     t = text.strip().lower()
     # Merge external synonyms once per process (best-effort)
     try:

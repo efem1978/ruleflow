@@ -1,12 +1,10 @@
 """Comprehensive tests for mcp_server.py to improve coverage."""
 
-import json
 import os
 import tempfile
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
-import pytest
 
 from mcp_rules_assistant.mcp_server import JsonRpcServer
 
@@ -122,7 +120,7 @@ memory:
             os.environ.pop("PYTEST_CURRENT_TEST", None)
 
             with patch(
-                "mcp_rules_assistant.mcp_server.Path.cwd", return_value=project_root
+                "mcp_rules_assistant.mcp_server.Path.cwd", return_value=project_root,
             ):
                 server = JsonRpcServer()
                 assert server._memory_write_allowed() is True

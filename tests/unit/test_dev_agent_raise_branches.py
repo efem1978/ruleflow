@@ -1,7 +1,7 @@
 import json
 import os
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 import mcp_rules_assistant.dev_agent as dev
 
@@ -26,7 +26,7 @@ def _mk_dash(tmp: Path) -> Path:
 
 
 def test_update_failure_freeze_and_prev_coverage_read_exception(
-    tmp_path: Path, monkeypatch
+    tmp_path: Path, monkeypatch,
 ):
     """Covers: 593-594, 649-652, 673-674, 681-682, 687-688 defensive except paths."""
 
@@ -40,7 +40,7 @@ def test_update_failure_freeze_and_prev_coverage_read_exception(
     )
 
     # Status mapping that raises on coverage/progress/timestamp access
-    status: Dict[str, Any] = RaisingDict(
+    status: dict[str, Any] = RaisingDict(
         {
             "checks": {dev.STEP_LINT: "ok", dev.STEP_TYPE: "ok"},
             "tests": {"ok": True, "mode": "full"},
@@ -67,7 +67,7 @@ def test_update_failure_freeze_and_prev_coverage_read_exception(
 
 
 def test_auto_append_memory_env_parse_and_append_exceptions(
-    tmp_path: Path, monkeypatch
+    tmp_path: Path, monkeypatch,
 ):
     """Covers: 767-772, 805-806, 813-815, 824-829 in _auto_append_memory."""
 
@@ -79,7 +79,7 @@ def test_auto_append_memory_env_parse_and_append_exceptions(
             "DEV_AGENT_MEM_ENABLE": "1",
             "DEV_AGENT_MEM_MIN_SEC": "bad",  # force int() except
             "DEV_AGENT_MEM_MAX_TURNS": "bad",  # force int() except
-        }
+        },
     )
 
     # Status mapping that raises on weak/overall reads inside the helper
@@ -104,7 +104,7 @@ def test_auto_append_memory_env_parse_and_append_exceptions(
 
     # Avoid patching global logging.getLogger; override class property for this test
     monkeypatch.setattr(
-        dev.DevAgent, "_log", property(lambda self: DummyLogger()), raising=False
+        dev.DevAgent, "_log", property(lambda self: DummyLogger()), raising=False,
     )
 
     ok = agent._auto_append_memory(status, dash)
@@ -168,7 +168,7 @@ def test_collect_tasks_counts_and_plan_overall_extras(tmp_path: Path):
 
     # Trigger exception inside _collect_tasks_counts by giving non-existent plan path
     done, pending, pend_list, done_list = dev._collect_tasks_counts(
-        tmp_path, plan_text="", include_docs=False
+        tmp_path, plan_text="", include_docs=False,
     )
     # The function should not crash and return ints/lists
     assert isinstance(done, int) and isinstance(pending, int)
@@ -176,7 +176,7 @@ def test_collect_tasks_counts_and_plan_overall_extras(tmp_path: Path):
 
     # Pending-only -> uses pending_len to compute plan_progress
     plan_prog, overall = dev._compute_plan_overall(
-        0, 0, cov_progress=0.5, pending_len=3
+        0, 0, cov_progress=0.5, pending_len=3,
     )
     assert plan_prog == 0.0
     assert overall == 0.6 * 0.5 + 0.4 * 0.0

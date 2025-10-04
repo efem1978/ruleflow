@@ -14,7 +14,7 @@ def _write_cov(tmp: Path, entries: list[tuple[str, float]]):
         lv = 10
         lc = int(round(cov * lv))
         parts.append(
-            f'<class filename="{fname}" line-rate="{cov}" lines-valid="{lv}" lines-covered="{lc}"/>'
+            f'<class filename="{fname}" line-rate="{cov}" lines-valid="{lv}" lines-covered="{lc}"/>',
         )
     parts.append("</classes></package></packages></coverage>")
     (tmp / "coverage.xml").write_text("\n".join(parts), encoding="utf-8")

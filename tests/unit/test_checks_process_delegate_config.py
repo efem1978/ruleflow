@@ -43,7 +43,7 @@ execution:
     called = {}
 
     def _stub_run_cmd(
-        cmd, *, cwd, capture_stdout=True, env=None, check=False, **kw
+        cmd, *, cwd, capture_stdout=True, env=None, check=False, **kw,
     ):  # noqa: ARG001
         called["cwd"] = str(cwd)
         return type("P", (), {"returncode": 0, "stdout": "ok", "stderr": ""})()

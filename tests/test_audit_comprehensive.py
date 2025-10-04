@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-import json
 import tempfile
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
@@ -216,7 +214,7 @@ def test_audit_concurrent_writes():
 
         def write_audit(event_id):
             log_security_event(
-                project_root, f"concurrent.event.{event_id}", {"id": event_id}
+                project_root, f"concurrent.event.{event_id}", {"id": event_id},
             )
 
         threads = []

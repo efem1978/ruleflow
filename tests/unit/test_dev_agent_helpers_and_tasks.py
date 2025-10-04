@@ -13,7 +13,7 @@ def test_collect_tasks_counts_includes_docs_and_readme(tmp_path: Path) -> None:
     (tmp_path / "docs/x.md").write_text("- [x] done\n- [ ] todo\n", encoding="utf-8")
     (tmp_path / "README.md").write_text("- [ ] readme-todo\n", encoding="utf-8")
     done, pending, pend_list, done_list = DA._collect_tasks_counts(  # type: ignore[attr-defined]
-        tmp_path, "# Next Actions\n- a\n- b\n", include_docs=True
+        tmp_path, "# Next Actions\n- a\n- b\n", include_docs=True,
     )
     assert pending >= 1 and done >= 1
     assert any("todo" in p for p in pend_list)

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 
 from typer.testing import CliRunner
@@ -58,7 +57,7 @@ def test_license_hs256_roundtrip(tmp_path: Path, monkeypatch):
 
     # Activate
     res_act = runner.invoke(
-        app, ["license-activate", "--file", str(tmp_path / "lic.json")]
+        app, ["license-activate", "--file", str(tmp_path / "lic.json")],
     )
     assert res_act.exit_code == 0
 

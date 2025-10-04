@@ -19,7 +19,7 @@ def test_memory_append_turn_meta_coerced(tmp_path: Path) -> None:
     srv = JsonRpcServer()
     srv.project_root = tmp_path
     out = srv._call_tool(
-        "memory.append_turn", {"role": "user", "content": "c", "meta": "x"}
+        "memory.append_turn", {"role": "user", "content": "c", "meta": "x"},
     )
     assert out.get("ok") is True
 

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 from mcp_rules_assistant.mcp_server import JsonRpcServer
@@ -25,13 +24,13 @@ def test_tools_call_coverage_near(tmp_path: Path) -> None:
     cfg = tmp_path / ".mcp/assistant.yaml"
     cfg.parent.mkdir(parents=True, exist_ok=True)
     cfg.write_text(
-        "performance:\n  on_push:\n    coverage: {min_module: 0.90}\n", encoding="utf-8"
+        "performance:\n  on_push:\n    coverage: {min_module: 0.90}\n", encoding="utf-8",
     )
     r = srv.handle(
         _req(
             "tools/call",
             {"name": "coverage.near", "arguments": {"within": 0.03, "top": 10}},
-        )
+        ),
     )
     data = r.get("result", {})
     assert data.get("ok") is True

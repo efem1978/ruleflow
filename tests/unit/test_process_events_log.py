@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 import sys
 from pathlib import Path
 
@@ -25,7 +24,7 @@ def test_run_cmd_error_event(tmp_path: Path, monkeypatch) -> None:
     # a failing command with check=True triggers error path
     try:
         run_cmd(
-            [sys.executable, "-c", "import sys; sys.exit(1)"], cwd=tmp_path, check=True
+            [sys.executable, "-c", "import sys; sys.exit(1)"], cwd=tmp_path, check=True,
         )
         assert False, "expected CalledProcessError"
     except Exception:
@@ -43,7 +42,7 @@ def test_run_cmd_events_trim(tmp_path: Path, monkeypatch) -> None:
     jl = out_dir / "cmd_events.jsonl"
     # pre-fill > 200 lines
     jl.write_text(
-        "\n".join('{"phase":"end"}' for _ in range(205)) + "\n", encoding="utf-8"
+        "\n".join('{"phase":"end"}' for _ in range(205)) + "\n", encoding="utf-8",
     )
     # Monkeypatch Path.read_text to raise once during trimming to cover exception branch
     from pathlib import Path as _P

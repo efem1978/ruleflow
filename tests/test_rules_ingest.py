@@ -18,13 +18,13 @@ def test_ingest_compiles_rules_and_detects_conflicts(tmp_path: Path) -> None:
                 "- 密钥 扫描",
                 "- Dockerfile 存在",  # container.required
                 "- 镜像基线",  # container.policy.baseline
-            ]
+            ],
         ),
         encoding="utf-8",
     )
     d2 = tmp_path / "doc2.md"
     d2.write_text(
-        "- 覆盖率 96%", encoding="utf-8"
+        "- 覆盖率 96%", encoding="utf-8",
     )  # force stricter + conflict with 90%
 
     res = ri.ingest([str(d1), str(d2)], project_root=tmp_path)
@@ -57,7 +57,7 @@ def test_ingest_supports_yaml_and_json_inputs(tmp_path: Path) -> None:
                 "  min_core: 0.96",
                 "security:",
                 "  secrets_scan: true",
-            ]
+            ],
         ),
         encoding="utf-8",
     )

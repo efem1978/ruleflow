@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 from mcp_rules_assistant.mcp_server import JsonRpcServer
@@ -16,10 +15,10 @@ def test_resources_read_config_progress_and_ci(tmp_path: Path) -> None:
     # ensure config exists and write a plan
     (tmp_path / ".mcp").mkdir(parents=True, exist_ok=True)
     (tmp_path / ".mcp/assistant.yaml").write_text(
-        "performance:\n  on_push:\n    coverage: {min_module: 0.90}\n", encoding="utf-8"
+        "performance:\n  on_push:\n    coverage: {min_module: 0.90}\n", encoding="utf-8",
     )
     (tmp_path / ".mcp/plan.md").write_text(
-        "# 计划\n- 状态: planned\n", encoding="utf-8"
+        "# 计划\n- 状态: planned\n", encoding="utf-8",
     )
     # generate ci
     from mcp_rules_assistant.hooks import generate_github_ci

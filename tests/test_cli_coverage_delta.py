@@ -26,7 +26,7 @@ def test_cli_coverage_prints_delta(tmp_path: Path) -> None:
         cfg = Path(".mcp/assistant.yaml")
         cfg.parent.mkdir(parents=True, exist_ok=True)
         cfg.write_text(
-            "coverage:\n  policy:\n    'mcp_rules_assistant/': 0.95\n", encoding="utf-8"
+            "coverage:\n  policy:\n    'mcp_rules_assistant/': 0.95\n", encoding="utf-8",
         )
         _write_cov_xml(Path("coverage.xml"))
         r = runner.invoke(app, ["coverage"])

@@ -14,7 +14,7 @@ def _runner() -> CliRunner:
 
 
 def test_cli_license_activate_missing(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     # isolate HOME and CWD
     monkeypatch.chdir(tmp_path)
@@ -26,7 +26,7 @@ def test_cli_license_activate_missing(
 
 
 def test_cli_license_verify_prints_status(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("HOME", str(tmp_path))
@@ -37,7 +37,7 @@ def test_cli_license_verify_prints_status(
 
 
 def test_cli_license_generate_prints_when_no_out(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("MCP_LICENSE_SALT", "test-salt")
@@ -76,7 +76,7 @@ def test_cli_license_generate_rs256_requires_key(tmp_path: Path) -> None:
 
 
 def test_cli_license_generate_rs256_missing_key(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     monkeypatch.chdir(tmp_path)
     r = _runner().invoke(
@@ -98,7 +98,7 @@ def test_cli_license_generate_rs256_missing_key(
 
 
 def test_cli_license_generate_out_file(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     monkeypatch.chdir(tmp_path)
     r = _runner().invoke(
@@ -120,7 +120,7 @@ def test_cli_license_generate_out_file(
 
 
 def test_cli_precommit_migrate_not_found(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     monkeypatch.chdir(tmp_path)
     r = _runner().invoke(app, ["precommit-migrate-stages"])
@@ -129,7 +129,7 @@ def test_cli_precommit_migrate_not_found(
 
 
 def test_cli_precommit_migrate_parse_error(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     monkeypatch.chdir(tmp_path)
     Path(".pre-commit-config.yaml").write_text(": {", encoding="utf-8")
@@ -139,7 +139,7 @@ def test_cli_precommit_migrate_parse_error(
 
 
 def test_cli_precommit_migrate_changes(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     monkeypatch.chdir(tmp_path)
     data = {
@@ -150,8 +150,8 @@ def test_cli_precommit_migrate_changes(
                     {"id": "x", "stages": ["commit", "push"]},
                     {"id": "y", "stages": ["commit"]},
                 ],
-            }
-        ]
+            },
+        ],
     }
     Path(".pre-commit-config.yaml").write_text(
         __import__("yaml").safe_dump(data, sort_keys=False, allow_unicode=True),
@@ -164,7 +164,7 @@ def test_cli_precommit_migrate_changes(
 
 
 def test_cli_precommit_migrate_else_branch_kept(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     monkeypatch.chdir(tmp_path)
     data = {"repos": [{"repo": "local", "hooks": [{"id": "x", "stages": ["lint"]}]}]}
@@ -179,7 +179,7 @@ def test_cli_precommit_migrate_else_branch_kept(
 
 
 def test_cli_rules_suggestions_text_else_branch(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     # prepare compiled suggestions with one item missing 'value' to trigger the else branch
     monkeypatch.chdir(tmp_path)
@@ -194,7 +194,7 @@ def test_cli_rules_suggestions_text_else_branch(
 
 
 def test_cli_ci_set_yaml_parse_error_then_update(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     # invalid YAML -> except branch; still proceed to write ci fields
     monkeypatch.chdir(tmp_path)
@@ -207,7 +207,7 @@ def test_cli_ci_set_yaml_parse_error_then_update(
 
 
 def test_cli_coverage_near_set_yaml_parse_error(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     monkeypatch.chdir(tmp_path)
     cfg = tmp_path / ".mcp/assistant.yaml"

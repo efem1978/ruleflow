@@ -9,7 +9,8 @@ import sys
 import time
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple, TypedDict, cast
+from typing import Any, TypedDict, cast
+from collections.abc import Callable
 
 from . import __version__ as PKG_VERSION
 from . import checks
@@ -71,11 +72,11 @@ class LastTrigger(TypedDict, total=False):
 
 
 class DevAgent:
-    def __init__(self, project_root: Optional[Path] = None):
+    def __init__(self, project_root: Path | None = None):
         self.project_root = project_root or Path.cwd().resolve()
         self.config = load_config(self.project_root)
 
-    def _read_json(self, p: Path) -> Dict[str, Any]:
+    def _read_json(self, p: Path) -> dict[str, Any]:
         try:
             return json.loads(p.read_text(encoding="utf-8"))
         except Exception:
@@ -86,8 +87,8 @@ class DevAgent:
         return logging.getLogger(__name__)
 
     def _run_tests_with_coverage(
-        self, *, on_event: Optional[Callable[[Dict[str, Any]], None]] = None
-    ) -> Dict[str, object]:
+        self, *, on_event: Callable[[dict[str, Any]], None] | None = None,
+    ) -> dict[str, object]:
         env = os.environ.copy()
         env.setdefault("PYTEST_DISABLE_PLUGIN_AUTOLOAD", "1")
         # Prefer project venv python and ensure console scripts on PATH
@@ -142,7 +143,7 @@ class DevAgent:
             return {"ok": False, "code": 127, "error": "python/pytest not found"}
 
     def _git_changed_files(
-        self, *, on_event: Optional[Callable[[Dict[str, Any]], None]] = None
+        self, *, on_event: Callable[[dict[str, Any]], None] | None = None,
     ) -> list[Path]:
         try:
             try:
@@ -175,8 +176,8 @@ class DevAgent:
         cycle_idx: int,
         full_every: int = 5,
         *,
-        on_event: Optional[Callable[[Dict[str, Any]], None]] = None,
-    ) -> Dict[str, object]:
+        on_event: Callable[[dict[str, Any]], None] | None = None,
+    ) -> dict[str, object]:
         # If tests monkeypatched module-level helper, delegate to it; otherwise use
         # instance-level logic so agent-level monkeypatches (_git_changed_files, etc.) work.
         import sys as _sys
@@ -213,7 +214,7 @@ class DevAgent:
         d.mkdir(parents=True, exist_ok=True)
         return d
 
-    def compute_status(self) -> Dict[str, object]:
+    def compute_status(self) -> dict[str, object]:
         plan_text = ""
         try:
             plan_text = read_plan(self.project_root)
@@ -225,27 +226,27 @@ class DevAgent:
         min_module = get_min_module(self.config, default=0.9)
         policy = get_coverage_policy(self.config)
         cov_summary = summarize(
-            project_root=self.project_root, policy=policy, min_module=min_module
+            project_root=self.project_root, policy=policy, min_module=min_module,
         )
         cov_groups = summarize_groups(
-            project_root=self.project_root, policy=policy, min_module=min_module
+            project_root=self.project_root, policy=policy, min_module=min_module,
         )
         cov_near = summarize_near(
-            project_root=self.project_root, policy=policy, min_module=min_module
+            project_root=self.project_root, policy=policy, min_module=min_module,
         )
 
         weak, groups, near, total_files = _coverage_with_fallback(
-            self.project_root, cov_summary, cov_groups, cov_near
+            self.project_root, cov_summary, cov_groups, cov_near,
         )
 
         cov_progress = 0.0
         if total_files > 0:
             cov_progress = max(
-                0.0, min(1.0, (total_files - len(weak)) / float(total_files))
+                0.0, min(1.0, (total_files - len(weak)) / float(total_files)),
             )
 
         done_count, pending_count, pending_tasks, done_tasks = _collect_tasks_counts(
-            self.project_root, plan_text, include_docs=False
+            self.project_root, plan_text, include_docs=False,
         )
 
         if plan_obj["status"] in ("planned", "") and pending_tasks:
@@ -253,7 +254,7 @@ class DevAgent:
             plan_obj["current"] = pending_tasks[0]
 
         plan_progress, overall = _compute_plan_overall(
-            done_count, pending_count, cov_progress, len(pending_tasks)
+            done_count, pending_count, cov_progress, len(pending_tasks),
         )
 
         prod_checks = {
@@ -306,7 +307,7 @@ class DevAgent:
             },
         }
 
-    def _load_run_config(self) -> Dict[str, object]:
+    def _load_run_config(self) -> dict[str, object]:
         """Load agent run configuration from environment variables."""
         return {
             "auto_commit": os.environ.get("DEV_AGENT_AUTOCOMMIT", "0")
@@ -357,7 +358,7 @@ class DevAgent:
         self,
         cmd: list[str],
         *,
-        on_event: Optional[Callable[[Dict[str, Any]], None]] = None,
+        on_event: Callable[[dict[str, Any]], None] | None = None,
     ) -> str:
         """Helper to run a quick status check command."""
         try:
@@ -379,11 +380,11 @@ class DevAgent:
             return "skipped"
 
     def _run_cycle_checks(
-        self, *, on_event: Optional[Callable[[Dict[str, Any]], None]] = None
-    ) -> Dict[str, str]:
+        self, *, on_event: Callable[[dict[str, Any]], None] | None = None,
+    ) -> dict[str, str]:
         """Run periodic checks like lint, type, and TDD gates."""
         lint_stat = self._run_quick_status_check(
-            ["ruff", "check", "--quiet", "mcp_rules_assistant"], on_event=on_event
+            ["ruff", "check", "--quiet", "mcp_rules_assistant"], on_event=on_event,
         )
         type_stat = self._run_quick_status_check(
             [
@@ -406,11 +407,11 @@ class DevAgent:
         )
         return {"lint": lint_stat, "type": type_stat, "tdd": tdd_stat}
 
-    def _tests_failure_signature(self, tests: Dict[str, object]) -> str:
+    def _tests_failure_signature(self, tests: dict[str, object]) -> str:
         """Stable, short failure signature for counting repeated failures."""
         return f"{tests.get('code')}|{str(tests.get('stderr',''))[:120]}|{str(tests.get('stdout',''))[:120]}"
 
-    def _default_bypass_state(self, run_config: Dict[str, object]) -> BypassState:
+    def _default_bypass_state(self, run_config: dict[str, object]) -> BypassState:
         return {
             "active": False,
             "count": 0,
@@ -421,8 +422,8 @@ class DevAgent:
 
     def _apply_bypass_effects(
         self,
-        tests: Dict[str, object],
-        run_config: Dict[str, object],
+        tests: dict[str, object],
+        run_config: dict[str, object],
         bypass: BypassState,
     ) -> None:
         if bypass.get("active"):
@@ -431,8 +432,8 @@ class DevAgent:
                 tests["ok"] = True
 
     def _update_bypass_status(
-        self, tests: Dict[str, object], run_config: Dict[str, object]
-    ) -> Tuple[Dict[str, object], Dict[str, object]]:
+        self, tests: dict[str, object], run_config: dict[str, object],
+    ) -> tuple[dict[str, object], dict[str, object]]:
         """Update the test bypass status based on repeated failures."""
         bypass_state_file = run_config.get("bypass_state_file")
         bypass: BypassState = self._default_bypass_state(run_config)
@@ -471,19 +472,19 @@ class DevAgent:
             bypass = self._default_bypass_state(run_config)
 
         self._apply_bypass_effects(tests, run_config, bypass)
-        return tests, cast(Dict[str, object], bypass)
+        return tests, cast(dict[str, object], bypass)
 
     def _build_current_status(
         self,
-        tests: Dict[str, object],
-        bypass: Dict[str, object],
-        checks: Dict[str, str],
+        tests: dict[str, object],
+        bypass: dict[str, object],
+        checks: dict[str, str],
         interval: int,
         *,
         cmd_error_count: int = 0,
-    ) -> Dict[str, object]:
+    ) -> dict[str, object]:
         """Assemble the main status object for the current cycle."""
-        status: Dict[str, object] = {
+        status: dict[str, object] = {
             "timestamp": time.time(),
             "tests": tests,
         }
@@ -502,10 +503,10 @@ class DevAgent:
                             k: v
                             for k, v in alt.items()
                             if k in ("plan", "coverage", "memory", "progress", "tasks")
-                        }
+                        },
                     )
                     status.setdefault(
-                        "error", f"status compute failed (fallback used): {e}"
+                        "error", f"status compute failed (fallback used): {e}",
                     )  # pragma: no cover
                 else:
                     status["error"] = f"status compute failed: {e}"  # pragma: no cover
@@ -522,7 +523,7 @@ class DevAgent:
         return status
 
     def _update_failure_and_freeze_status(
-        self, status: Dict[str, object], dash: Path
+        self, status: dict[str, object], dash: Path,
     ) -> None:
         """Update failure counters and freeze status based on current checks."""
 
@@ -571,7 +572,7 @@ class DevAgent:
                 last["severe"] = now_str
 
         def _maybe_activate_freeze(
-            cnt: FailCounters, freeze: FreezeState
+            cnt: FailCounters, freeze: FreezeState,
         ) -> FreezeState:
             thr = {
                 "lint": int(os.environ.get("DEV_AGENT_THR_LINT", "15") or 15),
@@ -597,13 +598,13 @@ class DevAgent:
                 return len(
                     coverage_status.get("weak", [])
                     if isinstance(coverage_status, dict)
-                    else []
+                    else [],
                 )
             except Exception:
                 return 0
 
         def _maybe_recover_freeze(
-            freeze: FreezeState, cnt: FailCounters
+            freeze: FreezeState, cnt: FailCounters,
         ) -> tuple[FreezeState, FailCounters]:
             checks_state = status.get("checks", {})
             tests_state = status.get("tests", {})
@@ -631,7 +632,7 @@ class DevAgent:
             return freeze, cnt
 
         def _persist_fail_state(
-            fp: Path, cnt: FailCounters, last: LastTrigger, freeze: FreezeState
+            fp: Path, cnt: FailCounters, last: LastTrigger, freeze: FreezeState,
         ) -> None:
             try:
                 atomic_write_text(
@@ -657,7 +658,7 @@ class DevAgent:
                     status["coverage"] = prev.get("coverage")
             except Exception as e:
                 self._log.debug(
-                    "[agent] load previous coverage for freeze failed: %r", e
+                    "[agent] load previous coverage for freeze failed: %r", e,
                 )
 
         status["freeze"] = freeze
@@ -697,13 +698,13 @@ class DevAgent:
                 ts = 0.0
             brief = {"overall": prog_overall, "weak_count": weak_len, "timestamp": ts}
             atomic_write_text(
-                dash / "status_brief.json", json.dumps(brief, ensure_ascii=False)
+                dash / "status_brief.json", json.dumps(brief, ensure_ascii=False),
             )
         except Exception as e:  # pragma: no cover
             self._log.debug("[agent] write status_brief.json skipped: %r", e)
 
     def _persist_status_and_history(
-        self, status: Dict[str, object], dash: Path, t0: float
+        self, status: dict[str, object], dash: Path, t0: float,
     ) -> None:
         """Write the main status file and update the history log."""
         try:
@@ -756,10 +757,10 @@ class DevAgent:
             atomic_write_text(hist_p, json.dumps(arr, ensure_ascii=False))
         except Exception as e:  # pragma: no cover
             self._log.debug(
-                "[agent] write history skipped: %r", e
+                "[agent] write history skipped: %r", e,
             )  # nosec B110 non-fatal
 
-    def _auto_append_memory(self, status: Dict[str, object], dash: Path) -> bool:
+    def _auto_append_memory(self, status: dict[str, object], dash: Path) -> bool:
         """Best-effort: append a minimal status summary into rolling memory.
 
         Controlled by env:
@@ -790,15 +791,15 @@ class DevAgent:
             if min_sec > 0 and (now - last_ts) < float(min_sec):
                 return False
             # Compose brief content
-            plan: Dict[str, object] = {}
+            plan: dict[str, object] = {}
             _p = status.get("plan", {})
             if isinstance(_p, dict):
                 plan = _p
-            cov: Dict[str, object] = {}
+            cov: dict[str, object] = {}
             _c = status.get("coverage", {})
             if isinstance(_c, dict):
                 cov = _c
-            prog: Dict[str, object] = {}
+            prog: dict[str, object] = {}
             _g = status.get("progress", {})
             if isinstance(_g, dict):
                 prog = _g
@@ -846,7 +847,7 @@ class DevAgent:
                 pass
             # In strict isolation, environment cannot elevate privileges
             strict = str(
-                os.environ.get("MCP_STRICT_ISOLATION", "")
+                os.environ.get("MCP_STRICT_ISOLATION", ""),
             ).strip().lower() in {"1", "true", "on", "yes", "y"}
             if not allow_cfg and strict:
                 return False
@@ -854,7 +855,7 @@ class DevAgent:
                 return False
             mm = MemoryManager(self.project_root, window=window)
             mm.append_turn(
-                "assistant", content, {"source": "dev-agent", "type": "auto"}
+                "assistant", content, {"source": "dev-agent", "type": "auto"},
             )
             # update state
             atomic_write_text(st_file, json.dumps({"last_ts": now}, ensure_ascii=False))
@@ -868,12 +869,12 @@ class DevAgent:
 
     def _handle_auto_commit(
         self,
-        tests: Dict[str, object],
-        bypass: Dict[str, object],
-        run_config: Dict[str, object],
+        tests: dict[str, object],
+        bypass: dict[str, object],
+        run_config: dict[str, object],
         last_commit_ts: float,
         *,
-        on_event: Optional[Callable[[Dict[str, Any]], None]] = None,
+        on_event: Callable[[dict[str, Any]], None] | None = None,
     ) -> float:
         """Handle automatic git commits if conditions are met."""
         bypass_allow_commit = run_config.get("bypass_allow_commit", False)
@@ -958,18 +959,18 @@ class DevAgent:
                         return time.time()
             except Exception as e:
                 self._log.debug(
-                    "[agent] auto-commit skipped: %r", e
+                    "[agent] auto-commit skipped: %r", e,
                 )  # nosec B110 best-effort
         return last_commit_ts
 
     def _handle_auto_tag(
         self,
-        tests: Dict[str, object],
-        status: Dict[str, object],
-        run_config: Dict[str, object],
+        tests: dict[str, object],
+        status: dict[str, object],
+        run_config: dict[str, object],
         last_tag_date: str,
         *,
-        on_event: Optional[Callable[[Dict[str, Any]], None]] = None,
+        on_event: Callable[[dict[str, Any]], None] | None = None,
     ) -> str:
         """Handle automatic git tagging if conditions are met."""
         auto_tag = run_config.get("auto_tag", False)
@@ -1065,9 +1066,9 @@ class DevAgent:
                 break
 
             t0 = time.time()
-            cmd_events: List[Dict[str, Any]] = []
+            cmd_events: list[dict[str, Any]] = []
 
-            def _on_evt(evt: Dict[str, Any]) -> None:
+            def _on_evt(evt: dict[str, Any]) -> None:
                 try:
                     evt = dict(evt)
                     evt["ts"] = time.time()
@@ -1078,7 +1079,7 @@ class DevAgent:
                     # 保持无副作用：仅记录调试日志，不中断循环
                     try:
                         self._log.debug(
-                            "[agent] on_event append skipped: %r", e
+                            "[agent] on_event append skipped: %r", e,
                         )  # pragma: no cover
                     except Exception:  # pragma: no cover
                         # 极端情况下 logger 也不可用时静默
@@ -1086,7 +1087,7 @@ class DevAgent:
 
             # 1. Run tests and checks
             tests = self._run_impacted_or_full(
-                cycle_idx=cycle, full_every=5, on_event=_on_evt
+                cycle_idx=cycle, full_every=5, on_event=_on_evt,
             )
             try:
                 checks = self._run_cycle_checks(on_event=_on_evt)
@@ -1099,7 +1100,7 @@ class DevAgent:
             # 3. Build status object
             err_count = sum(1 for e in cmd_events if e.get("phase") == "error")
             status = self._build_current_status(
-                tests, bypass, checks, interval, cmd_error_count=err_count
+                tests, bypass, checks, interval, cmd_error_count=err_count,
             )
 
             # 4. Update failure counters and freeze status
@@ -1115,16 +1116,16 @@ class DevAgent:
 
             # 6. Handle auto-commit and auto-tag
             last_commit_ts = self._handle_auto_commit(
-                tests, bypass, run_config, last_commit_ts, on_event=_on_evt
+                tests, bypass, run_config, last_commit_ts, on_event=_on_evt,
             )
             last_tag_date = self._handle_auto_tag(
-                tests, status, run_config, last_tag_date, on_event=_on_evt
+                tests, status, run_config, last_tag_date, on_event=_on_evt,
             )
 
             # 6.1 Persist command events (best-effort, cap to last 200) + JSONL append
             try:
                 ce_path = dash / "cmd_events.json"
-                prev: List[Dict[str, Any]] = []
+                prev: list[dict[str, Any]] = []
                 if ce_path.exists():
                     try:
                         # 容忍历史/并发导致的临时损坏或空文件
@@ -1139,14 +1140,14 @@ class DevAgent:
                     )
                     if jlines:
                         with (dash / "cmd_events.jsonl").open(
-                            "a", encoding="utf-8"
+                            "a", encoding="utf-8",
                         ) as jf:
                             jf.write(jlines)
-                except (OSError, IOError) as e:
+                except OSError as e:
                     self._log.debug(
-                        "[agent] persist cmd_events.jsonl skipped: %r", e
+                        "[agent] persist cmd_events.jsonl skipped: %r", e,
                     )  # pragma: no cover
-            except (OSError, IOError, ValueError, TypeError) as e:
+            except (OSError, ValueError, TypeError) as e:
                 self._log.debug("[agent] persist cmd_events skipped: %r", e)
 
             # 7. Wait for next cycle
@@ -1155,7 +1156,7 @@ class DevAgent:
             cycle += 1
 
 
-def main(argv: Optional[list[str]] = None) -> None:
+def main(argv: list[str] | None = None) -> None:
     ap = argparse.ArgumentParser("dev-agent")
     ap.add_argument("--interval", type=int, default=60, help="run interval seconds")
     ap.add_argument("--max-cycles", type=int, default=0, help="max cycles to run")
@@ -1178,8 +1179,8 @@ def main(argv: Optional[list[str]] = None) -> None:
 
 
 def _run_tests_with_coverage(
-    project_root: Path, *, on_event: Optional[Callable[[Dict[str, Any]], None]] = None
-) -> Dict[str, object]:
+    project_root: Path, *, on_event: Callable[[dict[str, Any]], None] | None = None,
+) -> dict[str, object]:
     env = os.environ.copy()
     env.setdefault("PYTEST_DISABLE_PLUGIN_AUTOLOAD", "1")
     # Prefer project venv python and ensure console scripts on PATH
@@ -1226,7 +1227,7 @@ def _run_tests_with_coverage(
 
 
 def _git_changed_files(
-    project_root: Path, *, on_event: Optional[Callable[[Dict[str, Any]], None]] = None
+    project_root: Path, *, on_event: Callable[[dict[str, Any]], None] | None = None,
 ) -> list[Path]:
     try:
         p = run_cmd(
@@ -1253,8 +1254,8 @@ def _run_impacted_or_full(
     *,
     cycle_idx: int,
     full_every: int = 5,
-    on_event: Optional[Callable[[Dict[str, Any]], None]] = None,
-) -> Dict[str, object]:
+    on_event: Callable[[dict[str, Any]], None] | None = None,
+) -> dict[str, object]:
     try_quick = (cycle_idx % max(1, full_every)) != 0
     changed = _git_changed_files(project_root)
     if try_quick and changed:
@@ -1273,19 +1274,19 @@ ORIG_RUN_IMPACTED_OR_FULL = _run_impacted_or_full
 
 
 def run_impacted_or_full(
-    project_root: Path, *, cycle_idx: int, full_every: int = 5
-) -> Dict[str, object]:
+    project_root: Path, *, cycle_idx: int, full_every: int = 5,
+) -> dict[str, object]:
     """Public wrapper for running impacted or full test cycles.
 
     This simply forwards to the internal helper to preserve behavior while
     providing a stable public API for tests and external callers.
     """
     return _run_impacted_or_full(
-        project_root, cycle_idx=cycle_idx, full_every=full_every
+        project_root, cycle_idx=cycle_idx, full_every=full_every,
     )
 
 
-def _scan_markdown_checklist(p: Path) -> Tuple[int, int, list[str], list[str]]:
+def _scan_markdown_checklist(p: Path) -> tuple[int, int, list[str], list[str]]:
     """Scan a markdown file for checklist items (done/pending), ignoring code blocks.
 
     Returns: (done_count, pending_count, pending_items, done_items)
@@ -1317,16 +1318,16 @@ def _scan_markdown_checklist(p: Path) -> Tuple[int, int, list[str], list[str]]:
 
 
 # Public test-friendly wrappers for selected DevAgent behaviors
-def get_run_config(agent: "DevAgent") -> Dict[str, object]:
+def get_run_config(agent: DevAgent) -> dict[str, object]:
     """Public wrapper to load run configuration for an agent instance."""
     return agent._load_run_config()
 
 
 def auto_commit(
-    agent: "DevAgent",
-    tests: Dict[str, object],
-    bypass: Dict[str, object],
-    run_config: Dict[str, object],
+    agent: DevAgent,
+    tests: dict[str, object],
+    bypass: dict[str, object],
+    run_config: dict[str, object],
     last_commit_ts: float,
 ) -> float:
     """Public wrapper to trigger auto-commit logic once and return last_commit_ts."""
@@ -1334,10 +1335,10 @@ def auto_commit(
 
 
 def auto_tag(
-    agent: "DevAgent",
-    tests: Dict[str, object],
-    status: Dict[str, object],
-    run_config: Dict[str, object],
+    agent: DevAgent,
+    tests: dict[str, object],
+    status: dict[str, object],
+    run_config: dict[str, object],
     last_tag_date: str,
 ) -> str:
     """Public wrapper to trigger auto-tag logic once and return last_tag_date."""
@@ -1356,7 +1357,7 @@ def _ensure_dashboard_dir(project_root: Path, rebuild: bool = False) -> Path:
     return d
 
 
-def _read_json(p: Path) -> Dict[str, Any]:
+def _read_json(p: Path) -> dict[str, Any]:
     try:
         return json.loads(p.read_text(encoding="utf-8"))
     except Exception:
@@ -1365,30 +1366,30 @@ def _read_json(p: Path) -> Dict[str, Any]:
 
 def _coverage_with_fallback(
     project_root: Path,
-    cov_summary: Dict[str, object],
-    cov_groups: Dict[str, object],
-    cov_near: Dict[str, object],
-) -> Tuple[
-    list[Dict[str, object]], list[Dict[str, object]], list[Dict[str, object]], int
+    cov_summary: dict[str, object],
+    cov_groups: dict[str, object],
+    cov_near: dict[str, object],
+) -> tuple[
+    list[dict[str, object]], list[dict[str, object]], list[dict[str, object]], int,
 ]:
     """Extract coverage arrays with a fallback to last dashboard status when count==0.
 
     Returns: (weak, groups, near, total_files)
     """
     raw_weak = cov_summary.get("weak") if isinstance(cov_summary, dict) else []
-    weak: list[Dict[str, object]] = []
+    weak: list[dict[str, object]] = []
     if isinstance(raw_weak, list):
-        weak = [cast(Dict[str, object], x) for x in raw_weak if isinstance(x, dict)]
+        weak = [cast(dict[str, object], x) for x in raw_weak if isinstance(x, dict)]
 
     raw_groups = cov_groups.get("groups") if isinstance(cov_groups, dict) else []
-    groups: list[Dict[str, object]] = []
+    groups: list[dict[str, object]] = []
     if isinstance(raw_groups, list):
-        groups = [cast(Dict[str, object], x) for x in raw_groups if isinstance(x, dict)]
+        groups = [cast(dict[str, object], x) for x in raw_groups if isinstance(x, dict)]
 
     raw_near = cov_near.get("near") if isinstance(cov_near, dict) else []
-    near: list[Dict[str, object]] = []
+    near: list[dict[str, object]] = []
     if isinstance(raw_near, list):
-        near = [cast(Dict[str, object], x) for x in raw_near if isinstance(x, dict)]
+        near = [cast(dict[str, object], x) for x in raw_near if isinstance(x, dict)]
 
     raw_total_files = cov_summary.get("count") if isinstance(cov_summary, dict) else 0
     total_files = (
@@ -1401,18 +1402,18 @@ def _coverage_with_fallback(
     if total_files == 0:
         prev = _read_json(project_root / MCP_DIR_NAME / DASHBOARD_SUBDIR / STATUS_FILE)
         _cp = prev.get("coverage", {})
-        cov_prev: Dict[str, Any] = _cp if isinstance(_cp, dict) else {}
+        cov_prev: dict[str, Any] = _cp if isinstance(_cp, dict) else {}
 
         fallback_weak = cov_prev.get("weak", weak)
         if isinstance(fallback_weak, list):
             weak = [
-                cast(Dict[str, object], x) for x in fallback_weak if isinstance(x, dict)
+                cast(dict[str, object], x) for x in fallback_weak if isinstance(x, dict)
             ]
 
         fallback_groups = cov_prev.get("groups", groups)
         if isinstance(fallback_groups, list):
             groups = [
-                cast(Dict[str, object], x)
+                cast(dict[str, object], x)
                 for x in fallback_groups
                 if isinstance(x, dict)
             ]
@@ -1420,7 +1421,7 @@ def _coverage_with_fallback(
         fallback_near = cov_prev.get("near", near)
         if isinstance(fallback_near, list):
             near = [
-                cast(Dict[str, object], x) for x in fallback_near if isinstance(x, dict)
+                cast(dict[str, object], x) for x in fallback_near if isinstance(x, dict)
             ]
 
         fallback_total = cov_prev.get("count", 0)
@@ -1433,8 +1434,8 @@ def _coverage_with_fallback(
 
 
 def _collect_tasks_counts(
-    project_root: Path, plan_text: str, *, include_docs: bool = True
-) -> Tuple[int, int, list[str], list[str]]:
+    project_root: Path, plan_text: str, *, include_docs: bool = True,
+) -> tuple[int, int, list[str], list[str]]:
     """Collect done/pending tasks counts and lists by scanning markdown and fallback plan sections.
 
     Returns: (done_count, pending_count, pending_tasks, done_tasks)
@@ -1445,7 +1446,7 @@ def _collect_tasks_counts(
     pending_count = 0
     try:
         d0, u0, p0, dn0 = _scan_markdown_checklist(
-            project_root / f"{MCP_DIR_NAME}/plan.md"
+            project_root / f"{MCP_DIR_NAME}/plan.md",
         )
         done_count += d0
         pending_count += u0
@@ -1490,13 +1491,13 @@ def _collect_tasks_counts(
 
 
 def _compute_plan_overall(
-    done_count: int, pending_count: int, cov_progress: float, pending_len: int
-) -> Tuple[Optional[float], float]:
+    done_count: int, pending_count: int, cov_progress: float, pending_len: int,
+) -> tuple[float | None, float]:
     """Compute plan_progress and overall score from counts and coverage progress.
 
     overall = cov_progress when no plan info; otherwise 0.6*coverage + 0.4*plan.
     """
-    plan_progress: Optional[float] = None
+    plan_progress: float | None = None
     if done_count + pending_count == 0 and pending_len > 0:
         pending_count = pending_len
         done_count = 0
@@ -1510,10 +1511,10 @@ def _compute_plan_overall(
 
 
 def update_bypass(
-    agent: "DevAgent",
-    tests: Dict[str, object],
-    run_config: Dict[str, object],
-) -> Tuple[Dict[str, object], Dict[str, object]]:
+    agent: DevAgent,
+    tests: dict[str, object],
+    run_config: dict[str, object],
+) -> tuple[dict[str, object], dict[str, object]]:
     """Public wrapper to update bypass status for a given tests result.
 
     Returns (tests, bypass) where tests may be modified (e.g., bypassed/ok).
@@ -1522,10 +1523,10 @@ def update_bypass(
 
 
 def update_failure_and_freeze(
-    agent: "DevAgent",
-    status: Dict[str, object],
+    agent: DevAgent,
+    status: dict[str, object],
     dash: Path,
-) -> Dict[str, object]:
+) -> dict[str, object]:
     """Public wrapper to update failure counters and freeze logic in-place.
 
     Returns the mutated status for convenience.
@@ -1534,7 +1535,7 @@ def update_failure_and_freeze(
     return status
 
 
-def compute_status(project_root: Path) -> Dict[str, object]:
+def compute_status(project_root: Path) -> dict[str, object]:
     # Load config defensively (tests may monkeypatch to raise)
     try:
         cfg = load_config(project_root)
@@ -1553,27 +1554,27 @@ def compute_status(project_root: Path) -> Dict[str, object]:
     policy = get_coverage_policy(cfg)
 
     cov_summary = summarize(
-        project_root=project_root, policy=policy, min_module=min_module
+        project_root=project_root, policy=policy, min_module=min_module,
     )
     cov_groups = summarize_groups(
-        project_root=project_root, policy=policy, min_module=min_module
+        project_root=project_root, policy=policy, min_module=min_module,
     )
     cov_near = summarize_near(
-        project_root=project_root, policy=policy, min_module=min_module
+        project_root=project_root, policy=policy, min_module=min_module,
     )
 
     weak, groups, near, total_files = _coverage_with_fallback(
-        project_root, cov_summary, cov_groups, cov_near
+        project_root, cov_summary, cov_groups, cov_near,
     )
 
     cov_progress = 0.0
     if total_files > 0:
         cov_progress = max(
-            0.0, min(1.0, (total_files - len(weak)) / float(total_files))
+            0.0, min(1.0, (total_files - len(weak)) / float(total_files)),
         )
 
     done_count, pending_count, pending_tasks, done_tasks = _collect_tasks_counts(
-        project_root, plan_text, include_docs=False
+        project_root, plan_text, include_docs=False,
     )
 
     if plan_obj["status"] in ("planned", "") and pending_tasks:
@@ -1581,7 +1582,7 @@ def compute_status(project_root: Path) -> Dict[str, object]:
         plan_obj["current"] = pending_tasks[0]
 
     plan_progress, overall = _compute_plan_overall(
-        done_count, pending_count, cov_progress, len(pending_tasks)
+        done_count, pending_count, cov_progress, len(pending_tasks),
     )
 
     prod_checks = {

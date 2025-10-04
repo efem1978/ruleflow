@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, TypedDict
+from typing import Any, TypedDict
 
 from defusedxml import ElementTree as ET  # type: ignore
 
@@ -24,23 +24,23 @@ def _cache_path(project_root: Path) -> Path:
     return (project_root / ".mcp/coverage_cache.json").resolve()
 
 
-def _read_classes_with_cache(project_root: Path, coverage_xml: str) -> List[ClassItem]:
+def _read_classes_with_cache(project_root: Path, coverage_xml: str) -> list[ClassItem]:
     path = (project_root / coverage_xml).resolve()
-    items: List[ClassItem] = []
+    items: list[ClassItem] = []
     if not path.exists():
         return items
     try:
         stat = path.stat()
         try:
             data_bytes = path.read_bytes()
-        except (OSError, IOError):
+        except OSError:
             data_bytes = b""
         import hashlib
 
         sig_hash = hashlib.sha256(data_bytes).hexdigest()
         sig = f"{int(getattr(stat, 'st_mtime_ns', int(stat.st_mtime*1e9)))}-{stat.st_size}-{sig_hash}"
         cpath = _cache_path(project_root)
-        cache: Dict[str, Any] = {}
+        cache: dict[str, Any] = {}
         if cpath.exists():
             try:
                 cache = json.loads(cpath.read_text(encoding="utf-8"))
@@ -48,7 +48,7 @@ def _read_classes_with_cache(project_root: Path, coverage_xml: str) -> List[Clas
                 cache = {}
         files = cache.get("files") or {}
         if isinstance(files, dict):
-            cache_entry: Optional[Dict[str, Any]] = (
+            cache_entry: dict[str, Any] | None = (
                 files.get(str(path)) if isinstance(files.get(str(path)), dict) else None
             )
         else:
@@ -97,7 +97,7 @@ def _read_classes_with_cache(project_root: Path, coverage_xml: str) -> List[Clas
                 import logging
 
                 logging.getLogger(__name__).debug(
-                    "[coverage] class item lines conversion skipped: %r", e
+                    "[coverage] class item lines conversion skipped: %r", e,
                 )
             items.append(row)
         # write cache
@@ -107,7 +107,7 @@ def _read_classes_with_cache(project_root: Path, coverage_xml: str) -> List[Clas
                 cache["files"][str(path)] = {"sig": sig, "items": items}
                 cpath.parent.mkdir(parents=True, exist_ok=True)
                 cpath.write_text(
-                    json.dumps(cache, ensure_ascii=False, indent=2), encoding="utf-8"
+                    json.dumps(cache, ensure_ascii=False, indent=2), encoding="utf-8",
                 )
         except Exception as e:  # pragma: no cover (I/O failures ignored)
             _log.debug("[coverage] cache write skipped: %r", e)
@@ -118,7 +118,7 @@ def _read_classes_with_cache(project_root: Path, coverage_xml: str) -> List[Clas
 
 
 def _threshold_for_file(
-    file: str, policy: Optional[Dict[str, float]], default: float
+    file: str, policy: dict[str, float] | None, default: float,
 ) -> float:
     """Decide threshold with priority: suffix match > prefix match > default.
 
@@ -134,7 +134,7 @@ def _threshold_for_file(
         return dflt
     # Normalize and collect
     try:
-        items: List[Tuple[str, float]] = [(str(k), float(v)) for k, v in policy.items()]
+        items: list[tuple[str, float]] = [(str(k), float(v)) for k, v in policy.items()]
     except Exception:
         return dflt
     suffix = [(k, v) for k, v in items if file.endswith(k)]
@@ -149,11 +149,11 @@ def _threshold_for_file(
 
 
 def summarize(
-    project_root: Optional[Path] = None,
+    project_root: Path | None = None,
     coverage_xml: str = "coverage.xml",
-    policy: Optional[Dict[str, float]] = None,
+    policy: dict[str, float] | None = None,
     min_module: float = 0.9,
-) -> Dict[str, object]:
+) -> dict[str, object]:
     root = (project_root or Path.cwd()).resolve()
     path = root / coverage_xml
     if not path.exists():
@@ -162,10 +162,10 @@ def summarize(
             "message": f"{coverage_xml} not found. Run tests with --cov-report=xml.",
             "items": [],
         }
-    items: List[ClassItem] = _read_classes_with_cache(root, coverage_xml)
+    items: list[ClassItem] = _read_classes_with_cache(root, coverage_xml)
 
     # 识别薄弱项
-    weak: List[ClassItem] = []
+    weak: list[ClassItem] = []
     threshold = float(min_module)
     for it in items:
         name = str(it.get("file", ""))
@@ -195,11 +195,11 @@ def summarize(
 
 
 def summarize_groups(
-    project_root: Optional[Path] = None,
+    project_root: Path | None = None,
     coverage_xml: str = "coverage.xml",
-    policy: Optional[Dict[str, float]] = None,
+    policy: dict[str, float] | None = None,
     min_module: float = 0.9,
-) -> Dict[str, object]:
+) -> dict[str, object]:
     root = (project_root or Path.cwd()).resolve()
     path = root / coverage_xml
     if not path.exists():
@@ -208,8 +208,8 @@ def summarize_groups(
             "message": f"{coverage_xml} not found. Run tests with --cov-report=xml.",
             "groups": [],
         }
-    items: List[ClassItem] = _read_classes_with_cache(root, coverage_xml)
-    prefixes: List[Tuple[str, float]] = []
+    items: list[ClassItem] = _read_classes_with_cache(root, coverage_xml)
+    prefixes: list[tuple[str, float]] = []
     if policy:
         # sort by longer prefix first for specificity
         prefixes = sorted(
@@ -217,7 +217,7 @@ def summarize_groups(
             key=lambda x: len(x[0]),
             reverse=True,
         )
-    groups: Dict[str, Dict[str, float]] = {}
+    groups: dict[str, dict[str, float]] = {}
     # init known groups
     for p, th in prefixes:
         groups[p] = {
@@ -251,7 +251,7 @@ def summarize_groups(
 
     for cls in items:
         filename = str(cls.get("file") or "")
-        cov: Optional[float] = None
+        cov: float | None = None
         try:
             cov = float(cls.get("coverage", 0.0))
         except Exception:
@@ -279,7 +279,7 @@ def summarize_groups(
         if cov < th:
             g["weak"] += 1.0
 
-    out_groups: List[Dict[str, object]] = []
+    out_groups: list[dict[str, object]] = []
     for name, g in groups.items():
         cov = (g["covered"] / g["valid"]) if g["valid"] > 0 else 1.0
         out_groups.append(
@@ -289,10 +289,10 @@ def summarize_groups(
                 "threshold": g.get("threshold", float(min_module)),
                 "weak_count": int(g["weak"]),
                 "files_count": int(g["files"]),
-            }
+            },
         )
 
-    def _key_cov(d: Dict[str, object]) -> float:
+    def _key_cov(d: dict[str, object]) -> float:
         v = d.get("coverage", 0.0)
         if isinstance(v, (int, float, str)):
             try:
@@ -306,13 +306,13 @@ def summarize_groups(
 
 
 def summarize_near(
-    project_root: Optional[Path] = None,
+    project_root: Path | None = None,
     coverage_xml: str = "coverage.xml",
-    policy: Optional[Dict[str, float]] = None,
+    policy: dict[str, float] | None = None,
     min_module: float = 0.9,
     within: float = 0.03,
     top: int = 50,
-) -> Dict[str, object]:
+) -> dict[str, object]:
     """列出“未低于阈值但距离阈值不超过 within”的文件。
 
     within: 小数（0.03 表示 3%）。
@@ -325,24 +325,24 @@ def summarize_near(
             "message": f"{coverage_xml} not found. Run tests with --cov-report=xml.",
             "items": [],
         }
-    items: List[ClassItem] = _read_classes_with_cache(root, coverage_xml)
+    items: list[ClassItem] = _read_classes_with_cache(root, coverage_xml)
 
     def threshold_for(file: str) -> float:
         return _threshold_for_file(file, policy, float(min_module))
 
-    near: List[Dict[str, object]] = []
+    near: list[dict[str, object]] = []
     for it in items:
         th = threshold_for(str(it.get("file", "")))
         cov = float(it.get("coverage", 0.0))
         if cov >= th:
             gap = cov - th
             if gap <= float(within) + 1e-12:
-                out: Dict[str, object] = dict(it)
+                out: dict[str, object] = dict(it)
                 out["threshold"] = th
                 out["delta_up"] = gap
                 near.append(out)
 
-    def _key_delta(d: Dict[str, object]) -> float:
+    def _key_delta(d: dict[str, object]) -> float:
         v = d.get("delta_up", 0.0)
         if isinstance(v, (int, float, str)):
             try:
@@ -356,12 +356,12 @@ def summarize_near(
 
 
 def summarize_tree(
-    project_root: Optional[Path] = None,
+    project_root: Path | None = None,
     coverage_xml: str = "coverage.xml",
-    policy: Optional[Dict[str, float]] = None,
+    policy: dict[str, float] | None = None,
     min_module: float = 0.9,
     max_depth: int = 3,
-) -> Dict[str, object]:
+) -> dict[str, object]:
     """构建薄弱文件的目录树（浅层），用于 UI 展示。
 
     输出结构：{"ok": bool, "tree": {"name": "/", "children": { name: node }, "files": [weak...] }}
@@ -375,12 +375,12 @@ def summarize_tree(
     if not base.get("ok"):
         return base
     weak_raw = base.get("weak", [])
-    weak: List[Dict[str, object]] = weak_raw if isinstance(weak_raw, list) else []
-    root: Dict[str, object] = {"name": "/", "children": {}, "files": []}
+    weak: list[dict[str, object]] = weak_raw if isinstance(weak_raw, list) else []
+    root: dict[str, object] = {"name": "/", "children": {}, "files": []}
 
-    def get_child(node: Dict[str, object], name: str) -> Dict[str, object]:
+    def get_child(node: dict[str, object], name: str) -> dict[str, object]:
         children = node.setdefault(
-            "children", {}
+            "children", {},
         )  # may be corrupted by external writes
         if not isinstance(children, dict):  # defensive: avoid assert in optimized mode
             children = {}

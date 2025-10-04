@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import types
 from pathlib import Path
 
 from typer.testing import CliRunner
@@ -13,7 +12,7 @@ def test_cli_diagnose_with_maxima(tmp_path: Path) -> None:
     with runner.isolated_filesystem(temp_dir=tmp_path):
         Path(".mcp").mkdir(parents=True, exist_ok=True)
         Path(".mcp/rules_compiled.json").write_text(
-            '{"meta": {"maxima": {"coverage.max_module": 0.95}}}', encoding="utf-8"
+            '{"meta": {"maxima": {"coverage.max_module": 0.95}}}', encoding="utf-8",
         )
         r = runner.invoke(app, ["diagnose", "--json"])
         assert r.exit_code == 0

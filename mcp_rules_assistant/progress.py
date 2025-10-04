@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional, Tuple, TypedDict
+from typing import TypedDict
 
 from .fs_wrapper import atomic_write_text
 
@@ -17,7 +17,7 @@ DEFAULT_PLAN = (
 )
 
 
-def ensure_plan(project_root: Optional[Path] = None) -> Path:
+def ensure_plan(project_root: Path | None = None) -> Path:
     root = (project_root or Path.cwd()).resolve()
     path = root / PLAN_MD
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -26,18 +26,18 @@ def ensure_plan(project_root: Optional[Path] = None) -> Path:
     return path
 
 
-def read_plan(project_root: Optional[Path] = None) -> str:
+def read_plan(project_root: Path | None = None) -> str:
     path = ensure_plan(project_root)
     return path.read_text(encoding="utf-8")
 
 
-def write_plan(text: str, project_root: Optional[Path] = None) -> Path:
+def write_plan(text: str, project_root: Path | None = None) -> Path:
     path = ensure_plan(project_root)
     atomic_write_text(path, text)
     return path
 
 
-def parse_plan(text: str) -> Tuple[str, str, str]:
+def parse_plan(text: str) -> tuple[str, str, str]:
     status = "planned"
     current = ""
     nxt = ""
@@ -46,7 +46,7 @@ def parse_plan(text: str) -> Tuple[str, str, str]:
         if line.startswith("- 状态:") or line.lower().startswith("- status:"):
             status = line.split(":", 1)[1].strip().lower()
         elif line.startswith("- 当前步骤:") or line.lower().startswith(
-            "- current step:"
+            "- current step:",
         ):
             current = line.split(":", 1)[1].strip()
         elif line.startswith("- 下一步:") or line.lower().startswith("- next:"):
@@ -55,11 +55,11 @@ def parse_plan(text: str) -> Tuple[str, str, str]:
 
 
 def update_plan_fields(
-    project_root: Optional[Path] = None,
+    project_root: Path | None = None,
     *,
-    status: Optional[str] = None,
-    current: Optional[str] = None,
-    nxt: Optional[str] = None,
+    status: str | None = None,
+    current: str | None = None,
+    nxt: str | None = None,
 ) -> Path:
     text = read_plan(project_root)
     lines = text.splitlines()
@@ -67,7 +67,7 @@ def update_plan_fields(
     class UpdateSpec(TypedDict):
         cn: str
         en: str
-        val: Optional[str]
+        val: str | None
 
     updates: list[UpdateSpec] = [
         {"cn": "- 状态:", "en": "- status:", "val": status},

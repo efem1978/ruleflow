@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 
 from mcp_rules_assistant.mcp_server import JsonRpcServer

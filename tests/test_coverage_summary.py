@@ -21,7 +21,7 @@ def test_summarize_weak_items_and_thresholds(tmp_path: Path) -> None:
     cov = tmp_path / "coverage.xml"
     _write_cov_xml(cov)
     res = summarize(
-        project_root=tmp_path, policy={"mcp_rules_assistant/": 0.95}, min_module=0.90
+        project_root=tmp_path, policy={"mcp_rules_assistant/": 0.95}, min_module=0.90,
     )
     assert res.get("ok") is True
     weak = res.get("weak") or []
@@ -41,7 +41,7 @@ def test_summarize_groups_aggregates_by_prefix(tmp_path: Path) -> None:
     cov = tmp_path / "coverage.xml"
     _write_cov_xml(cov)
     res = summarize_groups(
-        project_root=tmp_path, policy={"mcp_rules_assistant/": 0.95}, min_module=0.90
+        project_root=tmp_path, policy={"mcp_rules_assistant/": 0.95}, min_module=0.90,
     )
     assert res.get("ok") is True
     groups = {g.get("prefix"): g for g in res.get("groups") or []}

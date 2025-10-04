@@ -9,7 +9,7 @@ from mcp_rules_assistant.cli import app
 
 def test_cli_diagnose_suggestions_present_when_missing_items(tmp_path: Path) -> None:
     r = CliRunner().invoke(
-        app, ["diagnose", "--json"], env={"PYTHONPATH": str(tmp_path)}
+        app, ["diagnose", "--json"], env={"PYTHONPATH": str(tmp_path)},
     )
     # We run in an isolated test workspace anyway; re-run in isolated filesystem
     runner = CliRunner()

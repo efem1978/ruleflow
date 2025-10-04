@@ -26,7 +26,7 @@ def test_mcp_coverage_report_resource(tmp_path: Path) -> None:
     # write config min_module 0.90
     (tmp_path / ".mcp").mkdir(parents=True, exist_ok=True)
     (tmp_path / ".mcp/assistant.yaml").write_text(
-        "performance:\n  on_push:\n    coverage: {min_module: 0.90}\n", encoding="utf-8"
+        "performance:\n  on_push:\n    coverage: {min_module: 0.90}\n", encoding="utf-8",
     )
     _write_cov_xml(tmp_path / "coverage.xml")
     rlist = srv.handle(_req("resources/list"))

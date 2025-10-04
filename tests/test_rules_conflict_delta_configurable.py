@@ -14,7 +14,7 @@ def test_conflict_delta_from_config(tmp_path: Path) -> None:
     cfg.parent.mkdir(parents=True, exist_ok=True)
     y = {"rules": {"conflict_delta": 0.03}}
     cfg.write_text(
-        yaml.safe_dump(y, sort_keys=False, allow_unicode=True), encoding="utf-8"
+        yaml.safe_dump(y, sort_keys=False, allow_unicode=True), encoding="utf-8",
     )
 
     a = tmp_path / "a.md"

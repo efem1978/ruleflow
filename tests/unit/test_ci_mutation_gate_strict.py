@@ -32,7 +32,7 @@ def test_ci_mutation_step_contains_conditional_block(tmp_path: Path) -> None:
         d.mkdir(parents=True, exist_ok=True)
         # Enable mutation via compiled rules
         (d / "rules_compiled.json").write_text(
-            '{"policy": {"test.mutation_required": true}}', encoding="utf-8"
+            '{"policy": {"test.mutation_required": true}}', encoding="utf-8",
         )
         r = runner.invoke(app, ["generate-ci"])
         assert r.exit_code == 0

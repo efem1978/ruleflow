@@ -28,7 +28,7 @@ def test_load_config_deep_merge_preserves_nested_defaults(tmp_path: Path) -> Non
                     "performance:",
                     "  on_push:",
                     "    coverage: { min_module: 0.93 }",
-                ]
+                ],
             ),
             encoding="utf-8",
         )

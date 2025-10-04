@@ -26,7 +26,7 @@ def test_groups_weight_fallback_when_missing_lines(tmp_path: Path) -> None:
     _cov(tmp_path, [("m/a.py", 0.90, None, None), ("m/b.py", 1.0, None, None)])
     pol = {"m/": 0.95}
     out = cs.summarize_groups(
-        project_root=tmp_path, coverage_xml="coverage.xml", policy=pol, min_module=0.90
+        project_root=tmp_path, coverage_xml="coverage.xml", policy=pol, min_module=0.90,
     )
     assert out.get("ok") is True
     g = next((g for g in (out.get("groups") or []) if g.get("prefix") == "m/"), None)

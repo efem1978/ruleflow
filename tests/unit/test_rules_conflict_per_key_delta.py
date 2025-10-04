@@ -22,7 +22,7 @@ def test_compile_rules_per_key_conflict_delta(tmp_path: Path) -> None:
                 "text": "min module 93%",
                 "source": {"file": "b.md", "line": 2},
             },
-        ]
+        ],
     }
     (tmp_path / ".mcp").mkdir(parents=True, exist_ok=True)
     (tmp_path / ".mcp/rules_raw.json").write_text(json.dumps(raw), encoding="utf-8")

@@ -22,7 +22,7 @@ def test_memory_namespace_resources_and_read(tmp_path: Path) -> None:
         "links": [],
     }
     (tmp_path / ".mcp" / f"memory.{ns}.json").write_text(
-        json.dumps(data), encoding="utf-8"
+        json.dumps(data), encoding="utf-8",
     )
     # list resources should include the ns entry
     r = srv.handle(_req("resources/list", {}))

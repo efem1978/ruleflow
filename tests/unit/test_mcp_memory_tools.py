@@ -33,7 +33,7 @@ def test_memory_compress_on_size(tmp_path: Path) -> None:
     snap = mm.snapshot()
     total_len = len(
         (snap.get("summary") or "")
-        + "".join(t.get("content", "") for t in snap.get("turns", []))
+        + "".join(t.get("content", "") for t in snap.get("turns", [])),
     )
     assert total_len < 2000 * 6  # compressed
 
@@ -43,12 +43,12 @@ def test_project_links_and_resource(tmp_path: Path) -> None:
     srv.project_root = tmp_path
     srv.mm = MemoryManager(tmp_path)
     out = srv._call_tool(
-        "project.link", {"project": "projB", "task": "sync api", "note": "relates"}
+        "project.link", {"project": "projB", "task": "sync api", "note": "relates"},
     )
     assert out.get("ok") is True
     # list and read links resource
     rlist = srv.handle(
-        {"jsonrpc": "2.0", "id": 1, "method": "resources/list", "params": {}}
+        {"jsonrpc": "2.0", "id": 1, "method": "resources/list", "params": {}},
     )
     uris = [r.get("uri") for r in rlist.get("result", {}).get("resources", [])]
     link_uri = next(u for u in uris if str(u).endswith("/links"))
@@ -58,7 +58,7 @@ def test_project_links_and_resource(tmp_path: Path) -> None:
             "id": 2,
             "method": "resources/read",
             "params": {"uri": link_uri},
-        }
+        },
     )
     txt = res.get("result", {}).get("text", "{}")
     import json

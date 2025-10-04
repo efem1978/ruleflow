@@ -35,7 +35,7 @@ def test_rules_enforce_parse_error_on_config_yaml(tmp_path: Path) -> None:
 
 
 def test_rules_onboard_size_heuristics_safe_exception(
-    tmp_path: Path, monkeypatch
+    tmp_path: Path, monkeypatch,
 ) -> None:
     srv = JsonRpcServer()
     srv.project_root = tmp_path
@@ -49,7 +49,7 @@ def test_rules_onboard_size_heuristics_safe_exception(
 
     monkeypatch.setattr(_P, "rglob", _boom)
     out = srv._call_tool(
-        "rules.onboard", {"scenario": "personal", "complexity": "small"}
+        "rules.onboard", {"scenario": "personal", "complexity": "small"},
     )
     assert out.get("ok") is True
     # restore for safety
@@ -77,7 +77,7 @@ def test_env_diagnose_license_import_error(tmp_path: Path, monkeypatch) -> None:
     srv.project_root = tmp_path
     # Patch module to inject fake license_utils whose verify_license raises
     fake = SimpleNamespace(
-        verify_license=lambda: (_ for _ in ()).throw(RuntimeError("boom"))
+        verify_license=lambda: (_ for _ in ()).throw(RuntimeError("boom")),
     )
     sys.modules["mcp_rules_assistant.license_utils"] = fake  # type: ignore[assignment]
     out = srv._call_tool("env.diagnose", {})

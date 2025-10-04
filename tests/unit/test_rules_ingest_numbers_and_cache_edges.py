@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
 
 from mcp_rules_assistant import rules_ingest as ri
 
@@ -16,7 +15,7 @@ def test_chinese_words_to_int_edges() -> None:
 
 
 def test_ingest_text_cache_read_bytes_error_and_bad_cache(
-    monkeypatch, tmp_path: Path
+    monkeypatch, tmp_path: Path,
 ) -> None:
     # Prepare a text file
     docs = tmp_path / "docs"
@@ -42,10 +41,10 @@ def test_ingest_text_cache_read_bytes_error_and_bad_cache(
                         "value": 0.9,
                         "text": "coverage.min_module: 0.9",
                         "source": {"path": str(tf), "line": "NaN"},
-                    }
+                    },
                 ],
-            }
-        }
+            },
+        },
     }
     cache_path = tmp_path / ".mcp/rules_ingest_cache.json"
     cache_path.parent.mkdir(parents=True, exist_ok=True)

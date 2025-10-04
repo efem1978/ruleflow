@@ -18,6 +18,7 @@ def _srv(tmp_path: Path, monkeypatch) -> JsonRpcServer:
 def test_memory_write_allowed_cfg_errors(tmp_path: Path, monkeypatch):
     srv = _srv(tmp_path, monkeypatch)
     # Ensure not strict and no env allows
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
     monkeypatch.delenv("MCP_STRICT_ISOLATION", raising=False)
     monkeypatch.delenv("RULEFLOW_ALLOW_MEMORY_APPEND", raising=False)
 

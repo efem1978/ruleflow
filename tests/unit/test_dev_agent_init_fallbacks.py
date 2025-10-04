@@ -33,7 +33,7 @@ def test_initialize_run_status_fallbacks(monkeypatch, tmp_path: Path) -> None:
 
 
 def test_run_else_calls_instance_method_when_module_not_callable(
-    monkeypatch, tmp_path: Path
+    monkeypatch, tmp_path: Path,
 ) -> None:
     # Not in instance __dict__, and module-level ensure is non-callable -> else branch calls instance method
     agent = dev_agent.DevAgent(project_root=tmp_path)
@@ -50,7 +50,7 @@ def test_run_else_calls_instance_method_when_module_not_callable(
 
     monkeypatch.setenv("DEV_AGENT_MAX_CYCLES", "1")
     monkeypatch.setattr(
-        dev_agent, "_run_impacted_or_full", lambda *a, **k: {"ok": True, "mode": "full"}
+        dev_agent, "_run_impacted_or_full", lambda *a, **k: {"ok": True, "mode": "full"},
     )
     monkeypatch.setattr(
         dev_agent,

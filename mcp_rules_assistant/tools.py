@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List
+import builtins
 
 
 @dataclass
@@ -12,12 +12,12 @@ class Tool:
 
 class ToolRegistry:
     def __init__(self) -> None:
-        self._tools: Dict[str, Tool] = {}
+        self._tools: dict[str, Tool] = {}
 
     def register(self, tool: Tool) -> None:
         self._tools[tool.name] = tool
 
-    def list(self) -> List[Tool]:
+    def list(self) -> builtins.list[Tool]:
         return list(self._tools.values())
 
 
@@ -26,7 +26,7 @@ registry = ToolRegistry()
 
 def setup_default_tools() -> None:
     registry.register(
-        Tool("project.detect", "Detect project language/framework/complexity")
+        Tool("project.detect", "Detect project language/framework/complexity"),
     )
     registry.register(Tool("project.switch", "Switch or create project context"))
     registry.register(Tool("project.link", "Add cross-project relationship link"))
@@ -39,8 +39,8 @@ def setup_default_tools() -> None:
     registry.register(Tool("rules.enforce", "Set enforcement level"))
     registry.register(
         Tool(
-            "rules.onboard", "Interactive onboarding to choose and apply rules profile"
-        )
+            "rules.onboard", "Interactive onboarding to choose and apply rules profile",
+        ),
     )
     registry.register(Tool("env.prepare", "Prepare language environment"))
     registry.register(Tool("fs.apply_patch", "Guarded write with checks"))
@@ -56,36 +56,36 @@ def setup_default_tools() -> None:
     registry.register(Tool("ci.autofix", "Auto-fix CI by regenerating missing steps"))
     registry.register(Tool("coverage.near", "List files near threshold within window"))
     registry.register(
-        Tool("coverage.report", "Summarize weak/groups/near in one payload")
+        Tool("coverage.report", "Summarize weak/groups/near in one payload"),
     )
     registry.register(
         Tool(
-            "rules.maxima", "Return coverage upper-bounds (maxima) from compiled rules"
-        )
+            "rules.maxima", "Return coverage upper-bounds (maxima) from compiled rules",
+        ),
     )
     registry.register(
-        Tool("env.diagnose", "Diagnose environment/tools/config presence")
+        Tool("env.diagnose", "Diagnose environment/tools/config presence"),
     )
     registry.register(
         Tool(
             "license.activate",
             "Activate license by copying JSON to ~/.mcp/license.json",
-        )
+        ),
     )
     registry.register(Tool("license.verify", "Verify local license and return status"))
     registry.register(
-        Tool("rules.resolve", "Resolve compiled rules into config (apply)")
+        Tool("rules.resolve", "Resolve compiled rules into config (apply)"),
     )
     registry.register(Tool("ide.scaffold", "Generate per-IDE integration scaffold"))
     registry.register(
         Tool(
             "compliance.commitment",
             "Return AI compliance commitment text and optionally write to project",
-        )
+        ),
     )
     registry.register(
         Tool(
             "security.audit_report",
             "Summarize security audit events from .mcp/dashboard/security_audit.jsonl",
-        )
+        ),
     )

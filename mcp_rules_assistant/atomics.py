@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 import shutil
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 
 def atomic_write_text(path: Path, content: str, encoding: str = "utf-8") -> None:
@@ -26,7 +26,7 @@ def atomic_write_text(path: Path, content: str, encoding: str = "utf-8") -> None
             pass  # nosec B110
 
 
-def atomic_write_json(path: Path, data: Any, *, indent: Optional[int] = None) -> None:
+def atomic_write_json(path: Path, data: Any, *, indent: int | None = None) -> None:
     """Atomically write JSON (UTF-8, no ASCII escaping)."""
     import json as _json
 

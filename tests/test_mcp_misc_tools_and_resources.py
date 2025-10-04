@@ -60,7 +60,7 @@ def test_mcp_rules_resources_after_ingest(tmp_path: Path) -> None:
     # suggestions markdown (may be empty but should exist)
     # suggestions file may not be produced; write a simple one to ensure path exists
     (tmp_path / ".mcp/rules_suggestions.md").write_text(
-        "# Suggestions\n", encoding="utf-8"
+        "# Suggestions\n", encoding="utf-8",
     )
     r_s = srv.handle(_req("resources/read", {"uri": sugg_uri}))
     assert r_s.get("result", {}).get("mimeType") == "text/markdown"
@@ -81,13 +81,13 @@ def test_mcp_tools_env_and_config_and_ci_and_enforce(tmp_path: Path) -> None:
     # nl.command mapping
     nl = srv._call_tool("nl.command", {"text": "生成CI 并校验"})
     assert nl.get("ok") is True and isinstance(
-        nl.get("parsed", {}).get("tool"), (str, type(None))
+        nl.get("parsed", {}).get("tool"), (str, type(None)),
     )
     # config.get + update
     cfg = srv._call_tool("config.get", {"section": None})
     assert cfg.get("ok") is True and isinstance(cfg.get("config"), dict)
     upd = srv._call_tool(
-        "config.update", {"data": {"hadolint": True, "semgrep_config": "auto"}}
+        "config.update", {"data": {"hadolint": True, "semgrep_config": "auto"}},
     )
     assert upd.get("ok") is True and upd.get("ci", {}).get("hadolint") is True
     # ci.generate + validate + autofix
@@ -100,11 +100,11 @@ def test_mcp_tools_env_and_config_and_ci_and_enforce(tmp_path: Path) -> None:
     # rules.enforce requires compiled rules
     (tmp_path / ".mcp").mkdir(parents=True, exist_ok=True)
     (tmp_path / ".mcp/rules_compiled.json").write_text(
-        '{"policy": {"coverage.min_module": 0.91}}', encoding="utf-8"
+        '{"policy": {"coverage.min_module": 0.91}}', encoding="utf-8",
     )
     en = srv._call_tool("rules.enforce", {})
     assert en.get("ok") is True and "coverage.min_module" in "\n".join(
-        en.get("enforced", []) or []
+        en.get("enforced", []) or [],
     )
 
 
@@ -125,7 +125,7 @@ def test_mcp_tool_error_paths(tmp_path: Path) -> None:
     # rules.enforce invalid compiled rules
     (tmp_path / ".mcp").mkdir(parents=True, exist_ok=True)
     (tmp_path / ".mcp/rules_compiled.json").write_text(
-        "{invalid json", encoding="utf-8"
+        "{invalid json", encoding="utf-8",
     )
     try:
         srv._call_tool("rules.enforce", {})

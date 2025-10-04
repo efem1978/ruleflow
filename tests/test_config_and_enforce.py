@@ -40,7 +40,7 @@ def test_config_get_and_update(tmp_path: Path):
                     "hadolint": True,
                     "hadolint_image": "hadolint/hadolint:latest",
                     "hadolint_args": "--ignore DL3008",
-                }
+                },
             },
         )
         assert upd.get("ok") is True
@@ -48,7 +48,7 @@ def test_config_get_and_update(tmp_path: Path):
         y = yaml.safe_load(cfg_path.read_text(encoding="utf-8")) or {}
         assert (y.get("ci", {}) or {}).get("hadolint") is True
         assert (y.get("ci", {}) or {}).get(
-            "hadolint_image"
+            "hadolint_image",
         ) == "hadolint/hadolint:latest"
         assert (y.get("ci", {}) or {}).get("hadolint_args") == "--ignore DL3008"
 
@@ -69,7 +69,7 @@ def test_rules_enforce_updates_coverage_thresholds(tmp_path: Path):
 
         y = (
             yaml.safe_load(
-                (tmp_path / ".mcp/assistant.yaml").read_text(encoding="utf-8")
+                (tmp_path / ".mcp/assistant.yaml").read_text(encoding="utf-8"),
             )
             or {}
         )

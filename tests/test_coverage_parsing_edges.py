@@ -28,7 +28,7 @@ def test_coverage_parsing_fallbacks_and_skips(tmp_path: Path) -> None:
     assert "edge/a.py" not in files  # 0.9 is not below 0.9
     # groups with policy: edge/ at 0.95 → a,c should be weak in that group
     grp = summarize_groups(
-        project_root=tmp_path, policy={"edge/": 0.95}, min_module=0.9
+        project_root=tmp_path, policy={"edge/": 0.95}, min_module=0.9,
     )
     assert grp.get("ok") is True
     groups = {g.get("prefix"): g for g in grp.get("groups") or []}

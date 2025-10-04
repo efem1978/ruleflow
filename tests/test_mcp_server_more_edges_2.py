@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 from mcp_rules_assistant.mcp_server import JsonRpcServer
@@ -12,7 +11,7 @@ def test_env_diagnose_reads_maxima(tmp_path: Path) -> None:
     d = tmp_path / ".mcp"
     d.mkdir(parents=True, exist_ok=True)
     (d / "rules_compiled.json").write_text(
-        '{"meta": {"maxima": {"coverage.max_module": 0.95}}}', encoding="utf-8"
+        '{"meta": {"maxima": {"coverage.max_module": 0.95}}}', encoding="utf-8",
     )
     out = srv._call_tool("env.diagnose", {})
     assert out.get("ok") is True and isinstance(out.get("maxima"), dict)
@@ -27,7 +26,7 @@ def test_rules_enforce_with_invalid_yaml(tmp_path: Path) -> None:
     cfg.write_text("::bad::", encoding="utf-8")
     # minimal compiled rules containing coverage
     (tmp_path / ".mcp/rules_compiled.json").write_text(
-        '{"policy": {"coverage.min_module": 0.91}}', encoding="utf-8"
+        '{"policy": {"coverage.min_module": 0.91}}', encoding="utf-8",
     )
     out = srv._call_tool("rules.enforce", {})
     assert out.get("ok") is True and any(

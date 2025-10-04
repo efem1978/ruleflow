@@ -1,11 +1,10 @@
-import os
 from pathlib import Path
 
 from mcp_rules_assistant.dev_agent import DevAgent
 
 
 def test_fail_counters_freeze_and_copy_prev_coverage(
-    tmp_path: Path, monkeypatch
+    tmp_path: Path, monkeypatch,
 ) -> None:
     dash = tmp_path / ".mcp" / "dashboard"
     dash.mkdir(parents=True, exist_ok=True)

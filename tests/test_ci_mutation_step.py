@@ -49,7 +49,7 @@ def test_ci_without_mutation_has_no_step(tmp_path: Path) -> None:
                 "id": 1,
                 "method": "tools/call",
                 "params": {"name": "ci.validate", "arguments": {}},
-            }
+            },
         )
         checks = v.get("result", {}).get("checks", {})
         assert checks.get("has_mutation") is False
@@ -61,7 +61,7 @@ def test_ci_with_rules_mutation_step_present(tmp_path: Path) -> None:
         d = tmp_path / ".mcp"
         d.mkdir(parents=True, exist_ok=True)
         (d / "rules_compiled.json").write_text(
-            '{"policy": {"test.mutation_required": true}}', encoding="utf-8"
+            '{"policy": {"test.mutation_required": true}}', encoding="utf-8",
         )
         r = runner.invoke(app, ["generate-ci"])
         assert r.exit_code == 0
@@ -75,7 +75,7 @@ def test_ci_with_rules_mutation_step_present(tmp_path: Path) -> None:
                 "id": 1,
                 "method": "tools/call",
                 "params": {"name": "ci.validate", "arguments": {}},
-            }
+            },
         )
         checks = v.get("result", {}).get("checks", {})
         assert checks.get("has_mutation") is True

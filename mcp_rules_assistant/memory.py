@@ -4,7 +4,7 @@ import json
 import re
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from .audit import log_security_event as _audit
 from .config import load_config
@@ -17,16 +17,16 @@ DEFAULT_MEMORY_FILE = Path(".mcp/memory.json")
 class Turn:
     role: str  # "user" | "assistant"
     content: str
-    meta: Dict[str, Any]
+    meta: dict[str, Any]
 
 
 class MemoryManager:
     def __init__(
         self,
-        project_root: Optional[Path] = None,
+        project_root: Path | None = None,
         window: int = 20,
         max_bytes: int = 64 * 1024,
-        file_override: Optional[Path] = None,
+        file_override: Path | None = None,
     ) -> None:
         self.project_root = project_root or Path.cwd()
         self.window = window
@@ -59,7 +59,7 @@ class MemoryManager:
             self._hard_disable = False
         self._ensure_file()
 
-    def _resolve_target_inside_project(self) -> Optional[Path]:
+    def _resolve_target_inside_project(self) -> Path | None:
         """Resolve memory file path and ensure it stays within <project>/.mcp.
 
         Returns the resolved path when safe; otherwise returns None. The check is
@@ -75,7 +75,7 @@ class MemoryManager:
                 inside = target.is_relative_to(mcp_dir)  # type: ignore[attr-defined]
             except Exception:
                 inside = str(target).startswith(str(mcp_dir) + "/") or str(
-                    target
+                    target,
                 ) == str(mcp_dir)
             if not inside:
                 try:
@@ -91,7 +91,7 @@ class MemoryManager:
             import os as _os
 
             trust_symlink = str(
-                _os.environ.get("MCP_MEMORY_TRUST_SYMLINK", "")
+                _os.environ.get("MCP_MEMORY_TRUST_SYMLINK", ""),
             ).strip().lower() in {"1", "true", "on", "yes", "y"}
             try:
                 if not trust_symlink and self.path.is_symlink():
@@ -112,7 +112,7 @@ class MemoryManager:
                 import os as _os
 
                 allow_hardlink = str(
-                    _os.environ.get("MCP_MEMORY_TRUST_HARDLINK", "")
+                    _os.environ.get("MCP_MEMORY_TRUST_HARDLINK", ""),
                 ).strip().lower() in {"1", "true", "on", "yes", "y"}
                 st = self.path if self.path.exists() else target
                 stinfo = st.stat() if hasattr(st, "stat") else None
@@ -161,7 +161,7 @@ class MemoryManager:
             return
 
     def append_turn(
-        self, role: str, content: str, meta: Optional[Dict[str, Any]] = None
+        self, role: str, content: str, meta: dict[str, Any] | None = None,
     ) -> None:
         masked = content
         if self._mask_re:
@@ -178,7 +178,7 @@ class MemoryManager:
         data = self._compress_if_needed(data)
         self._write(data)
 
-    def snapshot(self) -> Dict[str, Any]:
+    def snapshot(self) -> dict[str, Any]:
         return self._read()
 
     def add_link(self, project: str, task: str, note: str = "") -> None:
@@ -189,13 +189,13 @@ class MemoryManager:
         from time import time as _now
 
         links.append(
-            {"project": project, "task": task, "note": note, "ts": int(_now())}
+            {"project": project, "task": task, "note": note, "ts": int(_now())},
         )
         links = links[-200:]
         data["links"] = links
         self._write(data)
 
-    def _summarize(self, turns: List[Dict[str, Any]], prev: str) -> str:
+    def _summarize(self, turns: list[dict[str, Any]], prev: str) -> str:
         # 轻量占位：保留用户指令、AI 关键决策与TODO 的简要摘要
         # 未来可插拔本地小模型，当前使用简单规则抽取
         important = []
@@ -225,7 +225,7 @@ class MemoryManager:
                     important.append(f"A: {text[:200]}")
         return "\n".join(important[-40:])
 
-    def _read(self) -> Dict[str, Any]:
+    def _read(self) -> dict[str, Any]:
         safe = self._resolve_target_inside_project()
         if safe is None:
             # Safe fallback: do not read anything outside .mcp; return empty snapshot
@@ -236,7 +236,7 @@ class MemoryManager:
             # Corrupted or unreadable → fallback to empty snapshot
             return {"turns": [], "summary": "", "links": []}
 
-    def _write(self, data: Dict[str, Any]) -> None:
+    def _write(self, data: dict[str, Any]) -> None:
         # Global emergency hard-disable via env (highest priority)
         try:
             import os as _os
@@ -269,7 +269,7 @@ class MemoryManager:
                 ok = target.is_relative_to(mcp_dir)  # py311+
             except AttributeError:
                 ok = str(target).startswith(str(mcp_dir) + "/") or str(target) == str(
-                    mcp_dir
+                    mcp_dir,
                 )
             if not ok:
                 _audit(
@@ -299,7 +299,7 @@ class MemoryManager:
                 import os as _os
 
                 allow_hardlink = str(
-                    _os.environ.get("MCP_MEMORY_TRUST_HARDLINK", "")
+                    _os.environ.get("MCP_MEMORY_TRUST_HARDLINK", ""),
                 ).strip().lower() in {"1", "true", "on", "yes", "y"}
                 st = self.path.stat() if self.path.exists() else None
                 nlink = int(getattr(st, "st_nlink", 1)) if st else 1
@@ -325,7 +325,7 @@ class MemoryManager:
         _atomic_write_json(self.path, data, indent=2)
 
     # ---- helpers ----
-    def _compress_if_needed(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def _compress_if_needed(self, data: dict[str, Any]) -> dict[str, Any]:
         """Ensure serialized memory does not exceed max_bytes via lossy trimming.
 
         Strategy (stable/deterministic):

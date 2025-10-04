@@ -37,7 +37,7 @@ def test_dev_agent_run_once_minimal(tmp_path: Path, monkeypatch) -> None:
         a,
         "_run_cycle_checks",
         types.MethodType(
-            lambda self, on_event=None: {"lint": "ok", "type": "ok", "tests": "ok"}, a
+            lambda self, on_event=None: {"lint": "ok", "type": "ok", "tests": "ok"}, a,
         ),
     )
     monkeypatch.setattr(
@@ -66,7 +66,7 @@ def test_dev_agent_run_once_minimal(tmp_path: Path, monkeypatch) -> None:
         "_persist_status_and_history",
         types.MethodType(
             lambda self, status, dash, t0: dash.joinpath("status.json").write_text(
-                json.dumps(status), encoding="utf-8"
+                json.dumps(status), encoding="utf-8",
             ),
             a,
         ),
@@ -83,11 +83,11 @@ def test_dev_agent_run_once_minimal(tmp_path: Path, monkeypatch) -> None:
         a,
         "_handle_auto_tag",
         types.MethodType(
-            lambda self, tests, status, run_config, last, on_event=None: last, a
+            lambda self, tests, status, run_config, last, on_event=None: last, a,
         ),
     )
     monkeypatch.setattr(
-        a, "_auto_append_memory", types.MethodType(lambda self, status, dash: True, a)
+        a, "_auto_append_memory", types.MethodType(lambda self, status, dash: True, a),
     )
 
     a.run(interval=1, max_cycles=1)

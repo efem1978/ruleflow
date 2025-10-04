@@ -31,6 +31,6 @@ def test_non_serializable_params_and_bad_max_bytes() -> None:
     ex["max_request_bytes"] = "bad-int"  # force int() to raise -> use default
     # params contain a non-serializable object to hit sz exception branch
     res = srv.handle(
-        {"jsonrpc": "2.0", "id": 1, "method": "ping", "params": {"bad": object()}}
+        {"jsonrpc": "2.0", "id": 1, "method": "ping", "params": {"bad": object()}},
     )
     assert res.get("result", {}).get("ok") is True

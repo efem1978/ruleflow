@@ -14,14 +14,14 @@ def test_run_quick_tests_skips_when_no_impacted(tmp_path: Path, monkeypatch) -> 
 
 
 def test_run_quick_tests_downgrades_when_pytest_missing(
-    tmp_path: Path, monkeypatch
+    tmp_path: Path, monkeypatch,
 ) -> None:
     # create a changed python file and a matching test
     (tmp_path / "m").mkdir(parents=True, exist_ok=True)
     (tmp_path / "m" / "a.py").write_text("x=1", encoding="utf-8")
     (tmp_path / "tests").mkdir(parents=True, exist_ok=True)
     (tmp_path / "tests" / "test_a.py").write_text(
-        "def test_ok():\n assert True\n", encoding="utf-8"
+        "def test_ok():\n assert True\n", encoding="utf-8",
     )
 
     # simulate pytest missing by making subprocess.run raise FileNotFoundError

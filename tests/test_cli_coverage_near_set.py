@@ -34,7 +34,7 @@ def test_cli_coverage_near_set_updates_config(tmp_path: Path) -> None:
         assert r.exit_code == 0
         y = (
             yaml.safe_load(
-                (tmp_path / ".mcp/assistant.yaml").read_text(encoding="utf-8")
+                (tmp_path / ".mcp/assistant.yaml").read_text(encoding="utf-8"),
             )
             or {}
         )

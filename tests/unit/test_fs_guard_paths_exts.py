@@ -11,7 +11,7 @@ def write_cfg(root: Path, cfg: dict) -> None:
     p = root / ".mcp/assistant.yaml"
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(
-        yaml.safe_dump(cfg, sort_keys=False, allow_unicode=True), encoding="utf-8"
+        yaml.safe_dump(cfg, sort_keys=False, allow_unicode=True), encoding="utf-8",
     )
 
 
@@ -21,7 +21,7 @@ def base_cfg() -> dict:
             "allowed_write_prefixes": ["docs/"],
             "allowed_write_extensions": [".md"],
             "fs_guard_strict": False,
-        }
+        },
     }
 
 

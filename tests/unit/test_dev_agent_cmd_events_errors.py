@@ -40,7 +40,7 @@ def _monkey_status_ok(monkeypatch):
 
 def _monkey_run_ok(monkeypatch):
     monkeypatch.setattr(
-        dev_agent, "_run_impacted_or_full", lambda *a, **k: {"ok": True, "mode": "full"}
+        dev_agent, "_run_impacted_or_full", lambda *a, **k: {"ok": True, "mode": "full"},
     )
 
     def fake_run_cmd(cmd, cwd=None, capture_stdout=False, check=False, env=None, on_event=None):  # type: ignore[no-untyped-def]

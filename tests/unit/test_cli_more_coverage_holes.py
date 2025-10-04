@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import runpy
 from pathlib import Path
 
 from typer.testing import CliRunner
@@ -12,7 +11,7 @@ from mcp_rules_assistant.cli import app
 
 def test_cli_ide_scaffold_unsupported_editor(tmp_path: Path) -> None:
     r = CliRunner().invoke(
-        app, ["ide-scaffold", "--editor", "unknown"], env={"PYTHONPATH": str(tmp_path)}
+        app, ["ide-scaffold", "--editor", "unknown"], env={"PYTHONPATH": str(tmp_path)},
     )
     assert r.exit_code != 0 and "unsupported editor" in (r.stdout or "")
 

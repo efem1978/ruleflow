@@ -8,7 +8,7 @@ from mcp_rules_assistant.mcp_server import JsonRpcServer
 
 
 def test_apply_patch_refuses_symlink(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     srv = JsonRpcServer()
     srv.project_root = tmp_path

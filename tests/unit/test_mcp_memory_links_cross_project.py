@@ -18,17 +18,17 @@ def test_cross_project_links_between_projects(tmp_path: Path) -> None:
     srv.project_root = a
     # 在项目A记录一个跳转到B的链接
     srv._call_tool(
-        "project.link", {"project": "projB", "task": "handoff", "note": "to B"}
+        "project.link", {"project": "projB", "task": "handoff", "note": "to B"},
     )
     # 切换到B会在B侧记录 switched_from 链接
     srv._call_tool("project.switch", {"path": str(b)})
     # 在B记录一个链接到A
     srv._call_tool(
-        "project.link", {"project": "projA", "task": "sync", "note": "from A"}
+        "project.link", {"project": "projA", "task": "sync", "note": "from A"},
     )
     # 读取B侧 links 资源
     r = srv.handle(
-        _req("resources/read", {"uri": f"memory://{srv._project_id()}/links"})
+        _req("resources/read", {"uri": f"memory://{srv._project_id()}/links"}),
     )
     txt = (r.get("result", {}) or {}).get("text", "{}")
     import json

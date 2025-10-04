@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 from mcp_rules_assistant.mcp_server import JsonRpcServer
@@ -12,7 +11,7 @@ def test_plan_suggest_uses_summary_when_no_next(tmp_path: Path) -> None:
     # write plan without next
     (tmp_path / ".mcp").mkdir(parents=True, exist_ok=True)
     (tmp_path / ".mcp/plan.md").write_text(
-        "# 计划\n- 状态: in_progress\n- 当前步骤: C\n", encoding="utf-8"
+        "# 计划\n- 状态: in_progress\n- 当前步骤: C\n", encoding="utf-8",
     )
     # add memory summary with 下一步
     srv._call_tool(
@@ -29,7 +28,7 @@ def test_plan_suggest_falls_back_to_current(tmp_path: Path) -> None:
     srv.project_root = tmp_path
     (tmp_path / ".mcp").mkdir(parents=True, exist_ok=True)
     (tmp_path / ".mcp/plan.md").write_text(
-        "# 计划\n- 状态: in_progress\n- 当前步骤: C\n", encoding="utf-8"
+        "# 计划\n- 状态: in_progress\n- 当前步骤: C\n", encoding="utf-8",
     )
     # add summary without 下一步
     srv._call_tool("memory.append_turn", {"role": "assistant", "content": "总结：完成"})

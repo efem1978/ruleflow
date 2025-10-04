@@ -8,7 +8,7 @@ from mcp_rules_assistant.fs_wrapper import FSGuard
 
 
 def test_post_checks_fail_in_strict_mode(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     guard = FSGuard(tmp_path)
     exec_cfg = guard.cfg.setdefault("execution", {})

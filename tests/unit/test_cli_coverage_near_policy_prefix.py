@@ -27,7 +27,7 @@ def test_cli_coverage_near_policy_prefix_filters_to_none(tmp_path) -> None:
         )
         # policy-prefix set to something mismatching to ensure the 'no near files' branch runs
         r = runner.invoke(
-            app, ["coverage-near", "--within", "3", "--policy-prefix", "not_a_prefix/"]
+            app, ["coverage-near", "--within", "3", "--policy-prefix", "not_a_prefix/"],
         )
         out = r.stdout or ""
         assert r.exit_code == 0

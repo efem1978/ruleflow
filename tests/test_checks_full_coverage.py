@@ -21,7 +21,7 @@ def test_run_checks_lint_type_and_skip_tests(monkeypatch, tmp_path: Path) -> Non
 
     monkeypatch.setattr(checks, "_run", fake_run)
     res = checks.run_checks(
-        [f], cwd=tmp_path, do_lint=True, do_type=True, do_quick_tests=True
+        [f], cwd=tmp_path, do_lint=True, do_type=True, do_quick_tests=True,
     )
     assert res.get("ok") is True
     steps = res.get("steps") or []

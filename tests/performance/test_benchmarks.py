@@ -6,7 +6,6 @@ import os
 import subprocess
 import tempfile
 import time
-from pathlib import Path
 
 import pytest
 
@@ -20,7 +19,7 @@ class TestPerformanceBenchmarks:
 
         def run_help():
             result = subprocess.run(
-                ["mcp-rules-assistant", "--help"], capture_output=True, text=True
+                ["mcp-rules-assistant", "--help"], capture_output=True, text=True,
             )
             assert result.returncode == 0
             return result
@@ -124,7 +123,7 @@ class TestPerformanceBenchmarks:
 
             # Initialize MCP in test directory
             subprocess.run(
-                ["mcp-rules-assistant", "init"], capture_output=True, text=True
+                ["mcp-rules-assistant", "init"], capture_output=True, text=True,
             )
 
             # Monitor memory during heavy operation
@@ -153,7 +152,6 @@ class TestPerformanceBenchmarks:
 
     def test_concurrent_operations(self):
         """Test performance under concurrent load"""
-        import os
         import queue
         import threading
 
@@ -174,7 +172,7 @@ class TestPerformanceBenchmarks:
                     {
                         "success": result.returncode == 0,
                         "duration": end_time - start_time,
-                    }
+                    },
                 )
             except Exception as e:
                 results.put({"success": False, "error": str(e)})

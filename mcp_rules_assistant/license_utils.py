@@ -4,9 +4,9 @@ import base64
 import hashlib
 import json
 import os
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple, cast
+from typing import Any, cast
 
 LICENSE_PATH = Path.home() / ".mcp/license.json"
 
@@ -20,7 +20,7 @@ _PUBKEY_ENV = "MCP_LICENSE_PUBKEY"  # PEM (RSA) in environment
 _ED25519_PUBKEY_ENV = "MCP_LICENSE_ED25519_PUBKEY"  # PEM (Ed25519) in environment
 
 
-def _read_license(path: Optional[Path] = None) -> Tuple[Dict[str, Any], bool]:
+def _read_license(path: Path | None = None) -> tuple[dict[str, Any], bool]:
     path = path or (Path.home() / ".mcp" / "license.json")
     if not path.exists():
         return {}, False
@@ -61,7 +61,7 @@ def _verify_rs256(payload: bytes, signature_b64: str) -> bool:
         sig = _b64url_decode(signature_b64)
         # mypy: pub 是 RSAPublicKey，签名 API 与参数匹配
         cast(RSAPublicKey, pub).verify(
-            sig, payload, padding.PKCS1v15(), hashes.SHA256()
+            sig, payload, padding.PKCS1v15(), hashes.SHA256(),
         )
         return True
     except Exception:
@@ -90,7 +90,7 @@ def _verify_ed25519(payload: bytes, signature_b64: str) -> bool:
         return False
 
 
-def verify_license(path: Optional[Path] = None) -> Dict[str, Any]:
+def verify_license(path: Path | None = None) -> dict[str, Any]:
     data, exists = _read_license(path)
     if not exists:
         return {"ok": False, "activated": False, "reason": "license file missing"}
@@ -99,7 +99,7 @@ def verify_license(path: Optional[Path] = None) -> Dict[str, Any]:
     machine = str(data.get("machine", "")).strip()
     signature = str(data.get("signature", "")).strip()
     alg = str(data.get("alg", "hs256") or "hs256").lower()
-    now = datetime.now(timezone.utc).date()
+    now = datetime.now(UTC).date()
     valid_date = True
     if expires:
         try:
@@ -110,13 +110,13 @@ def verify_license(path: Optional[Path] = None) -> Dict[str, Any]:
     sig_ok = False
     try:
         if alg == "ed25519":
-            payload = f"{issued_to}|{expires}|{machine}".encode("utf-8")
+            payload = f"{issued_to}|{expires}|{machine}".encode()
             sig_ok = _verify_ed25519(payload, signature)
         elif alg == "rs256":
-            payload = f"{issued_to}|{expires}|{machine}".encode("utf-8")
+            payload = f"{issued_to}|{expires}|{machine}".encode()
             sig_ok = _verify_rs256(payload, signature)
         else:
-            raw = f"{issued_to}|{expires}|{machine}|{_get_salt()}".encode("utf-8")
+            raw = f"{issued_to}|{expires}|{machine}|{_get_salt()}".encode()
             calc = hashlib.sha256(raw).hexdigest()
             sig_ok = bool(signature and signature.lower() == calc)
     except Exception:
@@ -152,7 +152,7 @@ def _sign_rs256(payload: bytes, private_key_pem: bytes) -> str:
         if not isinstance(key, RSAPrivateKey):
             raise RuntimeError("rs256 signing requires an RSA private key")
         sig = cast(RSAPrivateKey, key).sign(
-            payload, padding.PKCS1v15(), hashes.SHA256()
+            payload, padding.PKCS1v15(), hashes.SHA256(),
         )
         return base64.urlsafe_b64encode(sig).rstrip(b"=").decode("ascii")
     except Exception as e:  # pragma: no cover - depends on optional crypto
@@ -183,8 +183,8 @@ def generate_license(
     expires: str,
     machine: str,
     alg: str = "hs256",
-    private_key_pem: Optional[bytes] = None,
-) -> Dict[str, Any]:
+    private_key_pem: bytes | None = None,
+) -> dict[str, Any]:
     """Generate a license dict with signature.
 
     - alg=hs256 uses SALT-based sha256 hex (demo).
@@ -204,7 +204,7 @@ def generate_license(
     except Exception:
         raise ValueError("invalid expires format, expected YYYY-MM-DD")
 
-    payload = f"{issued_to}|{expires}|{machine}".encode("utf-8")
+    payload = f"{issued_to}|{expires}|{machine}".encode()
     if alg == "rs256":
         if not private_key_pem:
             raise ValueError("private key PEM required for rs256")

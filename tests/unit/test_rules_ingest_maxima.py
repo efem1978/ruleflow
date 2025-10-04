@@ -21,7 +21,7 @@ def test_maxima_aggregates_and_keeps_stricter(tmp_path: Path) -> None:
                 "text": "max module lower",
                 "source": {"file": "b.md", "line": 2},
             },
-        ]
+        ],
     }
     (tmp_path / ".mcp").mkdir(parents=True, exist_ok=True)
     (tmp_path / ".mcp/rules_raw.json").write_text(json.dumps(raw), encoding="utf-8")

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import pytest
@@ -10,7 +9,7 @@ from mcp_rules_assistant.memory import MemoryManager
 
 
 def test_fs_apply_patch_rejects_symlink(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     # Prepare a symlink destination inside project
     proj = tmp_path
@@ -76,7 +75,7 @@ def test_rules_onboard_apply_with_invalid_yaml(tmp_path: Path) -> None:
 
 
 def test_project_switch_add_link_errors_are_tolerated(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     # Patch MemoryManager.add_link to raise, so both 'switched_to' and 'switched_from' branches hit except-pass
     def boom(self, project: str, task: str, note: str = "") -> None:  # noqa: ANN001

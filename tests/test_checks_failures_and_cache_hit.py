@@ -10,7 +10,7 @@ def test_run_quick_tests_records_failures(tmp_path: Path) -> None:
     tdir = tmp_path / "tests"
     tdir.mkdir(parents=True, exist_ok=True)
     (tdir / "test_bad.py").write_text(
-        "def test_bad():\n    assert 1==2\n", encoding="utf-8"
+        "def test_bad():\n    assert 1==2\n", encoding="utf-8",
     )
     res = checks.run_quick_tests([tdir / "test_bad.py"], cwd=tmp_path)
     assert res.get("ok") is False or res.get("code", 0) != 0

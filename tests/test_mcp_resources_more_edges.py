@@ -46,7 +46,7 @@ def test_config_resource_missing_and_present(tmp_path: Path) -> None:
     cfg = tmp_path / ".mcp/assistant.yaml"
     cfg.parent.mkdir(parents=True, exist_ok=True)
     cfg.write_text(
-        "performance:\n  on_push:\n    coverage: {min_module: 0.90}\n", encoding="utf-8"
+        "performance:\n  on_push:\n    coverage: {min_module: 0.90}\n", encoding="utf-8",
     )
     present = srv.handle(_req("resources/read", {"uri": cfg_uri}))
     assert present.get("result", {}).get("mimeType") == "text/yaml"

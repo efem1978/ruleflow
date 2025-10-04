@@ -6,7 +6,7 @@ import mcp_rules_assistant.coverage_summary as cs
 
 
 def _write_cov(
-    tmp: Path, classes: list[tuple[str, float, int | None, int | None]]
+    tmp: Path, classes: list[tuple[str, float, int | None, int | None]],
 ) -> None:
     parts = [
         '<coverage line-rate="1.0" branch-rate="0" version="1" timestamp="0">',
@@ -28,7 +28,7 @@ def test_groups_suffix_over_prefix(tmp_path: Path) -> None:
     _write_cov(tmp_path, [("mcp_rules_assistant/cli.py", 0.95, 10, 9)])
     pol = {"cli.py": 0.99, "mcp_rules_assistant/": 0.90}
     out = cs.summarize_groups(
-        project_root=tmp_path, coverage_xml="coverage.xml", policy=pol, min_module=0.90
+        project_root=tmp_path, coverage_xml="coverage.xml", policy=pol, min_module=0.90,
     )
     assert out.get("ok") is True
     groups = out.get("groups") or []
@@ -43,7 +43,7 @@ def test_groups_other_when_no_match(tmp_path: Path) -> None:
     _write_cov(tmp_path, [("pkg/other.py", 0.96, None, None)])
     pol = {"mcp_rules_assistant/": 0.98}
     out = cs.summarize_groups(
-        project_root=tmp_path, coverage_xml="coverage.xml", policy=pol, min_module=0.95
+        project_root=tmp_path, coverage_xml="coverage.xml", policy=pol, min_module=0.95,
     )
     groups = out.get("groups") or []
     g_other = next((g for g in groups if g.get("prefix") == "other"), None)

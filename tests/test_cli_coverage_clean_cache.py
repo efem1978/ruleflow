@@ -30,7 +30,7 @@ def test_cli_coverage_clean_cache(tmp_path: Path) -> None:
         # copy cache into iso fs
         Path(".mcp").mkdir(parents=True, exist_ok=True)
         (Path(".mcp") / "coverage_cache.json").write_text(
-            cache.read_text(encoding="utf-8"), encoding="utf-8"
+            cache.read_text(encoding="utf-8"), encoding="utf-8",
         )
         r = runner.invoke(app, ["coverage-clean-cache"])
         assert r.exit_code == 0

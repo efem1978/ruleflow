@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import json
-import os
 from pathlib import Path
 
 from mcp_rules_assistant.mcp_server import JsonRpcServer
@@ -12,13 +10,13 @@ def _req(method: str, params: dict | None = None, id: int = 1) -> dict:
 
 
 def test_memory_hard_disable_env_overrides_allow_write(
-    tmp_path: Path, monkeypatch
+    tmp_path: Path, monkeypatch,
 ) -> None:
     # enable allow_write in project config
     mcp = tmp_path / ".mcp"
     mcp.mkdir(parents=True, exist_ok=True)
     (mcp / "assistant.yaml").write_text(
-        "memory:\n  allow_write: true\n", encoding="utf-8"
+        "memory:\n  allow_write: true\n", encoding="utf-8",
     )
     # strict isolation + global hard disable
     monkeypatch.setenv("MCP_STRICT_ISOLATION", "1")
@@ -35,7 +33,7 @@ def test_memory_hard_disable_env_overrides_allow_write(
                 "name": "memory.append_turn",
                 "arguments": {"role": "assistant", "content": "x"},
             },
-        )
+        ),
     )
     res = out.get("result") or {}
     assert res.get("ok") is False

@@ -34,7 +34,6 @@ def test_fs_apply_patch_rejects_symlink(tmp_path: Path) -> None:
             return True
         return orig_is_symlink(self)
 
-    import builtins
 
     try:
         setattr(_P, "is_symlink", fake_is_symlink)

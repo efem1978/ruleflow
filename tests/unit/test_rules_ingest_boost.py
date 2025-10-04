@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
 
 from mcp_rules_assistant import rules_ingest as ri
 
@@ -20,8 +19,8 @@ def test_ingest_handles_maxima_non_numeric_and_merging(tmp_path: Path) -> None:
             "conflict_delta": {
                 "__default__": "bad",  # triggers except in global default parsing
                 "coverage.min_module": "notnumber",  # triggers per-key float conversion except
-            }
-        }
+            },
+        },
     }
     write(tmp_path / ".mcp/assistant.yaml", json.dumps(conf))
 
@@ -43,7 +42,7 @@ def test_ingest_handles_maxima_non_numeric_and_merging(tmp_path: Path) -> None:
     # maxima non-numeric should be skipped; ensure either missing or not coercible
     maxima = (comp_json.get("meta", {}) or {}).get("maxima", {})
     assert "coverage.max_module" not in maxima or isinstance(
-        maxima.get("coverage.max_module"), (int, float)
+        maxima.get("coverage.max_module"), (int, float),
     )
 
 

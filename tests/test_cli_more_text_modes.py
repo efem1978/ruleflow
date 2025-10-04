@@ -63,7 +63,7 @@ def test_cli_coverage_near_csv_stdout(tmp_path: Path) -> None:
         )
         _write_cov_xml(Path("coverage.xml"))
         r = runner.invoke(
-            app, ["coverage-near", "--within", "3", "--top", "20", "--format", "csv"]
+            app, ["coverage-near", "--within", "3", "--top", "20", "--format", "csv"],
         )
         assert r.exit_code == 0
         out = r.stdout.strip().splitlines()[0]

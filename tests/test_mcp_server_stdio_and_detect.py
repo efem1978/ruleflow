@@ -53,7 +53,7 @@ def test_rules_maxima_resource_error_when_missing(tmp_path: Path) -> None:
     srv = msv.JsonRpcServer()
     srv.project_root = tmp_path
     rlist = srv.handle(
-        {"jsonrpc": "2.0", "id": 1, "method": "resources/list", "params": {}}
+        {"jsonrpc": "2.0", "id": 1, "method": "resources/list", "params": {}},
     )
     uris = [r.get("uri") for r in rlist.get("result", {}).get("resources", [])]
     max_uri = next(u for u in uris if str(u).endswith("/maxima"))
@@ -63,7 +63,7 @@ def test_rules_maxima_resource_error_when_missing(tmp_path: Path) -> None:
             "id": 1,
             "method": "resources/read",
             "params": {"uri": max_uri},
-        }
+        },
     )
     assert "error" in res
 
@@ -74,7 +74,7 @@ def test_rules_maxima_resource_invalid_json(tmp_path: Path) -> None:
     (tmp_path / ".mcp").mkdir(parents=True, exist_ok=True)
     (tmp_path / ".mcp/rules_compiled.json").write_text("{invalid", encoding="utf-8")
     rlist = srv.handle(
-        {"jsonrpc": "2.0", "id": 1, "method": "resources/list", "params": {}}
+        {"jsonrpc": "2.0", "id": 1, "method": "resources/list", "params": {}},
     )
     uris = [r.get("uri") for r in rlist.get("result", {}).get("resources", [])]
     max_uri = next(u for u in uris if str(u).endswith("/maxima"))
@@ -84,6 +84,6 @@ def test_rules_maxima_resource_invalid_json(tmp_path: Path) -> None:
             "id": 1,
             "method": "resources/read",
             "params": {"uri": max_uri},
-        }
+        },
     )
     assert "result" in res and res["result"].get("mimeType") == "application/json"

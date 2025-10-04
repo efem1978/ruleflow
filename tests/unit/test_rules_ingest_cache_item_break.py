@@ -32,11 +32,11 @@ def test_cache_items_break_and_fallback_parse(tmp_path: Path) -> None:
             "text": "min module",
             # invalid shape (missing 'line') to trigger TypeError on Source(**...)
             "source": {"file": str(p)},
-        }
+        },
     ]
     cache = {"files": {str(p): {"sig": _sig_for(p), "items": bad_items}}}
     (cache_dir / "rules_ingest_cache.json").write_text(
-        json.dumps(cache, ensure_ascii=False, indent=2), encoding="utf-8"
+        json.dumps(cache, ensure_ascii=False, indent=2), encoding="utf-8",
     )
 
     out = ri.ingest([str(p)], project_root=tmp_path)

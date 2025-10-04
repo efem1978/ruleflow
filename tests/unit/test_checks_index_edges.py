@@ -23,7 +23,7 @@ def test_load_index_invalid_json_and_signature_change(tmp_path: Path) -> None:
     (tmp_path / ".mcp").mkdir(parents=True, exist_ok=True)
     (tmp_path / ".mcp/test_index.json").write_text("{invalid", encoding="utf-8")
     (tmp_path / ".mcp/test_index_meta.json").write_text(
-        json.dumps({"sig": "old"}), encoding="utf-8"
+        json.dumps({"sig": "old"}), encoding="utf-8",
     )
     out = checks.load_test_index(tmp_path)
     # Should rebuild and include the new mapping for acme.mod

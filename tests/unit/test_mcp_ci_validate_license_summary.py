@@ -14,7 +14,7 @@ def test_ci_validate_writes_summary_when_license_required(tmp_path: Path) -> Non
     # enable license.required
     (tmp_path / ".mcp/assistant.yaml").write_text(
         yaml.safe_dump(
-            {"license": {"required": True}}, sort_keys=False, allow_unicode=True
+            {"license": {"required": True}}, sort_keys=False, allow_unicode=True,
         ),
         encoding="utf-8",
     )

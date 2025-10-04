@@ -47,7 +47,7 @@ def test_fs_apply_disallow_patterns_soft_and_hard(tmp_path: Path, monkeypatch):
     # Inject soft gate config
     srv.cfg = {"execution": {"disallow_patterns": ["pdb.set_trace("], "disallow_patterns_hard": False}}
     # soft intercept path (strict on, but hard gate disabled)
-    os.environ["MCP_FS_LOG"] = "1"
+    monkeypatch.setenv("MCP_FS_LOG", "1")
     out = srv._call_tool(
         "fs.apply_patch",
         {

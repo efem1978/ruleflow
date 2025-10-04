@@ -10,7 +10,7 @@ from mcp_rules_assistant.dev_agent import DevAgent, update_failure_and_freeze
 
 
 def test_persist_fail_counters_write_error(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     dash = tmp_path / ".mcp" / "dashboard"
     dash.mkdir(parents=True, exist_ok=True)
@@ -42,7 +42,7 @@ def test_persist_fail_counters_write_error(
 
 
 def test_freeze_threshold_boundary(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     dash = tmp_path / ".mcp" / "dashboard"
     dash.mkdir(parents=True, exist_ok=True)
@@ -71,7 +71,7 @@ def test_freeze_threshold_boundary(
 
 
 def test_quick_status_check_exception_skipped(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     agent = DevAgent(project_root=tmp_path)
 

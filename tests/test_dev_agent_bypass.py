@@ -9,7 +9,7 @@ from mcp_rules_assistant.dev_agent import DevAgent, get_run_config, update_bypas
 
 
 def test_bypass_activation_and_allow_commit(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     # Prepare minimal project
     (tmp_path / ".mcp" / "dashboard").mkdir(parents=True, exist_ok=True)

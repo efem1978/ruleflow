@@ -77,7 +77,7 @@ def test_resource_coverage_report_json(tmp_path: Path) -> None:
     )
     _write_cov_xml(tmp_path / "coverage.xml")
     rlist = srv.handle(
-        {"jsonrpc": "2.0", "id": 1, "method": "resources/list", "params": {}}
+        {"jsonrpc": "2.0", "id": 1, "method": "resources/list", "params": {}},
     )
     rep_uri = next(
         r["uri"]
@@ -90,7 +90,7 @@ def test_resource_coverage_report_json(tmp_path: Path) -> None:
             "id": 1,
             "method": "resources/read",
             "params": {"uri": rep_uri},
-        }
+        },
     )
     assert rep.get("result", {}).get("mimeType") == "application/json"
     data = json.loads(rep.get("result", {}).get("text") or "{}")
@@ -122,7 +122,7 @@ def test_resources_memory_and_ping(tmp_path: Path) -> None:
     srv = JsonRpcServer()
     srv.project_root = tmp_path
     rlist = srv.handle(
-        {"jsonrpc": "2.0", "id": 1, "method": "resources/list", "params": {}}
+        {"jsonrpc": "2.0", "id": 1, "method": "resources/list", "params": {}},
     )
     mem_uri = next(
         r["uri"]
@@ -135,7 +135,7 @@ def test_resources_memory_and_ping(tmp_path: Path) -> None:
             "id": 1,
             "method": "resources/read",
             "params": {"uri": mem_uri},
-        }
+        },
     )
     assert mem.get("result", {}).get("mimeType") == "application/json"
     pong = srv.handle({"jsonrpc": "2.0", "id": 1, "method": "ping", "params": {}})

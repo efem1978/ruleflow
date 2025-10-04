@@ -13,7 +13,7 @@ def test_fs_apply_patch_files_must_be_array() -> None:
         _req(
             "tools/call",
             {"name": "fs.apply_patch", "arguments": {"files": "not-a-list"}},
-        )
+        ),
     )
     assert "files 必须为数组" in res.get("error", {}).get("message", "")
 
@@ -24,7 +24,7 @@ def test_fs_apply_patch_item_must_be_object() -> None:
         _req(
             "tools/call",
             {"name": "fs.apply_patch", "arguments": {"files": [123]}},
-        )
+        ),
     )
     assert "files[*] 必须为对象" in res.get("error", {}).get("message", "")
 
@@ -38,6 +38,6 @@ def test_fs_apply_patch_content_must_be_string() -> None:
                 "name": "fs.apply_patch",
                 "arguments": {"files": [{"path": "a.py", "content": 1}]},
             },
-        )
+        ),
     )
     assert "content 必须为字符串" in res.get("error", {}).get("message", "")

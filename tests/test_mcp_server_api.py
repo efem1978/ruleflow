@@ -70,8 +70,8 @@ def test_rules_ingest_and_ci_validate(tmp_path: Path) -> None:
         d.write_text("- 覆盖率 90%\n- 禁止 skip/xfail\n", encoding="utf-8")
         r = srv.handle(
             _req(
-                "tools/call", {"name": "rules.ingest", "arguments": {"paths": [str(d)]}}
-            )
+                "tools/call", {"name": "rules.ingest", "arguments": {"paths": [str(d)]}},
+            ),
         )
         assert r.get("result", {}).get("files") == 1
         # generate and validate CI
@@ -88,7 +88,7 @@ def test_rules_ingest_and_ci_validate(tmp_path: Path) -> None:
                     "has_semgrep",
                     "has_tests",
                     "has_bandit",
-                ]
+                ],
             )
             - set(checks.keys())
             == set()

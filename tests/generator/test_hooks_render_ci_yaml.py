@@ -9,7 +9,7 @@ def test_render_ci_yaml_includes_vscode_job_when_required(tmp_path: Path) -> Non
     # project config: vscode_required true
     (tmp_path / ".mcp").mkdir(parents=True, exist_ok=True)
     (tmp_path / ".mcp/assistant.yaml").write_text(
-        "ci: { vscode_required: true }\n", encoding="utf-8"
+        "ci: { vscode_required: true }\n", encoding="utf-8",
     )
     yml = hooks.render_github_ci_yaml(tmp_path)
     assert "vscode:" in yml

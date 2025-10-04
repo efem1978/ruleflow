@@ -21,10 +21,10 @@ def test_cli_rules_suggestions_write_files(tmp_path: Path) -> None:
         out_json = Path("sugg.json")
         out_csv = Path("sugg.csv")
         rj = runner.invoke(
-            app, ["rules-suggestions", "--format", "json", "--output", str(out_json)]
+            app, ["rules-suggestions", "--format", "json", "--output", str(out_json)],
         )
         assert rj.exit_code == 0 and out_json.exists()
         rc = runner.invoke(
-            app, ["rules-suggestions", "--format", "csv", "--output", str(out_csv)]
+            app, ["rules-suggestions", "--format", "csv", "--output", str(out_csv)],
         )
         assert rc.exit_code == 0 and out_csv.exists()

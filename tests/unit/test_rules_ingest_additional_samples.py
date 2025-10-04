@@ -19,7 +19,7 @@ def test_rules_ingest_additional_phrases(tmp_path: Path) -> None:
                 "- 覆盖率 介于 96% 和 99% 之间",  # 区间：min=0.96, 上限=0.99（建议）
                 "- SAST 严格/semgrep",  # security.sast_strict
                 "- Docker/容器化/devcontainer",  # container.required
-            ]
+            ],
         ),
         encoding="utf-8",
     )

@@ -14,7 +14,7 @@ from mcp_rules_assistant.dev_agent import (
 
 
 def test_quick_status_fail_and_skipped(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     agent = DevAgent(project_root=tmp_path)
 
@@ -36,7 +36,7 @@ def test_quick_status_fail_and_skipped(
 
 
 def test_build_current_status_error_path(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     agent = DevAgent(project_root=tmp_path)
 

@@ -39,7 +39,7 @@ def test_summarize_marks_weak_and_sets_delta(tmp_path: Path) -> None:
         ],
     )
     out = cs.summarize(
-        project_root=tmp_path, coverage_xml="coverage.xml", policy=None, min_module=0.96
+        project_root=tmp_path, coverage_xml="coverage.xml", policy=None, min_module=0.96,
     )
     assert out.get("ok") is True
     weak = out.get("weak") or []

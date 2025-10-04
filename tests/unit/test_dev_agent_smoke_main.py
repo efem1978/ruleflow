@@ -9,11 +9,11 @@ def test_main_one_cycle(monkeypatch, tmp_path: Path) -> None:
     dash = tmp_path / ".mcp" / "dashboard"
     dash.mkdir(parents=True, exist_ok=True)
     monkeypatch.setattr(
-        dev_agent, "_ensure_dashboard_dir", lambda root, rebuild=False: dash
+        dev_agent, "_ensure_dashboard_dir", lambda root, rebuild=False: dash,
     )
     monkeypatch.setenv("DEV_AGENT_MAX_CYCLES", "1")
     monkeypatch.setattr(
-        dev_agent, "_run_impacted_or_full", lambda *a, **k: {"ok": True, "mode": "full"}
+        dev_agent, "_run_impacted_or_full", lambda *a, **k: {"ok": True, "mode": "full"},
     )
     monkeypatch.setattr(
         dev_agent,

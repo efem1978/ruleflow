@@ -16,7 +16,7 @@ def test_run_uses_instance_ensure_dir(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(agent, "_ensure_dashboard_dir", inst_ensure)
     monkeypatch.setenv("DEV_AGENT_MAX_CYCLES", "1")
     monkeypatch.setattr(
-        dev_agent, "_run_impacted_or_full", lambda *a, **k: {"ok": True, "mode": "full"}
+        dev_agent, "_run_impacted_or_full", lambda *a, **k: {"ok": True, "mode": "full"},
     )
     monkeypatch.setattr(
         dev_agent,
@@ -59,11 +59,11 @@ def test_run_fallback_module_level(monkeypatch, tmp_path: Path) -> None:
     agent = dev_agent.DevAgent(project_root=tmp_path)
 
     monkeypatch.setattr(
-        dev_agent, "_ensure_dashboard_dir", lambda root, rebuild=False: dash
+        dev_agent, "_ensure_dashboard_dir", lambda root, rebuild=False: dash,
     )
     monkeypatch.setenv("DEV_AGENT_MAX_CYCLES", "1")
     monkeypatch.setattr(
-        dev_agent, "_run_impacted_or_full", lambda *a, **k: {"ok": True, "mode": "full"}
+        dev_agent, "_run_impacted_or_full", lambda *a, **k: {"ok": True, "mode": "full"},
     )
     monkeypatch.setattr(
         dev_agent,
@@ -111,7 +111,7 @@ def test_run_last_resort_fallback(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(dev_agent, "_ensure_dashboard_dir", bad_ensure)
     monkeypatch.setenv("DEV_AGENT_MAX_CYCLES", "1")
     monkeypatch.setattr(
-        dev_agent, "_run_impacted_or_full", lambda *a, **k: {"ok": True, "mode": "full"}
+        dev_agent, "_run_impacted_or_full", lambda *a, **k: {"ok": True, "mode": "full"},
     )
     monkeypatch.setattr(
         dev_agent,

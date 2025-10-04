@@ -33,7 +33,7 @@ def test_mcp_near_resource(tmp_path: Path) -> None:
     cfg = tmp_path / ".mcp/assistant.yaml"
     cfg.parent.mkdir(parents=True, exist_ok=True)
     cfg.write_text(
-        "performance:\n  on_push:\n    coverage: {min_module: 0.90}\n", encoding="utf-8"
+        "performance:\n  on_push:\n    coverage: {min_module: 0.90}\n", encoding="utf-8",
     )
     rlist = srv.handle(_req("resources/list"))
     near_uri = next(

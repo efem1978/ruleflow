@@ -21,7 +21,7 @@ def test_groups_and_near_combination(tmp_path: Path) -> None:
     _write_cov_xml(tmp_path / "coverage.xml")
     # policy 覆盖前缀分组、near 窗口与 top
     groups = cs.summarize_groups(
-        project_root=tmp_path, policy={"pkg/": 0.97}, min_module=0.95
+        project_root=tmp_path, policy={"pkg/": 0.97}, min_module=0.95,
     )
     assert groups.get("ok") is True
     near = cs.summarize_near(
@@ -33,6 +33,6 @@ def test_groups_and_near_combination(tmp_path: Path) -> None:
     )
     assert near.get("ok") is True
     tree = cs.summarize_tree(
-        project_root=tmp_path, policy={"pkg/": 0.97}, min_module=0.95
+        project_root=tmp_path, policy={"pkg/": 0.97}, min_module=0.95,
     )
     assert tree.get("ok") is True

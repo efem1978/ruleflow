@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 import yaml  # type: ignore[import-untyped]
 
@@ -64,7 +64,7 @@ class GlobalConfig:
     bilingual: bool = True
 
 
-def _load_yaml(path: Path) -> Dict[str, Any]:
+def _load_yaml(path: Path) -> dict[str, Any]:
     if not path.exists():
         return {}
     with path.open("r", encoding="utf-8") as f:
@@ -72,14 +72,14 @@ def _load_yaml(path: Path) -> Dict[str, Any]:
     return data
 
 
-def _dump_yaml(path: Path, data: Dict[str, Any]) -> None:
+def _dump_yaml(path: Path, data: dict[str, Any]) -> None:
     """Atomically write YAML to disk to avoid partial/corrupted files."""
     # Dump to string first, then atomic write
     yml = yaml.safe_dump(data, sort_keys=False, allow_unicode=True) or ""
     _atomic_write_text(path, yml)
 
 
-def default_config_dict() -> Dict[str, Any]:
+def default_config_dict() -> dict[str, Any]:
     return {
         "performance": {
             "mode": PerformanceMode.FAST.value,
@@ -118,7 +118,7 @@ def default_config_dict() -> Dict[str, Any]:
                 "mid_days": 7,
                 "mid_bonus": 1,
                 "history_limit": 400,
-            }
+            },
         },
         "execution": {
             # 写入后执行轻量增量检查（FSGuard），默认关闭；由 MCP fs.apply_patch 的 strict/检查控制
@@ -142,7 +142,7 @@ def ensure_project_config(path: Path = DEFAULT_PROJECT_CONFIG_PATH) -> None:
         _dump_yaml(path, default_config_dict())
 
 
-def _deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
+def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
     for k, v in override.items():
         if k in base and isinstance(base[k], dict) and isinstance(v, dict):
             _deep_merge(base[k], v)
@@ -152,8 +152,8 @@ def _deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any
 
 
 def load_config(
-    project_path: Optional[Path] = None,
-) -> Dict[str, Any]:
+    project_path: Path | None = None,
+) -> dict[str, Any]:
     """Load merged config with deep merge: defaults <- global <- project."""
     project_cfg_path = (project_path or Path.cwd()) / DEFAULT_PROJECT_CONFIG_PATH
     global_cfg = _load_yaml(DEFAULT_GLOBAL_CONFIG_PATH)
@@ -167,7 +167,7 @@ def load_config(
     return cfg
 
 
-def human_summary(cfg: Dict[str, Any]) -> str:
+def human_summary(cfg: dict[str, Any]) -> str:
     mode = cfg.get("performance", {}).get("mode", "fast")
     on_save = cfg["performance"]["on_save"]
     on_commit = cfg["performance"]["on_commit"]
@@ -187,7 +187,7 @@ def human_summary(cfg: Dict[str, Any]) -> str:
 # ---- Typed accessors to reduce deep dict coupling ----
 
 
-def get_min_module(cfg: Dict[str, Any], default: float = 0.9) -> float:
+def get_min_module(cfg: dict[str, Any], default: float = 0.9) -> float:
     perf = (
         cfg.get("performance", {})
         if isinstance(cfg.get("performance", {}), dict)
@@ -195,12 +195,12 @@ def get_min_module(cfg: Dict[str, Any], default: float = 0.9) -> float:
     )
     return float(
         ((perf.get("on_push", {}) or {}).get("coverage", {}) or {}).get(
-            "min_module", default
-        )
+            "min_module", default,
+        ),
     )
 
 
-def get_coverage_policy(cfg: Dict[str, Any]) -> Optional[Dict[str, float]]:
+def get_coverage_policy(cfg: dict[str, Any]) -> dict[str, float] | None:
     cov = cfg.get("coverage", {})
     if isinstance(cov, dict):
         pol = cov.get("policy")
@@ -208,7 +208,7 @@ def get_coverage_policy(cfg: Dict[str, Any]) -> Optional[Dict[str, float]]:
             return None
         if isinstance(pol, dict):
             # best-effort cast to Dict[str, float]
-            out: Dict[str, float] = {}
+            out: dict[str, float] = {}
             for k, v in pol.items():
                 try:
                     out[str(k)] = float(v)

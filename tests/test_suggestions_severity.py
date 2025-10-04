@@ -16,7 +16,7 @@ def test_suggestions_have_severity_and_cli_summarizes(tmp_path: Path) -> None:
                 "- 覆盖率 90%",  # min -> enforce must
                 "- 覆盖率 80%",  # conflict -> unify warn
                 "- 覆盖率 不超过 95%",  # upper bound -> monitor info
-            ]
+            ],
         ),
         encoding="utf-8",
     )

@@ -5,7 +5,8 @@ import os
 import subprocess
 import time
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional
+from typing import Any
+from collections.abc import Callable
 
 DEFAULT_TIMEOUT: float = 300.0
 
@@ -15,13 +16,13 @@ def run_cmd(
     *,
     cwd: Path,
     capture_stdout: bool = True,
-    env: Optional[Dict[str, str]] = None,
+    env: dict[str, str] | None = None,
     check: bool = False,
-    timeout: Optional[float] = DEFAULT_TIMEOUT,
+    timeout: float | None = DEFAULT_TIMEOUT,
     retries: int = 0,
     backoff: float = 0.5,
     retry_on_timeout_only: bool = False,
-    on_event: Optional[Callable[[Dict[str, Any]], None]] = None,
+    on_event: Callable[[dict[str, Any]], None] | None = None,
     log: bool = False,
 ):
     """Unified subprocess runner with test-friendly defaults + optional retry.
@@ -35,7 +36,7 @@ def run_cmd(
     do_log = log or os.environ.get("MCP_RUN_CMD_LOG", "0") in ("1", "true", "True")
     logger = logging.getLogger("mcp.run_cmd")
 
-    def _emit(evt: Dict[str, Any]) -> None:
+    def _emit(evt: dict[str, Any]) -> None:
         try:
             if on_event:
                 on_event(evt)
@@ -103,7 +104,7 @@ def run_cmd(
                         "cmd": cmd,
                         "cwd": str(cwd),
                         "attempt": attempt,
-                    }
+                    },
                 )
             if (
                 not capture_stdout
@@ -112,7 +113,7 @@ def run_cmd(
             ):
                 p = subprocess.run(cmd, cwd=str(cwd), check=check)
             else:
-                kwargs: Dict[str, object] = {"text": True}
+                kwargs: dict[str, object] = {"text": True}
                 if capture_stdout:
                     kwargs["stdout"] = subprocess.PIPE
                     kwargs["stderr"] = subprocess.PIPE
@@ -148,7 +149,7 @@ def run_cmd(
                         "attempt": attempt,
                         "returncode": getattr(p, "returncode", None),
                         "elapsed": elapsed,
-                    }
+                    },
                 )
             return p
         except Exception as e:  # noqa: BLE001 - deliberate broad retry boundary
@@ -164,7 +165,7 @@ def run_cmd(
                         "cwd": str(cwd),
                         "attempt": attempt,
                         "exception": repr(e),
-                    }
+                    },
                 )
             if attempt >= int(retries):
                 raise

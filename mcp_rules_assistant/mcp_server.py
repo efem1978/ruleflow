@@ -9,7 +9,7 @@ import time
 import uuid
 from dataclasses import asdict
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import yaml  # type: ignore[import-untyped]
 
@@ -34,6 +34,7 @@ from .policy_keys import (
 from .process import run_cmd
 from .rules import Complexity, DevMode, Scenario, choose_thresholds, explain_thresholds
 from .tools import registry, setup_default_tools
+from datetime import UTC
 
 # MIME constants
 MIME_JSON = "application/json"
@@ -43,7 +44,7 @@ MIME_YAML = "text/yaml"
 # Policy key constants centralized in policy_keys
 
 
-def _read_stdin_lines() -> List[str]:
+def _read_stdin_lines() -> list[str]:
     return sys.stdin.read().splitlines()
 
 
@@ -78,7 +79,7 @@ class JsonRpcServer:
         self._mem_ns: str | None = None
         self.mm = MemoryManager(self.project_root)
         self.fs = FSGuard(self.project_root)
-        self.settings: Dict[str, Any] = {"memory_auto": False}
+        self.settings: dict[str, Any] = {"memory_auto": False}
         self.cfg = load_config(self.project_root)
         self._cfg_root = self.project_root
         # very light rate limiter (per-process): window 1s
@@ -111,25 +112,27 @@ class JsonRpcServer:
                 return False
         except Exception:
             pass
-        # Strict isolation mode: environment cannot elevate privileges
+        # Strict isolation mode: deny all writes (highest priority after hard-disable and pytest)
         strict = False
         try:
             strict = str(
-                os.environ.get("MCP_STRICT_ISOLATION", "")
+                os.environ.get("MCP_STRICT_ISOLATION", ""),
             ).strip().lower() in {"1", "true", "on", "yes", "y"}
         except Exception:
             strict = False
-        if not strict:
-            try:
-                env = (
-                    str(os.environ.get("RULEFLOW_ALLOW_MEMORY_APPEND", "0"))
-                    .strip()
-                    .lower()
-                )
-                if env in {"1", "true", "on", "yes", "y"}:
-                    return True
-            except Exception:
-                pass
+        if strict:
+            return False
+        # Only check environment variable if not in strict isolation
+        try:
+            env = (
+                str(os.environ.get("RULEFLOW_ALLOW_MEMORY_APPEND", "0"))
+                .strip()
+                .lower()
+            )
+            if env in {"1", "true", "on", "yes", "y"}:
+                return True
+        except Exception:
+            pass
         # hard-disable always wins
         try:
             cfg0 = self.cfg if isinstance(self.cfg, dict) else {}
@@ -197,13 +200,13 @@ class JsonRpcServer:
                 import logging  # pragma: no cover
 
                 logging.getLogger(__name__).debug(
-                    "[mcp] license.required parse failed: %r", e
+                    "[mcp] license.required parse failed: %r", e,
                 )  # pragma: no cover
             except Exception:  # pragma: no cover
                 pass
             return False
 
-    def _dashboard_append_info(self, text: str, action: Optional[str] = None) -> None:
+    def _dashboard_append_info(self, text: str, action: str | None = None) -> None:
         """Append a brief info entry to .mcp/dashboard/status.json['info'] (best-effort).
 
         Entry shape: {"time": ISO8601Z, "text": str, "action": Optional[str]}
@@ -213,7 +216,7 @@ class JsonRpcServer:
             dash = self.project_root / ".mcp" / "dashboard"
             dash.mkdir(parents=True, exist_ok=True)
             p = dash / "status.json"
-            data: Dict[str, Any]
+            data: dict[str, Any]
             if p.exists():
                 try:
                     data = json.loads(p.read_text(encoding="utf-8"))
@@ -228,7 +231,7 @@ class JsonRpcServer:
                     data = _gen(self.project_root)
                 except Exception:
                     data = {}
-            from datetime import datetime, timezone
+            from datetime import datetime
 
             info_raw = data.get("info")
             info_list: list = []
@@ -239,14 +242,14 @@ class JsonRpcServer:
                         info_list.append(it)
                     elif isinstance(it, str):
                         info_list.append({"text": it})
-            ts = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-            entry: Dict[str, Any] = {"time": ts, "text": str(text)}
+            ts = datetime.now(UTC).isoformat().replace("+00:00", "Z")
+            entry: dict[str, Any] = {"time": ts, "text": str(text)}
             if action:
                 entry["action"] = str(action)
             info_list.append(entry)
             data["info"] = info_list[-50:]
             p.write_text(
-                json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
+                json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8",
             )
         except Exception:
             pass
@@ -263,7 +266,7 @@ class JsonRpcServer:
                 import logging  # pragma: no cover
 
                 logging.getLogger(__name__).debug(
-                    "[mcp] license verify exception: %r", e
+                    "[mcp] license verify exception: %r", e,
                 )  # pragma: no cover
             except Exception:  # pragma: no cover
                 pass
@@ -272,16 +275,16 @@ class JsonRpcServer:
             raise ValueError("license required or invalid")
 
     # ---- MCP-like methods ----
-    def handle(self, request: Dict[str, Any]) -> Dict[str, Any]:
+    def handle(self, request: dict[str, Any]) -> dict[str, Any]:
         req_id = request.get("id")
         method = request.get("method")
         params = request.get("params", {})
-        result: Dict[str, Any] = {}
+        result: dict[str, Any] = {}
         try:
             # 注意：不在 handle 中刷新配置，以便测试可在调用前通过 srv.cfg 注入覆盖。
             # --- light limits (size & rate) ---
             try:
-                exec_cfg: Dict[str, Any] = (
+                exec_cfg: dict[str, Any] = (
                     self.cfg.get("execution", {})
                     if isinstance(self.cfg.get("execution", {}), dict)
                     else {}
@@ -293,7 +296,7 @@ class JsonRpcServer:
                     import logging  # pragma: no cover
 
                     logging.getLogger(__name__).debug(
-                        "[mcp] exec.max_request_bytes parse: %r", e
+                        "[mcp] exec.max_request_bytes parse: %r", e,
                     )  # pragma: no cover
                 except Exception:  # pragma: no cover
                     pass
@@ -309,7 +312,7 @@ class JsonRpcServer:
                     import logging  # pragma: no cover
 
                     logging.getLogger(__name__).debug(
-                        "[mcp] request size calc failed: %r", e
+                        "[mcp] request size calc failed: %r", e,
                     )  # pragma: no cover
                 except Exception:  # pragma: no cover
                     pass
@@ -325,7 +328,7 @@ class JsonRpcServer:
             # --- normal dispatch ---
             if method == "initialize":
                 # 声明最小能力集，含 prompts（提供占位端点）
-                caps: Dict[str, Any] = {
+                caps: dict[str, Any] = {
                     "tools": True,
                     "resources": True,
                     "prompts": True,
@@ -338,7 +341,7 @@ class JsonRpcServer:
             elif method == "ping":
                 result = {"ok": True}
             elif method == "tools/list":
-                tool_items: List[Dict[str, Any]] = [
+                tool_items: list[dict[str, Any]] = [
                     (
                         asdict(t)
                         if hasattr(t, "__dict__")
@@ -352,7 +355,7 @@ class JsonRpcServer:
                 args = params.get("arguments", {})
                 result = self._call_tool(name, args)
             elif method == "resources/list":
-                resources_list: List[Dict[str, str]] = [
+                resources_list: list[dict[str, str]] = [
                     {
                         "uri": f"memory://{self._project_id()}/rollup",
                         "name": "Last 20 turns & summary",
@@ -424,15 +427,15 @@ class JsonRpcServer:
                                 inside = target.is_relative_to(mcp_dir)  # py311+
                             except Exception:
                                 inside = str(target).startswith(
-                                    str(mcp_dir) + "/"
+                                    str(mcp_dir) + "/",
                                 ) or str(target) == str(mcp_dir)
                             import os as _os
 
                             trust_symlink = str(
-                                _os.environ.get("MCP_MEMORY_TRUST_SYMLINK", "")
+                                _os.environ.get("MCP_MEMORY_TRUST_SYMLINK", ""),
                             ).strip().lower() in {"1", "true", "on", "yes", "y"}
                             allow_hardlink = str(
-                                _os.environ.get("MCP_MEMORY_TRUST_HARDLINK", "")
+                                _os.environ.get("MCP_MEMORY_TRUST_HARDLINK", ""),
                             ).strip().lower() in {"1", "true", "on", "yes", "y"}
                             if (not inside) or (not trust_symlink and p.is_symlink()):
                                 continue
@@ -492,7 +495,7 @@ class JsonRpcServer:
                                 "name": "rules.summary",
                                 "description": "Summarize compiled rules and gates for handoff",
                             },
-                        ]
+                        ],
                     }
                 else:
                     result = {"prompts": []}
@@ -538,7 +541,7 @@ class JsonRpcServer:
             }
 
     # ---- Tools implementations ----
-    def _call_tool(self, name: str, args: Dict[str, Any]) -> Dict[str, Any]:
+    def _call_tool(self, name: str, args: dict[str, Any]) -> dict[str, Any]:
         # 当项目根被外部修改（测试或多项目场景）时，在工具调用前刷新配置与依赖的守卫对象。
         # 设计：仅在根变化时从磁盘读取新配置，避免覆盖调用方对 self.cfg 的显式注入。
         try:
@@ -631,10 +634,10 @@ class JsonRpcServer:
             if new_path:
                 # In strict isolation mode, block project switching unless explicitly allowed by config/env
                 strict = str(
-                    os.environ.get("MCP_STRICT_ISOLATION", "")
+                    os.environ.get("MCP_STRICT_ISOLATION", ""),
                 ).strip().lower() in {"1", "true", "on", "yes", "y"}
                 allow_env = str(
-                    os.environ.get("MCP_ALLOW_PROJECT_SWITCH", "")
+                    os.environ.get("MCP_ALLOW_PROJECT_SWITCH", ""),
                 ).strip().lower() in {"1", "true", "on", "yes", "y"}
                 allow_cfg = False
                 try:
@@ -666,7 +669,7 @@ class JsonRpcServer:
                     import logging
 
                     logging.getLogger(__name__).debug(
-                        "[mcp] add_link switched_to failed: %r", e
+                        "[mcp] add_link switched_to failed: %r", e,
                     )
                 # 切换项目根
                 self.project_root = p
@@ -690,7 +693,7 @@ class JsonRpcServer:
                         import logging
 
                         logging.getLogger(__name__).debug(
-                            "[mcp] add_link switched_from failed: %r", e
+                            "[mcp] add_link switched_from failed: %r", e,
                         )
             return {"ok": True, "root": str(self.project_root)}
         if name == "project.link":
@@ -729,7 +732,7 @@ class JsonRpcServer:
                 self.mm.append_turn(role, content, meta)
                 try:
                     _audit(
-                        self.project_root, "memory.append", {"role": role, "meta": meta}
+                        self.project_root, "memory.append", {"role": role, "meta": meta},
                     )
                 except Exception:
                     pass
@@ -810,7 +813,7 @@ class JsonRpcServer:
             dry_run = bool(args.get("dryRun", False))
             # 有效文件数上限：优先参数，其次配置 execution.max_files，默认 100
             max_files = args.get("maxFiles", None)
-            exec_cfg_eff: Dict[str, Any] = (
+            exec_cfg_eff: dict[str, Any] = (
                 self.cfg.get("execution", {})
                 if isinstance(self.cfg.get("execution", {}), dict)
                 else {}
@@ -822,7 +825,7 @@ class JsonRpcServer:
                 max_files = int(exec_cfg_eff.get("max_files", 100))
             if isinstance(max_files, int) and max_files >= 0 and len(files) > max_files:
                 raise ValueError("受控写入文件数超出限制（maxFiles）")
-            changed_paths: List[Path] = []
+            changed_paths: list[Path] = []
             pattern_hit_any = False
             for f in files:
                 if not isinstance(f, dict):
@@ -834,11 +837,11 @@ class JsonRpcServer:
                     # 轻量严格检查：禁止 skip/xfail 标记
                     if "pytest.mark.skip" in content or "pytest.mark.xfail" in content:
                         raise ValueError(
-                            "检测到 skip/xfail 标记，受控写入被拒绝（strict）。"
+                            "检测到 skip/xfail 标记，受控写入被拒绝（strict）。",
                         )
                     # 配置化禁用的内容片段（如 import pdb 等）
                     try:
-                        ex_cfg2: Dict[str, Any] = (
+                        ex_cfg2: dict[str, Any] = (
                             self.cfg.get("execution", {})
                             if isinstance(self.cfg.get("execution", {}), dict)
                             else {}
@@ -867,21 +870,21 @@ class JsonRpcServer:
                                 try:
                                     hard_gate = bool(
                                         self._get_exec_flag(
-                                            "disallow_patterns_hard", False
-                                        )
+                                            "disallow_patterns_hard", False,
+                                        ),
                                     )
                                 except Exception:
                                     hard_gate = False
                                 if hard_gate:
                                     raise ValueError(
-                                        "检测到受禁内容片段，按配置 execution.disallow_patterns_hard 拒绝写入"
+                                        "检测到受禁内容片段，按配置 execution.disallow_patterns_hard 拒绝写入",
                                     )
                     except Exception as e:
                         # 忽略解析错误，但在严格模式下仍保持 skip/xfail 拒绝
                         import logging
 
                         logging.getLogger(__name__).debug(
-                            "[mcp] disallow_patterns parse skipped: %r", e
+                            "[mcp] disallow_patterns parse skipped: %r", e,
                         )
                 # 路径安全：禁止绝对路径与越权（必须在项目根内）
                 if "path" not in f:
@@ -901,7 +904,7 @@ class JsonRpcServer:
                     raise ValueError("禁止写入符号链接目标文件")
                 # 路径前缀白名单 / 扩展名白名单（可选）
                 try:
-                    ex_cfg: Dict[str, Any] = (
+                    ex_cfg: dict[str, Any] = (
                         self.cfg.get("execution", {})
                         if isinstance(self.cfg.get("execution", {}), dict)
                         else {}
@@ -930,7 +933,7 @@ class JsonRpcServer:
                         import logging
 
                         logging.getLogger(__name__).debug(
-                            "[mcp] exec_cfg strict flag parse: %r", e
+                            "[mcp] exec_cfg strict flag parse: %r", e,
                         )
                         strict_on = False
                     if strict_on:
@@ -945,12 +948,12 @@ class JsonRpcServer:
                 if not dry_run:
                     self.fs.write_text(p, content)
                 changed_paths.append(dest)
-            result_checks: Dict[str, Any] = {"ok": True}
+            result_checks: dict[str, Any] = {"ok": True}
             if run_checks and not dry_run:
                 do_type = bool(
                     self.cfg.get("performance", {})
                     .get("on_commit", {})
-                    .get("typecheck_incremental", True)
+                    .get("typecheck_incremental", True),
                 )
                 result_checks = checks_mod.run_checks(
                     changed_paths,
@@ -962,9 +965,9 @@ class JsonRpcServer:
                 if strict and not result_checks.get("ok", True) and not pattern_hit_any:
                     raise ValueError(
                         "受控写入后的检查未通过（lint/type/tests）。"
-                        "可在 .mcp/assistant.yaml 中调整 execution.fs_guard_post_checks / fs_guard_strict。"
+                        "可在 .mcp/assistant.yaml 中调整 execution.fs_guard_post_checks / fs_guard_strict。",
                     )
-            out: Dict[str, Any] = {
+            out: dict[str, Any] = {
                 "ok": True,
                 "written": 0 if dry_run else len(files),
                 "checks": result_checks,
@@ -1003,7 +1006,7 @@ class JsonRpcServer:
         raise ValueError(f"Unknown tool: {name}")
 
     # ---- resources/read helpers ----
-    def _res_read_memory(self, uri: str | None = None) -> Dict[str, Any]:
+    def _res_read_memory(self, uri: str | None = None) -> dict[str, Any]:
         """Read in-memory conversation snapshot as JSON resource.
 
         For uri variants:\n
@@ -1031,14 +1034,14 @@ class JsonRpcServer:
                     inside = target.is_relative_to(mcp_dir)  # py311+
                 except Exception:
                     inside = str(target).startswith(str(mcp_dir) + "/") or str(
-                        target
+                        target,
                     ) == str(mcp_dir)
                 if not inside:
                     raise FileNotFoundError("memory namespace not found")
                 import os as _os
 
                 trust_symlink = str(
-                    _os.environ.get("MCP_MEMORY_TRUST_SYMLINK", "")
+                    _os.environ.get("MCP_MEMORY_TRUST_SYMLINK", ""),
                 ).strip().lower() in {"1", "true", "on", "yes", "y"}
                 if not trust_symlink and p.is_symlink():
                     raise FileNotFoundError("memory namespace not found")
@@ -1056,7 +1059,7 @@ class JsonRpcServer:
         return {"mimeType": MIME_JSON, "text": json.dumps(snap, ensure_ascii=False)}
 
     # ---- tool helpers (extracted from _call_tool) ----
-    def _tool_security_audit_report(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    def _tool_security_audit_report(self, args: dict[str, Any]) -> dict[str, Any]:
         """Summarize .mcp/dashboard/security_audit.jsonl events.
 
         Returns: { ok, counts: {event->int}, last: [..], total }
@@ -1068,7 +1071,7 @@ class JsonRpcServer:
                 return {"ok": True, "counts": {}, "last": [], "total": 0}
             lines = p.read_text(encoding="utf-8").splitlines()
             total = 0
-            counts: Dict[str, int] = {}
+            counts: dict[str, int] = {}
             last_items = []
             for ln in lines[-500:]:
                 try:
@@ -1086,7 +1089,7 @@ class JsonRpcServer:
         except Exception:
             return {"ok": False}
 
-    def _tool_coverage_near(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    def _tool_coverage_near(self, args: dict[str, Any]) -> dict[str, Any]:
         """Return coverage.near JSON using config defaults with arg overrides."""
         # Load defaults for near
         cfg_now = load_config(self.project_root)
@@ -1106,7 +1109,7 @@ class JsonRpcServer:
             top=top,
         )
 
-    def _tool_coverage_report(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    def _tool_coverage_report(self, args: dict[str, Any]) -> dict[str, Any]:
         """Return coverage.report JSON combining weak/groups/near sections."""
         min_module, policy = self._coverage_config_basics()
         # near defaults
@@ -1119,10 +1122,10 @@ class JsonRpcServer:
         within = float(args.get("within", near_cfg.get("within", 0.03)))
         top = int(args.get("top", near_cfg.get("top", 50)))
         res_sum = covsum.summarize(
-            project_root=self.project_root, policy=policy, min_module=min_module
+            project_root=self.project_root, policy=policy, min_module=min_module,
         )
         res_grp = covsum.summarize_groups(
-            project_root=self.project_root, policy=policy, min_module=min_module
+            project_root=self.project_root, policy=policy, min_module=min_module,
         )
         res_near = covsum.summarize_near(
             project_root=self.project_root,
@@ -1135,7 +1138,7 @@ class JsonRpcServer:
             "ok": bool(
                 res_sum.get("ok")
                 and res_grp.get("ok", True)
-                and res_near.get("ok", True)
+                and res_near.get("ok", True),
             ),
             "weak": res_sum.get("weak", []),
             "groups": res_grp.get("groups", []),
@@ -1143,7 +1146,7 @@ class JsonRpcServer:
             "min_module": min_module,
         }
 
-    def _tool_coverage_export(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    def _tool_coverage_export(self, args: dict[str, Any]) -> dict[str, Any]:
         """Export coverage summary and CSVs to .mcp/dashboard (or provided dir).
 
         Args:
@@ -1172,7 +1175,7 @@ class JsonRpcServer:
 
         min_module, policy = self._coverage_config_basics()
         res_sum = covsum.summarize(
-            project_root=self.project_root, policy=policy, min_module=min_module
+            project_root=self.project_root, policy=policy, min_module=min_module,
         )
         if not res_sum.get("ok"):
             return {
@@ -1180,7 +1183,7 @@ class JsonRpcServer:
                 "message": res_sum.get("message", "coverage.xml missing"),
             }
         res_grp = covsum.summarize_groups(
-            project_root=self.project_root, policy=policy, min_module=min_module
+            project_root=self.project_root, policy=policy, min_module=min_module,
         )
         res_near = covsum.summarize_near(
             project_root=self.project_root,
@@ -1197,18 +1200,18 @@ class JsonRpcServer:
             "min_module": min_module,
         }
         (outp / "coverage_summary.json").write_text(
-            _json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+            _json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8",
         )
         weak_list = list(payload["weak"]) if isinstance(payload["weak"], list) else []
         for it in weak_list:
             try:
                 it["delta"] = float(it.get("threshold", 0.0)) - float(
-                    it.get("coverage", 0.0)
+                    it.get("coverage", 0.0),
                 )
             except Exception:
                 it["delta"] = 0.0
         weak_sorted = sorted(
-            weak_list, key=lambda x: x.get("delta", 0.0), reverse=True
+            weak_list, key=lambda x: x.get("delta", 0.0), reverse=True,
         )[:weak_top]
         with (outp / "weak_top.csv").open("w", newline="", encoding="utf-8") as f:
             w = _csv.writer(f)
@@ -1220,7 +1223,7 @@ class JsonRpcServer:
                         float(it.get("coverage", 0.0)),
                         float(it.get("threshold", 0.0)),
                         float(it.get("delta", 0.0)),
-                    ]
+                    ],
                 )
         near_list = list(payload["near"]) if isinstance(payload["near"], list) else []
         with (outp / "near_top.csv").open("w", newline="", encoding="utf-8") as f:
@@ -1233,7 +1236,7 @@ class JsonRpcServer:
                         float(it.get("coverage", 0.0)),
                         float(it.get("threshold", 0.0)),
                         float(it.get("delta_up", 0.0)),
-                    ]
+                    ],
                 )
         groups_list = (
             list(payload["groups"]) if isinstance(payload["groups"], list) else []
@@ -1249,7 +1252,7 @@ class JsonRpcServer:
                         float(g.get("threshold", 0.0)),
                         int(g.get("weak_count", 0)),
                         int(g.get("files_count", 0)),
-                    ]
+                    ],
                 )
         return {
             "ok": True,
@@ -1262,7 +1265,7 @@ class JsonRpcServer:
             ],
         }
 
-    def _tool_rules_maxima(self) -> Dict[str, Any]:
+    def _tool_rules_maxima(self) -> dict[str, Any]:
         """Return maxima from compiled rules JSON if present."""
         pjson = self.project_root / ri.COMPILED_JSON
         if not pjson.exists():
@@ -1277,23 +1280,23 @@ class JsonRpcServer:
         )
         return {"ok": True, "maxima": maxima}
 
-    def _tool_git_install_hooks(self) -> Dict[str, Any]:
+    def _tool_git_install_hooks(self) -> dict[str, Any]:
         paths = hooks_mod.install_git_hooks(self.project_root)
         return {"ok": True, "installed": paths}
 
-    def _tool_nl_command(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    def _tool_nl_command(self, args: dict[str, Any]) -> dict[str, Any]:
         text = args.get("text", "")
         mapped = nl_mod.parse(text)
         return {"ok": True, "parsed": {"tool": mapped, "text": text}}
 
-    def _tool_plan_update(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    def _tool_plan_update(self, args: dict[str, Any]) -> dict[str, Any]:
         text = args.get("text", "")
         if not text:
             raise ValueError("text required")
         progress_mod.write_plan(text, self.project_root)
         return {"ok": True}
 
-    def _tool_plan_set(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    def _tool_plan_set(self, args: dict[str, Any]) -> dict[str, Any]:
         status = args.get("status")
         current = args.get("current")
         nxt = args.get("next")
@@ -1301,11 +1304,11 @@ class JsonRpcServer:
             if v is not None and not isinstance(v, str):
                 raise ValueError(f"{k} must be string when provided")
         progress_mod.update_plan_fields(
-            self.project_root, status=status, current=current, nxt=nxt
+            self.project_root, status=status, current=current, nxt=nxt,
         )
         return {"ok": True}
 
-    def _tool_env_prepare(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    def _tool_env_prepare(self, args: dict[str, Any]) -> dict[str, Any]:
         # 轻量实现：支持 dry-run 规划，或实际创建 venv 并可选安装基础工具
         py = str(args.get("python") or sys.executable)
         create = bool(args.get("create", True))
@@ -1385,13 +1388,13 @@ class JsonRpcServer:
             "plan": plan,
         }
 
-    def _tool_plan_suggest_next(self) -> Dict[str, Any]:
+    def _tool_plan_suggest_next(self) -> dict[str, Any]:
         """Synthesize next steps based on memory summary and current plan."""
         snap = self.mm.snapshot()
         summary = str(snap.get("summary", ""))
         plan_text = progress_mod.read_plan(self.project_root)
         status, current, nxt = progress_mod.parse_plan(plan_text)
-        next_steps: List[str] = []
+        next_steps: list[str] = []
         # Very light heuristic: prefer explicit '下一步/next' in plan else from summary
         if nxt:
             next_steps.append(nxt)
@@ -1411,7 +1414,7 @@ class JsonRpcServer:
             "suggestions": {"next_steps": next_steps, "handoff_plan": handoff_plan},
         }
 
-    def _tool_license_activate(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    def _tool_license_activate(self, args: dict[str, Any]) -> dict[str, Any]:
         """Copy provided license JSON file to ~/.mcp/license.json (best-effort)."""
         src = Path(str(args.get("path", "")).strip()).expanduser().resolve()
         if not src.exists():
@@ -1422,7 +1425,7 @@ class JsonRpcServer:
         # refresh config not needed; diagnose reads from disk
         return {"ok": True, "path": str(dst)}
 
-    def _tool_license_verify(self) -> Dict[str, Any]:
+    def _tool_license_verify(self) -> dict[str, Any]:
         """Verify local license (if present) and return status JSON."""
         try:
             lic = _verify_license()
@@ -1431,7 +1434,7 @@ class JsonRpcServer:
         return {"ok": True, "license": lic}
 
     # ---- rules tool helpers ----
-    def _tool_rules_ingest(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    def _tool_rules_ingest(self, args: dict[str, Any]) -> dict[str, Any]:
         paths = args.get("paths", [])
         if not isinstance(paths, list) or not paths:
             raise ValueError("paths required (list of files/dirs)")
@@ -1440,10 +1443,10 @@ class JsonRpcServer:
                 raise ValueError("paths must contain non-empty strings")
         return ri.ingest(paths, project_root=self.project_root)
 
-    def _tool_rules_validate(self) -> Dict[str, Any]:
+    def _tool_rules_validate(self) -> dict[str, Any]:
         return ri.compile_rules(project_root=self.project_root)
 
-    def _tool_rules_enforce(self) -> Dict[str, Any]:
+    def _tool_rules_enforce(self) -> dict[str, Any]:
         # 将已编译规则中的阈值/策略回写到项目配置，并返回门禁摘要
         compiled_path = self.project_root / ri.COMPILED_JSON
         if not compiled_path.exists():
@@ -1493,12 +1496,12 @@ class JsonRpcServer:
         ci_changed = False
         if bool(
             policy.get(POLICY_KEY_CONTAINER_REQUIRED)
-            or policy.get(POLICY_KEY_CONTAINER_BASELINE)
+            or policy.get(POLICY_KEY_CONTAINER_BASELINE),
         ) and not bool(ci.get("hadolint", False)):
             ci["hadolint"] = True
             ci_changed = True
         if bool(policy.get(POLICY_KEY_SECURITY_SAST_STRICT)) and not ci.get(
-            "semgrep_config"
+            "semgrep_config",
         ):
             ci["semgrep_config"] = "auto"
             ci_changed = True
@@ -1510,13 +1513,13 @@ class JsonRpcServer:
             needs_ci_regen = True
         # hooks 需求：secrets_scan 或 container 基线策略
         if bool(policy.get(POLICY_KEY_SECURITY_SECRETS_SCAN)) or bool(
-            policy.get(POLICY_KEY_CONTAINER_BASELINE)
+            policy.get(POLICY_KEY_CONTAINER_BASELINE),
         ):
             needs_hooks = True
         # 写回配置
         if changed:
             atomic_write_text(
-                cfg_path, yaml.safe_dump(data, sort_keys=False, allow_unicode=True)
+                cfg_path, yaml.safe_dump(data, sort_keys=False, allow_unicode=True),
             )
             self.cfg = load_config(self.project_root)
         # 生成门禁摘要
@@ -1556,7 +1559,7 @@ class JsonRpcServer:
             pass
         return out
 
-    def _tool_rules_onboard(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    def _tool_rules_onboard(self, args: dict[str, Any]) -> dict[str, Any]:
         """Onboarding wizard (non-interactive via args) to choose and apply a rules profile.
 
         Args (optional): scenario, complexity, devMode, apply(bool)
@@ -1592,7 +1595,7 @@ class JsonRpcServer:
             import logging
 
             logging.getLogger(__name__).debug(
-                "[mcp] project size heuristic failed: %r", e
+                "[mcp] project size heuristic failed: %r", e,
             )
         from .rules import Complexity, Scenario, choose_thresholds, explain_thresholds
 
@@ -1608,7 +1611,7 @@ class JsonRpcServer:
         cont_baseline = complexity in ("medium", "large")
         cont_required = False
         lic_required = scenario.lower() in ("enterprise", "org", "enterprise_org")
-        prof: Dict[str, Any] = {
+        prof: dict[str, Any] = {
             "coverage": {"min_module": th.coverage_min_module, "min_core": 0.95},
             "test": {
                 "warnings_as_errors": True,
@@ -1624,9 +1627,9 @@ class JsonRpcServer:
         }
         # CI helpers derived from profile
         ci_hadolint: bool = bool(
-            bool(prof["container"]["baseline"]) or bool(prof["container"]["required"])
+            bool(prof["container"]["baseline"]) or bool(prof["container"]["required"]),
         )
-        ci_semgrep: Optional[str] = (
+        ci_semgrep: str | None = (
             "auto" if bool(prof["security"]["sast_strict"]) else None
         )
         prof["ci"] = {
@@ -1715,7 +1718,7 @@ class JsonRpcServer:
             "applied": applied,
         }
 
-    def _tool_ide_scaffold(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    def _tool_ide_scaffold(self, args: dict[str, Any]) -> dict[str, Any]:
         """Generate per-IDE integration scaffold under .mcp/ide/<editor>.
 
         Supported editors: vscode, cursor, jetbrains, neovim
@@ -1733,13 +1736,13 @@ class JsonRpcServer:
                         "args": ["-m", "mcp_rules_assistant.cli", "start"],
                         "cwd": "${workspaceFolder}",
                         "env": {"PYTHONUNBUFFERED": "1"},
-                    }
-                }
+                    },
+                },
             }
             import json as _json
 
             (base / "settings.sample.json").write_text(
-                _json.dumps(sample, ensure_ascii=False, indent=2), encoding="utf-8"
+                _json.dumps(sample, ensure_ascii=False, indent=2), encoding="utf-8",
             )
             (base / "README.md").write_text(
                 "VS Code/Cursor: 将 settings.sample.json 合并至工作区 .vscode/settings.json；在命令面板执行 ‘RuleFlow: Open Panel’ 或 Copilot MCP 面板中选择 ruleflow。\n",
@@ -1749,7 +1752,7 @@ class JsonRpcServer:
                 [
                     str((base / "settings.sample.json").relative_to(self.project_root)),
                     str((base / "README.md").relative_to(self.project_root)),
-                ]
+                ],
             )
         elif editor == "jetbrains":
             # Provide External Tools XML sample + README
@@ -1776,11 +1779,11 @@ class JsonRpcServer:
                 [
                     str(
                         (base / "externalTools.sample.xml").relative_to(
-                            self.project_root
-                        )
+                            self.project_root,
+                        ),
                     ),
                     str((base / "README.md").relative_to(self.project_root)),
-                ]
+                ],
             )
         elif editor == "neovim":
             # Provide minimal vimscript & lua snippet + README
@@ -1811,13 +1814,13 @@ class JsonRpcServer:
                     str((base / "init.sample.vim").relative_to(self.project_root)),
                     str((base / "init.sample.lua").relative_to(self.project_root)),
                     str((base / "README.md").relative_to(self.project_root)),
-                ]
+                ],
             )
         else:
             raise ValueError("unsupported editor (vscode/cursor/jetbrains/neovim)")
         return {"ok": True, "editor": editor, "files": files}
 
-    def _tool_compliance_commitment(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    def _tool_compliance_commitment(self, args: dict[str, Any]) -> dict[str, Any]:
         """Return standard AI compliance commitment and optionally write to .mcp/compliance.md."""
         text = (
             """
@@ -1843,7 +1846,7 @@ English summary:
             path.write_text(text, encoding="utf-8")
         return {"ok": True, "written": write, "path": str(path), "text": text}
 
-    def _tool_env_diagnose(self) -> Dict[str, Any]:
+    def _tool_env_diagnose(self) -> dict[str, Any]:
         cfg_now = load_config(self.project_root)
         perf = (
             cfg_now.get("performance", {})
@@ -1851,7 +1854,7 @@ English summary:
             else {}
         )
         min_module = float(
-            (perf.get("on_push", {}) or {}).get("coverage", {}).get("min_module", 0.9)
+            (perf.get("on_push", {}) or {}).get("coverage", {}).get("min_module", 0.9),
         )
         coverage_exists = (self.project_root / "coverage.xml").exists()
         compiled_json = self.project_root / ri.COMPILED_JSON
@@ -1897,29 +1900,29 @@ English summary:
             "license": lic,
         }
 
-    def _res_read_progress(self) -> Dict[str, Any]:
+    def _res_read_progress(self) -> dict[str, Any]:
         """Read project plan markdown resource."""
         text = progress_mod.read_plan(self.project_root)
         return {"mimeType": MIME_MD, "text": text}
 
-    def _res_read_config(self) -> Dict[str, Any]:
+    def _res_read_config(self) -> dict[str, Any]:
         """Read assistant.yaml as YAML resource (text only)."""
         cfg_file = self.project_root / DEFAULT_PROJECT_CONFIG_PATH
         text = cfg_file.read_text(encoding="utf-8") if cfg_file.exists() else ""
         return {"mimeType": MIME_YAML, "text": text}
 
-    def _res_read_ci(self) -> Dict[str, Any]:
+    def _res_read_ci(self) -> dict[str, Any]:
         """Read GitHub Actions CI workflow YAML if present."""
         ci_file = self.project_root / ".github/workflows/ci.yml"
         text = ci_file.read_text(encoding="utf-8") if ci_file.exists() else ""
         return {"mimeType": MIME_YAML, "text": text}
 
     # ---- CI tool helpers ----
-    def _tool_ci_generate(self) -> Dict[str, Any]:
+    def _tool_ci_generate(self) -> dict[str, Any]:
         ci_path = hooks_mod.generate_github_ci(self.project_root)
         return {"ok": True, "path": str(ci_path)}
 
-    def _tool_ci_validate(self) -> Dict[str, Any]:
+    def _tool_ci_validate(self) -> dict[str, Any]:
         ci_file = self.project_root / ".github/workflows/ci.yml"
         exists = ci_file.exists()
         content = ci_file.read_text(encoding="utf-8") if exists else ""
@@ -1974,12 +1977,12 @@ English summary:
             pass
         return {"ok": True, "checks": checks}
 
-    def _tool_ci_autofix(self) -> Dict[str, Any]:
+    def _tool_ci_autofix(self) -> dict[str, Any]:
         res = hooks_mod.autofix_github_ci(self.project_root)
         return {"ok": True, **res}
 
     # ---- config tool helpers ----
-    def _tool_config_get(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    def _tool_config_get(self, args: dict[str, Any]) -> dict[str, Any]:
         cfg_path = self.project_root / DEFAULT_PROJECT_CONFIG_PATH
         ensure_project_config(cfg_path)
         try:
@@ -1989,7 +1992,7 @@ English summary:
         section = args.get("section")
         return {"ok": True, "config": raw.get(section, raw) if section else raw}
 
-    def _tool_config_update(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    def _tool_config_update(self, args: dict[str, Any]) -> dict[str, Any]:
         """Update assistant.yaml configuration.
 
         Compatibility:
@@ -2060,29 +2063,29 @@ English summary:
             )
             if "checks_delegate_run_cmd" in payload["execution"]:
                 ex["checks_delegate_run_cmd"] = bool(
-                    payload["execution"]["checks_delegate_run_cmd"]
+                    payload["execution"]["checks_delegate_run_cmd"],
                 )  # type: ignore[truthy-bool]
             # fs.apply_patch / FSGuard related toggles
             if "fs_guard_post_checks" in payload["execution"]:
                 ex["fs_guard_post_checks"] = bool(
-                    payload["execution"]["fs_guard_post_checks"]
+                    payload["execution"]["fs_guard_post_checks"],
                 )
             if "fs_guard_strict" in payload["execution"]:
                 ex["fs_guard_strict"] = bool(payload["execution"]["fs_guard_strict"])  # type: ignore[truthy-bool]
             data["execution"] = ex
         cfg_path.parent.mkdir(parents=True, exist_ok=True)
         atomic_write_text(
-            cfg_path, yaml.safe_dump(data, sort_keys=False, allow_unicode=True)
+            cfg_path, yaml.safe_dump(data, sort_keys=False, allow_unicode=True),
         )
         self.cfg = load_config(self.project_root)
         return {"ok": True, "ci": ci}
 
-    def _res_read_coverage(self, uri: str) -> Dict[str, Any]:
+    def _res_read_coverage(self, uri: str) -> dict[str, Any]:
         """Read coverage resources: summary/groups/tree/near/report as JSON."""
         min_module, policy = self._coverage_config_basics()
         if uri.endswith("/groups"):
             summary = covsum.summarize_groups(
-                project_root=self.project_root, policy=policy, min_module=min_module
+                project_root=self.project_root, policy=policy, min_module=min_module,
             )
             return {
                 "mimeType": MIME_JSON,
@@ -2090,7 +2093,7 @@ English summary:
             }
         if uri.endswith("/tree"):
             summary = covsum.summarize_tree(
-                project_root=self.project_root, policy=policy, min_module=min_module
+                project_root=self.project_root, policy=policy, min_module=min_module,
             )
             return {
                 "mimeType": MIME_JSON,
@@ -2112,10 +2115,10 @@ English summary:
         if uri.endswith("/report"):
             within, top = self._coverage_near_defaults()
             res_sum = covsum.summarize(
-                project_root=self.project_root, policy=policy, min_module=min_module
+                project_root=self.project_root, policy=policy, min_module=min_module,
             )
             res_grp = covsum.summarize_groups(
-                project_root=self.project_root, policy=policy, min_module=min_module
+                project_root=self.project_root, policy=policy, min_module=min_module,
             )
             res_near = covsum.summarize_near(
                 project_root=self.project_root,
@@ -2128,7 +2131,7 @@ English summary:
                 "ok": bool(
                     res_sum.get("ok")
                     and res_grp.get("ok", True)
-                    and res_near.get("ok", True)
+                    and res_near.get("ok", True),
                 ),
                 "weak": res_sum.get("weak", []),
                 "groups": res_grp.get("groups", []),
@@ -2140,7 +2143,7 @@ English summary:
                 "text": json.dumps(payload, ensure_ascii=False),
             }
         summary = covsum.summarize(
-            project_root=self.project_root, policy=policy, min_module=min_module
+            project_root=self.project_root, policy=policy, min_module=min_module,
         )
         return {"mimeType": MIME_JSON, "text": json.dumps(summary, ensure_ascii=False)}
 
@@ -2153,7 +2156,7 @@ English summary:
             else {}
         )
         min_module = float(
-            (perf.get("on_push", {}) or {}).get("coverage", {}).get("min_module", 0.9)
+            (perf.get("on_push", {}) or {}).get("coverage", {}).get("min_module", 0.9),
         )
         policy = (
             (cfg_now.get("coverage", {}) or {}).get("policy", None)
@@ -2174,7 +2177,7 @@ English summary:
         top = int((near_cfg or {}).get("top", 50))
         return within, top
 
-    def _res_read_rules(self, uri: str) -> Dict[str, Any]:
+    def _res_read_rules(self, uri: str) -> dict[str, Any]:
         """Read rules resources: compiled(.md/.json), suggestions, maxima."""
         if uri.endswith("/compiled"):
             path = self.project_root / ri.COMPILED_MD
@@ -2225,8 +2228,8 @@ English summary:
         except Exception:
             return False
 
-    def _prompt_template(self, name: str) -> Dict[str, Any] | None:
-        templates: Dict[str, Dict[str, Any]] = {
+    def _prompt_template(self, name: str) -> dict[str, Any] | None:
+        templates: dict[str, dict[str, Any]] = {
             "handoff.next_steps": {
                 "ok": True,
                 "name": "handoff.next_steps",
@@ -2263,7 +2266,7 @@ English summary:
     def _project_id(self) -> str:
         return uuid.uuid5(uuid.NAMESPACE_URL, str(self.project_root.resolve())).hex[:8]
 
-    def _tool_project_detect(self) -> Dict[str, Any]:
+    def _tool_project_detect(self) -> dict[str, Any]:
         root = self.project_root
         lang = None
         framework = None

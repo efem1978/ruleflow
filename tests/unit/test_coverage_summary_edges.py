@@ -41,7 +41,7 @@ def test_summarize_near_within_and_top(tmp_path: Path) -> None:
     c2 = '<class filename="b.py" line-rate="0.991" lines-valid="100" lines-covered="99"/>'
     (tmp_path / "coverage.xml").write_text(_xml([c1, c2]), encoding="utf-8")
     out = summarize_near(
-        project_root=tmp_path, policy=None, min_module=0.95, within=0.05, top=1
+        project_root=tmp_path, policy=None, min_module=0.95, within=0.05, top=1,
     )
     assert out.get("ok") is True
     near = out.get("near") or []

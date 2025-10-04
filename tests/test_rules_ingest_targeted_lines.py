@@ -44,8 +44,8 @@ def test_ingest_reads_cache_invalid_and_bad_items(tmp_path: Path) -> None:
                     },
                     {"key": "bad"},
                 ],
-            }
-        }
+            },
+        },
     }
     cache_path.write_text(json.dumps(cache), encoding="utf-8")
     out2 = ri.ingest([str(d)], project_root=tmp_path)

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import types
 from pathlib import Path
 
 import mcp_rules_assistant.rules_ingest as ri
@@ -46,7 +45,7 @@ def test_parse_yaml_json_invalid(tmp_path: Path) -> None:
 def test_compile_rules_invalid_config_yaml(monkeypatch, tmp_path: Path) -> None:
     (tmp_path / ".mcp").mkdir(parents=True, exist_ok=True)
     (tmp_path / ".mcp/rules_raw.json").write_text(
-        '{"items": [], "files": []}', encoding="utf-8"
+        '{"items": [], "files": []}', encoding="utf-8",
     )
     import yaml
 

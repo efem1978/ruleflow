@@ -1,10 +1,7 @@
 from __future__ import annotations
 
-import json
-import os
 from pathlib import Path
 
-import pytest
 
 from mcp_rules_assistant.mcp_server import JsonRpcServer
 
@@ -24,7 +21,7 @@ def test_project_switch_add_link_errors(monkeypatch, tmp_path: Path) -> None:
 
 
 def test_fs_apply_patch_disallow_patterns_exception_soft(
-    monkeypatch, tmp_path: Path
+    monkeypatch, tmp_path: Path,
 ) -> None:
     srv = JsonRpcServer()
     srv.project_root = tmp_path

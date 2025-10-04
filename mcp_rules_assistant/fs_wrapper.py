@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from .atomics import atomic_write_json as _atomic_write_json_impl
 from .atomics import atomic_write_text as _atomic_write_text_impl
@@ -17,7 +17,7 @@ class FSGuard:
     - 与 git hooks/CI 协同：重型门禁仍由 push/CI 执行，保持“快速内环”。
     """
 
-    def __init__(self, project_root: Optional[Path] = None) -> None:
+    def __init__(self, project_root: Path | None = None) -> None:
         self.project_root = project_root or Path.cwd()
         self.cfg = load_config(self.project_root)
 
@@ -26,7 +26,7 @@ class FSGuard:
         full.parent.mkdir(parents=True, exist_ok=True)
         # 可选：禁止对现有符号链接写入（默认启用，可通过 execution.forbid_symlink_write=false 关闭）
         try:
-            ex_cfg0: Dict[str, Any] = (
+            ex_cfg0: dict[str, Any] = (
                 self.cfg.get("execution", {})
                 if isinstance(self.cfg.get("execution", {}), dict)
                 else {}
@@ -35,7 +35,7 @@ class FSGuard:
             if forbid_symlink and full.exists() and full.is_symlink():
                 raise ValueError("FSGuard: 目标是符号链接，拒绝写入")
         except Exception:
-            ex_cfg: Dict[str, Any] = (
+            ex_cfg: dict[str, Any] = (
                 self.cfg.get("execution", {})
                 if isinstance(self.cfg.get("execution", {}), dict)
                 else {}
@@ -44,7 +44,7 @@ class FSGuard:
                 raise
         # 前置：路径白名单/扩展名白名单（若配置）
         try:
-            exec_cfg: Dict[str, Any] = (
+            exec_cfg: dict[str, Any] = (
                 self.cfg.get("execution", {})
                 if isinstance(self.cfg.get("execution", {}), dict)
                 else {}
@@ -68,7 +68,7 @@ class FSGuard:
                     raise ValueError("FSGuard: 扩展名不在允许清单内")
         except Exception:
             # 如启用严格模式，向上抛出；否则仅作提示性保护
-            ex_cfg2: Dict[str, Any] = (
+            ex_cfg2: dict[str, Any] = (
                 self.cfg.get("execution", {})
                 if isinstance(self.cfg.get("execution", {}), dict)
                 else {}
@@ -79,7 +79,7 @@ class FSGuard:
         full.write_text(content, encoding)
         # 可选：写入后执行轻量增量检查（受配置 execution.fs_guard_post_checks 控制，默认关闭）
         try:
-            exec_cfg_post: Dict[str, Any] = (
+            exec_cfg_post: dict[str, Any] = (
                 self.cfg.get("execution", {})
                 if isinstance(self.cfg.get("execution", {}), dict)
                 else {}
@@ -88,13 +88,13 @@ class FSGuard:
                 # 惰性导入，避免基础路径下的开销
                 from . import checks as _checks
 
-                files: List[Path] = [full.resolve()]
-                perf: Dict[str, Any] = (
+                files: list[Path] = [full.resolve()]
+                perf: dict[str, Any] = (
                     self.cfg.get("performance", {})
                     if isinstance(self.cfg.get("performance", {}), dict)
                     else {}
                 )
-                on_commit: Dict[str, Any] = (
+                on_commit: dict[str, Any] = (
                     perf.get("on_commit", {})
                     if isinstance(perf.get("on_commit", {}), dict)
                     else {}
@@ -108,12 +108,12 @@ class FSGuard:
                     do_quick_tests=True,
                 )
                 if bool(exec_cfg_post.get("fs_guard_strict", False)) and not bool(
-                    res.get("ok", True)
+                    res.get("ok", True),
                 ):
                     raise ValueError("FSGuard post checks failed under strict mode")
         except Exception:
             # 安全兜底：不因检查失败影响写入；若严格模式开启，则向上抛出
-            ex_cfg_fallback: Dict[str, Any] = (
+            ex_cfg_fallback: dict[str, Any] = (
                 self.cfg.get("execution", {})
                 if isinstance(self.cfg.get("execution", {}), dict)
                 else {}
@@ -123,14 +123,14 @@ class FSGuard:
 
     # ---- Atomic helpers ----
     def write_text_atomic(
-        self, path: Path, content: str, encoding: str = "utf-8"
+        self, path: Path, content: str, encoding: str = "utf-8",
     ) -> None:
         """原子方式写入文本：委托共用实现，降低重复与风险。"""
         full = self.project_root / path
         _atomic_write_text_impl(full, content, encoding=encoding)
 
     def write_json_atomic(
-        self, path: Path, data: Any, *, indent: int | None = None
+        self, path: Path, data: Any, *, indent: int | None = None,
     ) -> None:
         """原子方式写入 JSON（UTF-8，不转义），indent 可选。"""
         _atomic_write_json_impl(self.project_root / path, data, indent=indent)

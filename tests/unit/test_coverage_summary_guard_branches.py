@@ -86,6 +86,6 @@ def test_summarize_near_key_delta_guard(monkeypatch, tmp_path: Path) -> None:
 
     monkeypatch.setattr(builtins, "sorted", sorted_wrap)
     out = cs.summarize_near(
-        project_root=tmp_path, policy=None, min_module=0.95, within=0.01, top=5
+        project_root=tmp_path, policy=None, min_module=0.95, within=0.01, top=5,
     )
     assert out.get("ok") is True and isinstance(out.get("near"), list)

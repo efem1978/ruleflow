@@ -20,7 +20,7 @@ def test_to_rules_md_includes_maxima_and_flags() -> None:
             "maxima": {
                 "coverage.max_module": 0.99,
                 "coverage.max_core": 1.00,
-            }
+            },
         },
         "conflicts": [
             {"key": "coverage.min_module", "old": 0.9, "new": 0.95, "keep": 0.95},

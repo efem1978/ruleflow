@@ -18,7 +18,7 @@ def test_handle_unknown_method_and_resource(tmp_path: Path) -> None:
             "id": 1,
             "method": "resources/read",
             "params": {"uri": "foo://whatever"},
-        }
+        },
     )
     assert "error" in res2
 

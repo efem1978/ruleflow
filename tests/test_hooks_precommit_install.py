@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import types
 from pathlib import Path
 
 from mcp_rules_assistant import hooks
@@ -10,7 +9,7 @@ def test_install_git_hooks_with_precommit(monkeypatch, tmp_path: Path) -> None:
     # Pretend pre-commit exists and intercept subprocess.run calls
     calls = []
     monkeypatch.setattr(
-        "mcp_rules_assistant.hooks.shutil.which", lambda name: "/usr/bin/pre-commit"
+        "mcp_rules_assistant.hooks.shutil.which", lambda name: "/usr/bin/pre-commit",
     )
 
     def fake_run(cmd, **kwargs):  # accept flexible kwargs

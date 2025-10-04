@@ -18,7 +18,7 @@ def test_cli_diagnose_bundle_creates_archive(tmp_path: Path) -> None:
         (Path(".mcp") / "dashboard").mkdir(parents=True, exist_ok=True)
         Path(".mcp/assistant.yaml").write_text("language: python\n", encoding="utf-8")
         Path(".mcp/plan.md").write_text(
-            "- 状态: in_progress\n- 当前步骤: x\n", encoding="utf-8"
+            "- 状态: in_progress\n- 当前步骤: x\n", encoding="utf-8",
         )
         Path(".mcp/memory.json").write_text("{}", encoding="utf-8")
         Path(".mcp/rules_compiled.json").write_text("{}", encoding="utf-8")

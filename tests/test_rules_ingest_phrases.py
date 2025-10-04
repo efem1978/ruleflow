@@ -40,7 +40,7 @@ def test_chinese_percent_core(tmp_path: Path) -> None:
 def test_english_percent_module_and_core(tmp_path: Path) -> None:
     d = tmp_path / "en.md"
     d.write_text(
-        "- coverage at least 90 percent\n- core >= 96 percent", encoding="utf-8"
+        "- coverage at least 90 percent\n- core >= 96 percent", encoding="utf-8",
     )
     res = ri.ingest([str(d)], project_root=tmp_path)
     pol = (res.get("compiled") or {}).get("policy") or {}

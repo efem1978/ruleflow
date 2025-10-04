@@ -24,7 +24,7 @@ def project_root(tmp_path: Path) -> Path:
 ## Next Actions
 - [ ] Task 1
 - [x] Task 2
-"""
+""",
     )
 
     # Create mock dashboard status
@@ -40,9 +40,9 @@ def project_root(tmp_path: Path) -> Path:
                     "min_module": 0.9,
                     "count": 10,
                     "progress": 0.8,
-                }
-            }
-        )
+                },
+            },
+        ),
     )
 
     # Create dummy files for coverage summary
@@ -59,19 +59,18 @@ def project_root(tmp_path: Path) -> Path:
             </classes>
         </package>
     </packages>
-</coverage>"""
+</coverage>""",
     )
 
     # Copy real config to temp project
     (project_root / ".mcp/assistant.yaml").touch()
 
     # Find the real config file from the project root
-    import os
 
     real_config_path = Path(__file__).parent.parent / ".mcp/assistant.yaml"
     if real_config_path.exists():
         shutil.copyfile(
-            str(real_config_path), str(project_root / ".mcp/assistant.yaml")
+            str(real_config_path), str(project_root / ".mcp/assistant.yaml"),
         )
     else:
         # Create a minimal config if the real one doesn't exist
@@ -120,7 +119,7 @@ def test_compute_status(project_root: Path, monkeypatch):
         lambda **kwargs: {"groups": []},
     )
     monkeypatch.setattr(
-        "mcp_rules_assistant.dev_agent.summarize_near", lambda **kwargs: {"near": []}
+        "mcp_rules_assistant.dev_agent.summarize_near", lambda **kwargs: {"near": []},
     )
 
     agent = DevAgent(project_root=project_root)
@@ -164,7 +163,7 @@ def test_atomic_write_failure(project_root: Path, monkeypatch):
     def mock_move(*args, **kwargs):
         # In a real failure, the source (temp file) would still exist.
         # The _atomic_write function is expected to clean it up.
-        raise IOError("Permission denied during move")
+        raise OSError("Permission denied during move")
 
     monkeypatch.setattr(shutil, "move", mock_move)
 

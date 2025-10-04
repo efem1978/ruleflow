@@ -39,7 +39,7 @@ def test_collect_tasks_exception_branch(tmp_path: Path, monkeypatch) -> None:
     )
     # 注入会抛异常的 _collect
     monkeypatch.setattr(
-        AS, "read_plan", lambda root=None: (_ for _ in ()).throw(Boom())
+        AS, "read_plan", lambda root=None: (_ for _ in ()).throw(Boom()),
     )
     out = AS.generate_status(project_root=tmp_path)
     assert out["tasks"]["pending"] == [] and out["tasks"]["done"] == []

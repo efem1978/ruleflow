@@ -4,7 +4,6 @@ import json
 import shutil
 import stat
 from pathlib import Path
-from typing import Dict, Optional
 
 from .config import load_config
 from .process import run_cmd
@@ -21,7 +20,7 @@ def _ensure_dir(p: Path) -> None:
 # 使用共享 run_cmd（原本模块内的 _run_cmd 已移除）
 
 
-def _read_compiled_policy(root: Path) -> Dict[str, object]:
+def _read_compiled_policy(root: Path) -> dict[str, object]:
     p = root / RULES_COMPILED_JSON
     if not p.exists():
         return {}
@@ -52,7 +51,7 @@ def _go_cov_gate_snippet(min_u: int) -> str:
     )
 
 
-def generate_pre_commit_config(project_root: Optional[Path] = None) -> Path:
+def generate_pre_commit_config(project_root: Path | None = None) -> Path:
     root = (project_root or Path.cwd()).resolve()
     cfg = load_config(root)
     # retain min_module for documentation/comment and downstream tools
@@ -168,7 +167,7 @@ repos:
     return path
 
 
-def install_git_hooks(project_root: Optional[Path] = None) -> Dict[str, str]:
+def install_git_hooks(project_root: Path | None = None) -> dict[str, str]:
     root = (project_root or Path.cwd()).resolve()
 
     pcfg = generate_pre_commit_config(root)
@@ -285,9 +284,9 @@ if not py_changed:
             float(
                 ((_cfg.get("performance", {}) or {}).get("on_push", {}) or {})
                 .get("coverage", {})
-                .get("min_module", 0.9)
+                .get("min_module", 0.9),
             )
-            * 100
+            * 100,
         )
     except Exception:
         _min_module = 90
@@ -422,7 +421,7 @@ if __name__ == "__main__":
 
     # docker baseline gate if enabled
     policy = _read_compiled_policy(root)
-    docker_gate_path: Optional[Path] = None
+    docker_gate_path: Path | None = None
     if policy.get(KEY_CONTAINER_POLICY_BASELINE):
         docker_gate_path = root / ".mcp/dockerfile_gate.py"
         docker_gate_path.write_text(
@@ -467,7 +466,7 @@ if __name__ == "__main__":
             pass
 
     # prepare outputs
-    out: Dict[str, str] = {
+    out: dict[str, str] = {
         "pre_commit_config": str(pcfg),
         "pre_push": str(pre_push),
         "plan_gate": str(plan_gate),
@@ -492,7 +491,7 @@ if __name__ == "__main__":
             pass
         try:
             run_cmd(
-                ["git", "config", "commit.template", str(tmpl)], cwd=root, check=False
+                ["git", "config", "commit.template", str(tmpl)], cwd=root, check=False,
             )
             out["commit_template"] = str(tmpl)
         except Exception:
@@ -508,7 +507,7 @@ if __name__ == "__main__":
     return out
 
 
-def render_github_ci_yaml(project_root: Optional[Path] = None) -> str:
+def render_github_ci_yaml(project_root: Path | None = None) -> str:
     root = (project_root or Path.cwd()).resolve()
     cfg = load_config(root)
     min_module = cfg["performance"]["on_push"]["coverage"]["min_module"]
@@ -569,7 +568,7 @@ def render_github_ci_yaml(project_root: Optional[Path] = None) -> str:
 
     mutation_step = ""
     if policy.get("test.mutation_required") or bool(
-        on_push_cfg.get("mutation_test", False)
+        on_push_cfg.get("mutation_test", False),
     ):
         # 严格模式或显式开启 ci.mutation_gate_strict 时，变异测试作为硬门禁；否则非阻断。
         mutation_step = (
@@ -916,7 +915,7 @@ jobs:
     return yml
 
 
-def generate_github_ci(project_root: Optional[Path] = None) -> Path:
+def generate_github_ci(project_root: Path | None = None) -> Path:
     root = (project_root or Path.cwd()).resolve()
     yml = render_github_ci_yaml(root)
     wf_dir = root / ".github" / "workflows"
@@ -926,13 +925,13 @@ def generate_github_ci(project_root: Optional[Path] = None) -> Path:
     return path
 
 
-def autofix_github_ci(project_root: Optional[Path] = None) -> Dict[str, str | bool]:
+def autofix_github_ci(project_root: Path | None = None) -> dict[str, str | bool]:
     root = (project_root or Path.cwd()).resolve()
     desired = render_github_ci_yaml(root)
     wf_dir = root / ".github" / "workflows"
     _ensure_dir(wf_dir)
     path = wf_dir / "ci.yml"
-    backup: Optional[str] = None
+    backup: str | None = None
     changed = True
     if path.exists():
         current = path.read_text(encoding="utf-8")

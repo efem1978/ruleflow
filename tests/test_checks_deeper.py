@@ -18,7 +18,7 @@ def test_run_type_and_lint_file_not_found(monkeypatch, tmp_path: Path) -> None:
 
 
 def test_quick_tests_fallback_import_and_events_and_decay(
-    tmp_path: Path, monkeypatch
+    tmp_path: Path, monkeypatch,
 ) -> None:
     # write config overriding decay to make both branches active
     (tmp_path / ".mcp").mkdir(parents=True, exist_ok=True)
@@ -47,7 +47,7 @@ def test_quick_tests_fallback_import_and_events_and_decay(
         ],
     }
     (tmp_path / ".mcp/last_failed_tests.json").write_text(
-        json.dumps(last), encoding="utf-8"
+        json.dumps(last), encoding="utf-8",
     )
     # create tests dir with fallback string imports (not real import statements) to exercise _discover_tests_by_import
     tdir = tmp_path / "tests"
@@ -62,7 +62,7 @@ def test_quick_tests_fallback_import_and_events_and_decay(
     def fake_run(cmd, cwd=None, env=None):
         # must include the discovered test path
         assert any(
-            str((tmp_path / "tests/test_any.py")) in c
+            str(tmp_path / "tests/test_any.py") in c
             for c in cmd
             if isinstance(c, str)
         )
@@ -79,7 +79,7 @@ def test_quick_tests_fallback_import_and_events_and_decay(
     assert res.get("ok") is False
     # ensure last_failed updated
     data = json.loads(
-        (tmp_path / ".mcp/last_failed_tests.json").read_text(encoding="utf-8")
+        (tmp_path / ".mcp/last_failed_tests.json").read_text(encoding="utf-8"),
     )
     assert data.get("tests")
 

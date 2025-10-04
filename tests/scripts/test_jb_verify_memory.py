@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import os
-import shutil
 import stat
 import subprocess
 from pathlib import Path
@@ -30,7 +29,7 @@ def test_jb_ui_verify_includes_memory_turns(tmp_path: Path) -> None:
             {
                 "plan": {"status": "in_progress", "current": "X"},
                 "coverage": {"weak": []},
-            }
+            },
         ),
         encoding="utf-8",
     )
@@ -41,7 +40,7 @@ def test_jb_ui_verify_includes_memory_turns(tmp_path: Path) -> None:
                 "turns": [{"role": "user", "content": "hi", "meta": {}}],
                 "summary": "x",
                 "links": [],
-            }
+            },
         ),
         encoding="utf-8",
     )

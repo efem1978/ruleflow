@@ -24,7 +24,7 @@ def test_initialize_run_status_writes_files(tmp_path: Path, monkeypatch) -> None
         }
 
     monkeypatch.setattr(
-        a, "_run_impacted_or_full", types.MethodType(_fake_run_impacted_or_full, a)
+        a, "_run_impacted_or_full", types.MethodType(_fake_run_impacted_or_full, a),
     )
     monkeypatch.setattr(a, "compute_status", types.MethodType(_fake_compute_status, a))
 

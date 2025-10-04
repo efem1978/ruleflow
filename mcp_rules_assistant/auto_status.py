@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from . import coverage_summary as cov
 from .config import load_config
@@ -20,7 +20,7 @@ class PlanSnapshot:
     pending_count: int
 
 
-def _plan_snapshot(project_root: Optional[Path] = None) -> PlanSnapshot:
+def _plan_snapshot(project_root: Path | None = None) -> PlanSnapshot:
     root = (project_root or Path.cwd()).resolve()
     ensure_plan(root)
     text = read_plan(root)
@@ -37,7 +37,7 @@ def _plan_snapshot(project_root: Optional[Path] = None) -> PlanSnapshot:
     )
 
 
-def _coverage_snapshot(project_root: Optional[Path] = None) -> Dict[str, Any]:
+def _coverage_snapshot(project_root: Path | None = None) -> dict[str, Any]:
     root = (project_root or Path.cwd()).resolve()
     cfg = load_config()
     perf = (
@@ -46,18 +46,18 @@ def _coverage_snapshot(project_root: Optional[Path] = None) -> Dict[str, Any]:
         else {}
     )
     min_module = float(
-        (perf.get("on_push", {}) or {}).get("coverage", {}).get("min_module", 0.9)
+        (perf.get("on_push", {}) or {}).get("coverage", {}).get("min_module", 0.9),
     )
     policy = (
         (cfg.get("coverage", {}) or {}).get("policy", None)
         if isinstance(cfg.get("coverage", {}), dict)
         else None
     )
-    res_w: Dict[str, Any] = cov.summarize(
-        project_root=root, policy=policy, min_module=min_module
+    res_w: dict[str, Any] = cov.summarize(
+        project_root=root, policy=policy, min_module=min_module,
     )
-    res_g: Dict[str, Any] = cov.summarize_groups(
-        project_root=root, policy=policy, min_module=min_module
+    res_g: dict[str, Any] = cov.summarize_groups(
+        project_root=root, policy=policy, min_module=min_module,
     )
     near_cfg = (
         (cfg.get("coverage", {}) or {}).get("near", {})
@@ -67,14 +67,14 @@ def _coverage_snapshot(project_root: Optional[Path] = None) -> Dict[str, Any]:
     within = float(near_cfg.get("within", 0.03))
     top = int(near_cfg.get("top", 50))
     res_n = cov.summarize_near(
-        project_root=root, policy=policy, min_module=min_module, within=within, top=top
+        project_root=root, policy=policy, min_module=min_module, within=within, top=top,
     )
     weak_obj = res_w.get("weak", [])
-    weak: List[Dict[str, Any]] = weak_obj if isinstance(weak_obj, list) else []
+    weak: list[dict[str, Any]] = weak_obj if isinstance(weak_obj, list) else []
     groups_obj = res_g.get("groups", [])
-    groups: List[Dict[str, Any]] = groups_obj if isinstance(groups_obj, list) else []
+    groups: list[dict[str, Any]] = groups_obj if isinstance(groups_obj, list) else []
     near_obj = res_n.get("near", [])
-    near: List[Dict[str, Any]] = near_obj if isinstance(near_obj, list) else []
+    near: list[dict[str, Any]] = near_obj if isinstance(near_obj, list) else []
     cnt_obj = res_w.get("count", 0)
     count = int(cnt_obj) if isinstance(cnt_obj, (int, float)) else 0
     cov_progress = 0.0
@@ -93,7 +93,7 @@ def _coverage_snapshot(project_root: Optional[Path] = None) -> Dict[str, Any]:
     }
 
 
-def _memory_snapshot(project_root: Optional[Path] = None) -> Dict[str, Any]:
+def _memory_snapshot(project_root: Path | None = None) -> dict[str, Any]:
     """Snapshot of memory state (turns + summary)."""
     root = (project_root or Path.cwd()).resolve()
     memory_file = root / ".mcp/memory.json"
@@ -107,7 +107,7 @@ def _memory_snapshot(project_root: Optional[Path] = None) -> Dict[str, Any]:
 
         # Try to parse JSON to check validity
         try:
-            with open(memory_file, "r", encoding="utf-8") as f:
+            with open(memory_file, encoding="utf-8") as f:
                 json.load(f)
         except (json.JSONDecodeError, UnicodeDecodeError):
             # File exists but is corrupt - return exists=False
@@ -124,7 +124,7 @@ def _memory_snapshot(project_root: Optional[Path] = None) -> Dict[str, Any]:
         return {"exists": False, "summary": "", "turns": []}
 
 
-def generate_status(project_root: Optional[Path] = None) -> Dict[str, Any]:
+def generate_status(project_root: Path | None = None) -> dict[str, Any]:
     root = (project_root or Path.cwd()).resolve()
     plan = _plan_snapshot(root)
     coverage = _coverage_snapshot(root)
@@ -151,7 +151,7 @@ def generate_status(project_root: Optional[Path] = None) -> Dict[str, Any]:
     except Exception:
         overall_progress = 0.0
     # 命令事件近24小时指标（可选）
-    cmd_metrics: Dict[str, Any] | None = None
+    cmd_metrics: dict[str, Any] | None = None
     try:
 
         dash_dir = (project_root or Path.cwd()).resolve() / ".mcp/dashboard"
@@ -190,14 +190,14 @@ def generate_status(project_root: Optional[Path] = None) -> Dict[str, Any]:
                     "errors": errors,
                     "fail_ratio": round(fail_ratio, 4),
                     "avg_elapsed": round(avg_elapsed, 4),
-                }
+                },
             }
     except Exception:
         cmd_metrics = None
 
-    payload: Dict[str, Any] = {
+    payload: dict[str, Any] = {
         # 使用 timezone-aware 时间，避免 utcnow 弃用告警（-W error 环境下会失败）
-        "time": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "time": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "plan": {
             "status": plan.status,
             "current": plan.current,
@@ -225,12 +225,12 @@ def generate_status(project_root: Optional[Path] = None) -> Dict[str, Any]:
     dash = root / ".mcp/dashboard"
     dash.mkdir(parents=True, exist_ok=True)
     (dash / "status.json").write_text(
-        json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+        json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8",
     )
     # history (append, keep last 50)
     hist_p = dash / "history.json"
     try:
-        hist: List[Dict[str, Any]]
+        hist: list[dict[str, Any]]
         if hist_p.exists():
             hist = json.loads(hist_p.read_text(encoding="utf-8"))
             if not isinstance(hist, list):
@@ -242,11 +242,11 @@ def generate_status(project_root: Optional[Path] = None) -> Dict[str, Any]:
                 "time": payload["time"],
                 "plan": payload["plan"],
                 "progress": payload["progress"],
-            }
+            },
         )
         hist = hist[-50:]
         hist_p.write_text(
-            json.dumps(hist, ensure_ascii=False, indent=2), encoding="utf-8"
+            json.dumps(hist, ensure_ascii=False, indent=2), encoding="utf-8",
         )
     except Exception as e:
         import logging

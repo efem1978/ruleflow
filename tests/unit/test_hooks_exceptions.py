@@ -9,7 +9,7 @@ def test_install_hooks_precommit_run_raises(monkeypatch, tmp_path: Path) -> None
     # simulate pre-commit present and subprocess.run raising -> cover except at 283-284
     (tmp_path / ".git").mkdir(parents=True, exist_ok=True)
     monkeypatch.setattr(
-        "mcp_rules_assistant.hooks.shutil.which", lambda name: "/usr/bin/pre-commit"
+        "mcp_rules_assistant.hooks.shutil.which", lambda name: "/usr/bin/pre-commit",
     )
 
     class E(Exception):
@@ -24,7 +24,7 @@ def test_install_hooks_precommit_run_raises(monkeypatch, tmp_path: Path) -> None
 
 
 def test_install_hooks_commit_template_outer_and_inner_except(
-    monkeypatch, tmp_path: Path
+    monkeypatch, tmp_path: Path,
 ) -> None:
     (tmp_path / ".git").mkdir(parents=True, exist_ok=True)
     # outer except: hooks.Path.write_text raises for commit template

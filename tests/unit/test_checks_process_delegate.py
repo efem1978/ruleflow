@@ -1,13 +1,11 @@
 from __future__ import annotations
 
-import os
 from types import SimpleNamespace
 
 
 def test_checks_run_uses_process_runner_when_enabled(monkeypatch, tmp_path):
     # Enable delegation via env
     monkeypatch.setenv("MCP_CHECKS_PROCESS_RUNNER", "1")
-    import importlib
 
     import mcp_rules_assistant.checks as checks
 
@@ -17,7 +15,7 @@ def test_checks_run_uses_process_runner_when_enabled(monkeypatch, tmp_path):
     called = {}
 
     def _stub_run_cmd(
-        cmd, *, cwd, capture_stdout=True, env=None, check=False, **kw
+        cmd, *, cwd, capture_stdout=True, env=None, check=False, **kw,
     ):  # noqa: ARG001
         called["cmd"] = list(cmd)
         return SimpleNamespace(returncode=0, stdout="stub", stderr="")

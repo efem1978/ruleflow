@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
-from typing import Any, Dict
 
 import pytest
 
@@ -16,7 +14,7 @@ def _mk_server(tmp_path: Path) -> ms.JsonRpcServer:
 
 
 def test_gated_tool_license_required_invalid(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     monkeypatch.chdir(tmp_path)
     srv = _mk_server(tmp_path)
@@ -28,7 +26,7 @@ def test_gated_tool_license_required_invalid(
 
 
 def test_resources_read_unknown_uri(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     monkeypatch.chdir(tmp_path)
     srv = _mk_server(tmp_path)
@@ -44,7 +42,7 @@ def test_resources_read_unknown_uri(
 
 
 def test_rules_maxima_missing_compiled(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     monkeypatch.chdir(tmp_path)
     srv = _mk_server(tmp_path)
@@ -61,7 +59,7 @@ def test_rules_maxima_missing_compiled(
 
 
 def test_fs_apply_patch_missing_path(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     monkeypatch.chdir(tmp_path)
     srv = _mk_server(tmp_path)
@@ -73,7 +71,7 @@ def test_fs_apply_patch_missing_path(
 
 
 def test_fs_apply_patch_absolute_and_outside(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     monkeypatch.chdir(tmp_path)
     srv = _mk_server(tmp_path)
@@ -86,12 +84,12 @@ def test_fs_apply_patch_absolute_and_outside(
     # 越权路径（..）
     with pytest.raises(ValueError):
         srv._call_tool(
-            "fs.apply_patch", {"files": [{"path": "../x.py", "content": "x"}]}
+            "fs.apply_patch", {"files": [{"path": "../x.py", "content": "x"}]},
         )
 
 
 def test_fs_apply_patch_prefix_ext_mismatch_strict(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     monkeypatch.chdir(tmp_path)
     srv = _mk_server(tmp_path)
@@ -100,23 +98,23 @@ def test_fs_apply_patch_prefix_ext_mismatch_strict(
             "allowed_write_prefixes": ["docs/"],
             "allowed_write_extensions": [".md"],
             "fs_guard_strict": True,
-        }
+        },
     }
     # 前缀不匹配 -> 在 strict 下抛出
     with pytest.raises(ValueError):
         srv._call_tool(
-            "fs.apply_patch", {"files": [{"path": "src/x.md", "content": "a"}]}
+            "fs.apply_patch", {"files": [{"path": "src/x.md", "content": "a"}]},
         )
     # 前缀匹配但扩展名不匹配 -> 抛出
     Path("docs").mkdir(exist_ok=True)
     with pytest.raises(ValueError):
         srv._call_tool(
-            "fs.apply_patch", {"files": [{"path": "docs/x.py", "content": "a"}]}
+            "fs.apply_patch", {"files": [{"path": "docs/x.py", "content": "a"}]},
         )
 
 
 def test_fs_apply_patch_maxfiles(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     monkeypatch.chdir(tmp_path)
     srv = _mk_server(tmp_path)
@@ -126,7 +124,7 @@ def test_fs_apply_patch_maxfiles(
 
 
 def test_fs_apply_patch_strict_skip_and_pattern(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     monkeypatch.chdir(tmp_path)
     srv = _mk_server(tmp_path)
@@ -155,7 +153,7 @@ def test_fs_apply_patch_strict_skip_and_pattern(
 
 
 def test_fs_apply_patch_post_checks_fail_strict(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     monkeypatch.chdir(tmp_path)
     srv = _mk_server(tmp_path)
@@ -176,7 +174,7 @@ def test_fs_apply_patch_post_checks_fail_strict(
                     {
                         "path": "mcp_rules_assistant/edge_test.py",
                         "content": "print('x')",
-                    }
+                    },
                 ],
                 "runChecks": True,
                 "strict": True,
@@ -185,7 +183,7 @@ def test_fs_apply_patch_post_checks_fail_strict(
 
 
 def test_fs_apply_patch_dry_run(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     monkeypatch.chdir(tmp_path)
     srv = _mk_server(tmp_path)
@@ -202,7 +200,7 @@ def test_prompts_list_and_get(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -
     r1 = srv.handle({"jsonrpc": "2.0", "id": 1, "method": "prompts/list"})
     assert r1.get("result", {}).get("prompts") == []
     r2 = srv.handle(
-        {"jsonrpc": "2.0", "id": 1, "method": "prompts/get", "params": {"name": "x"}}
+        {"jsonrpc": "2.0", "id": 1, "method": "prompts/get", "params": {"name": "x"}},
     )
     assert r2.get("result", {}).get("ok") is False
 
@@ -216,7 +214,7 @@ def test_project_detect_python(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) 
 
 
 def test_license_required_try_except_and_ensure(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     monkeypatch.chdir(tmp_path)
     srv = _mk_server(tmp_path)
@@ -231,7 +229,7 @@ def test_license_required_try_except_and_ensure(
 
 
 def test_tool_license_activate_error_and_success(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     monkeypatch.chdir(tmp_path)
     srv = _mk_server(tmp_path)
@@ -247,7 +245,7 @@ def test_tool_license_activate_error_and_success(
 
 
 def test_env_diagnose_executes_verify(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     monkeypatch.chdir(tmp_path)
     srv = _mk_server(tmp_path)

@@ -15,7 +15,7 @@ def test_per_key_conflict_delta(tmp_path: Path) -> None:
                 "  conflict_delta:",
                 "    coverage.min_module: 0.05",
                 "    coverage.min_core: 0.02",
-            ]
+            ],
         ),
         encoding="utf-8",
     )

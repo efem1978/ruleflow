@@ -30,7 +30,7 @@ def test_run_writes_cmd_events(monkeypatch, tmp_path: Path) -> None:
     # run one cycle with OK tests to exercise event persistence and jsonl append
     monkeypatch.setenv("DEV_AGENT_MAX_CYCLES", "1")
     monkeypatch.setattr(
-        dev_agent, "_run_impacted_or_full", lambda *a, **k: {"ok": True, "mode": "full"}
+        dev_agent, "_run_impacted_or_full", lambda *a, **k: {"ok": True, "mode": "full"},
     )
     monkeypatch.setattr(
         dev_agent,

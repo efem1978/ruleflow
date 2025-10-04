@@ -47,10 +47,10 @@ def test_mcp_resources_coverage_groups_respects_policy(tmp_path: Path) -> None:
         y = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
         y.setdefault("coverage", {})["policy"] = {"pkg/": 0.95}
         y.setdefault("performance", {}).setdefault("on_push", {}).setdefault(
-            "coverage", {}
+            "coverage", {},
         )["min_module"] = 0.90
         p.write_text(
-            yaml.safe_dump(y, sort_keys=False, allow_unicode=True), encoding="utf-8"
+            yaml.safe_dump(y, sort_keys=False, allow_unicode=True), encoding="utf-8",
         )
 
         _write_cov_xml(tmp_path / "coverage.xml")
@@ -84,8 +84,8 @@ def test_mcp_ci_validate_and_autofix_backup(tmp_path: Path) -> None:
                         "security.secrets_scan": True,
                         "container.required": True,
                         "security.sast_strict": True,
-                    }
-                }
+                    },
+                },
             ),
             encoding="utf-8",
         )
@@ -93,7 +93,7 @@ def test_mcp_ci_validate_and_autofix_backup(tmp_path: Path) -> None:
         y = yaml.safe_load(cfg.read_text(encoding="utf-8")) or {}
         y.setdefault("ci", {})["hadolint"] = True
         cfg.write_text(
-            yaml.safe_dump(y, sort_keys=False, allow_unicode=True), encoding="utf-8"
+            yaml.safe_dump(y, sort_keys=False, allow_unicode=True), encoding="utf-8",
         )
 
         srv = JsonRpcServer()

@@ -8,7 +8,7 @@ from mcp_rules_assistant.cli import app
 
 
 def test_cli_cleanup_removes_artifacts_and_handles_exceptions(
-    tmp_path: Path, monkeypatch
+    tmp_path: Path, monkeypatch,
 ) -> None:
     runner = CliRunner()
     with runner.isolated_filesystem(temp_dir=tmp_path):
@@ -47,12 +47,12 @@ def test_cli_compliance_commitment_default_writes_to_mcp(tmp_path: Path) -> None
         assert r.exit_code == 0
         p = Path(".mcp/compliance.md")
         assert p.exists() and p.read_text(encoding="utf-8").strip().startswith(
-            "# AI 合规承诺"
+            "# AI 合规承诺",
         )
 
 
 def test_cli_compliance_commitment_fallback_when_server_did_not_write(
-    tmp_path: Path, monkeypatch
+    tmp_path: Path, monkeypatch,
 ) -> None:
     # Monkeypatch JsonRpcServer to simulate not writing to disk
     import mcp_rules_assistant.cli as cli

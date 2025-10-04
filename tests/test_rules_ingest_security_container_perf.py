@@ -18,7 +18,7 @@ def test_sast_devcontainer_perf_and_vcs_flags(tmp_path: Path) -> None:
                 "- 密钥扫描 detect-secrets",
                 "- 使用 Docker 部署",
                 "- 镜像基线 rootless",
-            ]
+            ],
         ),
         encoding="utf-8",
     )

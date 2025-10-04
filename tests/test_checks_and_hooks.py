@@ -19,7 +19,7 @@ def test_checks_skip_when_no_impacted_and_missing_tools(tmp_path: Path) -> None:
     f = tmp_path / "foo.py"
     f.write_text("print('x')\n", encoding="utf-8")
     res = checks.run_checks(
-        [f], cwd=tmp_path, do_lint=True, do_type=True, do_quick_tests=True
+        [f], cwd=tmp_path, do_lint=True, do_type=True, do_quick_tests=True,
     )
     assert res.get("ok") is True
     steps = res.get("steps") or []
@@ -45,8 +45,8 @@ def test_render_github_ci_yaml_respects_compiled_rules(tmp_path: Path) -> None:
                     "security.secrets_scan": True,
                     "container.required": True,
                     "security.sast_strict": True,
-                }
-            }
+                },
+            },
         ),
         encoding="utf-8",
     )
@@ -112,7 +112,7 @@ def test_fs_apply_patch_strict_rejects_skip_marker(tmp_path: Path) -> None:
                     {
                         "path": "tests/test_x.py",
                         "content": "import pytest\n@pytest.mark.skip\ndef test_a(): pass\n",
-                    }
+                    },
                 ],
                 "runChecks": True,
                 "strict": True,
@@ -128,7 +128,7 @@ def test_run_quick_tests_picks_impacted_tests(tmp_path: Path) -> None:
     (tmp_path / "tests").mkdir(parents=True, exist_ok=True)
     (tmp_path / "foo.py").write_text("def add(a,b): return a+b\n", encoding="utf-8")
     (tmp_path / "tests/test_foo.py").write_text(
-        "from foo import add\n\ndef test_add(): assert add(1,2)==3\n", encoding="utf-8"
+        "from foo import add\n\ndef test_add(): assert add(1,2)==3\n", encoding="utf-8",
     )
     res = checks.run_quick_tests([tmp_path / "foo.py"], cwd=tmp_path)
     assert res.get("ok") is True
@@ -178,7 +178,7 @@ def test_dockerfile_baseline_gate(tmp_path: Path) -> None:
     compiled = tmp_path / ".mcp/rules_compiled.json"
     compiled.parent.mkdir(parents=True, exist_ok=True)
     compiled.write_text(
-        '{"policy": {"container.policy.baseline": true}}', encoding="utf-8"
+        '{"policy": {"container.policy.baseline": true}}', encoding="utf-8",
     )
     install_git_hooks(tmp_path)
     gate = tmp_path / ".mcp/dockerfile_gate.py"
@@ -188,13 +188,13 @@ def test_dockerfile_baseline_gate(tmp_path: Path) -> None:
 
     # Bad Dockerfile (violates baseline)
     (tmp_path / "Dockerfile").write_text(
-        "FROM python:3.11-slim\nUSER root\n", encoding="utf-8"
+        "FROM python:3.11-slim\nUSER root\n", encoding="utf-8",
     )
     p = subprocess.run([sys.executable, str(gate)], cwd=tmp_path)
     assert p.returncode != 0
     # Good Dockerfile (passes baseline)
     (tmp_path / "Dockerfile").write_text(
-        "FROM python:3.11-slim\nRUN echo ok\n", encoding="utf-8"
+        "FROM python:3.11-slim\nRUN echo ok\n", encoding="utf-8",
     )
     p2 = subprocess.run([sys.executable, str(gate)], cwd=tmp_path)
     assert p2.returncode == 0
@@ -207,25 +207,23 @@ def test_no_skip_xfail_grep_command(tmp_path: Path) -> None:
     (tmp_path / "tests").mkdir(parents=True, exist_ok=True)
     bad = tmp_path / "tests/test_bad.py"
     bad.write_text(
-        "import pytest\n\n@pytest.mark.xfail\ndef test_bad(): pass\n", encoding="utf-8"
+        "import pytest\n\n@pytest.mark.xfail\ndef test_bad(): pass\n", encoding="utf-8",
     )
     subprocess.run(
         ["git", "init"],
         cwd=tmp_path,
         check=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
     )
     subprocess.run(
         ["git", "add", "-A"],
         cwd=tmp_path,
         check=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
     )
     # The grep used in pre-commit should detect the marker
     r = subprocess.run(
-        ["git", "grep", "-nE", r"pytest\.mark\.(skip|xfail)", "--", "."], cwd=tmp_path
+        ["git", "grep", "-nE", r"pytest\.mark\.(skip|xfail)", "--", "."], cwd=tmp_path,
     )
     assert r.returncode == 0  # found
 
@@ -235,11 +233,10 @@ def test_no_skip_xfail_grep_command(tmp_path: Path) -> None:
         ["git", "add", "-A"],
         cwd=tmp_path,
         check=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
     )
     r2 = subprocess.run(
-        ["git", "grep", "-nE", r"pytest\.mark\.(skip|xfail)", "--", "."], cwd=tmp_path
+        ["git", "grep", "-nE", r"pytest\.mark\.(skip|xfail)", "--", "."], cwd=tmp_path,
     )
     assert r2.returncode != 0  # not found
 
@@ -313,7 +310,7 @@ def test_quick_tests_prioritizes_specific_failed_node_id(tmp_path: Path) -> None
     # Create dummy test files so pytest doesn't fail immediately
     (tmp_path / "tests").mkdir(exist_ok=True)
     (tmp_path / "tests/test_multi.py").write_text(
-        "def test_stable(): pass\ndef test_flaky(): pass"
+        "def test_stable(): pass\ndef test_flaky(): pass",
     )
 
     res = checks.run_quick_tests([], cwd=tmp_path)

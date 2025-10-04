@@ -6,7 +6,7 @@ import mcp_rules_assistant.coverage_summary as cs
 
 
 def test_read_classes_with_cache_read_bytes_exception(
-    monkeypatch, tmp_path: Path
+    monkeypatch, tmp_path: Path,
 ) -> None:
     cov = tmp_path / "coverage.xml"
     cov.write_text(
@@ -45,7 +45,7 @@ def test_parse_invalid_xml_returns_empty(tmp_path: Path) -> None:
     assert r2.get("ok") is True
     # files not dict
     (tmp_path / ".mcp/coverage_cache.json").write_text(
-        '{"files": []}', encoding="utf-8"
+        '{"files": []}', encoding="utf-8",
     )
     r3 = cs.summarize(project_root=tmp_path, coverage_xml="coverage2.xml")
     assert r3.get("ok") is True

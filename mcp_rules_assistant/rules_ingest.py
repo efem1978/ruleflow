@@ -6,7 +6,8 @@ import re
 import shutil
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any
+from collections.abc import Iterable
 
 RAW_PATH = Path(".mcp/rules_raw.json")
 COMPILED_JSON = Path(".mcp/rules_compiled.json")
@@ -28,7 +29,7 @@ class RuleItem:
     source: Source
     severity: str = "must"  # must/should
     # Optional conditions parsed from tags like [env:container] [ide:vscode] [os:windows|linux|darwin]
-    conditions: Optional[Dict[str, List[str]]] = None
+    conditions: dict[str, list[str]] | None = None
 
 
 def _iter_files(paths: Iterable[Path]) -> Iterable[Path]:
@@ -46,8 +47,8 @@ _YAML_EXT = {".yaml", ".yml"}
 _JSON_EXT = {".json"}
 
 
-def _parse_text_file(path: Path) -> List[RuleItem]:
-    items: List[RuleItem] = []
+def _parse_text_file(path: Path) -> list[RuleItem]:
+    items: list[RuleItem] = []
     try:
         lines = path.read_text(encoding="utf-8", errors="ignore").splitlines()
     except Exception:
@@ -76,18 +77,18 @@ def _parse_text_file(path: Path) -> List[RuleItem]:
                         text=clean,
                         source=Source(str(path), i),
                         conditions=(conds or None),
-                    )
+                    ),
                 )
     return items
 
 
-def _extract_conditions(text: str) -> Tuple[Dict[str, List[str]], str]:
+def _extract_conditions(text: str) -> tuple[dict[str, list[str]], str]:
     """Extract condition tags from text and return (conditions, clean_text).
 
     Supported tags: [env:container], [ide:vscode], [os:windows|linux|darwin]
     Multiple values can be separated by comma or '|'. Unknown tags are ignored.
     """
-    conds: Dict[str, List[str]] = {}
+    conds: dict[str, list[str]] = {}
     clean = text
     # Find all [key:value] tags
     pattern = re.compile(r"\[(\w+):([^\]]+)\]")
@@ -106,9 +107,9 @@ def _extract_conditions(text: str) -> Tuple[Dict[str, List[str]], str]:
     return conds, clean
 
 
-def _interpret_policy(text: str) -> Dict[str, Any]:
+def _interpret_policy(text: str) -> dict[str, Any]:
     t = text.lower()
-    out: Dict[str, Any] = {}
+    out: dict[str, Any] = {}
 
     # 覆盖率（模块/核心）
     # 先匹配“核心”关键词（即便不含“覆盖率/%”也可提取），否则再匹配覆盖率/百分号
@@ -121,7 +122,7 @@ def _interpret_policy(text: str) -> Dict[str, Any]:
         re.search(
             r"(<=|<|≤|不高于|不超过|至多|at\s+most|no\s+more\s+than|not\s+more\s+than|less\s+than|under|below)",
             t,
-        )
+        ),
     )
 
     # 明确的覆盖率上下文（避免仅因出现 % 就误判）
@@ -132,7 +133,7 @@ def _interpret_policy(text: str) -> Dict[str, Any]:
     # 近阈值/窗口语境：不要将其当作 min_*（例如 within 3% / 近阈值 3% / coverage-near）
     near_ctx = bool(
         re.search(r"within\s+\d+(?:\.\d+)?\s*%", t)
-        or re.search(r"近阈值|距阈值|coverage-near|near\s+threshold|阈值窗口|窗口", t)
+        or re.search(r"近阈值|距阈值|coverage-near|near\s+threshold|阈值窗口|窗口", t),
     )
     # 下限语境提示（保留，可用于后续权重或提示；当前不强制要求）
     # 已不直接使用，仅预留注释（避免未使用变量告警）
@@ -293,7 +294,7 @@ def _interpret_policy(text: str) -> Dict[str, Any]:
     return out
 
 
-def _extract_percentage(text: str) -> Optional[float]:
+def _extract_percentage(text: str) -> float | None:
     # 纯数字 + %
     m = re.search(r"(\d{1,3}(?:\.\d{1,2})?)\s*%", text)
     if m:
@@ -328,7 +329,7 @@ def _extract_percentage(text: str) -> Optional[float]:
     if "覆盖率" in text or "core" in text or "核心" in text or "coverage" in text:
         # 先处理“成”，包括可选的小数位：九成五 -> 95%
         m7b = re.search(
-            r"([一二三四五六七八九十两])\s*成\s*([一二三四五六七八九两])", text
+            r"([一二三四五六七八九十两])\s*成\s*([一二三四五六七八九两])", text,
         )
         if m7b:
             a = _chinese_numeral_to_int(m7b.group(1))
@@ -341,7 +342,7 @@ def _extract_percentage(text: str) -> Optional[float]:
             if val is not None:
                 return min(100, (val * 10 if val <= 10 else val))
         m5 = re.search(
-            r"(不少于|不低于|至少)\s*([一二三四五六七八九十百零两]{1,6})", text
+            r"(不少于|不低于|至少)\s*([一二三四五六七八九十百零两]{1,6})", text,
         )
         if m5:
             val = _chinese_numeral_to_int(m5.group(2))
@@ -349,7 +350,7 @@ def _extract_percentage(text: str) -> Optional[float]:
                 return val
         # 兜底：直接跟随中文数字（如“覆盖率 一百零一”）
         m5b = re.search(
-            r"(?:覆盖率|core|核心|coverage)\s*([一二三四五六七八九十百零两]{1,6})", text
+            r"(?:覆盖率|core|核心|coverage)\s*([一二三四五六七八九十百零两]{1,6})", text,
         )
         if m5b:
             val = _chinese_numeral_to_int(m5b.group(1))
@@ -373,7 +374,7 @@ def _extract_percentage(text: str) -> Optional[float]:
     return None
 
 
-def _chinese_numeral_to_int(s: str) -> Optional[int]:
+def _chinese_numeral_to_int(s: str) -> int | None:
     digits = {
         "零": 0,
         "一": 1,
@@ -424,7 +425,7 @@ def _chinese_numeral_to_int(s: str) -> Optional[int]:
     return None
 
 
-def _english_words_to_int(s: str) -> Optional[int]:
+def _english_words_to_int(s: str) -> int | None:
     words = s.strip().lower().replace("-", " ").split()
     if not words:
         return None
@@ -485,10 +486,10 @@ def _english_words_to_int(s: str) -> Optional[int]:
     return total
 
 
-def _parse_yaml_json(path: Path) -> List[RuleItem]:
+def _parse_yaml_json(path: Path) -> list[RuleItem]:
     import yaml  # type: ignore[import-untyped]  # lazy
 
-    items: List[RuleItem] = []
+    items: list[RuleItem] = []
     try:
         if path.suffix in _YAML_EXT:
             data = yaml.safe_load(path.read_text(encoding="utf-8", errors="ignore"))
@@ -502,13 +503,13 @@ def _parse_yaml_json(path: Path) -> List[RuleItem]:
     flat = _flatten_kv(data)
     for k, v in flat.items():
         items.append(
-            RuleItem(key=k, value=v, text=f"{k}: {v}", source=Source(str(path), 1))
+            RuleItem(key=k, value=v, text=f"{k}: {v}", source=Source(str(path), 1)),
         )
     return items
 
 
-def _flatten_kv(d: Any, prefix: str = "") -> Dict[str, Any]:
-    out: Dict[str, Any] = {}
+def _flatten_kv(d: Any, prefix: str = "") -> dict[str, Any]:
+    out: dict[str, Any] = {}
     if isinstance(d, dict):
         for k, v in d.items():
             key = f"{prefix}.{k}" if prefix else str(k)
@@ -522,19 +523,19 @@ def _flatten_kv(d: Any, prefix: str = "") -> Dict[str, Any]:
     return out
 
 
-def ingest(paths: List[str], project_root: Optional[Path] = None) -> Dict[str, Any]:
+def ingest(paths: list[str], project_root: Path | None = None) -> dict[str, Any]:
     root = (project_root or Path.cwd()).resolve()
     pths = [Path(p) if Path(p).is_absolute() else (root / p) for p in paths]
     files = list(_iter_files(pths))
     # 轻量缓存：.mcp/rules_ingest_cache.json 基于 mtime/size
     cache_path = root / ".mcp/rules_ingest_cache.json"
-    cache: Dict[str, Any] = {}
+    cache: dict[str, Any] = {}
     if cache_path.exists():
         try:
             cache = _json.loads(cache_path.read_text(encoding="utf-8"))
         except Exception:
             cache = {}
-    items: List[RuleItem] = []
+    items: list[RuleItem] = []
     for f in files:
         if f.suffix.lower() in _TEXT_EXT:
             use_cache = False
@@ -561,7 +562,7 @@ def ingest(paths: List[str], project_root: Optional[Path] = None) -> Dict[str, A
                     for it in rec["items"]:
                         try:
                             items.append(
-                                RuleItem(**{**it, "source": Source(**it["source"])})
+                                RuleItem(**{**it, "source": Source(**it["source"])}),
                             )
                             use_cache = True
                         except Exception:
@@ -597,14 +598,14 @@ def ingest(paths: List[str], project_root: Optional[Path] = None) -> Dict[str, A
     raw = {"items": [asdict(i) for i in items], "files": [str(f) for f in files]}
     (root / RAW_PATH).parent.mkdir(parents=True, exist_ok=True)
     (root / RAW_PATH).write_text(
-        _json.dumps(raw, ensure_ascii=False, indent=2), encoding="utf-8"
+        _json.dumps(raw, ensure_ascii=False, indent=2), encoding="utf-8",
     )
     # 落盘缓存
     try:
         cache_path.parent.mkdir(parents=True, exist_ok=True)
         cache["version"] = 1
         cache_path.write_text(
-            _json.dumps(cache, ensure_ascii=False, indent=2), encoding="utf-8"
+            _json.dumps(cache, ensure_ascii=False, indent=2), encoding="utf-8",
         )
     except Exception:
         pass  # nosec B110 - cache write best-effort
@@ -612,7 +613,7 @@ def ingest(paths: List[str], project_root: Optional[Path] = None) -> Dict[str, A
     return {"files": len(files), "extracted": len(items), "compiled": comp}
 
 
-def compile_rules(project_root: Optional[Path] = None) -> Dict[str, Any]:
+def compile_rules(project_root: Path | None = None) -> dict[str, Any]:
     root = (project_root or Path.cwd()).resolve()
     raw_path = root / RAW_PATH
     if not raw_path.exists():
@@ -624,13 +625,13 @@ def compile_rules(project_root: Optional[Path] = None) -> Dict[str, Any]:
     ]
 
     # 聚合策略：key 去重；选择更严格值；记录冲突来源
-    policy: Dict[str, Any] = {}
-    origins: Dict[str, List[Source]] = {}
-    conflicts: List[Dict[str, Any]] = []
+    policy: dict[str, Any] = {}
+    origins: dict[str, list[Source]] = {}
+    conflicts: list[dict[str, Any]] = []
 
     # 从配置读取冲突阈值（默认 5%）
     conflict_delta = 0.05
-    per_key_delta: Dict[str, float] = {}
+    per_key_delta: dict[str, float] = {}
     try:
         import yaml  # type: ignore[import-untyped]  # lazy
 
@@ -666,7 +667,7 @@ def compile_rules(project_root: Optional[Path] = None) -> Dict[str, Any]:
     def threshold_for_key(key: str) -> float:
         return float(per_key_delta.get(key, conflict_delta))
 
-    used_delta: Dict[str, float] = {}
+    used_delta: dict[str, float] = {}
 
     def conflict(key: str, old: Any, new: Any) -> bool:
         if isinstance(old, bool) and isinstance(new, bool):
@@ -689,11 +690,11 @@ def compile_rules(project_root: Optional[Path] = None) -> Dict[str, Any]:
     )
     dockerfile_exists = (root / "Dockerfile").exists()
 
-    def _match_conditions(conds: Optional[Dict[str, List[str]]]) -> bool:
+    def _match_conditions(conds: dict[str, list[str]] | None) -> bool:
         if not conds:
             return True
         # OS
-        os_vals = set((conds.get("os") or []))
+        os_vals = set(conds.get("os") or [])
         if os_vals:
             ok = False
             if (
@@ -705,13 +706,13 @@ def compile_rules(project_root: Optional[Path] = None) -> Dict[str, Any]:
             if not ok:
                 return False
         # IDE
-        ide_vals = set((conds.get("ide") or []))
+        ide_vals = set(conds.get("ide") or [])
         if ide_vals:
             # Consider vscode if code CLI exists
             if "vscode" in ide_vals and not code_ok:
                 return False
         # ENV
-        env_vals = set((conds.get("env") or []))
+        env_vals = set(conds.get("env") or [])
         if env_vals:
             # container: either docker CLI available or Dockerfile exists
             if "container" in env_vals or "docker" in env_vals:
@@ -719,8 +720,8 @@ def compile_rules(project_root: Optional[Path] = None) -> Dict[str, Any]:
                     return False
         return True
 
-    maxima: Dict[str, float] = {}
-    maxima_origins: Dict[str, List[Source]] = {}
+    maxima: dict[str, float] = {}
+    maxima_origins: dict[str, list[Source]] = {}
     for it in items:
         # Skip items whose conditions do not match current environment
         try:
@@ -757,7 +758,7 @@ def compile_rules(project_root: Optional[Path] = None) -> Dict[str, Any]:
                         "old": policy[k],
                         "new": v,
                         "sources": [asdict(s) for s in origins[k] + [it.source]],
-                    }
+                    },
                 )
                 policy[k] = stricter(k, policy[k], v)
                 origins[k].append(it.source)
@@ -776,7 +777,7 @@ def compile_rules(project_root: Optional[Path] = None) -> Dict[str, Any]:
                 "value": mv,
                 "note": "文档包含覆盖率上限（仅提示，不作门禁）。",
                 "severity": "info",
-            }
+            },
         )
 
     compiled = {
@@ -790,7 +791,7 @@ def compile_rules(project_root: Optional[Path] = None) -> Dict[str, Any]:
         },
     }
     (root / COMPILED_JSON).write_text(
-        _json.dumps(compiled, ensure_ascii=False, indent=2), encoding="utf-8"
+        _json.dumps(compiled, ensure_ascii=False, indent=2), encoding="utf-8",
     )
     (root / COMPILED_MD).write_text(_to_markdown(compiled), encoding="utf-8")
     (root / SUGGESTIONS_MD).write_text(_to_suggestions_md(compiled), encoding="utf-8")
@@ -805,50 +806,50 @@ def compile_rules(project_root: Optional[Path] = None) -> Dict[str, Any]:
     }
 
 
-def _to_markdown(compiled: Dict[str, Any]) -> str:
-    pol: Dict[str, Any] = compiled.get("policy", {})
-    confs: List[Dict[str, Any]] = compiled.get("conflicts", [])
-    meta: Dict[str, Any] = (
+def _to_markdown(compiled: dict[str, Any]) -> str:
+    pol: dict[str, Any] = compiled.get("policy", {})
+    confs: list[dict[str, Any]] = compiled.get("conflicts", [])
+    meta: dict[str, Any] = (
         compiled.get("meta", {}) if isinstance(compiled.get("meta", {}), dict) else {}
     )
-    maxima: Dict[str, float] = (
+    maxima: dict[str, float] = (
         meta.get("maxima", {}) if isinstance(meta.get("maxima", {}), dict) else {}
     )
-    lines: List[str] = []
+    lines: list[str] = []
     lines.append("# 项目规则（编译版） / Project Rules (Compiled)\n")
     lines.append(
         "- coverage.min_module: {}%".format(
-            int(pol.get("coverage.min_module", 0) * 100)
-        )
+            int(pol.get("coverage.min_module", 0) * 100),
+        ),
     )
     lines.append(
-        "- coverage.min_core: {}%".format(int(pol.get("coverage.min_core", 0) * 100))
+        "- coverage.min_core: {}%".format(int(pol.get("coverage.min_core", 0) * 100)),
     )
     lines.append(
-        "- test.no_skip_xfail: {}".format(bool(pol.get("test.no_skip_xfail", False)))
+        "- test.no_skip_xfail: {}".format(bool(pol.get("test.no_skip_xfail", False))),
     )
     lines.append(
         "- test.warnings_as_errors: {}".format(
-            bool(pol.get("test.warnings_as_errors", False))
-        )
+            bool(pol.get("test.warnings_as_errors", False)),
+        ),
     )
     lines.append(
         "- test.mutation_required: {}".format(
-            bool(pol.get("test.mutation_required", False))
-        )
+            bool(pol.get("test.mutation_required", False)),
+        ),
     )
     lines.append(
         "- security.secrets_scan: {}".format(
-            bool(pol.get("security.secrets_scan", False))
-        )
+            bool(pol.get("security.secrets_scan", False)),
+        ),
     )
     lines.append(
         "- security.sast_strict: {}".format(
-            bool(pol.get("security.sast_strict", False))
-        )
+            bool(pol.get("security.sast_strict", False)),
+        ),
     )
     lines.append(
-        "- container.required: {}".format(bool(pol.get("container.required", False)))
+        "- container.required: {}".format(bool(pol.get("container.required", False))),
     )
     if pol.get("container.policy.baseline"):
         lines.append("- container.policy.baseline: true")
@@ -877,15 +878,15 @@ def _to_markdown(compiled: Dict[str, Any]) -> str:
         lines.append("## 冲突 / Conflicts\n")
         for c in confs:
             lines.append(
-                f"- {c['key']}: old={c['old']} new={c['new']} keep={c['keep']}"
+                f"- {c['key']}: old={c['old']} new={c['new']} keep={c['keep']}",
             )
     return "\n".join(lines) + "\n"
 
 
 def _build_suggestions(
-    policy: Dict[str, Any], conflicts: List[Dict[str, Any]]
-) -> List[Dict[str, Any]]:
-    sugg: List[Dict[str, Any]] = []
+    policy: dict[str, Any], conflicts: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    sugg: list[dict[str, Any]] = []
     for c in conflicts:
         sugg.append(
             {
@@ -894,7 +895,7 @@ def _build_suggestions(
                 "keep": c["keep"],
                 "note": "建议统一该规则值到 keep，并在源文档中修订以消除冲突",
                 "severity": "warn",
-            }
+            },
         )
     # 基础建议：确保门禁与策略一致
     if policy.get("test.no_skip_xfail"):
@@ -904,7 +905,7 @@ def _build_suggestions(
                 "action": "enforce",
                 "note": "在 pre-push/CI 禁止 skip/xfail（已在 hooks 模板中包含）",
                 "severity": "must",
-            }
+            },
         )
     if policy.get("test.warnings_as_errors"):
         sugg.append(
@@ -913,7 +914,7 @@ def _build_suggestions(
                 "action": "enforce",
                 "note": "pytest 加 -W error；在 CI 中严格执行",
                 "severity": "must",
-            }
+            },
         )
     if "coverage.min_module" in policy:
         sugg.append(
@@ -923,7 +924,7 @@ def _build_suggestions(
                 "value": policy["coverage.min_module"],
                 "note": "在 CI/推送阶段设置 --cov-fail-under 对齐该阈值",
                 "severity": "must",
-            }
+            },
         )
     if "coverage.min_core" in policy:
         sugg.append(
@@ -933,7 +934,7 @@ def _build_suggestions(
                 "value": policy["coverage.min_core"],
                 "note": "对核心模块单独跟踪覆盖率（可在后续扩展实现模块清单）",
                 "severity": "info",
-            }
+            },
         )
     if policy.get("security.secrets_scan"):
         sugg.append(
@@ -942,7 +943,7 @@ def _build_suggestions(
                 "action": "enforce",
                 "note": "在 pre-commit/CI 启用 detect-secrets 或等价工具",
                 "severity": "must",
-            }
+            },
         )
     if policy.get("container.required"):
         sugg.append(
@@ -951,7 +952,7 @@ def _build_suggestions(
                 "action": "enforce",
                 "note": "确保仓库包含 Dockerfile/devcontainer，并在 CI 中校验存在性",
                 "severity": "must",
-            }
+            },
         )
     if policy.get("ci.required"):
         sugg.append(
@@ -960,22 +961,22 @@ def _build_suggestions(
                 "action": "enforce",
                 "note": "生成 CI 工作流并将其设为合并条件",
                 "severity": "must",
-            }
+            },
         )
     return sugg
 
 
-def _to_suggestions_md(compiled: Dict[str, Any]) -> str:
-    lines: List[str] = []
+def _to_suggestions_md(compiled: dict[str, Any]) -> str:
+    lines: list[str] = []
     lines.append("# 规则冲突与修改建议 / Conflicts & Suggestions\n")
-    confs: List[Dict[str, Any]] = compiled.get("conflicts", [])
+    confs: list[dict[str, Any]] = compiled.get("conflicts", [])
     if not confs:
         lines.append("- 无显著冲突 / No significant conflicts\n")
     else:
         lines.append("## 冲突摘要\n")
         for c in confs:
             lines.append(
-                f"- {c['key']}: old={c['old']}, new={c['new']}, 建议保留 keep={c['keep']}"
+                f"- {c['key']}: old={c['old']}, new={c['new']}, 建议保留 keep={c['keep']}",
             )
     lines.append("")
     lines.append("## 建议\n")

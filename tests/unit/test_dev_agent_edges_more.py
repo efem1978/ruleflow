@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import time
-import types
 from pathlib import Path
 
 import mcp_rules_assistant.dev_agent as da
@@ -37,7 +36,7 @@ def test_git_changed_files_typeerror_and_parse(tmp_path: Path, monkeypatch) -> N
 
 
 def test_ensure_dashboard_dir_rebuild_handles_rmtree_error(
-    tmp_path: Path, monkeypatch
+    tmp_path: Path, monkeypatch,
 ) -> None:
     agent = da.DevAgent(tmp_path)
     d = tmp_path / da.MCP_DIR_NAME / da.DASHBOARD_SUBDIR

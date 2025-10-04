@@ -13,7 +13,7 @@ from mcp_rules_assistant.dev_agent import (
 
 
 def test_auto_commit_and_tag_happy(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     # Prepare repo dir structure
     (tmp_path / ".git").mkdir(parents=True, exist_ok=True)

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 from mcp_rules_assistant.mcp_server import JsonRpcServer
@@ -25,7 +24,7 @@ def test_tools_coverage_report_and_rules_maxima(tmp_path: Path) -> None:
     # config & coverage
     (tmp_path / ".mcp").mkdir(parents=True, exist_ok=True)
     (tmp_path / ".mcp/assistant.yaml").write_text(
-        "performance:\n  on_push:\n    coverage: {min_module: 0.90}\n", encoding="utf-8"
+        "performance:\n  on_push:\n    coverage: {min_module: 0.90}\n", encoding="utf-8",
     )
     _write_cov_xml(tmp_path / "coverage.xml")
     r = srv.handle(_req("tools/call", {"name": "coverage.report", "arguments": {}}))
@@ -37,7 +36,7 @@ def test_tools_coverage_report_and_rules_maxima(tmp_path: Path) -> None:
     )
     # maxima
     (tmp_path / ".mcp/rules_compiled.json").write_text(
-        '{"meta": {"maxima": {"coverage.max_module": 0.95}}}', encoding="utf-8"
+        '{"meta": {"maxima": {"coverage.max_module": 0.95}}}', encoding="utf-8",
     )
     r2 = srv.handle(_req("tools/call", {"name": "rules.maxima", "arguments": {}}))
     mx = r2.get("result", {})

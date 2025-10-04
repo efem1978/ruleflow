@@ -15,10 +15,10 @@ def test_resources_read_config_and_ci(tmp_path: Path) -> None:
     # config
     (tmp_path / ".mcp").mkdir(parents=True, exist_ok=True)
     (tmp_path / ".mcp/assistant.yaml").write_text(
-        "language: python\n", encoding="utf-8"
+        "language: python\n", encoding="utf-8",
     )
     r1 = srv.handle(
-        _req("resources/read", {"uri": f"config://project/{'x'}/assistant.yaml"})
+        _req("resources/read", {"uri": f"config://project/{'x'}/assistant.yaml"}),
     )
     assert r1.get("result", {}).get("mimeType") == "text/yaml"
     # ci
@@ -33,7 +33,7 @@ def test_tool_rules_maxima(tmp_path: Path) -> None:
     srv.project_root = tmp_path
     (tmp_path / ".mcp").mkdir(parents=True, exist_ok=True)
     (tmp_path / ".mcp/rules_compiled.json").write_text(
-        '{"meta": {"maxima": {"coverage.max_core": 0.99}}}', encoding="utf-8"
+        '{"meta": {"maxima": {"coverage.max_core": 0.99}}}', encoding="utf-8",
     )
     r = srv.handle(_req("tools/call", {"name": "rules.maxima", "arguments": {}}))
     assert r.get("result", {}).get("ok") is True

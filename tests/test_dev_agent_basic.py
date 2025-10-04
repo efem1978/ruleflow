@@ -11,14 +11,14 @@ from mcp_rules_assistant.dev_agent import DevAgent
 
 
 def test_compute_status_fallback_reads_previous_status(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     # Arrange: write previous status with coverage count>0 so fallback branch is exercised
     proj = tmp_path
     dash = proj / ".mcp" / "dashboard"
     dash.mkdir(parents=True, exist_ok=True)
     prev: dict[str, Any] = {
-        "coverage": {"count": 3, "weak": [], "groups": [], "near": []}
+        "coverage": {"count": 3, "weak": [], "groups": [], "near": []},
     }
     (dash / "status.json").write_text(json.dumps(prev), encoding="utf-8")
 
@@ -43,7 +43,7 @@ def test_compute_status_fallback_reads_previous_status(
 
 
 def test_compute_status_groups_and_near(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     proj = tmp_path
     # Plan file, 7 done / 18 total -> ~38.9%
@@ -76,7 +76,7 @@ def test_compute_status_groups_and_near(
                     "threshold": 0.98,
                     "weak_count": 0,
                     "files_count": 1,
-                }
+                },
             ],
         },
     )
@@ -95,7 +95,7 @@ def test_compute_status_groups_and_near(
 
 
 def test_main_runs_one_cycle_and_writes_status(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     # Speed up: avoid running real pytest/coverage by stubbing internals
     agent = DevAgent(project_root=tmp_path)
@@ -206,7 +206,7 @@ def test_history_trim(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
 
 
 def test_fail_counters_and_freeze_recover(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     # Set thresholds to 1 to trigger freeze on first failure
     os.environ["DEV_AGENT_THR_TESTS"] = "1"

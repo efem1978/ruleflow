@@ -13,7 +13,7 @@ def test_retry_on_timeout_only_raises_non_timeout(monkeypatch, tmp_path: Path) -
     monkeypatch.setattr(subprocess, "run", fake_run)
     try:
         run_cmd(
-            ["bash", "-lc", "true"], cwd=tmp_path, retries=1, retry_on_timeout_only=True
+            ["bash", "-lc", "true"], cwd=tmp_path, retries=1, retry_on_timeout_only=True,
         )
         assert False, "expected raise"
     except ValueError:
