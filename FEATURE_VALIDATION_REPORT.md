@@ -23,13 +23,13 @@
 
 ## ✅ 功能1: 20轮滚动记忆机制
 
-### 实现情况
+### 实现情况（功能1）
 
 - **状态**: ✅ **已完整实现**
 - **文件**: `mcp_rules_assistant/memory.py`, `mcp_rules_assistant/mcp_server.py`
 - **命令**: `memory-list`, `memory-append`
 
-### 核心功能
+### 核心功能（功能1）
 
 ```python
 # mcp_rules_assistant/memory.py
@@ -47,7 +47,7 @@ def append_memory(
     """
 ```
 
-### 验证命令
+### 验证命令（功能1）
 
 ```bash
 # 查看记忆列表
@@ -60,13 +60,13 @@ mcp-rules-assistant memory-append "轮次1内容"
 mcp-rules-assistant memory-list --namespace project1
 ```
 
-### 测试覆盖
+### 测试覆盖（功能1）
 
 - ✅ `tests/test_memory_comprehensive.py` - 综合测试
 - ✅ `tests/unit/test_mcp_memory_tools.py` - 工具测试
 - ✅ `tests/unit/test_mcp_memory_namespace.py` - 命名空间隔离
 
-### 验证结果
+### 验证结果（功能1）
 
 - [x] 支持20轮滚动记忆
 - [x] 自动清理超轮次内容
@@ -252,7 +252,7 @@ def fuzzy_match_command(input_text: str) -> str | None:
     """模糊语义匹配"""
 ```
 
-### 支持的自然语言
+### 支持的自然语言（功能5）
 
 - ✅ **中文**: "看看记忆"、"开始检查"、"运行测试"
 - ✅ **英文**: "show memory"、"run checks"、"test it"
@@ -282,13 +282,13 @@ def fuzzy_match_command(input_text: str) -> str | None:
 - **原因**: 当前依赖IDE/AI工具提供的模型服务
 - **建议**: 作为未来增强功能
 
-### 替代方案
+### 替代方案（功能6）
 当前架构支持：
 1. **MCP协议**: 可接入任何支持MCP的AI工具
 2. **CLI工具**: 独立于特定模型运行
 3. **扩展性**: 预留接口便于未来集成
 
-### 未来实现建议
+### 未来实现建议（功能6）
 
 ```python
 # 可选的本地模型集成
@@ -301,7 +301,7 @@ class LocalModelProvider:
     """
 ```
 
-### 优先级评估
+### 优先级评估（功能6）
 
 - **必要性**: ⭐⭐⚪⚪⚪ (低)
 - **复杂度**: ⭐⭐⭐⭐⚪ (高)
@@ -317,7 +317,7 @@ class LocalModelProvider:
 - **文件**: `rulesets/`目录，配置系统
 - **支持**: 多种规则包，可选配置
 
-### 已实现的规则包
+### 已实现的规则包（功能7）
 
 | 规则包 | 适用场景 | 复杂度 | 状态 |
 |--------|----------|--------|------|
@@ -331,7 +331,7 @@ class LocalModelProvider:
 
 **总计**: 7个规则包
 
-### 缺失的规则包
+### 缺失的规则包（功能7）
 
 - ❌ Python BDD模式
 - ❌ Python传统模式（非TDD）
@@ -339,7 +339,7 @@ class LocalModelProvider:
 - ❌ Go/Rust/C#语言
 - ❌ 企业级复杂度规则
 
-### 场景选择机制
+### 场景选择机制（功能7）
 
 ```yaml
 # .mcp/assistant.yaml
@@ -363,7 +363,7 @@ complexity: medium
 
 ### 完成度分析
 
-```
+```text
 功能总数: 7
 已完成:   6 (85.7%) ████████████████████████▓
 部分完成: 0 (0%)
@@ -404,14 +404,14 @@ complexity: medium
 3. 增强自然语言同义词库
 
 #### 中期（V1.5，1-2月）
-4. 集成轻量级本地模型
-5. 增强压缩算法（更智能）
-6. 跨项目关系追踪
+1. 集成轻量级本地模型
+2. 增强压缩算法（更智能）
+3. 跨项目关系追踪
 
 #### 长期（V2.0，3-6月）
-7. 完全离线工作能力
-8. 可视化记忆管理
-9. 多语言IDE插件
+1. 完全离线工作能力
+2. 可视化记忆管理
+3. 多语言IDE插件
 
 ---
 
@@ -444,6 +444,7 @@ ls rulesets/general/  # 查看可用规则包
 
 ### 自动化验证
 所有功能均有对应测试：
+
 ```bash
 # 运行功能验证测试
 pytest tests/test_memory_comprehensive.py -v
