@@ -1,0 +1,19 @@
+import * as assert from 'assert';
+import * as vscode from 'vscode';
+import * as fs from 'fs';
+import * as path from 'path';
+
+suite('License Status (smoke)', () => {
+  test('mcpRulesAssistant.licenseStatus does not throw', async () => {
+    const ext = vscode.extensions.getExtension('ruleflow.mcp-rules-assistant');
+    assert.ok(ext, 'Extension not found');
+    const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '';
+    assert.ok(ws, 'workspace required');
+    const sentinel = path.resolve(ws, '.mcp/dashboard/fake_mode');
+    fs.mkdirSync(path.dirname(sentinel), { recursive: true });
+    fs.writeFileSync(sentinel, '1', 'utf-8');
+    await ext!.activate();
+    // 后端可能未安装 Python；命令内部会捕获错误并以信息提示，不应抛出异常
+    await vscode.commands.executeCommand('mcpRulesAssistant.licenseStatus');
+  });
+});

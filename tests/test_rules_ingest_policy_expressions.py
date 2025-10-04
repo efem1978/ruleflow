@@ -21,15 +21,15 @@ def test_interpret_policy_various_expressions(tmp_path: Path) -> None:
         "- require ci\n- 约定式提交\n- 分支策略\n"
         "- dockerfile\n- 镜像基线\n"
     )
-    p = tmp_path / 'r.md'
-    p.write_text(text, encoding='utf-8')
+    p = tmp_path / "r.md"
+    p.write_text(text, encoding="utf-8")
     out = ri.ingest([str(p)], project_root=tmp_path)
     comp = ri.compile_rules(project_root=tmp_path)
-    assert comp.get('ok') is True
-    pol = comp.get('policy', {})
-    assert pol.get('coverage.min_module') and pol.get('coverage.min_core')
+    assert comp.get("ok") is True
+    pol = comp.get("policy", {})
+    assert pol.get("coverage.min_module") and pol.get("coverage.min_core")
     # ensure suggestions built for several keys
-    sugg = comp.get('suggestions', [])
-    keys = {s.get('key') for s in sugg if isinstance(s, dict)}
+    sugg = comp.get("suggestions", [])
+    keys = {s.get("key") for s in sugg if isinstance(s, dict)}
     # suggestions include coverage thresholds; security.secrets_scan may not always suggest
-    assert 'coverage.min_module' in keys
+    assert "coverage.min_module" in keys

@@ -9,8 +9,8 @@ def _write_cov_xml(path: Path) -> None:
     text = (
         "<coverage>\n"
         "  <packages><package><classes>\n"
-        "    <class filename=\"mcp_rules_assistant/foo.py\" line-rate=\"0.91\" lines-valid=\"100\" lines-covered=\"91\"/>\n"
-        "    <class filename=\"other/bar.py\" line-rate=\"0.88\" lines-valid=\"100\" lines-covered=\"88\"/>\n"
+        '    <class filename="mcp_rules_assistant/foo.py" line-rate="0.91" lines-valid="100" lines-covered="91"/>\n'
+        '    <class filename="other/bar.py" line-rate="0.88" lines-valid="100" lines-covered="88"/>\n'
         "  </classes></package></packages>\n"
         "</coverage>\n"
     )
@@ -20,7 +20,9 @@ def _write_cov_xml(path: Path) -> None:
 def test_summarize_weak_items_and_thresholds(tmp_path: Path) -> None:
     cov = tmp_path / "coverage.xml"
     _write_cov_xml(cov)
-    res = summarize(project_root=tmp_path, policy={"mcp_rules_assistant/": 0.95}, min_module=0.90)
+    res = summarize(
+        project_root=tmp_path, policy={"mcp_rules_assistant/": 0.95}, min_module=0.90,
+    )
     assert res.get("ok") is True
     weak = res.get("weak") or []
     # Both files should be under threshold
@@ -38,7 +40,9 @@ def test_summarize_weak_items_and_thresholds(tmp_path: Path) -> None:
 def test_summarize_groups_aggregates_by_prefix(tmp_path: Path) -> None:
     cov = tmp_path / "coverage.xml"
     _write_cov_xml(cov)
-    res = summarize_groups(project_root=tmp_path, policy={"mcp_rules_assistant/": 0.95}, min_module=0.90)
+    res = summarize_groups(
+        project_root=tmp_path, policy={"mcp_rules_assistant/": 0.95}, min_module=0.90,
+    )
     assert res.get("ok") is True
     groups = {g.get("prefix"): g for g in res.get("groups") or []}
     assert "mcp_rules_assistant/" in groups
@@ -49,4 +53,3 @@ def test_summarize_groups_aggregates_by_prefix(tmp_path: Path) -> None:
     g_other = groups["other"]
     assert abs(float(g_other.get("threshold")) - 0.90) < 1e-6
     assert int(g_other.get("files_count")) == 1
-

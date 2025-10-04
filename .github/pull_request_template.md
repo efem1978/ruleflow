@@ -1,16 +1,15 @@
-## 变更摘要 / Summary
+## Summary
 
-- [ ] 说明本 PR 的目的、范围和风险。
+- Purpose: (docs/ci/cleanup/coverage polish)
+- Scope: move AI docs to `docs/`, update links, add cleanup notes, CI near/worst export, pre-commit stage, Makefile targets.
 
-## 检查清单 / Checklist
+## Checklist
 
-- [ ] CI 全部通过（build × Python 版本、prepare）
-- [ ] 覆盖率 ≥ 95%（本地 `pytest -q -W error --cov --cov-fail-under=95`）
-- [ ] patch 覆盖率合理，未出现大面积未测代码
-- [ ] 无 `skip/xfail`，无 `warnings`（CI 强转为 error）
-- [ ] 如涉及 CI/安全策略，更新文档（README/CONTRIBUTING）
+- [ ] Plan updated (`.mcp/plan.md`) with current step and status
+- [ ] All tests pass locally (`make local-ci-run`), weak=[]
+- [ ] VS Code CI near/worst artifact present (job: `vscode`)
+- [ ] No generated artifacts committed (dist/build/.mcp/dashboard/**, *.vsix)
 
-## 验收说明 / Notes for Reviewers
+## Notes
 
-- 运行指令：`make test` 或 `pytest -q -W error --cov --cov-fail-under=95`
-- 覆盖率报告：CI 会上传至 Codecov（徽章与 PR 检查）
+- PR body can reference `docs/releases/PR_DRAFT.md` for a fuller narrative.

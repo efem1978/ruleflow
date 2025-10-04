@@ -3,7 +3,13 @@ import * as Mocha from 'mocha';
 import * as fs from 'fs';
 
 export function run(): Promise<void> {
-  const mocha = new Mocha({ ui: 'bdd', color: true, timeout: 20000 });
+  // 使用 TDD 界面以支持 `suite`/`test` 语法
+  const timeoutEnv = process.env.MCP_VSCODE_TEST_TIMEOUT_MS;
+  const timeoutMs = (() => {
+    if (timeoutEnv && /^\d+$/.test(timeoutEnv)) return parseInt(timeoutEnv, 10);
+    return 120000; // extend default to reduce flakiness in headless/container
+  })();
+  const mocha = new Mocha({ ui: 'tdd', color: true, timeout: timeoutMs });
   const testsRoot = path.resolve(__dirname);
 
   return new Promise((resolve, reject) => {

@@ -25,8 +25,8 @@ def _write_cov_xml(path: Path) -> None:
     text = (
         "<coverage>\n"
         "  <packages><package><classes>\n"
-        "    <class filename=\"mcp_rules_assistant/foo.py\" line-rate=\"0.91\" lines-valid=\"100\" lines-covered=\"91\"/>\n"
-        "    <class filename=\"other/bar.py\" line-rate=\"0.88\" lines-valid=\"100\" lines-covered=\"88\"/>\n"
+        '    <class filename="mcp_rules_assistant/foo.py" line-rate="0.91" lines-valid="100" lines-covered="91"/>\n'
+        '    <class filename="other/bar.py" line-rate="0.88" lines-valid="100" lines-covered="88"/>\n'
         "  </classes></package></packages>\n"
         "</coverage>\n"
     )
@@ -49,7 +49,13 @@ def test_cli_init_print_and_plan(tmp_path: Path) -> None:
         assert r3.exit_code == 0
         plan = tmp_path / ".mcp/plan.md"
         assert plan.exists()
-        r4 = runner.invoke(app, ["plan-update", "# 计划\n- 状态: in_progress\n- 当前步骤: CLI 烟雾测试\n- 下一步: 生成 CI\n"])
+        r4 = runner.invoke(
+            app,
+            [
+                "plan-update",
+                "# 计划\n- 状态: in_progress\n- 当前步骤: CLI 烟雾测试\n- 下一步: 生成 CI\n",
+            ],
+        )
         assert r4.exit_code == 0
         r5 = runner.invoke(app, ["plan-open"])
         assert r5.exit_code == 0
@@ -78,7 +84,7 @@ def test_cli_ci_set_and_generate_ci(tmp_path: Path) -> None:
         compiled = tmp_path / ".mcp/rules_compiled.json"
         compiled.parent.mkdir(parents=True, exist_ok=True)
         compiled.write_text(
-            "{" "\"policy\": {\"container.required\": true, \"security.sast_strict\": true}}",
+            "{" '"policy": {"container.required": true, "security.sast_strict": true}}',
             encoding="utf-8",
         )
         # generate CI
@@ -108,4 +114,3 @@ def test_cli_rules_ingest_and_coverage_outputs(tmp_path: Path) -> None:
         rg = runner.invoke(app, ["coverage-groups"])
         assert rg.exit_code == 0
         assert "覆盖率分组" in (rg.stdout or "")
-

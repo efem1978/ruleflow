@@ -1,0 +1,9 @@
+addReviewers: true
+addAssignees: false
+reviewers:
+  - efem1978
+numberOfReviewers: 1
+skipKeywords:
+  - wip
+  - draft
+

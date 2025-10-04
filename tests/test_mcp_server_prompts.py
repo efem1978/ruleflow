@@ -13,4 +13,3 @@ def test_mcp_prompts_minimal_endpoints() -> None:
     assert rlist.get("result", {}).get("prompts") == []
     rget = srv.handle(_req("prompts/get", {"name": "unknown"}))
     assert rget.get("result", {}).get("ok") is False
-

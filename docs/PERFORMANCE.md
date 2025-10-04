@@ -3,13 +3,13 @@
 设计原则 Principles
 - 轻内环：保存 < 1s；仅做增量与缓存检查。
 - 重外环：提交/推送/CI 承担完整质量关口。
-- 分层门槛：模块覆盖率最低 90%，核心更高；严格档启用变异测试。
+- 分层门槛：覆盖率门槛以配置为准（核心更高）；严格档启用变异测试。
 
 模式 Modes（最佳默认 Best Default: Fast）
 1) Fast（默认，最佳内环体验）
    - On Save: 格式化+改动文件 lint，禁增量类型检查（可开）
    - On Commit: lint + 增量类型 + 受影响测试
-   - On Push: 全量测试 + 覆盖率门槛（min_module≥90%）+ 安全扫描
+   - On Push: 全量测试 + 覆盖率门槛（以配置为准）+ 安全扫描
    - CI: 全套报告；可启用多 Python 版本矩阵
 
 2) Standard（专业）
@@ -17,7 +17,7 @@
    - 其余同 Fast
 
 3) Strict（企业/机构）
-   - On Push/CI: 变异测试（按改动模块），核心覆盖率≥95%
+   - On Push/CI: 变异测试（按改动模块），核心覆盖率≥95%；当 `performance.mode: strict`（或 `ci.mutation_gate_strict: true`）时，变异测试作为硬门禁执行
    - 规则更严：禁止 skip/xfail，警告视为错误
 
 优化技巧 Optimizations

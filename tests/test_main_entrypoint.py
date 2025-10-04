@@ -18,4 +18,3 @@ def test_module_entrypoint_runs_help(monkeypatch: pytest.MonkeyPatch) -> None:
         assert int(exc.value.code or 0) == 0
     finally:
         sys.argv = old_argv
-

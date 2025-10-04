@@ -7,6 +7,8 @@ venv/
 dist/
 build/
 *.egg-info/
+.mypy_cache/
+.ruff_cache/
 
 # VS Code extension build
 extensions/vscode/out/
@@ -20,10 +22,45 @@ extensions/vscode/node_modules/
 .DS_Store
 coverage.xml
 .coverage
+.coverage*
 htmlcov/
+cov.json
+cov*.json
+coverage_report.json
+/near.txt
+/near.csv
+/near.json
+/near_vscode.txt
+/bad.py
+/ok2.py
+/ok.txt
+foo.py
+docs/b.txt
+diagnostics-*.tar.gz
+pkg_x/
+tmp_dbg_dir/
+
+# Test reports (do not commit)
+pytest-junit.xml
 
 # VS Code test artifacts
 extensions/vscode/.vscode-test/
+extensions/vscode/coverage/
+extensions/vscode/*.vsix
+extensions/vscode/.test-fixture/
+extensions/vscode/vscode-test.log
+extensions/compat_report.json
+extensions/artifacts/
+
+# Local helper shims (not for version control)
+scripts/shims/
+
+# JetBrains storyboard outputs (generated)
+extensions/jetbrains/screenshots/jb_*.json
+extensions/jetbrains/screenshots/jb_*.md
+extensions/jetbrains/ui_smoke.log
+# JetBrains Gradle cache (do not track)
+extensions/jetbrains/.gradle/
 
 # pytest cache
 .pytest_cache/

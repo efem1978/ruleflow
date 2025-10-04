@@ -1,7 +1,7 @@
-MCP 协议骨架（JSON-RPC/stdio）
+MCP 协议（JSON-RPC/stdio，轻量实现）
 
 说明
-- 本骨架实现了最小可用的 JSON-RPC/stdio 服务器，方法名与返回格式参考 MCP 生态。
+- 本实现提供最小但完整的 JSON-RPC/stdio 服务器，方法名与返回格式参考 MCP 生态。
 - 目标是便于 VS Code 插件/CLI 调用，并逐步替换为完整的 MCP 协议栈。
 
 端点 Methods（示例）
@@ -14,17 +14,17 @@ MCP 协议骨架（JSON-RPC/stdio）
 
 示例工具 Tools
 - project.detect → 检测项目语言/框架（基于文件探测）
-- memory.toggle_auto { on } → 开关滚动记忆（占位）
+- memory.toggle_auto { on } → 开关滚动记忆
 - memory.snapshot → 返回 `.mcp/memory.json` 的 20 轮与摘要
 - rules.init { scenario, complexity, devMode } → 返回门槛说明（最低模块≥90% 等）
 - rules.ingest { paths[] } → 摄取文档，生成 `.mcp/rules_compiled.*` 与建议
 - rules.validate → 基于已摄取原始数据重新编译与校验
-- env.prepare → 占位返回（未来创建虚拟环境等）
+- env.prepare → 创建 `.mcp/venv` 并可选安装工具链（ruff/black/isort/mypy/bandit/pytest/pytest-cov/pre-commit）。支持 dry-run 返回计划。
 - fs.apply_patch { files: [{path, content}], runChecks, strict, dryRun, maxFiles } → 包裹式写入（可启用轻量严格检查）；dryRun 仅返回将写入的文件清单，不落盘；maxFiles 超限拒绝
-- git.install_hooks → 占位返回（后续生成 hooks）
-- nl.command { text } → 自然语言解析占位
+- git.install_hooks → 安装本地钩子（pre-commit/commit-msg/pre-push）
+- nl.command { text } → 自然语言解析
 - config.get { section? } → 获取项目配置（或子节）
-- config.update { data } → 更新配置中的 `ci` 字段
+- config.update { data } → 更新配置中的 `ci`/`execution` 字段（兼容：未提供 data 时可直接传入顶层键，如 `mutation_gate_strict` 与 `execution.checks_delegate_run_cmd`）
 - ci.generate → 生成 GitHub Actions 工作流
 - ci.validate → 校验 CI 工作流是否包含关键步骤（pre-commit/hadolint/semgrep/pytest/bandit）
 - ci.autofix → 一键修复：按规则/配置覆盖生成标准 CI（如已有则备份为 ci.yml.bak）
@@ -53,3 +53,10 @@ MCP 协议骨架（JSON-RPC/stdio）
 文件位置
 - 服务器实现：`mcp_rules_assistant/mcp_server.py: serve_stdio()`
 - VS Code 客户端调用：`extensions/vscode/src/extension.ts`
+
+错误码约定（JSON-RPC error.code）
+- -32601：method not found（未知方法）
+- -32602：invalid params / 语义校验失败（参数缺失/无效）
+- -32603：internal error（内部错误）
+- -32000：Unknown resource uri（历史兼容约定）
+- -32001：resource not found（文件/资源缺失）

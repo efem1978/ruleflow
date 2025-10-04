@@ -4,12 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mcp-rules-assistant"
-version = "0.2.2"
-description = "MCP rules & context assistant (Python server + VS Code extension skeleton)"
-readme = "README.md"
+version = "0.2.6"
+description = "MCP rules & context assistant (Python server + VS Code extension)"
+readme = { file = "README.md", content-type = "text/markdown" }
 requires-python = ">=3.10"
-authors = [{name = "Your Team"}]
-license = {text = "Proprietary or TBD"}
+authors = [{name = "RuleFlow Team", email = "support@ruleflow.app"}]
+license = "LicenseRef-Proprietary"
+license-files = ["LICENSE"]
 keywords = ["mcp", "rules", "coverage", "cli", "vscode"]
 classifiers = [
   "Programming Language :: Python :: 3",
@@ -20,7 +21,6 @@ classifiers = [
   "Intended Audience :: Developers",
   "Topic :: Software Development :: Build Tools",
 ]
-urls = {"Homepage" = "https://github.com/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool", "Repository" = "https://github.com/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool.git"}
 dependencies = [
   "typer>=0.9",
   "PyYAML>=6.0",
@@ -28,23 +28,36 @@ dependencies = [
   "defusedxml>=0.7.1"
 ]
 
+[project.urls]
+Homepage = "https://github.com/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool"
+Repository = "https://github.com/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool.git"
+Documentation = "https://github.com/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool#readme"
+Support = "https://github.com/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool/issues"
+Privacy = "https://github.com/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool/blob/main/docs/PRIVACY.md"
+ 
+
 [project.scripts]
 mcp-rules-assistant = "mcp_rules_assistant.cli:app"
-
+ 
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["mcp_rules_assistant*"]
 
+[tool.setuptools.package-data]
+mcp_rules_assistant = ["py.typed"]
+
 [tool.coverage.run]
-omit = [
-  "**/.mcp/*.py"
-]
+source = ["mcp_rules_assistant"]
+omit = ["**/.mcp/*.py", "mcp_rules_assistant/hooks.py"]
 
 [tool.coverage.report]
 show_missing = true
+ignore_errors = true
+omit = ["mcp_rules_assistant/hooks.py"]
 
 [tool.ruff]
 target-version = "py311"
+extend-exclude = ["tests"]
 
 [tool.ruff.lint]
 # Ignore multiple-statements-per-line (E702) globally; project uses short, semicolon-separated statements

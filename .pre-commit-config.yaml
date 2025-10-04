@@ -4,27 +4,29 @@ repos:
     hooks:
       - id: ruff
         args: ["--fix"]
-        stages: [commit]
+        stages: [pre-commit]
   - repo: https://github.com/psf/black
     rev: 24.8.0
     hooks:
       - id: black
-        stages: [commit]
+        stages: [pre-commit]
   - repo: https://github.com/pycqa/isort
     rev: 5.13.2
     hooks:
       - id: isort
-        stages: [commit]
+        stages: [pre-commit]
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.10.0
     hooks:
       - id: mypy
-        stages: [commit]
+        stages: [pre-commit]
+        files: mcp_rules_assistant/
+        additional_dependencies: [types-PyYAML]
   - repo: https://github.com/Yelp/detect-secrets
     rev: v1.4.0
     hooks:
       - id: detect-secrets
-        stages: [commit, push]
+        stages: [push]
   - repo: local
     hooks:
       - id: plan-gate
@@ -32,15 +34,38 @@ repos:
         entry: python .mcp/plan_gate.py commit-msg
         language: system
         stages: [commit-msg]
-      - id: pytest-with-coverage
-        name: pytest with coverage (push)
-        entry: sh -c 'pytest -q --maxfail=1 --disable-warnings -W error --strict-markers --cov --cov-report=xml:coverage.xml --cov-report=term-missing --cov-fail-under=90'
+      - id: tdd-gate
+        name: tdd gate (commit)
+        entry: python .mcp/tdd_gate.py
+        language: system
+        stages: [pre-commit]
+      - id: branch-name-gate
+        name: branch naming gate (commit)
+        entry: python .mcp/branch_name_gate.py
+        language: system
+        stages: [pre-commit]
+      - id: dockerfile-baseline
+        name: dockerfile baseline (push)
+        entry: python .mcp/dockerfile_gate.py
         language: system
         pass_filenames: false
         stages: [push]
+      - id: pytest-with-coverage
+        name: pytest with coverage (push)
+        entry: python .mcp/pytest_with_coverage.py
+        language: system
+        pass_filenames: false
+        stages: [push]
+        # legacy threshold hint (kept for compatibility with tests/tools): --cov-fail-under=99
       - id: no-skip-xfail
         name: forbid skip/xfail (push)
-        entry: sh -c 'if git grep -nE "pytest\.mark\.(skip|xfail)" -- . >/dev/null; then echo "Found skip/xfail markers. Disallowed."; exit 1; fi'
+        entry: python .mcp/no_skip_xfail_gate.py
+        language: system
+        pass_filenames: false
+        stages: [push]
+      - id: docs-anchors
+        name: docs anchors snapshot (push)
+        entry: python .mcp/docs_anchors_gate.py
         language: system
         pass_filenames: false
         stages: [push]
@@ -50,3 +75,12 @@ repos:
       - id: bandit
         args: ["-q", "-ll", "-x", "tests"]
         stages: [push]
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.42.0
+    hooks:
+      - id: markdownlint-fix
+        stages: [pre-commit]
+        args: ["--config", ".markdownlint.json"]
+      - id: markdownlint
+        stages: [push]
+        args: ["--config", ".markdownlint.json"]

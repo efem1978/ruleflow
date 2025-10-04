@@ -1,0 +1,90 @@
+name: VSCode E2E
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'extensions/vscode/**'
+      - '.github/workflows/vscode-e2e.yml'
+
+jobs:
+  e2e:
+    name: VS Code Headless Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install system libraries (Electron deps)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libdbus-1-3 dbus-x11 xvfb \
+            libasound2 libxss1 libxkbfile1 libnss3 \
+            libxrandr2 libxdamage1 libxcomposite1 \
+            libdrm2 libgbm1 libgtk-3-0 libcups2 libxshmfence1 \
+            ca-certificates
+
+      - name: Backend setup (editable install)
+        run: |
+          python -m pip install -U pip
+          python -m pip install -e .
+
+      - name: Backend verify (non-blocking)
+        run: |
+          bash scripts/verify-all.sh || true
+
+      - name: Install VS Code extension deps
+        working-directory: extensions/vscode
+        run: |
+          npm ci
+
+      - name: Run VS Code extension tests (headless)
+        working-directory: extensions/vscode
+        env:
+          NO_COLOR: '1'
+          FORCE_COLOR: '0'
+          ELECTRON_DISABLE_SECURITY_WARNINGS: '1'
+          RULEFLOW_TEST_FAKE: '0'
+        run: |
+          xvfb-run -a -s '-screen 0 1024x768x24' npm test
+
+      - name: Upload lcov (artifact)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vscode-lcov
+          path: extensions/vscode/coverage/lcov.info
+
+      - name: Upload logs and dashboards (artifact)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vscode-e2e-logs
+          path: |
+            extensions/vscode/.vscode-test/**/*
+            .mcp/dashboard/**/*
+            near_vscode.txt
+            cov.json
+            coverage.xml
+            pytest-junit.xml
+
+      - name: Upload to Codecov (optional)
+        if: ${{ secrets.CODECOV_TOKEN != '' }}
+        uses: codecov/codecov-action@v4
+        with:
+          files: extensions/vscode/coverage/lcov.info
+          token: ${{ secrets.CODECOV_TOKEN }}
+          flags: vscode
+

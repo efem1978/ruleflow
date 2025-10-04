@@ -1,12 +1,14 @@
 # AI 开发者指南 / AI Developer Guide
 
+提示：本仓库的“编程指南主入口”为根目录 `DEVELOPMENT.md`，请优先阅读并遵循其中的约束、TDD 计划与文档索引；本文件补充设计理念与深入策略细节。
+
 本指南面向贡献者与 AI 助手，统一工程约定、性能策略、门禁与提交流程，帮助在本仓库中高效、安全地落地改动。
 
 ## 一览
 - 架构与模块：MCP Server（Python）+ VS Code 扩展（TypeScript）+ CLI/CI/Hooks
 - 性能模式：Fast（默认）/Standard/Strict，保存轻、推送与 CI 重
 - 规则与门禁：规则摄取/编译→配置/CI/Hooks 同步→覆盖率与安全门禁
-- 测试与覆盖率：核心模块≥98%，其余≥95%，严禁警告/跳过（CI）
+- 测试与覆盖率：阈值以 `.mcp/assistant.yaml`/policy 为准（严禁警告/跳过，CI 执行）
 - 开发流程：TDD→实现→重构；提交与推送进入分层门禁
 
 ## 仓库结构（关键路径）
@@ -25,7 +27,7 @@
 - `.github/workflows/ci.yml`：CI（建议由生成器产出，遵循配置）
 
 ## 本地环境
-- Python ≥3.10，Node ≥18
+- Python ≥3.10，Node ≥18（CI 使用 20）
 - 安装：`pip install -e .`
 - 工具链（可选）：`mcp-rules-assistant prepare-env --install`
 - 快捷：`make setup|test|lint|type|ci|coverage|vscode-test`
@@ -45,10 +47,10 @@
 - 与 CI/Hooks：`rules.enforce` 将阈值/策略回写配置；CI/Hooks 据此生成
 
 ## 覆盖率与报告
-- 运行：`pytest -q -p pytest_cov --maxfail=1 --disable-warnings -W error --strict-markers --cov --cov-report=xml:coverage.xml`
+- 运行：`pytest -q -p pytest_cov --maxfail=1 --disable-warnings -W error --strict-markers --cov=mcp_rules_assistant --cov-report=xml:coverage.xml`
 - 汇总：`mcp-rules-assistant coverage-report --json`
 - 近阈值：`coverage-near --within 3 --top 20`（可用 `coverage.near-set` 调整窗口/Top）
-- 核心模块（≥98%）示例策略（已写入 `.mcp/assistant.yaml`）：
+- 核心模块（示例策略；最终以 `.mcp/assistant.yaml` 为准）：
   - `mcp_rules_assistant/config.py`
   - `mcp_rules_assistant/progress.py`
   - `mcp_rules_assistant/tools.py`
@@ -57,13 +59,29 @@
   - `mcp_rules_assistant/cli.py`
   - `mcp_rules_assistant/server.py`
 
+注意：coverage.policy 键应与 coverage.xml 中的 <class filename> 一致；本项目中 filename 为“basename”，因此建议使用 `cli.py`、`mcp_server.py` 等作为前缀，以确保策略命中。
+
 ## CI 与 Hooks
 - 生成：`mcp-rules-assistant generate-ci` 与 `install-hooks`
 - 自修复：`mcp-rules-assistant ci-autofix`
 - 条件化步骤：
-  - hadolint：当开启容器策略或 `ci.hadolint=true`
-  - semgrep：当开启 `security.sast_strict` 或 `ci.semgrep_config`
-- 计划门禁：提交信息需包含 `[step:当前步骤]`，且 `.mcp/plan.md` 处于 `in_progress`
+  - hadolint：当开启容器策略或 `ci.hadolint=true`（固定镜像标签，当前使用 `hadolint/hadolint:2.12.0`）
+  - semgrep：当开启 `security.sast_strict` 或 `ci.semgrep_config`（固定版本：`1.91.x`）
+  - 计划门禁：提交信息需包含 `[step:当前步骤]`，且 `.mcp/plan.md` 处于 `in_progress`
+
+## 统一子进程封装 / Unified Process Runner
+
+- 入口：`mcp_rules_assistant/process.py` 提供 `run_cmd`，所有外部命令统一经该封装调用（dev_agent/hooks/mcp_server 已委托）。
+- 兼容说明：`checks.py` 为兼容历史测试桩（直接 patch `checks.subprocess` 与 `PIPE` 行为），在模块内保留了轻量 `_run` 封装；后续若迁移到 `run_cmd` 将以“可配置委托”的方式进行，不改变现有返回结构。
+- 默认策略：
+  - 默认超时 300 秒，可通过 `timeout` 覆盖。
+  - 当 `capture_stdout=True` 时，同时捕获 `stderr`，并对 `stdout/stderr` 做末尾截断（最大 8000 字符），避免日志爆量。
+  - 兼容测试桩：当不捕获输出且未显式传 `env/timeout` 时，仅传递 `cmd/cwd/check` 基础参数，确保 `subprocess.run` 的简易替身不被额外关键字干扰。
+  - 可选重试：`retries` 与 `backoff`（指数退避，默认不重试）；如仅希望对超时重试，可在模块中开启“仅超时重试”策略（见实现）。
+- 测试约定：
+  - 建议对 `mcp_rules_assistant.process.run_cmd` 打桩；若需要模块级替身（如 `dev_agent.run_cmd`），亦可对 re-export 的符号打桩。
+  - 用例应避免直接 patch `subprocess.run`，除非明确需要覆盖更底层行为。
+  - 运行时临时日志：设置 `MCP_RUN_CMD_LOG=1` 可在 CI/本地输出 run_cmd 的 start/end/error 事件摘要（仅调试使用）。
 
 ## VS Code 扩展
 - 启动面板：命令 “MCP: Open Panel”；支持规则摄取/建议/覆盖率（弱项/分组/目录树/近阈值）与 CI 配置保存
@@ -79,17 +97,17 @@
 - VS Code（可选）：`npm --prefix extensions/vscode run compile` → `vsce package`
 
 ## 任务清单（面向近期）
-- [ ] 统一门槛来源与生成物（生成器覆盖 hooks/CI；取值自配置）
-- [ ] 版本号对齐（pyproject vs __init__）
-- [ ] FSGuard 写入后置挂钩（checks.run_checks，按性能档）
-- [ ] 覆盖率“核心≥98%”操作指南与 coverage.policy 示例
-- [ ] CI 安全步骤条件化（hadolint/semgrep）
-- [ ] 清理小问题（死代码/注释更新；样例文件用途说明或迁移 fixtures）
-- [ ] 覆盖率与 near 报告稳定性回归；mypy 告警压降
- - [ ] VS Code Webview 行为修复：近阈值按钮通过 postMessage → 扩展侧调用 MCP，再回传结果（移除 webview 中对 vscode.window/client 的直接调用）
- - [ ] MCP initialize.capabilities 中 prompts 对齐：移除声明或添加最小 prompts 端点占位
- - [ ] Codecov 上传策略与 README 对齐：公共仓库默认上传（无需 token）、私有仓库使用 CODECOV_TOKEN 条件化
- - [ ] pre-commit 中本地脚本（.mcp/plan_gate.py/.mcp/dockerfile_gate.py）条件生成或在第一次运行前引导执行 install-hooks，避免缺文件失败
- - [ ] 依赖精简：若未使用 pydantic 则移除依赖
+- [x] 统一门槛来源与生成物（生成器覆盖 hooks/CI；取值自配置）
+- [x] 版本号对齐（pyproject vs __init__）
+- [x] FSGuard 写入后置挂钩（checks.run_checks，按性能档）
+- [x] 覆盖率“核心≥98%”操作指南与 coverage.policy 示例
+- [x] CI 安全步骤条件化（hadolint/semgrep）
+- [x] 清理小问题（样例文件迁移至 tests/fixtures；README 标注生成型工件；移除/忽略多余样例文件如 cov.json/cjson.json）
+- [x] 覆盖率 near 报告稳定性回归；mypy 告警压降（非核心）
+ - [x] VS Code Webview 行为修复：近阈值按钮通过 postMessage → 扩展侧调用 MCP，再回传结果
+- [x] MCP initialize.capabilities 中 prompts 对齐：提供 prompts/list 与 prompts/get 最小内置端点
+ - [x] Codecov 上传策略与 README 对齐：公共仓库默认上传（无需 token）/私有仓库用 CODECOV_TOKEN 条件化
+ - [x] pre-commit 本地脚本（.mcp/plan_gate.py/.mcp/dockerfile_gate.py）首次运行前引导 install-hooks 或条件生成，避免缺文件失败
+ - [x] 依赖精简：移除未使用依赖（已无 pydantic）
 
 > 注：详见 `docs/DEV_PLAN_TDD.md` 的 “近期待办”。本指南将随计划推进而更新。

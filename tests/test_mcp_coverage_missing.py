@@ -14,8 +14,11 @@ def test_coverage_summary_resource_missing(tmp_path: Path) -> None:
     srv = JsonRpcServer()
     srv.project_root = tmp_path
     rlist = srv.handle(_req("resources/list"))
-    cov_uri = next(r.get("uri") for r in rlist.get("result", {}).get("resources", []) if str(r.get("uri")).endswith("/summary"))
+    cov_uri = next(
+        r.get("uri")
+        for r in rlist.get("result", {}).get("resources", [])
+        if str(r.get("uri")).endswith("/summary")
+    )
     rcov = srv.handle(_req("resources/read", {"uri": cov_uri}))
     data = json.loads(rcov.get("result", {}).get("text") or "{}")
     assert data.get("ok") is False
-

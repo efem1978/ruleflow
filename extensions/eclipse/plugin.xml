@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.4"?>
+<plugin>
+   <extension
+         point="org.eclipse.ui.views">
+      <category
+            name="MCP Rules Assistant"
+            id="com.ruleflow.mcp.category">
+      </category>
+      <view
+            name="MCP Rules Assistant"
+            icon="icons/mcp-icon.png"
+            category="com.ruleflow.mcp.category"
+            class="com.ruleflow.mcp.views.MCPView"
+            id="com.ruleflow.mcp.views.MCPView">
+      </view>
+   </extension>
+   
+   <extension
+         point="org.eclipse.ui.commands">
+      <category
+            name="MCP Rules Assistant"
+            id="com.ruleflow.mcp.commands.category">
+      </category>
+      <command
+            name="Status Update"
+            categoryId="com.ruleflow.mcp.commands.category"
+            id="com.ruleflow.mcp.commands.statusUpdate">
+      </command>
+      <command
+            name="Coverage Report"
+            categoryId="com.ruleflow.mcp.commands.category"
+            id="com.ruleflow.mcp.commands.coverage">
+      </command>
+      <command
+            name="Ingest Rules"
+            categoryId="com.ruleflow.mcp.commands.category"
+            id="com.ruleflow.mcp.commands.ingestRules">
+      </command>
+      <command
+            name="Generate CI"
+            categoryId="com.ruleflow.mcp.commands.category"
+            id="com.ruleflow.mcp.commands.generateCI">
+      </command>
+   </extension>
+   
+   <extension
+         point="org.eclipse.ui.handlers">
+      <handler
+            commandId="com.ruleflow.mcp.commands.statusUpdate"
+            class="com.ruleflow.mcp.handlers.StatusUpdateHandler">
+      </handler>
+      <handler
+            commandId="com.ruleflow.mcp.commands.coverage"
+            class="com.ruleflow.mcp.handlers.CoverageHandler">
+      </handler>
+      <handler
+            commandId="com.ruleflow.mcp.commands.ingestRules"
+            class="com.ruleflow.mcp.handlers.IngestRulesHandler">
+      </handler>
+      <handler
+            commandId="com.ruleflow.mcp.commands.generateCI"
+            class="com.ruleflow.mcp.handlers.GenerateCIHandler">
+      </handler>
+   </extension>
+   
+   <extension
+         point="org.eclipse.ui.menus">
+      <menuContribution
+            locationURI="menu:org.eclipse.ui.main.menu?after=additions">
+         <menu
+               label="MCP Rules Assistant"
+               mnemonic="M"
+               id="com.ruleflow.mcp.menus.mainMenu">
+            <command
+                  commandId="com.ruleflow.mcp.commands.statusUpdate"
+                  mnemonic="S">
+            </command>
+            <command
+                  commandId="com.ruleflow.mcp.commands.coverage"
+                  mnemonic="C">
+            </command>
+            <separator
+                  name="com.ruleflow.mcp.menus.separator1">
+            </separator>
+            <command
+                  commandId="com.ruleflow.mcp.commands.ingestRules"
+                  mnemonic="I">
+            </command>
+            <command
+                  commandId="com.ruleflow.mcp.commands.generateCI"
+                  mnemonic="G">
+            </command>
+         </menu>
+      </menuContribution>
+   </extension>
+</plugin>

@@ -27,7 +27,11 @@ def test_rules_resources_read_returns_error_when_missing(tmp_path: Path) -> None
     with chdir(tmp_path):
         srv = JsonRpcServer()
         rlist = srv.handle(_req("resources/list"))
-        compiled_uri = next(r.get("uri") for r in rlist.get("result", {}).get("resources", []) if str(r.get("uri")).endswith("/compiled"))
+        compiled_uri = next(
+            r.get("uri")
+            for r in rlist.get("result", {}).get("resources", [])
+            if str(r.get("uri")).endswith("/compiled")
+        )
         # 注意：直接访问 rules 资源会报错（尚未摄取）
         res = srv.handle(_req("resources/read", {"uri": compiled_uri}))
         assert "error" in res and res["error"].get("message")

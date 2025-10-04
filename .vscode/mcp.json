@@ -1,0 +1,14 @@
+{
+  "tools": {
+    "ruleflow": {
+      "command": "python3",
+      "args": ["-m", "mcp_rules_assistant.cli", "start"],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONUNBUFFERED": "1",
+        "MCP_PROJECT_ROOT": "${workspaceFolder}",
+        "MCP_STRICT_ISOLATION": "1"
+      }
+    }
+  }
+}

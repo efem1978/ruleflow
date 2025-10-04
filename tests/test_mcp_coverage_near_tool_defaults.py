@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 from mcp_rules_assistant.mcp_server import JsonRpcServer
@@ -14,8 +13,8 @@ def _write_cov_xml(path: Path) -> None:
     text = (
         "<coverage>\n"
         "  <packages><package><classes>\n"
-        "    <class filename=\"near.py\" line-rate=\"0.905\"/>\n"
-        "    <class filename=\"far.py\" line-rate=\"0.80\"/>\n"
+        '    <class filename="near.py" line-rate="0.905"/>\n'
+        '    <class filename="far.py" line-rate="0.80"/>\n'
         "  </classes></package></packages>\n"
         "</coverage>\n"
     )
@@ -41,4 +40,3 @@ def test_tool_coverage_near_uses_config_defaults(tmp_path: Path) -> None:
     assert any((it.get("file") == "near.py") for it in items)
     assert all((it.get("file") != "far.py") for it in items)
     assert len(items) == 1
-

@@ -17,7 +17,7 @@ def test_skip_code_fences_when_parsing_text(tmp_path: Path) -> None:
                 "test:",
                 "  warnings as errors: true",  # should be ignored
                 "```",  # code fence end
-            ]
+            ],
         ),
         encoding="utf-8",
     )
@@ -25,4 +25,3 @@ def test_skip_code_fences_when_parsing_text(tmp_path: Path) -> None:
     pol = (res.get("compiled") or {}).get("policy") or {}
     # Should keep 90% and not be overridden to 100%
     assert abs(float(pol.get("coverage.min_module")) - 0.90) < 1e-6
-

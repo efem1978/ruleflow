@@ -1,17 +1,18 @@
 TDD 开发计划 / TDD Development Plan
 
+重要说明（Authority Notice）
+- 唯一权威的任务清单来源为 `.mcp/plan.md`；如与本页或其他文档不一致，以 `.mcp/plan.md` 为准。
+- 快捷打开：`mcp-rules-assistant plan-open`
+
 目标与范围 Goals & Scope
-- 目标：以 TDD 模式完善本仓库，确保功能按文档落地；覆盖率达标（核心≥98%，非核心≥95%），测试全绿且无警告/跳过；CI/钩子具备生产级门禁。
+- 目标：以 TDD 模式完善本仓库，确保功能按文档落地；覆盖率达标（门槛以 `.mcp/assistant.yaml` 为准），测试全绿且无警告/跳过；CI/钩子具备生产级门禁。
 - 范围：Python MCP Server、规则摄取/编译、覆盖率摘要、受控写入检查、Hooks/CI 生成、VS Code 扩展交互的核心路径。
 
-覆盖率策略 Coverage Targets
-- 近期：总覆盖率 85–92%（建立基线并覆盖核心路径）。
-- 达标：
-  - 全局 ≥95%（CI `--cov-fail-under=95`）。
-  - 核心模块（示例：config/progress/tools/memory/mcp_server/cli/server）≥98%（由 coverage.policy 约束并在 CI 按政策阻断）。
-  - 其余模块 ≥95%。
+覆盖率策略 Coverage Targets（仅为目标示例；实际门槛以 `.mcp/assistant.yaml` 为准）
+- 近期：目标区间（示例）用于对齐节奏，非强制门禁。
+- 达标（示例）：以 `coverage.policy` 与 CI 配置为准，不在文档中写死具体数值。
 
-分阶段执行 Phased Plan
+分阶段执行 Phased Plan（逐层推进）
 Phase A — 基线与修复（Red → Green → Refactor）
 - 写“红”用例：config.get/update、rules.enforce。
 - 实现修复：
@@ -35,9 +36,7 @@ Phase C — 检查与门禁（边界与降级）
   - generate_pre_commit_config 启动 secrets 与 Docker 基线（push 阶段）。
 
 Phase D — 覆盖率与政策门禁（生产化）
-- 在 `.mcp/assistant.yaml` 中设置政策阈值：
-  - config.py/progress.py/tools.py/memory.py → 0.98
-  - 其余由 `min_module: 0.95` 统一控制
+ - 在 `.mcp/assistant.yaml` 中设置政策阈值（作为唯一权威），避免在文档中写死具体数字；必要时用 `coverage.policy` 为关键模块单独设定。
 - CI 增加 “Coverage Policy Gate”：
   - 运行 `coverage-report --json`，若存在 `weak` 文件即失败
   - 新增无 skip/xfail 标记检查；继续维持 `-W error`
@@ -45,6 +44,25 @@ Phase D — 覆盖率与政策门禁（生产化）
 Phase E — 集成与 CLI
 - CLI（Typer）烟雾测试：init / ingest-rules / coverage / coverage-groups。
 - MCP 集成：tools/call rules.ingest/validate、fs.apply_patch(strict) 正常与拒绝路径、resources/read 各类 URI。
+
+逐层检查清单 Layered Checklists（参考清单，非任务统计来源）
+- 单元层（config/progress/tools/memory/coverage_summary）
+  - [ ] 为公开函数补齐失败用例（边界/异常/类型）
+  - [ ] 通过后重构（去重/提取），保证对外行为不变
+  - [ ] 覆盖率：核心≥98%，其余≥95%
+- 组件层（checks/hooks/fs_wrapper）
+  - [x] 工具缺失降级（ruff/mypy/pytest 缺失 → skipped）
+  - [x] 最近失败优先的受影响测试策略
+  - [x] 生成的 CI/Hooks 与配置一致性快照
+- 集成层（cli/dev_agent）
+  - [x] CLI 烟雾与参数校验
+  - [x] dev_agent 单循环：写入 status.json/history/fail_counters
+  - [x] 冻结/解冻阈值与逻辑路径覆盖
+- 接口层（mcp_server）
+  - [x] initialize/capabilities & 基础 tools/resources 的错误路径
+  - [x] fs.apply_patch(strict) 拒绝路径
+ - 扩展层（VS Code）
+  - [x] 无头测试 & 近阈值/覆盖率交互回归（已纳入 CI：默认告警≥90%，可选硬门禁；提供 near/worst 文件清单）
 
 验收准则 Definition of Done
 - 覆盖率：总体 ≥95%；核心模块 ≥98%；其余 ≥95%；`coverage-report` 的 `weak` 为空。
@@ -63,32 +81,69 @@ Phase E — 集成与 CLI
 - 覆盖率：`coverage.xml` 与 CLI 输出（薄弱项/分组）。
 - 规则：`.mcp/rules_compiled.{json,md}` 与 `rules_suggestions.md`。
 
-近期待办 Next Actions
-1) 统一门槛来源与生成物（高优先级）
-   - 用生成器覆盖 .pre-commit-config.yaml 与 .github/workflows/ci.yml，阈值取自 .mcp/assistant.yaml（performance.on_push.coverage.min_module）与 coverage.policy。
-   - 修正文档与实现的描述差异（env.prepare 不再仅“占位”）。
-2) 版本对齐与小修复
-   - 统一版本号：pyproject.toml vs mcp_rules_assistant/__init__.py。
-   - rules_ingest._english_words_to_int 移除不可达 return；注释矫正。
-3) FSGuard 增强（可选）
-   - 写入后置挂钩可调用 checks.run_checks（按性能模式/strict 控制），失败时在 strict 下阻断。
-4) 新增 AI_DEVELOPER_GUIDE.md（文档缺口）
-   - 面向贡献者：架构综述、开发规范、性能模式、规则摄取/门禁路径、测试与覆盖率策略、CI/CD 与发布流程、VS Code 面板调试。
-5) 覆盖率“核心≥98%”可操作化
-   - 提供 coverage.policy 示例与“核心模块”清单写法；在 README/USAGE 中链接说明。
-6) CI 安全步骤条件化
-   - hadolint/semgrep 由编译规则或 ci-set 开关决定（默认不强制）。
-7) 清理与结构
-   - 评估将根部样例文件（bad.py/foo.py/ok2.py）迁移至 tests/fixtures 并在 README 标注用途。
-8) 验证与指标
-   - 本地/CI 跑覆盖率并生成 near 报告，确保核心≥98%、其余≥95%；mypy 告警持续压降（核心阻断，其余非阻断）。
-9) VS Code 面板交互修复（高优先级）
-   - Webview 中“仅看近阈值/Show Near”不应直接调用 vscode.window/client（Webview 无权访问）；改为 postMessage（带窗口参数），在扩展侧调用 MCP，再回传结果渲染。
-10) MCP 能力声明对齐
-   - initialize.capabilities 声明了 prompts:true，但当前未提供 prompts/list 或相关端点；修正为不声明或补齐最小占位。
-11) Codecov 行为对齐
-   - README 声明“公共仓库无需令牌”，而 CI 仅在 CODECOV_TOKEN 存在时上传；需调整为公共仓库分支不要求 token（或在文档中调整表述）。
-12) pre-commit 本地脚本生成时机
-   - 现有 .pre-commit-config.yaml 引用 .mcp/plan_gate.py 与 .mcp/dockerfile_gate.py；需保证 install-hooks 生成后再触发相关阶段，或将其改为条件生成，避免首次运行缺文件失败。
-13) 依赖精简
-   - pyproject.toml 中 pydantic 未被使用（仓库代码无引用）；考虑移除以缩小依赖面。
+近期待办 Next Actions（与根目录 DEVELOPMENT.md 同步）
+已完成（历史对齐项，略）
+
+本轮（不得延后）
+1) 覆盖率抛光（核心路径）
+   - [x] dev_agent.py：冻结/解冻/旁路/失败分支补齐（目标 ≥96%）
+   - [x] mcp_server.py：env/coverage/resources 边界异常与极值分支（目标 ≥99.0%）
+   - [x] rules_ingest.py：上限/区间/异常 YAML/JSON 分支（目标 ≥98.0%）
+2) 门禁强化
+   - [x] CI 扫描测试输出中的 skip/xfail 统计（仅报警，不误伤用例标记）
+   - [x] CLI 合同测试：文档示例命令存在性与失败路径覆盖
+3) 清理与一致性
+   - [x] 清理无用样例（docs/link.py、bad.py/ok2.py/ok.txt、docs/b.txt）；Makefile/scripts 增补清理
+   - 说明：如本地仍存在未跟踪的样例/工件，请执行 `make clean` 或 `sh scripts/workspace-clean.sh`。
+   - [x] README 增补 coverage.policy “后缀匹配”小贴士
+   - [x] docs/CI_HEALTH_CHECK.md 改为健康检查说明文档
+4) JetBrains P3（本轮落地）
+   - [x] `scripts/jb-package.sh` 完成并在文档指引
+   - [x] 最小 E2E：读取 `.mcp/dashboard/status.json` 的 smoke；CI 作业输出工件
+   - [ ] 后续：实拍 PNG 替换 SVG（允许暂缓，不阻断本轮 DoD）
+5) 统一子进程封装与开关
+   - [x] checks.py 委托 run_cmd 的 on/off 回归测试（保持历史桩兼容）
+6) 文档入口同步
+   - [x] 更新 `DEVELOPMENT.md` 当前 Sprint 任务为本轮内容
+   - [x] 同步 `.mcp/plan.md` 与本文件清单（以 `.mcp/plan.md` 为权威）
+
+执行批次（完整）
+批次 A（已完成）
+ - 清理样例文件与过时审计文档；对齐文档表述
+ - prompts 最小内置与开关；FSGuard 白名单/严格后置检查对齐
+
+批次 B（规则引导）
+ - CLI: `mcp-rules-assistant rules-onboard --scenario personal --complexity small --dev-mode tdd --apply`
+ - MCP: `tools/call name="rules.onboard" {scenario, complexity, devMode, apply}`
+ - VS Code: 在面板 NL 输入“规则引导/初始化规则” → 交互式选择并应用
+
+批次 C（文档与计划收敛 + 清理自动化）
+ - 同步 `DEVELOPMENT.md` / `docs/*` 与 `.mcp/plan.md` 状态
+ - 修正文档示例错误：`docs/CONFIG.md` YAML 缩进
+ - Makefile: `make clean` 增加样例文件与 VSIX 清理
+ - 新增脚本：`scripts/workspace-clean.sh`（一键清理未追踪/本地工件）
+
+批次 D（近阈值覆盖率消除）
+ - dev_agent.py：补齐冻结/解冻与旁路的少数分支用例（目标 96%+）
+ - mcp_server.py：覆盖 `fs.apply_patch` 边界与错误路径剩余分支（目标 99%）
+ - rules_ingest.py：补齐区间/上限与异常输入分支（目标 98%）
+
+批次 E（JetBrains P3：打包与最小 E2E）
+ - Gradle 打包：`./gradlew buildPlugin`（脚本占位 `scripts/jb-package.sh`）
+ - 最小 E2E：基于运行时读取 `.mcp/dashboard/status.json` 的 smoke 校验（不引重型测试框架）
+ - 替换占位 SVG 为实际截屏（PNG）
+
+批次 F（发布与物料）
+ - 产品化文档：功能矩阵/支持矩阵/零遥测声明
+ - VS Code 商店条目更新、JetBrains Marketplace 草案
+ - 许可门禁演练脚本完善与说明
+
+批次 G（覆盖率抛光与门禁强化 — 本轮）
+ - 覆盖率抛光（dev_agent/mcp_server/rules_ingest）与 CLI 合同测试
+ - CI 输出扫描 skip/xfail（仅报警）
+
+批次 H（清理与一致性 — 本轮）
+ - 清理样例/脚本增强；CI 健康检查文档化；README 覆盖率小贴士
+
+批次 I（JetBrains P3 — 本轮）
+ - `scripts/jb-package.sh` + 最小 E2E；后续替换占位截图

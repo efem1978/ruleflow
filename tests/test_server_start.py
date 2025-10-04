@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib
+
 import mcp_rules_assistant.mcp_server as msv
 import mcp_rules_assistant.server as srv
 

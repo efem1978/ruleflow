@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+
 from typer.testing import CliRunner
 
 from mcp_rules_assistant.cli import app
@@ -10,8 +11,8 @@ def _write_cov_xml(path: Path) -> None:
     text = (
         "<coverage>\n"
         "  <packages><package><classes>\n"
-        "    <class filename=\"pkg/a/core.py\" line-rate=\"0.80\" lines-valid=\"10\" lines-covered=\"8\"/>\n"
-        "    <class filename=\"pkg/b/mod.py\" line-rate=\"0.85\" lines-valid=\"20\" lines-covered=\"17\"/>\n"
+        '    <class filename="pkg/a/core.py" line-rate="0.80" lines-valid="10" lines-covered="8"/>\n'
+        '    <class filename="pkg/b/mod.py" line-rate="0.85" lines-valid="20" lines-covered="17"/>\n'
         "  </classes></package></packages>\n"
         "</coverage>\n"
     )

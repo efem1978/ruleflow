@@ -1,12 +1,10 @@
 {
   "name": "mcp-rules-assistant",
-  "image": "mcr.microsoft.com/devcontainers/python:3.11",
-  "features": {
-    "ghcr.io/devcontainers/features/node:1": {
-      "version": "20"
-    }
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
   },
-  "postCreateCommand": "pip install -e . && pip install ruff black isort mypy bandit pytest pytest-cov pre-commit && npm --prefix extensions/vscode install",
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
   "customizations": {
     "vscode": {
       "settings": {

@@ -1,0 +1,49 @@
+# 多 IDE 最小集成使用指南 / IDE Integration Guide
+
+目标
+- 通过最小集成配置，使各 IDE 可一键启动本项目的 MCP Server 与常用 CLI，保持“保存轻/推送重”的开发体验。
+
+总览
+- 生成入口（二选一）：
+  - CLI：`mcp-rules-assistant ide-scaffold --editor <vscode|cursor|jetbrains|neovim>`
+  - MCP 工具：`tools/call name="ide.scaffold" {"editor": "vscode"}`
+- 生成位置：`.mcp/ide/<editor>/`
+- 支持编辑器：VS Code / Cursor / JetBrains / Neovim
+
+兼容性说明
+- Cursor / Windsurf：直接安装 VSIX（与 VS Code 共享引擎），功能等同 VS Code；无需单独分叉。
+- JetBrains：最小骨架与路线图见 `docs/IDE_PLUGIN_ROADMAP.md`；骨架代码位于 `extensions/jetbrains/`。
+
+VS Code / Cursor
+- 输出：`.mcp/ide/vscode/settings.sample.json` 与 README
+- 使用：
+  1) 将 `settings.sample.json` 合并进工作区 `.vscode/settings.json`
+  2) 打开命令面板运行 `RuleFlow: Open Panel`，或在 Copilot MCP 面板选择 `ruleflow`
+  3) 若 Python 可执行名不是 `python3`，设置环境变量 `MCP_PYTHON_BIN` 指定解释器路径
+  4) 快捷命令：`RuleFlow: Open Plan` / `RuleFlow: Open Memory` 直接打开 `.mcp/plan.md` / `.mcp/memory.json`
+
+JetBrains（IDEA / PyCharm 等）
+- 最小插件已实现（见 `extensions/jetbrains/`）：
+  - 按钮：启动/停止 MCP、Ping、资源列表、加载计划、规则摄取、覆盖率报告、生成 CI、校验 CI、安装 hooks
+  - 运行：使用 Gradle 任务 `Run Plugin` 或 `./gradlew runIde` 启动沙箱 IDE 后，在工具窗口“RuleFlow”使用上述操作
+  - 仍可选用 External Tools（无需插件）直接启动 MCP：程序 `python3`，参数 `-m mcp_rules_assistant.cli start`，工作目录 `$ProjectFileDir$`
+
+  Windows/macOS/Linux 外部工具导入（一步到位）
+  - 生成示例：`mcp-rules-assistant ide-scaffold --editor jetbrains`（输出到 `.mcp/ide/jetbrains/externalTools.sample.xml`）
+  - 导入路径：IDE → Settings → Tools → External Tools → Import（选择上述 XML）
+  - 执行：Tools → External Tools → RuleFlow MCP Server（或在 Terminal 中运行 ruleflow CLI）
+
+  常见问题（JetBrains）
+  - Python 解释器不是 `python3`：将 External Tools 的 Program 改为绝对路径，或设置 PATH。
+  - 未生成 `coverage.xml`：先在项目根运行 `pytest --cov=mcp_rules_assistant --cov-report=xml:coverage.xml`。
+
+Neovim
+- 输出：`.mcp/ide/neovim/init.sample.vim`、`.mcp/ide/neovim/init.sample.lua` 与 README
+- 使用（Vimscript）：在 `init.vim` 引入示例片段，使用 `:RuleFlowStart` 启动 MCP 服务器
+- 使用（Lua）：在 `init.lua` 引入示例函数 `RuleFlowStart()`，或映射快捷键执行
+ - Windows 提示：确保 `python3` 在 PATH 中，或将命令替换为绝对路径（如 `C:\\Python311\\python.exe`）。
+
+注意事项
+- 最小集成不改变项目行为，仅提供一套“如何在该 IDE 中高效启动和交互”的示例配置。
+- 首次运行前建议执行：`mcp-rules-assistant install-hooks` 与 `mcp-rules-assistant generate-ci`
+- 若希望在容器内持续运行并落盘状态：`docker compose up -d dev-agent`（详见 `docs/DOCKER_DEV.md`）

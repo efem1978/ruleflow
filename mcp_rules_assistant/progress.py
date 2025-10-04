@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import TypedDict
+
+from .fs_wrapper import atomic_write_text
 
 PLAN_MD = Path(".mcp/plan.md")
 
@@ -15,27 +17,27 @@ DEFAULT_PLAN = (
 )
 
 
-def ensure_plan(project_root: Optional[Path] = None) -> Path:
+def ensure_plan(project_root: Path | None = None) -> Path:
     root = (project_root or Path.cwd()).resolve()
     path = root / PLAN_MD
     path.parent.mkdir(parents=True, exist_ok=True)
     if not path.exists():
-        path.write_text(DEFAULT_PLAN, encoding="utf-8")
+        atomic_write_text(path, DEFAULT_PLAN)
     return path
 
 
-def read_plan(project_root: Optional[Path] = None) -> str:
+def read_plan(project_root: Path | None = None) -> str:
     path = ensure_plan(project_root)
     return path.read_text(encoding="utf-8")
 
 
-def write_plan(text: str, project_root: Optional[Path] = None) -> Path:
+def write_plan(text: str, project_root: Path | None = None) -> Path:
     path = ensure_plan(project_root)
-    path.write_text(text, encoding="utf-8")
+    atomic_write_text(path, text)
     return path
 
 
-def parse_plan(text: str) -> Tuple[str, str, str]:
+def parse_plan(text: str) -> tuple[str, str, str]:
     status = "planned"
     current = ""
     nxt = ""
@@ -44,7 +46,7 @@ def parse_plan(text: str) -> Tuple[str, str, str]:
         if line.startswith("- 状态:") or line.lower().startswith("- status:"):
             status = line.split(":", 1)[1].strip().lower()
         elif line.startswith("- 当前步骤:") or line.lower().startswith(
-            "- current step:"
+            "- current step:",
         ):
             current = line.split(":", 1)[1].strip()
         elif line.startswith("- 下一步:") or line.lower().startswith("- next:"):
@@ -53,35 +55,47 @@ def parse_plan(text: str) -> Tuple[str, str, str]:
 
 
 def update_plan_fields(
-    project_root: Optional[Path] = None,
+    project_root: Path | None = None,
     *,
-    status: Optional[str] = None,
-    current: Optional[str] = None,
-    nxt: Optional[str] = None,
+    status: str | None = None,
+    current: str | None = None,
+    nxt: str | None = None,
 ) -> Path:
     text = read_plan(project_root)
     lines = text.splitlines()
 
-    def repl(prefix_cn: str, prefix_en: str, value: Optional[str]) -> None:
-        nonlocal lines
-        if value is None:
-            return
-        done = False
-        for i, line in enumerate(lines):
-            if line.strip().startswith(prefix_cn) or line.strip().lower().startswith(
-                prefix_en.lower()
-            ):
-                lines[i] = f"{prefix_cn} {value}"
-                done = True
-                break
-        if not done:
-            lines.append(f"{prefix_cn} {value}")
+    class UpdateSpec(TypedDict):
+        cn: str
+        en: str
+        val: str | None
 
-    if status is not None:
-        repl("- 状态:", "- status:", status)
-    if current is not None:
-        repl("- 当前步骤:", "- current step:", current)
-    if nxt is not None:
-        repl("- 下一步:", "- next:", nxt)
-    new_text = "\n".join(lines) + ("\n" if not lines[-1].endswith("\n") else "")
+    updates: list[UpdateSpec] = [
+        {"cn": "- 状态:", "en": "- status:", "val": status},
+        {"cn": "- 当前步骤:", "en": "- current step:", "val": current},
+        {"cn": "- 下一步:", "en": "- next:", "val": nxt},
+    ]
+
+    for item in updates:
+        val = item["val"]
+        if val is None:
+            continue
+        cn: str = item["cn"]
+        en: str = item["en"].lower()
+        replaced = False
+        for i, line in enumerate(lines):
+            s = line.strip()
+            if s.startswith(cn) or s.lower().startswith(en):
+                lines[i] = f"{cn} {val}"
+                replaced = True
+                break
+        if not replaced:
+            lines.append(f"{cn} {val}")
+
+    # Ensure trailing newline and handle empty file gracefully
+    if lines:
+        new_text = "\n".join(lines)
+        if not new_text.endswith("\n"):
+            new_text += "\n"
+    else:
+        new_text = "\n"
     return write_plan(new_text, project_root)

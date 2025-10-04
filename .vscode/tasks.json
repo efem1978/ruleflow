@@ -1,0 +1,47 @@
+{
+  // VS Code tasks to quickly verify MCP is loaded and responsive
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "MCP: RPC Smoke",
+      "type": "shell",
+      "command": ".mcp/venv/bin/python scripts/mcp-rpc-smoke.py",
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": [],
+      "group": "test"
+    },
+    {
+      "label": "MCP: Status Update (JSON)",
+      "type": "shell",
+      "command": ".mcp/venv/bin/python -m mcp_rules_assistant.cli status-update --json",
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": [],
+      "group": "test"
+    },
+    {
+      "label": "Install: All (STRICT_TESTS=0, RUN_VERIFY=1)",
+      "type": "shell",
+      "command": "STRICT_TESTS=0 RUN_VERIFY=1 bash scripts/install-all.sh",
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": [],
+      "group": "build"
+    },
+    {
+      "label": "Diagnose: Environment",
+      "type": "shell",
+      "command": "bash scripts/diagnose-env.sh",
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": [],
+      "group": "build"
+    },
+    {
+      "label": "Verify: Full Workflow",
+      "type": "shell",
+      "command": "bash scripts/verify-all.sh",
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": [],
+      "group": "test"
+    }
+  ]
+}
+

@@ -4,30 +4,110 @@ import hashlib
 import json
 import os
 import subprocess
+import sys
 import time
 from pathlib import Path
-from typing import Dict, List, Optional, Set, cast
+from typing import cast
 
-import yaml
+import yaml  # type: ignore[import-untyped]
+
+# 可选委托到统一的 process.run_cmd（默认关闭，保持向后兼容测试桩行为）。
+# 开启方式：
+#  - 环境变量 MCP_CHECKS_PROCESS_RUNNER=1
+#  - 或项目配置 `.mcp/assistant.yaml` 中设置 execution.checks_delegate_run_cmd: true
+try:  # 仅在需要时导入，避免冷启动额外依赖
+    from .config import load_config as _load_cfg  # type: ignore
+    from .process import run_cmd as _proc_run_cmd  # type: ignore
+except Exception:  # pragma: no cover - 在极端环境下回退
+    _load_cfg = None  # type: ignore
+    _proc_run_cmd = None  # type: ignore
+
+_USE_PROC_RUNNER_CACHE: bool | None = None
+
+
+def _use_process_runner(project_root: Path | None) -> bool:
+    global _USE_PROC_RUNNER_CACHE
+    env = os.environ.get("MCP_CHECKS_PROCESS_RUNNER")
+    if env in ("1", "true", "True"):
+        return True
+    if env in ("0", "false", "False"):
+        return False
+    if _USE_PROC_RUNNER_CACHE is not None:
+        return _USE_PROC_RUNNER_CACHE
+    # 配置优先（execution.checks_delegate_run_cmd: true）
+    use = False
+    try:
+        if _load_cfg is not None:
+            root = (project_root or Path.cwd()).resolve()
+            cfg = _load_cfg(root)
+            ex = (
+                cfg.get("execution", {})
+                if isinstance(cfg.get("execution", {}), dict)
+                else {}
+            )
+            use = bool(ex.get("checks_delegate_run_cmd", False))
+    except Exception:
+        use = False
+    _USE_PROC_RUNNER_CACHE = use
+    return use
 
 
 def _run(
-    cmd: List[str], cwd: Optional[Path] = None, env: Optional[Dict[str, str]] = None
-) -> Dict[str, object]:
+    cmd: list[str], cwd: Path | None = None, env: dict[str, str] | None = None,
+) -> dict[str, object]:
+    """运行外部命令：默认直接使用 subprocess.run；当开启委托开关时，使用统一的 process.run_cmd。
+
+    返回结构保持：{ok, code, stdout, stderr, cmd}；若可执行缺失返回 skipped。
+    """
+    # 优先尝试 process.run_cmd（可配置）
+    if _use_process_runner(cwd) and _proc_run_cmd is not None:
+        try:
+            p = _proc_run_cmd(
+                cmd,
+                cwd=(cwd or Path.cwd()),
+                capture_stdout=True,
+                env=env,
+                check=False,
+            )
+            return {
+                "ok": getattr(p, "returncode", 0) == 0,
+                "code": getattr(p, "returncode", 0),
+                "stdout": getattr(p, "stdout", ""),
+                "stderr": getattr(p, "stderr", ""),
+                "cmd": cmd,
+            }
+        except FileNotFoundError:
+            return {
+                "ok": True,
+                "skipped": True,
+                "reason": f"{cmd[0]} not found",
+                "cmd": cmd,
+            }
+        except Exception as e:
+            # 回退到本地实现，保证兼容性
+            import logging
+
+            logging.getLogger(__name__).debug(
+                "[checks] delegate run_cmd fallback: %r", e,
+            )
+    # 兼容旧实现：直接 subprocess.run，并从原生 subprocess 模块获取 PIPE
     try:
-        p = subprocess.run(
-            cmd,
-            cwd=cwd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            env=env,
-        )
+        try:
+            import importlib
+
+            _std_sub = importlib.import_module("subprocess")
+            _pipe = getattr(_std_sub, "PIPE", None)
+        except Exception:
+            _pipe = None
+        kwargs = {"cwd": cwd, "text": True, "env": env}
+        if _pipe is not None:
+            kwargs.update({"stdout": _pipe, "stderr": _pipe})
+        p = subprocess.run(cmd, **kwargs)  # type: ignore[arg-type]
         return {
             "ok": p.returncode == 0,
             "code": p.returncode,
-            "stdout": p.stdout,
-            "stderr": p.stderr,
+            "stdout": getattr(p, "stdout", ""),
+            "stderr": getattr(p, "stderr", ""),
             "cmd": cmd,
         }
     except FileNotFoundError:
@@ -39,7 +119,7 @@ def _run(
         }
 
 
-def run_lint(files: List[Path], cwd: Optional[Path] = None) -> Dict[str, object]:
+def run_lint(files: list[Path], cwd: Path | None = None) -> dict[str, object]:
     # 改动文件使用 ruff 检查，若不存在则跳过
     targets = [str(f) for f in files if f.suffix in {".py"}]
     if not targets:
@@ -48,7 +128,7 @@ def run_lint(files: List[Path], cwd: Optional[Path] = None) -> Dict[str, object]
     return _run(["ruff", "check", "--quiet", *targets], cwd)
 
 
-def run_typecheck(cwd: Optional[Path] = None) -> Dict[str, object]:
+def run_typecheck(cwd: Path | None = None) -> dict[str, object]:
     # 优先 mypy；不存在则跳过
     return _run(["mypy", "."], cwd)
 
@@ -58,7 +138,7 @@ TEST_INDEX_FILE = Path(".mcp/test_index.json")
 TEST_INDEX_META = Path(".mcp/test_index_meta.json")
 
 
-def _read_last_fail(project_root: Path) -> Dict[str, Set[str] | Dict[str, int]]:
+def _read_last_fail(project_root: Path) -> dict[str, set[str] | dict[str, int]]:
     path = project_root / LAST_FAIL_FILE
     if not path.exists():
         return {"tests": set(), "nodeids": set(), "test_counts": {}, "node_counts": {}}
@@ -76,11 +156,11 @@ def _read_last_fail(project_root: Path) -> Dict[str, Set[str] | Dict[str, int]]:
 
 def _write_last_fail(
     project_root: Path,
-    tests: Set[str],
-    nodeids: Set[str],
-    test_counts: Dict[str, int],
-    node_counts: Dict[str, int],
-    events: Optional[List[Dict[str, str]]] = None,
+    tests: set[str],
+    nodeids: set[str],
+    test_counts: dict[str, int],
+    node_counts: dict[str, int],
+    events: list[dict[str, str]] | None = None,
 ) -> None:
     path = project_root / LAST_FAIL_FILE
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -100,7 +180,7 @@ def _write_last_fail(
     )
 
 
-def _module_import_candidates(project_root: Path, file: Path) -> List[str]:
+def _module_import_candidates(project_root: Path, file: Path) -> list[str]:
     # 简单从路径推导模块导入名：a/b/c.py -> a.b.c
     rel = file.resolve().relative_to(project_root.resolve())
     parts = list(rel.parts)
@@ -109,16 +189,16 @@ def _module_import_candidates(project_root: Path, file: Path) -> List[str]:
     return [".".join(parts)] if parts else []
 
 
-def _discover_tests_by_import(project_root: Path, candidates: List[str]) -> Set[str]:
+def _discover_tests_by_import(project_root: Path, candidates: list[str]) -> set[str]:
     tests_dir = project_root / "tests"
-    result: Set[str] = set()
+    result: set[str] = set()
     if not tests_dir.exists():
         return result
     for p in tests_dir.rglob("test_*.py"):
         try:
             txt = p.read_text(encoding="utf-8", errors="ignore")
         except Exception:
-            continue
+            continue  # nosec B112 - skip unreadable test file
         low = txt.lower()
         for mod in candidates:
             if f"import {mod.lower()}" in low or f"from {mod.lower()}" in low:
@@ -139,7 +219,7 @@ def _compute_tests_signature(project_root: Path) -> str:
                 h.update(str(int(st.st_mtime)).encode("utf-8"))
                 h.update(str(st.st_size).encode("utf-8"))
             except Exception:
-                continue
+                continue  # nosec B112 - skip files with stat/read errors
     return h.hexdigest()
 
 
@@ -148,10 +228,10 @@ def _write_index_meta(project_root: Path, sig: str) -> None:
     meta_path.parent.mkdir(parents=True, exist_ok=True)
     try:
         meta_path.write_text(
-            json.dumps({"sig": sig}, ensure_ascii=False, indent=2), encoding="utf-8"
+            json.dumps({"sig": sig}, ensure_ascii=False, indent=2), encoding="utf-8",
         )
     except Exception:
-        pass
+        pass  # nosec B110 - cache write errors are non-fatal
 
 
 def _read_index_meta(project_root: Path) -> str:
@@ -165,9 +245,9 @@ def _read_index_meta(project_root: Path) -> str:
         return ""
 
 
-def build_test_index(project_root: Path) -> Dict[str, List[str]]:
+def build_test_index(project_root: Path) -> dict[str, list[str]]:
     tests_dir = project_root / "tests"
-    index: Dict[str, List[str]] = {}
+    index: dict[str, list[str]] = {}
     if not tests_dir.exists():
         # 也写入空签名，避免下次重复尝试
         _write_index_meta(project_root, _compute_tests_signature(project_root))
@@ -176,7 +256,7 @@ def build_test_index(project_root: Path) -> Dict[str, List[str]]:
         try:
             txt = p.read_text(encoding="utf-8", errors="ignore")
         except Exception:
-            continue
+            continue  # nosec B112 - skip unreadable import candidates
         low = txt.lower()
         # 简单抽取 from x.y import ... 或 import x.y
         for line in low.splitlines():
@@ -195,19 +275,19 @@ def build_test_index(project_root: Path) -> Dict[str, List[str]]:
     # 写入缓存
     (project_root / TEST_INDEX_FILE).parent.mkdir(parents=True, exist_ok=True)
     (project_root / TEST_INDEX_FILE).write_text(
-        json.dumps(index, ensure_ascii=False, indent=2), encoding="utf-8"
+        json.dumps(index, ensure_ascii=False, indent=2), encoding="utf-8",
     )
     _write_index_meta(project_root, _compute_tests_signature(project_root))
     return index
 
 
-def load_test_index(project_root: Path) -> Dict[str, List[str]]:
+def load_test_index(project_root: Path) -> dict[str, list[str]]:
     path = project_root / TEST_INDEX_FILE
     # 若不存在索引，返回空
     if not path.exists():
         return {}
     # 读取已存在索引
-    idx: Dict[str, List[str]] = {}
+    idx: dict[str, list[str]] = {}
     try:
         idx = json.loads(path.read_text(encoding="utf-8"))
     except Exception:
@@ -220,12 +300,12 @@ def load_test_index(project_root: Path) -> Dict[str, List[str]]:
     return idx
 
 
-def run_quick_tests(files: List[Path], cwd: Optional[Path] = None) -> Dict[str, object]:
+def run_quick_tests(files: list[Path], cwd: Path | None = None) -> dict[str, object]:
     """运行受影响测试（启发式）：
     - 若改动包含测试文件，直接运行这些测试
     - 否则尝试根据源文件推导测试文件：tests/test_<name>.py 或 <name>_test.py
     """
-    test_paths: Set[str] = set()
+    test_paths: set[str] = set()
     project_root = (cwd or Path.cwd()).resolve()
     # 尝试加载或构建测试索引
     index = load_test_index(project_root)
@@ -234,11 +314,11 @@ def run_quick_tests(files: List[Path], cwd: Optional[Path] = None) -> Dict[str, 
 
     for f in files:
         name = f.name
-        # 1) 改动就是测试
-        if (
+        # 1) 改动就是测试（仅限 Python 测试文件）
+        if f.suffix == ".py" and (
             name.startswith("test_")
-            or f.parent.name == "tests"
             or name.endswith("_test.py")
+            or f.parent.name == "tests"
         ):
             test_paths.add(str(f))
             continue
@@ -255,7 +335,7 @@ def run_quick_tests(files: List[Path], cwd: Optional[Path] = None) -> Dict[str, 
                     test_paths.add(str(p))
             # 导入关系匹配
             imps = _module_import_candidates(
-                project_root, (project_root / f).resolve() if not f.is_absolute() else f
+                project_root, (project_root / f).resolve() if not f.is_absolute() else f,
             )
             # 1) 使用索引命中
             for mod in imps:
@@ -267,20 +347,20 @@ def run_quick_tests(files: List[Path], cwd: Optional[Path] = None) -> Dict[str, 
     # 合并上次失败缓存
     last_fail = _read_last_fail(project_root)
     test_paths.update(last_fail["tests"])  # type: ignore[index]
-    nodeids = set(cast(Set[str], last_fail.get("nodeids", set())))
-    test_counts = cast(Dict[str, int], last_fail.get("test_counts", {}))
-    node_counts = cast(Dict[str, int], last_fail.get("node_counts", {}))
+    nodeids = set(cast(set[str], last_fail.get("nodeids", set())))
+    test_counts = cast(dict[str, int], last_fail.get("test_counts", {}))
+    node_counts = cast(dict[str, int], last_fail.get("node_counts", {}))
     if not test_paths:
         return {"ok": True, "skipped": True, "reason": "no impacted tests"}
 
     # 优先级排序：按历史失败次数降序，未知为0
     # 基于失败次数与近期失败的加权排序（近3天+2，近7天+1）
     def sort_by_count(
-        items: List[str], counts: Dict[str, int], recent_bonus: Dict[str, int]
-    ) -> List[str]:
+        items: list[str], counts: dict[str, int], recent_bonus: dict[str, int],
+    ) -> list[str]:
         return sorted(
             items,
-            key=lambda x: (counts.get(x, 0) + recent_bonus.get(x, 0)),
+            key=lambda x: (recent_bonus.get(x, 0), counts.get(x, 0)),
             reverse=True,
         )
 
@@ -298,21 +378,21 @@ def run_quick_tests(files: List[Path], cwd: Optional[Path] = None) -> Dict[str, 
             y = yaml.safe_load(cfg_path.read_text(encoding="utf-8")) or {}
             d = (y.get("tests", {}) or {}).get("quick_fail_decay", {}) or {}
             for k in decay_cfg.keys():
-                if k in d:
+                if k in d and d[k] is not None:
                     decay_cfg[k] = d[k]
     except Exception:
-        pass
+        pass  # nosec B110 - config read/parsing failure ignored for quick tests
 
     # 读取事件并构造近期加权
-    events: List[Dict[str, str]] = []
+    events: list[dict[str, str]] = []
     try:
         raw = json.loads((project_root / LAST_FAIL_FILE).read_text(encoding="utf-8"))
         events = raw.get("events", []) or []
     except Exception:
         events = []
     now = time.time()
-    bonus_tests: Dict[str, int] = {}
-    bonus_nodes: Dict[str, int] = {}
+    bonus_tests: dict[str, int] = {}
+    bonus_nodes: dict[str, int] = {}
     for ev in events:
         ts = float(ev.get("ts", 0))
         nid = ev.get("nodeid") or ""
@@ -323,28 +403,44 @@ def run_quick_tests(files: List[Path], cwd: Optional[Path] = None) -> Dict[str, 
         if age <= float(decay_cfg["high_days"]) * 24 * 3600:
             if file_str:
                 bonus_tests[file_str] = max(
-                    bonus_tests.get(file_str, 0), int(decay_cfg["high_bonus"])
+                    bonus_tests.get(file_str, 0), int(decay_cfg["high_bonus"]),
                 )
             if nid:
                 bonus_nodes[nid] = max(
-                    bonus_nodes.get(nid, 0), int(decay_cfg["high_bonus"])
+                    bonus_nodes.get(nid, 0), int(decay_cfg["high_bonus"]),
                 )
         elif age <= float(decay_cfg["mid_days"]) * 24 * 3600:
             if file_str:
                 bonus_tests[file_str] = max(
-                    bonus_tests.get(file_str, 0), int(decay_cfg["mid_bonus"])
+                    bonus_tests.get(file_str, 0), int(decay_cfg["mid_bonus"]),
                 )
             if nid:
                 bonus_nodes[nid] = max(
-                    bonus_nodes.get(nid, 0), int(decay_cfg["mid_bonus"])
+                    bonus_nodes.get(nid, 0), int(decay_cfg["mid_bonus"]),
                 )
 
     ordered_tests = sort_by_count(sorted(test_paths), test_counts, bonus_tests)
     ordered_nodes = sort_by_count(sorted(nodeids), node_counts, bonus_nodes)
 
+    # 如果有具体的 nodeid，则从 test_paths 中移除对应的文件，避免重复运行
+    if ordered_nodes:
+        node_files = {node.split("::")[0] for node in ordered_nodes}
+        ordered_tests = [
+            t
+            for t in ordered_tests
+            if t not in node_files and Path(t).name not in node_files
+        ]
+
+    py = sys.executable or "python3"
     cmd = [
+        py,
+        "-m",
         "pytest",
         "-q",
+        "-p",
+        "pytest_cov",
+        "-p",
+        "pytest_benchmark",
         "--maxfail=1",
         "--disable-warnings",
         "-W",
@@ -354,17 +450,17 @@ def run_quick_tests(files: List[Path], cwd: Optional[Path] = None) -> Dict[str, 
         *ordered_nodes,
     ]
     # 保证被测工程根目录在 PYTHONPATH 中，避免通过 tests/ 路径运行时 import 失败
-    env: Dict[str, str] = os.environ.copy()
+    env: dict[str, str] = os.environ.copy()
     root: str = str(project_root)
     env["PYTHONPATH"] = root + (
         ":" + env["PYTHONPATH"] if env.get("PYTHONPATH") else ""
     )
     res = _run(cmd, cwd, env=env)
     # 解析失败用例写回缓存（启发式）
-    failed_files: Set[str] = set()
-    failed_nodes: Set[str] = set()
+    failed_files: set[str] = set()
+    failed_nodes: set[str] = set()
     out = str(res.get("stdout") or "") + "\n" + str(res.get("stderr") or "")
-    new_events: List[Dict[str, str]] = events[
+    new_events: list[dict[str, str]] = events[
         -int(decay_cfg["history_limit"]) :
     ]  # 控制历史长度
     for line in out.splitlines():
@@ -381,20 +477,20 @@ def run_quick_tests(files: List[Path], cwd: Optional[Path] = None) -> Dict[str, 
             node_counts[node] = node_counts.get(node, 0) + 1
             new_events.append({"nodeid": node, "file": fpath, "ts": str(now)})
     _write_last_fail(
-        project_root, failed_files, failed_nodes, test_counts, node_counts, new_events
+        project_root, failed_files, failed_nodes, test_counts, node_counts, new_events,
     )
     return res
 
 
 def run_checks(
-    files: List[Path],
-    cwd: Optional[Path] = None,
+    files: list[Path],
+    cwd: Path | None = None,
     do_lint: bool = True,
     do_type: bool = False,
     do_quick_tests: bool = True,
-) -> Dict[str, object]:
-    steps: List[Dict[str, object]] = []
-    results: Dict[str, object] = {"ok": True, "steps": steps}
+) -> dict[str, object]:
+    steps: list[dict[str, object]] = []
+    results: dict[str, object] = {"ok": True, "steps": steps}
     if do_lint:
         r = run_lint(files, cwd)
         steps.append({"lint": r})

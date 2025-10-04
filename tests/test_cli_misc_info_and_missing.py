@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+
 from typer.testing import CliRunner
 
 import mcp_rules_assistant.cli as cli
@@ -22,8 +23,10 @@ def test_cli_version_and_explain_and_start_and_install_hooks(tmp_path: Path) -> 
         assert "mcp-rules-assistant" in (r_ver.stdout or "")
         # stub server.start to avoid blocking and cover CLI path
         called = {}
+
         def _fake_start():
             called["ok"] = True
+
         cli.server.start = _fake_start  # type: ignore[attr-defined]
         r_start = runner.invoke(cli.app, ["start"])
         assert r_start.exit_code == 0
@@ -45,10 +48,14 @@ def test_cli_missing_resources_paths(tmp_path: Path) -> None:
         assert r1.exit_code != 0 and ("尚未" in out1 or "no raw rules ingested" in out1)
         # rules-explain without file → exit 1
         r2 = runner.invoke(cli.app, ["rules-explain"])
-        assert r2.exit_code != 0 and "尚未找到 .mcp/rules_compiled.json" in (r2.stdout or "")
+        assert r2.exit_code != 0 and "尚未找到 .mcp/rules_compiled.json" in (
+            r2.stdout or ""
+        )
         # rules-suggestions without file → exit 1
         r3 = runner.invoke(cli.app, ["rules-suggestions"])
-        assert r3.exit_code != 0 and "尚未找到 .mcp/rules_compiled.json" in (r3.stdout or "")
+        assert r3.exit_code != 0 and "尚未找到 .mcp/rules_compiled.json" in (
+            r3.stdout or ""
+        )
         # coverage commands without coverage.xml → exit 1
         for cmd in ("coverage", "coverage-groups", "coverage-tree"):
             r = runner.invoke(cli.app, [cmd])

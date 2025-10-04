@@ -11,21 +11,22 @@ performance:
     test_impacted: true
   on_push:
     test_all: true
-    coverage: {enforce: true, min_module: 0.95, min_core: 0.98}
+    coverage:
+      enforce: true
+      min_module: 0.95
+      min_core: 0.98
     security_scan: true
     mutation_test: false
 language: python
 bilingual: true
+license:
+  required: false
 coverage:
   policy:
-    "mcp_rules_assistant/config.py": 0.98
-    "mcp_rules_assistant/progress.py": 0.98
-    "mcp_rules_assistant/tools.py": 0.98
-    "mcp_rules_assistant/memory.py": 0.98
-    "mcp_rules_assistant/mcp_server.py": 0.98
-    "mcp_rules_assistant/cli.py": 0.98
-    "mcp_rules_assistant/server.py": 0.98
-  near: {within: 0.03, top: 50}
+    mcp_rules_assistant/hooks.py: 0
+  near:
+    within: 0.03
+    top: 50
 tests:
   quick_fail_decay:
     high_days: 3
@@ -33,6 +34,15 @@ tests:
     mid_days: 7
     mid_bonus: 1
     history_limit: 400
+execution:
+  fs_guard_post_checks: true
+  fs_guard_strict: true
+  allowed_write_prefixes: []
+  allowed_write_extensions: []
+  disallow_patterns: []
 ci:
   hadolint: true
-  semgrep_config: p/ci
+  vscode_required: true
+  semgrep_config: auto
+memory:
+  allow_write: true

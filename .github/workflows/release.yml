@@ -6,6 +6,182 @@ on:
       - 'v*'
 
 jobs:
+  github-release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install package and test tools (best-effort)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e . || true
+          pip install pytest pytest-cov || true
+      - name: Generate coverage (best-effort)
+        env:
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD: '1'
+        run: |
+          pytest -q -p pytest_cov --maxfail=1 --disable-warnings -W error --strict-markers \
+            --cov=mcp_rules_assistant --cov-report=xml:coverage.xml --cov-report=term-missing || true
+      - name: Coverage export (CSV/JSON, best-effort)
+        run: |
+          python -m mcp_rules_assistant.cli coverage-export --out-dir .mcp/dashboard --weak-top 50 --near-top 50 --within 3 || true
+      - name: JB verify summary (best-effort)
+        run: |
+          bash scripts/jb-ui-verify.sh || true
+      - name: Generate release note snippet (best-effort)
+        run: |
+          python3 scripts/release-note-from-report.py || true
+      - name: Generate changes from git (best-effort)
+        run: |
+          python3 scripts/release-changes-from-git.py || true
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Build Python package (attach artifacts)
+        run: |
+          python -m pip install --upgrade pip build twine
+          python -m build
+          python -m twine check dist/*
+      - name: Security SBOM + Audit bundle
+        run: |
+          python3 scripts/sbom_generate.py || true
+          bash scripts/ci-security.sh || true
+          echo "[sha256] computing checksums"
+          mkdir -p .mcp/dashboard
+          (cd dist && sha256sum * > ../.mcp/dashboard/dist.sha256 || shasum -a 256 * > ../.mcp/dashboard/dist.sha256)
+          if ls extensions/vscode/*.vsix >/dev/null 2>&1; then (cd extensions/vscode && sha256sum *.vsix > ../../.mcp/dashboard/vsix.sha256 || shasum -a 256 *.vsix > ../../.mcp/dashboard/vsix.sha256); fi
+      - name: Build VS Code VSIX (attach artifacts)
+        run: |
+          npm i -g @vscode/vsce
+          npm --prefix extensions/vscode ci || npm --prefix extensions/vscode install
+          npm --prefix extensions/vscode run compile
+          vsce package --no-dependencies --out extensions/vscode/mcp-rules-assistant.vsix
+      - name: Compose release body
+        run: |
+          BODY=.mcp/dashboard/release_body.md
+          mkdir -p .mcp/dashboard
+          if [ -f docs/RELEASE_NOTES_TEMPLATE.md ] && [ -f .mcp/dashboard/release_note_snippet.md ]; then
+            echo "# Release $(python3 - <<'PY'\nimport re,sys; t=open('pyproject.toml').read(); m=re.search(r"^version\\s*=\\s*\"([^\"]+)\"", t, re.M); print(m.group(1) if m else 'unknown')\nPY)" > "$BODY"
+            echo >> "$BODY"
+            cat docs/RELEASE_NOTES_TEMPLATE.md >> "$BODY"
+            echo >> "$BODY"; echo '---' >> "$BODY"; echo 'Auto Report' >> "$BODY"; echo >> "$BODY"
+            cat .mcp/dashboard/release_note_snippet.md >> "$BODY"
+            if [ -f .mcp/dashboard/release_changes.md ]; then
+              echo >> "$BODY"; echo '---' >> "$BODY"; echo 'Changes (auto from git)' >> "$BODY"; echo >> "$BODY"
+              cat .mcp/dashboard/release_changes.md >> "$BODY"
+            fi
+          elif [ -f .mcp/dashboard/release_note_snippet.md ]; then
+            cp .mcp/dashboard/release_note_snippet.md "$BODY"
+          elif [ -f docs/RELEASE_NOTES_TEMPLATE.md ]; then
+            cp docs/RELEASE_NOTES_TEMPLATE.md "$BODY"
+          else
+            echo "Release ${{ github.ref_name }}" > "$BODY"
+          fi
+      - name: Append coverage/JB summaries to body (best-effort)
+        run: |
+          BODY=.mcp/dashboard/release_body.md
+          python3 - <<'PY' >> "$BODY" || true
+import json
+from pathlib import Path
+dash = Path('.mcp/dashboard')
+print('\n---\nQuick Summaries\n')
+cs = dash/'coverage_summary.json'
+if cs.exists():
+    try:
+        D=json.loads(cs.read_text(encoding='utf-8'))
+        weak=D.get('weak') or []
+        near=D.get('near') or []
+        def _row(it):
+            try:
+                return f"| {it.get('file','')} | {float(it.get('coverage',0))*100:.1f}% | {int(float(it.get('threshold',0))*100)}% |"
+            except Exception:
+                return f"| {it} |"
+        if weak:
+            print('**Weak (Top 5)**')
+            print('| file | coverage | threshold |')
+            print('|---|---:|---:|')
+            for it in weak[:5]:
+                print(_row(it))
+            print('')
+        if near:
+            print('**Near (Top 5)**')
+            print('| file | coverage | threshold |')
+            print('|---|---:|---:|')
+            for it in near[:5]:
+                print(_row(it))
+            print('')
+    except Exception:
+        pass
+jb = dash/'jb_verify.json'
+if jb.exists():
+    try:
+        J=json.loads(jb.read_text(encoding='utf-8'))
+        groups=(J.get('coverage') or {}).get('groups_top') or []
+        if groups:
+            print('**Groups Top (weak desc)**')
+            print('| prefix | coverage | threshold | weak/files |')
+            print('|---|---:|---:|---:|')
+            for g in groups:
+                cov=g.get('coverage',0); thr=g.get('threshold',0); wk=g.get('weak',0); fc=g.get('files',0)
+                print(f"| {g.get('prefix','')} | {cov:.1f}% | {thr}% | {wk}/{fc} |")
+            print('')
+    except Exception:
+        pass
+          PY
+      - name: Append Security Summary to body (best-effort)
+        run: |
+          BODY=.mcp/dashboard/release_body.md
+          python3 - <<'PY' >> "$BODY" || true
+from pathlib import Path
+import json, yaml
+print('\n---\nSecurity Summary\n')
+print('- Strict Isolation: on (extension passes MCP_STRICT_ISOLATION=1)')
+cfgp = Path('.mcp/assistant.yaml')
+if cfgp.exists():
+    try:
+        cfg = yaml.safe_load(cfgp.read_text(encoding='utf-8')) or {}
+        mem = (cfg.get('memory') or {}) if isinstance(cfg.get('memory'), dict) else {}
+        proj = (cfg.get('project') or {}) if isinstance(cfg.get('project'), dict) else {}
+        print(f"- memory.allow_write: {bool(mem.get('allow_write', False))}")
+        print(f"- memory.hard_disable: {bool(mem.get('hard_disable', False))}")
+        print(f"- project.allow_switch: {bool(proj.get('allow_switch', False))}")
+    except Exception:
+        pass
+sbom = Path('.mcp/dashboard/sbom.json')
+if sbom.exists():
+    try:
+        D = json.loads(sbom.read_text(encoding='utf-8'))
+        print(f"- SBOM: python={len(D.get('python') or [])}, node={len(D.get('node') or [])}")
+    except Exception:
+        print('- SBOM: present')
+audit = Path('.mcp/dashboard/security_audit.jsonl')
+print(f"- Audit log: {'present' if audit.exists() else 'absent'} (.mcp/dashboard/security_audit.jsonl)")
+PY
+      - name: Create/Update GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body_path: .mcp/dashboard/release_body.md
+          files: |
+            dist/*
+            extensions/vscode/*.vsix
+            .mcp/dashboard/dist.sha256
+            .mcp/dashboard/vsix.sha256
+            .mcp/dashboard/sbom.json
+            .mcp/dashboard/security_audit.jsonl
+            .mcp/dashboard/coverage_summary.json
+            .mcp/dashboard/weak_top.csv
+            .mcp/dashboard/near_top.csv
+            .mcp/dashboard/groups.csv
+            .mcp/dashboard/jb_verify.json
+            .mcp/dashboard/jb_groups.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   pypi:
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest

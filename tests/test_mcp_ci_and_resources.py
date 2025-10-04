@@ -6,8 +6,8 @@ from pathlib import Path
 
 import yaml
 
-from mcp_rules_assistant.mcp_server import JsonRpcServer
 from mcp_rules_assistant.config import ensure_project_config
+from mcp_rules_assistant.mcp_server import JsonRpcServer
 
 
 def chdir(path: Path):
@@ -31,8 +31,8 @@ def _write_cov_xml(path: Path) -> None:
     text = (
         "<coverage>\n"
         "  <packages><package><classes>\n"
-        "    <class filename=\"pkg/core.py\" line-rate=\"0.94\" lines-valid=\"100\" lines-covered=\"94\"/>\n"
-        "    <class filename=\"other/x.py\" line-rate=\"0.89\" lines-valid=\"100\" lines-covered=\"89\"/>\n"
+        '    <class filename="pkg/core.py" line-rate="0.94" lines-valid="100" lines-covered="94"/>\n'
+        '    <class filename="other/x.py" line-rate="0.89" lines-valid="100" lines-covered="89"/>\n'
         "  </classes></package></packages>\n"
         "</coverage>\n"
     )
@@ -46,13 +46,21 @@ def test_mcp_resources_coverage_groups_respects_policy(tmp_path: Path) -> None:
         p = tmp_path / ".mcp/assistant.yaml"
         y = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
         y.setdefault("coverage", {})["policy"] = {"pkg/": 0.95}
-        y.setdefault("performance", {}).setdefault("on_push", {}).setdefault("coverage", {})["min_module"] = 0.90
-        p.write_text(yaml.safe_dump(y, sort_keys=False, allow_unicode=True), encoding="utf-8")
+        y.setdefault("performance", {}).setdefault("on_push", {}).setdefault(
+            "coverage", {},
+        )["min_module"] = 0.90
+        p.write_text(
+            yaml.safe_dump(y, sort_keys=False, allow_unicode=True), encoding="utf-8",
+        )
 
         _write_cov_xml(tmp_path / "coverage.xml")
         srv = JsonRpcServer()
         rlist = srv.handle(_req("resources/list"))
-        groups_uri = next(r["uri"] for r in rlist["result"]["resources"] if str(r["uri"]).endswith("/groups"))
+        groups_uri = next(
+            r["uri"]
+            for r in rlist["result"]["resources"]
+            if str(r["uri"]).endswith("/groups")
+        )
         r = srv.handle(_req("resources/read", {"uri": groups_uri}))
         assert r.get("result", {}).get("mimeType") == "application/json"
         data = json.loads(r.get("result", {}).get("text") or "{}")
@@ -70,13 +78,23 @@ def test_mcp_ci_validate_and_autofix_backup(tmp_path: Path) -> None:
         compiled = tmp_path / ".mcp/rules_compiled.json"
         compiled.parent.mkdir(parents=True, exist_ok=True)
         compiled.write_text(
-            json.dumps({"policy": {"security.secrets_scan": True, "container.required": True, "security.sast_strict": True}}),
+            json.dumps(
+                {
+                    "policy": {
+                        "security.secrets_scan": True,
+                        "container.required": True,
+                        "security.sast_strict": True,
+                    },
+                },
+            ),
             encoding="utf-8",
         )
         cfg = tmp_path / ".mcp/assistant.yaml"
         y = yaml.safe_load(cfg.read_text(encoding="utf-8")) or {}
         y.setdefault("ci", {})["hadolint"] = True
-        cfg.write_text(yaml.safe_dump(y, sort_keys=False, allow_unicode=True), encoding="utf-8")
+        cfg.write_text(
+            yaml.safe_dump(y, sort_keys=False, allow_unicode=True), encoding="utf-8",
+        )
 
         srv = JsonRpcServer()
         # First generate CI and validate steps
@@ -98,4 +116,3 @@ def test_mcp_ci_validate_and_autofix_backup(tmp_path: Path) -> None:
         assert af.get("result", {}).get("changed") is True
         backup = af.get("result", {}).get("backup") or ""
         assert backup and Path(backup).exists()
-

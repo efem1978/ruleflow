@@ -1,0 +1,117 @@
+services:
+  dev-agent:
+    build: .
+    working_dir: /work
+    volumes:
+      - .:/work
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+    environment:
+      - PYTEST_DISABLE_PLUGIN_AUTOLOAD=1
+      - PYTHONUNBUFFERED=1
+      - PYTHONPATH=/work
+      # 自动提交默认禁用（安全）；如需启用置为 1
+      - DEV_AGENT_AUTOCOMMIT=0
+      - DEV_AGENT_COMMIT_INTERVAL=180
+      # 每日里程碑自动 tag 默认禁用（本地，不推送）
+      - DEV_AGENT_AUTOTAG=0
+      # 失败绕过后允许自动提交开关，默认禁用
+      - DEV_AGENT_BYPASS_COMMIT=0
+      # 自动推送默认禁用；如需启用置为 1
+      - DEV_AGENT_AUTOPUSH=0
+    command: python -m mcp_rules_assistant.dev_agent --interval 60
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os,sys; sys.exit(0 if os.path.exists('/work/.mcp/dashboard/status.json') else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+  vscode-test:
+    build:
+      context: .
+      dockerfile: extensions/vscode/Dockerfile.test
+      args:
+        VSCODE_TEST_VERSION: "1.84.0"
+    working_dir: /work/extensions/vscode
+    volumes:
+      - .:/work
+    environment:
+      - CI=1
+      - NO_COLOR=1
+      - FORCE_COLOR=0
+      - ELECTRON_DISABLE_SECURITY_WARNINGS=1
+      - NO_AT_BRIDGE=1
+      - RULEFLOW_TEST_FAKE=1
+      # 加入工作区路径，确保测试可获取 workspaceFolders[0]
+      - MCP_VSCODE_TEST_ARGS=--disable-extensions,--disable-gpu,--no-sandbox,--disable-dev-shm-usage,/work/extensions/vscode/.test-fixture
+      - MCP_VSCODE_TEST_TIMEOUT_MS=120000
+    command: ["bash", "-lc", "ln -sfn /opt/app/.vscode-test .vscode-test; timeout 900 dbus-run-session -- xvfb-run -a -s '-screen 0 1024x768x24' npm test"]
+
+  jb-build:
+    image: gradle:8.5.0-jdk17
+    working_dir: /work/extensions/jetbrains
+    volumes:
+      - .:/work
+    command: bash -lc "gradle -v || true"
+
+  jb-test:
+    image: gradle:8.5.0-jdk17
+    working_dir: /work/extensions/jetbrains
+    environment:
+      - CI=1
+      - GRADLE_OPTS=-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs='-Xmx768m'
+    volumes:
+      - .:/work
+      - gradle-cache:/home/gradle/.gradle
+    command: bash -lc "gradle test -i"
+
+  jb-package:
+    image: gradle:8.5.0-jdk17
+    working_dir: /work/extensions/jetbrains
+    environment:
+      - CI=1
+      - GRADLE_OPTS=-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs='-Xmx768m'
+    volumes:
+      - .:/work
+      - gradle-cache:/home/gradle/.gradle
+    command: bash -lc "gradle buildPlugin -i"
+
+  jb-ui-smoke:
+    image: gradle:8.5.0-jdk17
+    working_dir: /work
+    volumes:
+      - .:/work
+      - gradle-cache:/home/gradle/.gradle
+    command: bash -lc "apt-get update && apt-get install -y xvfb && bash scripts/jb-ui-smoke.sh || true"
+
+  verify:
+    build: .
+    working_dir: /work
+    volumes:
+      - .:/work
+    environment:
+      - PYTEST_DISABLE_PLUGIN_AUTOLOAD=1
+      - PYTHONUNBUFFERED=1
+      - PYTHONPATH=/work
+      - COVERAGE_WARN_FILTER=1
+    command: bash -lc "scripts/verify-all.sh"
+
+  dev-agent-once:
+    build: .
+    working_dir: /work
+    volumes:
+      - .:/work
+    environment:
+      - PYTEST_DISABLE_PLUGIN_AUTOLOAD=1
+      - PYTHONUNBUFFERED=1
+      - PYTHONPATH=/work
+      - DEV_AGENT_MAX_CYCLES=1
+    command: bash -lc "python -m mcp_rules_assistant.dev_agent --interval 1 --max-cycles 1"
+
+volumes:
+  gradle-cache:

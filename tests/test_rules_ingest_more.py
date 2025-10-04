@@ -13,7 +13,10 @@ def test_extract_warnings_as_errors_and_suggestion(tmp_path: Path) -> None:
     pol = (res.get("compiled") or {}).get("policy") or {}
     assert pol.get("test.warnings_as_errors") is True
     sugg = (res.get("compiled") or {}).get("suggestions") or []
-    assert any(s.get("key") == "test.warnings_as_errors" and s.get("action") == "enforce" for s in sugg)
+    assert any(
+        s.get("key") == "test.warnings_as_errors" and s.get("action") == "enforce"
+        for s in sugg
+    )
 
 
 def test_extract_perf_budget_ms(tmp_path: Path) -> None:
@@ -24,7 +27,9 @@ def test_extract_perf_budget_ms(tmp_path: Path) -> None:
     assert int(pol.get("perf.budget_ms") or 0) == 200
 
 
-def test_pre_commit_contains_docker_baseline_hook_when_policy_enabled(tmp_path: Path) -> None:
+def test_pre_commit_contains_docker_baseline_hook_when_policy_enabled(
+    tmp_path: Path,
+) -> None:
     # Seed compiled rules to enable container baseline
     comp = tmp_path / ".mcp/rules_compiled.json"
     comp.parent.mkdir(parents=True, exist_ok=True)

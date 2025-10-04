@@ -12,18 +12,20 @@ def test_ingest_compiles_rules_and_detects_conflicts(tmp_path: Path) -> None:
         "\n".join(
             [
                 "- 覆盖率 90%",  # min_module = 0.9
-                "- 核心 95%",     # min_core = 0.95
+                "- 核心 95%",  # min_core = 0.95
                 "- 禁止 skip/xfail",
                 "- 变异测试 必须",
                 "- 密钥 扫描",
                 "- Dockerfile 存在",  # container.required
-                "- 镜像基线",        # container.policy.baseline
-            ]
+                "- 镜像基线",  # container.policy.baseline
+            ],
         ),
         encoding="utf-8",
     )
     d2 = tmp_path / "doc2.md"
-    d2.write_text("- 覆盖率 96%", encoding="utf-8")  # force stricter + conflict with 90%
+    d2.write_text(
+        "- 覆盖率 96%", encoding="utf-8",
+    )  # force stricter + conflict with 90%
 
     res = ri.ingest([str(d1), str(d2)], project_root=tmp_path)
     assert res.get("files") == 2
@@ -48,13 +50,15 @@ def test_ingest_compiles_rules_and_detects_conflicts(tmp_path: Path) -> None:
 def test_ingest_supports_yaml_and_json_inputs(tmp_path: Path) -> None:
     y = tmp_path / "rules.yaml"
     y.write_text(
-        "\n".join([
-            "coverage:",
-            "  min_module: 0.91",
-            "  min_core: 0.96",
-            "security:",
-            "  secrets_scan: true",
-        ]),
+        "\n".join(
+            [
+                "coverage:",
+                "  min_module: 0.91",
+                "  min_core: 0.96",
+                "security:",
+                "  secrets_scan: true",
+            ],
+        ),
         encoding="utf-8",
     )
     j = tmp_path / "rules.json"
