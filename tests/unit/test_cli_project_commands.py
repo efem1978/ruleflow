@@ -30,6 +30,29 @@ def test_project_list_no_config(tmp_path: Path, monkeypatch, capsys):
     assert "未找到项目配置" in captured.out
 
 
+def test_project_switch_not_found_lists_candidates(tmp_path: Path, monkeypatch, capsys):
+    """project-switch 名称不存在时应列出候选（覆盖 2062）。"""
+    fake_home = tmp_path / "fake_home"
+    fake_home.mkdir()
+    monkeypatch.setattr(Path, "home", lambda: fake_home)
+
+    proj_file = fake_home / ".mcp" / "projects.yaml"
+    proj_file.parent.mkdir(parents=True, exist_ok=True)
+    proj_file.write_text(
+        """projects:
+  - name: project1
+    path: /p1
+    active: false
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(click.exceptions.Exit):
+        project_switch("not-exist")
+    out = capsys.readouterr().out
+    assert "项目不存在" in out and "可用项目" in out and "project1" in out
+
+
 def test_project_list_empty(tmp_path: Path, monkeypatch, capsys):
     """Test project-list with empty projects."""
     fake_home = tmp_path / "fake_home"
@@ -77,6 +100,32 @@ def test_project_list_with_projects(tmp_path: Path, monkeypatch, capsys):
     assert len(result["projects"]) == 2
     assert result["projects"][0]["name"] == "project1"
     assert result["projects"][0]["active"] is True
+
+
+def test_project_list_text_with_projects(tmp_path: Path, monkeypatch, capsys):
+    """project-list 文本模式下，存在项目时应打印列表（覆盖 1979-1982）。"""
+    fake_home = tmp_path / "fake_home"
+    fake_home.mkdir()
+    monkeypatch.setattr(Path, "home", lambda: fake_home)
+
+    proj_file = fake_home / ".mcp" / "projects.yaml"
+    proj_file.parent.mkdir(parents=True, exist_ok=True)
+    proj_file.write_text(
+        """projects:
+  - name: project1
+    path: /path/to/project1
+    active: true
+  - name: project2
+    path: /path/to/project2
+    active: false
+""",
+        encoding="utf-8",
+    )
+
+    project_list(json_out=False)
+    out = capsys.readouterr().out
+    assert "已记录的项目" in out
+    assert "project1" in out and "/path/to/project1" in out
 
 
 def test_project_list_exception(tmp_path: Path, monkeypatch, capsys):
@@ -270,6 +319,28 @@ def test_project_current_with_active(tmp_path: Path, monkeypatch, capsys):
     assert result["current"]["name"] == "project1"
 
 
+def test_project_current_text_with_active(tmp_path: Path, monkeypatch, capsys):
+    """project-current 文本模式下，有活动项目应打印名称与路径（覆盖 2137-2138）。"""
+    fake_home = tmp_path / "fake_home"
+    fake_home.mkdir()
+    monkeypatch.setattr(Path, "home", lambda: fake_home)
+
+    proj_file = fake_home / ".mcp" / "projects.yaml"
+    proj_file.parent.mkdir(parents=True, exist_ok=True)
+    proj_file.write_text(
+        """projects:
+  - name: project1
+    path: /path/to/project1
+    active: true
+""",
+        encoding="utf-8",
+    )
+
+    project_current(json_out=False)
+    out = capsys.readouterr().out
+    assert "当前项目" in out and "/path/to/project1" in out
+
+
 def test_project_current_no_active(tmp_path: Path, monkeypatch, capsys):
     """Test project-current when no active project."""
     fake_home = tmp_path / "fake_home"
@@ -307,3 +378,26 @@ def test_project_current_no_config(tmp_path: Path, monkeypatch, capsys):
     captured = capsys.readouterr()
     result = json.loads(captured.out)
     assert result["current"] is None
+
+
+def test_project_current_text_no_config(tmp_path: Path, monkeypatch, capsys):
+    """project-current 文本模式下，无配置时应提示（覆盖 2121）。"""
+    fake_home = tmp_path / "fake_home"
+    fake_home.mkdir()
+    monkeypatch.setattr(Path, "home", lambda: fake_home)
+
+    project_current(json_out=False)
+    out = capsys.readouterr().out
+    assert "未找到项目配置" in out
+
+
+def test_project_remove_no_config(tmp_path: Path, monkeypatch, capsys):
+    """project-remove 无配置时应报错并提示（覆盖 2080-2081）。"""
+    fake_home = tmp_path / "fake_home"
+    fake_home.mkdir()
+    monkeypatch.setattr(Path, "home", lambda: fake_home)
+
+    with pytest.raises(click.exceptions.Exit):
+        project_remove("project1", force=False)
+    out = capsys.readouterr().out
+    assert "未找到项目配置" in out
