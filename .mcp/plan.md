@@ -1,2 +1,2 @@
 - 状态: in_progress
-- 当前步骤: quality-improvement-complete
+- 当前步骤: cleanup-temporary-files
