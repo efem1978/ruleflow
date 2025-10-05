@@ -107,6 +107,10 @@ extensions/**/diag_*.json
 **/install_report.md
 **/install_report.json
 
+# VSIX packages (Visual Studio/VS Code artifacts)
+extensions/visualstudio/*.vsix
+**/*.vsix
+
 # Old/backup files (explicit pattern)
 *.old
 *.bak

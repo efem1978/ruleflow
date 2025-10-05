@@ -1,2 +1,2 @@
 - 状态: in_progress
-- 当前步骤: exclude-working-docs-from-git
+ - 当前步骤: forbid-binaries-and-large-files

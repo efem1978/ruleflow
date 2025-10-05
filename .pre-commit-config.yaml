@@ -44,6 +44,11 @@ repos:
         entry: python .mcp/branch_name_gate.py
         language: system
         stages: [pre-commit]
+      - id: forbid-binaries
+        name: forbid binary artifacts (pre-commit)
+        entry: bash scripts/forbid-binaries.sh
+        language: system
+        stages: [pre-commit]
       - id: dockerfile-baseline
         name: dockerfile baseline (push)
         entry: python .mcp/dockerfile_gate.py
@@ -84,3 +89,10 @@ repos:
       - id: markdownlint
         stages: [push]
         args: ["--config", ".markdownlint.json"]
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: check-added-large-files
+        args: ["--maxkb=5000"]
+        stages: [pre-commit]
