@@ -833,17 +833,49 @@ export function activate(context: vscode.ExtensionContext) {
         body.simple .adv{display:none;} body.advanced #simpleBar{display:none;}
         #modeBar{display:flex;gap:6px;align-items:center;margin:6px 0;}
         #modeBar button{padding:4px 8px;}
-      </style>
+      
+          /* Cards layout */
+          .cards { display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:10px; }
+          .card { border:1px solid #ddd; background:#fff; padding:10px; border-radius:6px; }
+          .card h4 { margin:4px 0 6px; font-size:14px; }
+          .card button { padding:6px 10px; margin:4px 6px 0 0; }
+        </style>
       <h2>RuleFlow \u9762\u677f</h2>
       <div id="modeBar"><span>\u663e\u793a\u6a21\u5f0f\uff1a</span> <button id="btnModeSimple" title="\u4ec5\u5c55\u793a\u5e38\u7528\u64cd\u4f5c\uff1b\u4e0d\u4f1a\u81ea\u52a8\u4fee\u6539\u6587\u4ef6\u6216\u914d\u7f6e">\u65b0\u624b\u6a21\u5f0f</button> <button id="btnModeAdvanced" title="\u5c55\u793a\u5168\u90e8\u529f\u80fd\uff1b\u6bcf\u9879\u64cd\u4f5c\u90fd\u9700\u8981\u4f60\u786e\u8ba4\u540e\u624d\u6267\u884c">\u9ad8\u7ea7\u6a21\u5f0f</button></div>
       <div id="simpleBar" style="border:1px solid #ddd; padding:8px; background:#f9fbff;">
-        <div style="color:#666; font-size:12px;">${msg || '\u6b63\u5728\u8fde\u63a5 MCP \u2026'}</div>
-        <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;">
-          <button id="btnRetry" title="\u91cd\u65b0\u5c1d\u8bd5\u8fde\u63a5 MCP \u540e\u7aef\uff08\u5b89\u5168\uff0c\u53ea\u8fdb\u884c\u63e1\u624b/\u5065\u5eb7\u68c0\u67e5\uff09">\u91cd\u8bd5\u8fde\u63a5</button>
-          <button id="btnEnableFake" title="\u5199\u5165 .mcp/dashboard/fake_mode \u4ee5\u542f\u7528\u79bb\u7ebf\u6f14\u793a\uff1b\u53ef\u968f\u65f6\u5220\u9664\u8be5\u6587\u4ef6\u6062\u590d">\u5207\u6362\u4e3a\u6f14\u793a\u6a21\u5f0f</button>
-          <button id="btnOpenLog" title="\u6253\u5f00 .mcp/dashboard/server.log \u65e5\u5fd7\u7528\u4e8e\u6392\u67e5\uff08\u53ea\u8bfb\uff09">\u6253\u5f00 server.log</button>
-        </div>
-      </div>
+          <div class="cards">
+            <div class="card" id="cardStart">
+              <h4 id="hCardStart">开始使用</h4>
+              <button id="btnCardStartReady" title="一键完成环境准备与常见修复（安全，自动在项目内执行）">一键就绪</button>
+              <button id="btnCardOpenPlan" title="打开 .mcp/plan.md（项目任务与进度的唯一来源）">打开我的任务清单</button>
+              <button id="btnCardWhatNow" title="查看当前状态摘要与下一步建议">我现在该做什么？</button>
+            </div>
+            <div class="card" id="cardDocs">
+              <h4 id="hCardDocs">把文档变成规则</h4>
+              <button id="btnCardDocsToRules" title="读取 README/docs 并生成项目规则（写入 .mcp/rules_*，不改源码）">帮我把文档变成规则</button>
+              <button id="btnCardViewRules" title="查看已编译的规则（只读）">查看规则</button>
+              <button id="btnCardCheckConflicts" title="重新编译并列出冲突与建议（只读展示）">检查规则是否有冲突</button>
+            </div>
+            <div class="card" id="cardQuality">
+              <h4 id="hCardQuality">提升测试与质量</h4>
+              <button id="btnCardLoadCoverage" title="读取覆盖率并生成摘要（只读）">加载覆盖率</button>
+              <button id="btnCardEasyWins" title="只看“接近达标”的文件（默认≤3%）">只看最容易补齐的文件</button>
+              <button id="btnCardSetupChecks" title="生成并预览 CI 工作流；需要你确认后才写入">生成自动检查</button>
+            </div>
+            <div class="card" id="cardTrouble">
+              <h4 id="hCardTrouble">遇到问题</h4>
+              <button id="btnCardRefreshStatus" title="更新 .mcp/dashboard/status.json（只读源码）">刷新项目状态</button>
+              <button id="btnCardRecentActivity" title="显示最近事件/安全审计/状态摘要">查看最近发生了什么</button>
+              <button id="btnCardDiagnose" title="收集前端错误、环境与审计信息（写入 .mcp/dashboard/panel_diag.json）">诊断并收集资料</button>
+            </div>
+            <div class="card" id="cardHelp">
+              <h4 id="hCardHelp">帮助与学习</h4>
+              <button id="btnCardQuickStartGuide" title="打开上手文档（只读）">我想快速上手</button>
+              <button id="btnCardIdeHelp" title="打开 IDE 集成说明（只读）">我需要 IDE 配置说明</button>
+            </div>
+          </div>
+          <div id="hintTrouble" class="hint">遇到问题 → 点击“诊断并收集资料”，或切换到“高级模式”查看更多功能。</div>
+                        </div>
       <script>
         const vscode = acquireVsCodeApi();
         (function(){
@@ -966,6 +998,14 @@ export function activate(context: vscode.ExtensionContext) {
         <div id="ticker" style="height:auto; background:#f6f6f6; border:1px solid #ddd; padding:4px 8px; margin:6px 0;">
           <span id="tickerText" style="display:inline-block; white-space:nowrap; font-size:12px; color:#333;"></span>
         </div>
+        <div id="firstRunOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:9999;">
+          <div style="max-width:520px; margin:10% auto; background:#fff; padding:16px; border-radius:8px;">
+            <h3 id="hFirstRunTitle">欢迎使用！</h3>
+            <p id="pFirstRunBody">只需三步：点击“ 一键就绪 ”→ 打开“ 我的任务清单 ”→ 按按钮或用自然语言告诉我你想做什么。</p>
+            <div style="text-align:right;"><button id="btnFirstRunStart" title="关闭引导并开始使用">开始使用</button></div>
+          </div>
+        </div>
+            
         <div id="proj" style="padding:4px 6px; border:1px solid #ddd; background:#fafafa; margin:6px 0; display:flex; align-items:center; gap:8px;">
           <b id="lblCurProject">\u5f53\u524d\u9879\u76ee:</b> <span id="curProject">(\u68c0\u6d4b\u4e2d)</span>
           <button id="btnSelectProject" title="\u5728\u5f53\u524d IDE \u7a97\u53e3\u5185\u9009\u62e9/\u5207\u6362\u9879\u76ee\u6839\uff1b\u6240\u6709\u8bfb\u5199\u9650\u5b9a\u5728\u6240\u9009\u9879\u76ee\u7684 .mcp/ \u76ee\u5f55">\u9009\u62e9/\u5207\u6362\u9879\u76ee\u2026</button>
@@ -987,6 +1027,7 @@ export function activate(context: vscode.ExtensionContext) {
           <div>
             <button id="btnSimpleIngest" title="\u5c06 README/docs \u8f6c\u6362\u4e3a\u89c4\u5219\uff08\u5199\u5165 .mcp/rules_*\uff09\uff0c\u4e0d\u6539\u73b0\u6709\u6e90\u7801">\u6444\u53d6\u89c4\u5219\uff08README.md, docs/\uff09</button>
             <button id="btnSimpleStatus" title="\u5237\u65b0\u72b6\u6001\u5e76\u5199\u5165 .mcp/dashboard/status.json\uff08\u53ea\u8bfb\u6e90\u7801\uff09">\u5237\u65b0\u72b6\u6001</button>
+            <button id="btnOneClickReady" title="一键完成环境准备与常见修复（安全，自动在项目内执行）">一键就绪</button>
           </div>
           <div id="hintTrouble" class="hint">\u9047\u5230\u95ee\u9898 \u2192 \u70b9\u51fb\u201c\u5237\u65b0\u72b6\u6001\u201d\uff0c\u6216\u5207\u6362\u5230\u201c\u9ad8\u7ea7\u6a21\u5f0f\u201d\u67e5\u770b\u66f4\u591a\u529f\u80fd\u3002</div>
         </div>
@@ -1131,6 +1172,7 @@ export function activate(context: vscode.ExtensionContext) {
               <option value="groups.csv">groups.csv</option>
             </select>
             <button id="btnCsvReload" title="\u91cd\u65b0\u6e32\u67d3\u4e0a\u9762\u9009\u62e9\u7684 CSV \u62a5\u8868\u5934\u90e8">\u91cd\u65b0\u52a0\u8f7d\u9884\u89c8</button>
+            <button id="btnCopyCsvPreview" title="复制 CSV 预览到剪贴板（仅 UI）">复制预览</button>
         </div>
         </div>
         <div class="adv">
@@ -1315,6 +1357,15 @@ export function activate(context: vscode.ExtensionContext) {
                 set('btnOpenStatusFile', zh ? '\u6253\u5f00 status.json' : 'Open status.json');
                 set('btnOpenEventsFile', zh ? '\u6253\u5f00 events' : 'Open events');
                 set('btnOpenAuditFile', zh ? '\u6253\u5f00 audit' : 'Open audit');
+                // Beginner friendly: One-click Ready
+                set('btnOneClickReady', zh ? '\u4e00\u952e\u5c31\u7eea' : 'One-click Ready', zh ? '\u4e00\u952e\u5b8c\u6210\u73af\u5883\u51c6\u5907\u4e0e\u5e38\u89c1\u4fee\u590d\uff08\u5b89\u5168\uff0c\u81ea\u52a8\u5728\u9879\u76ee\u5185\u6267\u884c\uff09' : 'One-click environment prep and common fixes (safe, runs in project)');
+                // Dynamic buttons (created at runtime)
+                set('btnRulesResolve', zh ? '\u9884\u89c8\u5e76\u5e94\u7528\u95e8\u7981' : 'Preview & apply gates', zh ? '\u9884\u89c8\u5e76\u5e94\u7528\u89c4\u5219\u95e8\u7981\u53d8\u66f4\uff08\u53ea\u5199\u914d\u7f6e\uff0c\u4e0d\u6539\u6e90\u7801\uff09' : 'Preview and apply gate changes (config only, no source changes)');
+                set('btnCopyCsvAsMd', zh ? '\u590d\u5236\u4e3a Markdown \u8868\u683c' : 'Copy as Markdown table', zh ? '\u590d\u5236\u9884\u89c8\u4e3a Markdown \u8868\u683c\u5230\u526a\u8d34\u677f' : 'Copy preview as Markdown table to clipboard');
+                set('btnMemory', zh ? '\u52a0\u8f7d\u8bb0\u5fc6' : 'Load Memory', zh ? '\u52a0\u8f7d .mcp/memory.json \u6458\u8981' : 'Load .mcp/memory.json summary');
+                set('btnPlan', zh ? '\u52a0\u8f7d\u8ba1\u5212' : 'Load Plan', zh ? '\u52a0\u8f7d .mcp/plan.md \u6458\u8981' : 'Load .mcp/plan.md summary');
+                set('btnQuickIngest', zh ? '\u5feb\u901f\u6444\u53d6' : 'Quick Ingest', zh ? '\u5c06 README/docs \u8f6c\u6362\u4e3a\u89c4\u5219\uff08\u53ea\u5199 .mcp/rules_*\uff09' : 'Convert README/docs to rules (writes .mcp/rules_*)');
+                set('btnCopyCsvPreview', zh ? '\u590d\u5236\u9884\u89c8' : 'Copy Preview', zh ? 'CSV \u9884\u89c8\u4e00\u952e\u590d\u5236\uff08\u4ec5 UI\uff09' : 'Copy CSV preview to clipboard (UI only)');
               };
               apply(mode);
               const btnS = document.getElementById('btnModeSimple');
@@ -1377,6 +1428,10 @@ export function activate(context: vscode.ExtensionContext) {
           try {
             const el = document.getElementById('btnSimpleStatus');
             if (el) el.onclick = () => { try { vscode.postMessage({ t: 'statusUpdate' }); } catch {} try { tryCommandFallback('command:mcpRulesAssistant.statusUpdate'); } catch {} };
+          } catch {}
+          try {
+            const el = document.getElementById('btnOneClickReady');
+            if (el) el.onclick = () => { try { vscode.postMessage({ t: 'backendDoctor' }); } catch {} try { tryCommandFallback('command:mcpRulesAssistant.backendDoctor'); } catch {} };
           } catch {}
           // Event delegation fallback: ensure clicks still work even if nodes are re-rendered
           try {
@@ -2154,10 +2209,14 @@ export function activate(context: vscode.ExtensionContext) {
             const data = await vscode.workspace.fs.readFile(p);
             const text = Buffer.from(data).toString('utf8');
             const obj = JSON.parse(text || '{}');
-            const lang = (obj && typeof obj.lang === 'string' && obj.lang) ? obj.lang : 'zh';
+            const envLang = String(vscode.env.language || '').toLowerCase();
+            const def = envLang.startsWith('zh') ? 'zh' : 'en';
+            const lang = (obj && typeof obj.lang === 'string' && obj.lang) ? obj.lang : def;
             panel.webview.postMessage({ t: 'setLang', value: lang });
           } catch {
-            panel.webview.postMessage({ t: 'setLang', value: 'zh' });
+            const envLang = String(vscode.env.language || '').toLowerCase();
+            const def = envLang.startsWith('zh') ? 'zh' : 'en';
+            panel.webview.postMessage({ t: 'setLang', value: def });
           }
         }
         else if (msg.t === 'statusUpdate') {
