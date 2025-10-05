@@ -1,13 +1,14 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
 
-suite.skip('Plan message branches (fake — quarantined for CI stability)', () => {
+suite('Plan message branches (fake — stabilized)', () => {
   test('mark in progress and done', async () => {
     process.env.RULEFLOW_TEST_FAKE = '1';
     const ext = vscode.extensions.getExtension('ruleflow.mcp-rules-assistant');
     assert.ok(ext, 'Extension not found');
     await ext!.activate();
     await vscode.commands.executeCommand('mcpRulesAssistant.openPanel');
+    await vscode.commands.executeCommand('mcpRulesAssistant._test_waitReady');
     const origPick = (vscode.window as any).showQuickPick;
     const origInput = (vscode.window as any).showInputBox;
     try {

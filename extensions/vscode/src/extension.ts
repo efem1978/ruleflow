@@ -408,11 +408,18 @@ class McpClient {
         if (name === 'config.get') {
           return { ok: true, config: {} };
         }
-        if (name === 'config.update' || name === 'rules.enforce' || name === 'git.install_hooks' || name === 'rules.ingest' || name === 'env.prepare' || name === 'compliance.commitment' || name === 'ide.scaffold' || name === 'license.verify') {
+        if (name === 'config.update' || name === 'rules.enforce' || name === 'git.install_hooks' || name === 'rules.ingest' || name === 'env.prepare' || name === 'compliance.commitment' || name === 'ide.scaffold' || name === 'license.verify' || name === 'memory.append_turn' || name === 'memory.toggle_auto' || name === 'memory.snapshot' || name === 'ci.autofix' || name === 'license.activate') {
           return { ok: true, path: name === 'compliance.commitment' ? '.mcp/compliance.md' : undefined };
         }
         if (name === 'nl.command') {
           return { parsed: { tool: '' } };
+        }
+        if (name === 'coverage.report') {
+          let bad = false; try { await fsApi.stat(vscode.Uri.file(ws + '/.mcp/dashboard/coverage_bad')); bad = true; } catch {}
+          if (bad) return { ok: false, message: 'coverage not available' };
+          const weakCsv = await fileToString(vscode.Uri.file(ws + '/.mcp/dashboard/weak_top.csv'));
+          const weak = (weakCsv && weakCsv.includes('\n')) ? weakCsv.split('\n').slice(1).filter(Boolean).map((line) => ({ file: (line.split(',')[0] || 'file.py') })) : [];
+          return { ok: true, weak, near: [], groups: [], min_module: 0.95 };
         }
       }
       return {};
@@ -445,6 +452,9 @@ let __panelInFlightResolve: (() => void) | null = null;
 let __panelInFlight: Promise<void> | null = null;
 const __ready2Resolvers = new Map<string, () => void>();
 const __ready2Promises = new Map<string, Promise<void>>();
+
+// Singleton holder for the main Webview panel
+let __singletonPanel: vscode.WebviewPanel | null = null;
 
 async function handleOpenMessage(msg: any) {
   if (msg && msg.t === 'open' && msg.path) {
@@ -826,6 +836,13 @@ export function activate(context: vscode.ExtensionContext) {
         }
       }
     } catch {}
+    // Singleton: if a panel already exists, just reveal it instead of creating a new one
+    try {
+      if (__singletonPanel) {
+        try { __singletonPanel.reveal(vscode.ViewColumn.Beside, false); } catch {}
+        return;
+      }
+    } catch {}
     // 先渲染一个最小占位以避免空白，并提供快速修复入口
     const renderFallback = (msg: string) => `
       <html><body style="font-family:-apple-system,Segoe UI,Arial;">
@@ -900,6 +917,8 @@ export function activate(context: vscode.ExtensionContext) {
         enableCommandUris: true
       }
     );
+    // Set singleton instance so subsequent invocations re-use this panel
+    __singletonPanel = panel;
     // Only attempt remote auto-install when executing on UI side
     try { if (!vscode.env.remoteName) { autoInstallToRemote(context); } } catch {}
     // Early message queue to avoid losing clicks before full handler is ready
@@ -963,7 +982,7 @@ export function activate(context: vscode.ExtensionContext) {
         return r;
       } catch { return Promise.resolve(false); }
     };
-    panel.onDidDispose(() => { __panelDisposed = true; try { __testPanelHandler = null as any; } catch {} });
+    panel.onDidDispose(() => { __panelDisposed = true; try { __testPanelHandler = null as any; } catch {} try { __singletonPanel = null as any; } catch {} });
     __panelReady = new Promise<void>((res) => { __panelReadyResolve = res; });
 
     /* c8 ignore start */
@@ -1366,6 +1385,74 @@ export function activate(context: vscode.ExtensionContext) {
                 set('btnPlan', zh ? '\u52a0\u8f7d\u8ba1\u5212' : 'Load Plan', zh ? '\u52a0\u8f7d .mcp/plan.md \u6458\u8981' : 'Load .mcp/plan.md summary');
                 set('btnQuickIngest', zh ? '\u5feb\u901f\u6444\u53d6' : 'Quick Ingest', zh ? '\u5c06 README/docs \u8f6c\u6362\u4e3a\u89c4\u5219\uff08\u53ea\u5199 .mcp/rules_*\uff09' : 'Convert README/docs to rules (writes .mcp/rules_*)');
                 set('btnCopyCsvPreview', zh ? '\u590d\u5236\u9884\u89c8' : 'Copy Preview', zh ? 'CSV \u9884\u89c8\u4e00\u952e\u590d\u5236\uff08\u4ec5 UI\uff09' : 'Copy CSV preview to clipboard (UI only)');
+                // Card-based layout (simple mode)
+                set('hCardStart', zh ? '\u5f00\u59cb\u4f7f\u7528' : 'Get Started');
+                set('btnCardStartReady', zh ? '\u4e00\u952e\u5c31\u7eea' : 'One-click Ready', zh ? '\u4e00\u952e\u5b8c\u6210\u73af\u5883\u51c6\u5907\u4e0e\u5e38\u89c1\u4fee\u590d\uff08\u5b89\u5168\uff0c\u81ea\u52a8\u5728\u9879\u76ee\u5185\u6267\u884c\uff09' : 'One-click environment prep and common fixes (safe, runs in project)');
+                set('btnCardOpenPlan', zh ? '\u6253\u5f00\u6211\u7684\u4efb\u52a1\u6e05\u5355' : 'Open My Task List', zh ? '\u6253\u5f00 .mcp/plan.md\uff08\u9879\u76ee\u4efb\u52a1\u4e0e\u8fdb\u5ea6\u7684\u552f\u4e00\u6765\u6e90\uff09' : 'Open .mcp/plan.md (single source of truth for tasks)');
+                set('btnCardWhatNow', zh ? '\u6211\u73b0\u5728\u8be5\u505a\u4ec0\u4e48\uff1f' : 'What Should I Do Now?', zh ? '\u67e5\u770b\u5f53\u524d\u72b6\u6001\u6458\u8981\u4e0e\u4e0b\u4e00\u6b65\u5efa\u8bae' : 'View current status summary and next step suggestions');
+                set('hCardDocs', zh ? '\u628a\u6587\u6863\u53d8\u6210\u89c4\u5219' : 'Turn Docs into Rules');
+                set('btnCardDocsToRules', zh ? '\u5e2e\u6211\u628a\u6587\u6863\u53d8\u6210\u89c4\u5219' : 'Help Me Turn Docs into Rules', zh ? '\u8bfb\u53d6 README/docs \u5e76\u751f\u6210\u9879\u76ee\u89c4\u5219\uff08\u5199\u5165 .mcp/rules_*\uff0c\u4e0d\u6539\u6e90\u7801\uff09' : 'Read README/docs and generate project rules (writes .mcp/rules_*, no source changes)');
+                set('btnCardViewRules', zh ? '\u67e5\u770b\u89c4\u5219' : 'View Rules', zh ? '\u67e5\u770b\u5df2\u7f16\u8bd1\u7684\u89c4\u5219\uff08\u53ea\u8bfb\uff09' : 'View compiled rules (read-only)');
+                set('btnCardCheckConflicts', zh ? '\u68c0\u67e5\u89c4\u5219\u662f\u5426\u6709\u51b2\u7a81' : 'Check Rule Conflicts', zh ? '\u91cd\u65b0\u7f16\u8bd1\u5e76\u5217\u51fa\u51b2\u7a81\u4e0e\u5efa\u8bae\uff08\u53ea\u8bfb\u5c55\u793a\uff09' : 'Recompile and list conflicts & suggestions (read-only)');
+                set('hCardQuality', zh ? '\u63d0\u5347\u6d4b\u8bd5\u4e0e\u8d28\u91cf' : 'Improve Tests & Quality');
+                set('btnCardLoadCoverage', zh ? '\u52a0\u8f7d\u8986\u76d6\u7387' : 'Load Coverage', zh ? '\u8bfb\u53d6\u8986\u76d6\u7387\u5e76\u751f\u6210\u6458\u8981\uff08\u53ea\u8bfb\uff09' : 'Read coverage and generate summary (read-only)');
+                set('btnCardEasyWins', zh ? '\u53ea\u770b\u6700\u5bb9\u6613\u8865\u9f50\u7684\u6587\u4ef6' : 'Show Easiest Files to Fix', zh ? '\u53ea\u770b\u201c\u63a5\u8fd1\u8fbe\u6807\u201d\u7684\u6587\u4ef6\uff08\u9ed8\u8ba4\u22643%\uff09' : 'Show files near threshold (default ≤3%)');
+                set('btnCardSetupChecks', zh ? '\u751f\u6210\u81ea\u52a8\u68c0\u67e5' : 'Setup Automated Checks', zh ? '\u751f\u6210\u5e76\u9884\u89c8 CI \u5de5\u4f5c\u6d41\uff1b\u9700\u8981\u4f60\u786e\u8ba4\u540e\u624d\u5199\u5165' : 'Generate and preview CI workflow; requires your confirmation before writing');
+                set('hCardTrouble', zh ? '\u9047\u5230\u95ee\u9898' : 'Troubleshooting');
+                set('btnCardRefreshStatus', zh ? '\u5237\u65b0\u9879\u76ee\u72b6\u6001' : 'Refresh Project Status', zh ? '\u66f4\u65b0 .mcp/dashboard/status.json\uff08\u53ea\u8bfb\u6e90\u7801\uff09' : 'Update .mcp/dashboard/status.json (read-only source)');
+                set('btnCardRecentActivity', zh ? '\u67e5\u770b\u6700\u8fd1\u53d1\u751f\u4e86\u4ec0\u4e48' : 'What Happened Recently?', zh ? '\u663e\u793a\u6700\u8fd1\u4e8b\u4ef6/\u5b89\u5168\u5ba1\u8ba1/\u72b6\u6001\u6458\u8981' : 'Show recent events/security audit/status summary');
+                set('btnCardDiagnose', zh ? '\u8bca\u65ad\u5e76\u6536\u96c6\u8d44\u6599' : 'Diagnose & Collect Info', zh ? '\u6536\u96c6\u524d\u7aef\u9519\u8bef\u3001\u73af\u5883\u4e0e\u5ba1\u8ba1\u4fe1\u606f\uff08\u5199\u5165 .mcp/dashboard/panel_diag.json\uff09' : 'Collect front-end errors, environment, and audit info (writes .mcp/dashboard/panel_diag.json)');
+                set('hCardHelp', zh ? '\u5e2e\u52a9\u4e0e\u5b66\u4e60' : 'Help & Learning');
+                set('btnCardQuickStartGuide', zh ? '\u6211\u60f3\u5feb\u901f\u4e0a\u624b' : 'I Want to Get Started Quickly', zh ? '\u6253\u5f00\u4e0a\u624b\u6587\u6863\uff08\u53ea\u8bfb\uff09' : 'Open quick start guide (read-only)');
+                set('btnCardIdeHelp', zh ? '\u6211\u9700\u8981 IDE \u914d\u7f6e\u8bf4\u660e' : 'I Need IDE Setup Instructions', zh ? '\u6253\u5f00 IDE \u96c6\u6210\u8bf4\u660e\uff08\u53ea\u8bfb\uff09' : 'Open IDE integration guide (read-only)');
+                set('hintTrouble', zh ? '\u9047\u5230\u95ee\u9898 \u2192 \u70b9\u51fb\u201c\u8bca\u65ad\u5e76\u6536\u96c6\u8d44\u6599\u201d\uff0c\u6216\u5207\u6362\u5230\u201c\u9ad8\u7ea7\u6a21\u5f0f\u201d\u67e5\u770b\u66f4\u591a\u529f\u80fd\u3002' : 'Having issues → Click "Diagnose & Collect Info", or switch to "Advanced mode" for more features.');
+                // Additional UI elements that were missed
+                set('hFirstRunTitle', zh ? '\u6b22\u8fce\u4f7f\u7528\uff01' : 'Welcome!');
+                set('pFirstRunBody', zh ? '\u53ea\u9700\u4e09\u6b65\uff1a\u70b9\u51fb\u201c \u4e00\u952e\u5c31\u7eea \u201d\u2192 \u6253\u5f00\u201c \u6211\u7684\u4efb\u52a1\u6e05\u5355 \u201d\u2192 \u6309\u6309\u94ae\u6216\u7528\u81ea\u7136\u8bed\u8a00\u544a\u8bc9\u6211\u4f60\u60f3\u505a\u4ec0\u4e48\u3002' : 'Just three steps: Click "One-click Ready" → Open "My Task List" → Use buttons or tell me what you want in natural language.');
+                set('btnFirstRunStart', zh ? '\u5f00\u59cb\u4f7f\u7528' : 'Get Started', zh ? '\u5173\u95ed\u5f15\u5bfc\u5e76\u5f00\u59cb\u4f7f\u7528' : 'Close guide and start using');
+                set('curProject', zh ? '(\u68c0\u6d4b\u4e2d)' : '(detecting)');
+                set('btnSelectProject', zh ? '\u9009\u62e9/\u5207\u6362\u9879\u76ee\u2026' : 'Select/Switch Project…', zh ? '\u5728\u5f53\u524d IDE \u7a97\u53e3\u5185\u9009\u62e9/\u5207\u6362\u9879\u76ee\u6839\uff1b\u6240\u6709\u8bfb\u5199\u9650\u5b9a\u5728\u6240\u9009\u9879\u76ee\u7684 .mcp/ \u76ee\u5f55' : 'Select/switch project root; all reads/writes scoped to .mcp/ directory');
+                set('licText', zh ? '(\u52a0\u8f7d\u4e2d)' : '(loading)');
+                set('btnLicVerify', zh ? 'Verify' : 'Verify', zh ? '\u6821\u9a8c\u8bb8\u53ef\u72b6\u6001\uff08\u672c\u5730\u53ea\u8bfb\uff0c\u4e0d\u51fa\u7f51\uff09' : 'Verify license status (local, offline)');
+                set('btnLicActivate', zh ? 'Activate…' : 'Activate…', zh ? '\u4ece\u672c\u5730\u6587\u4ef6\u6fc0\u6d3b\u8bb8\u53ef\uff08\u4ec5\u5199\u5165\u8bb8\u53ef\u914d\u7f6e\uff0c\u4e0d\u6539\u6e90\u7801\uff09' : 'Activate license from local file');
+                set('btnReloadPanel', zh ? '\u91cd\u8f7d\u9762\u677f' : 'Reload Panel', zh ? '\u91cd\u8f7d\u9762\u677f\uff08\u91cd\u65b0\u6e32\u67d3\u5e76\u63e1\u624b\uff09' : 'Reload panel (re-render & handshake)');
+                set('btnDiagTop', zh ? '\u8bca\u65ad' : 'Diagnostics', zh ? '\u6536\u96c6\u524d\u7aef\u9519\u8bef\u3001\u73af\u5883\u4e0e\u5ba1\u8ba1\u4fe1\u606f\uff08\u5199\u5165 .mcp/dashboard/panel_diag.json\uff09' : 'Collect diagnostics info');
+                set('btnStatusUpdate', zh ? '\u5237\u65b0\u72b6\u6001' : 'Refresh Status', zh ? '\u5237\u65b0\u72b6\u6001\u6458\u8981\u5e76\u66f4\u65b0 .mcp/dashboard/status.json' : 'Refresh status summary');
+                set('btnCovNearInline', zh ? '\u663e\u793a\u8fd1\u9608\u503c' : 'Show Near-Threshold', zh ? '\u5728\u9762\u677f\u5185\u663e\u793a\u201c\u8fd1\u9608\u503c\u201d\u6587\u4ef6\uff08\u4ec5 UI \u8fc7\u6ee4\uff09' : 'Show near-threshold files (UI filter)');
+                set('btnLoad', zh ? '\u8f7d\u5165\u7f16\u8bd1\u89c4\u5219 / Load Rules' : 'Load Rules', zh ? '\u4ece .mcp/rules_compiled.* \u8bfb\u53d6\u5e76\u5c55\u793a\u7f16\u8bd1\u540e\u7684\u89c4\u5219\uff08\u53ea\u8bfb\uff09' : 'Read compiled rules (read-only)');
+                set('btnIngest', zh ? '\u6444\u53d6\u89c4\u5219 / Ingest' : 'Ingest', zh ? '\u5c06 README\u3001docs \u7b49\u6587\u6863\u8f6c\u6362\u4e3a\u89c4\u5219\uff08\u5199\u5165 .mcp/rules_*\uff09' : 'Convert docs to rules');
+                set('btnValidate', zh ? '\u6821\u9a8c\u89c4\u5219 / Validate' : 'Validate', zh ? '\u91cd\u65b0\u7f16\u8bd1\u5e76\u6821\u9a8c\u89c4\u5219\uff0c\u8f93\u51fa\u51b2\u7a81\u4e0e\u5efa\u8bae\uff08\u53ea\u8bfb\u5c55\u793a\uff09' : 'Validate rules and show conflicts');
+                set('btnHooks', zh ? '\u5b89\u88c5\u94a9\u5b50 / Install Hooks' : 'Install Hooks', zh ? '\u5b89\u88c5 pre-commit/commit-msg/pre-push \u94a9\u5b50\uff08\u4fbf\u4e8e\u5728\u63d0\u4ea4\u524d\u81ea\u52a8\u68c0\u67e5\uff09' : 'Install Git hooks for pre-commit checks');
+                set('btnLoadSugg', zh ? '\u8f7d\u5165\u5efa\u8bae / Load Suggestions' : 'Load Suggestions', zh ? '\u8bfb\u53d6\u5e76\u5c55\u793a\u89c4\u5219\u5efa\u8bae\uff08\u51b2\u7a81\u4e0e\u4f18\u5316\u63d0\u793a\uff09' : 'Load rule suggestions');
+                set('btnCoverage', zh ? '\u52a0\u8f7d\u8986\u76d6\u7387 / Load Coverage' : 'Load Coverage', zh ? '\u8bfb\u53d6 coverage.xml \u5e76\u751f\u6210\u8584\u5f31/\u5206\u7ec4/\u8fd1\u9608\u503c\u6458\u8981\uff08\u53ea\u8bfb\uff09' : 'Load coverage summary');
+                set('btnShowWeak', zh ? '\u4ec5\u770b\u5f31\u9879 / Show Weak' : 'Show Weak', zh ? '\u53ea\u663e\u793a\u4f4e\u4e8e\u9608\u503c\u7684\u8584\u5f31\u6587\u4ef6\uff08\u66f4\u6613\u805a\u7126\u95ee\u9898\uff09' : 'Show weak files only');
+                set('btnCovTree', zh ? '\u52a0\u8f7d\u76ee\u5f55\u6811 / Load Weak Tree' : 'Load Weak Tree', zh ? '\u6309\u76ee\u5f55\u5c55\u793a\u8584\u5f31\u6587\u4ef6\uff08\u5c42\u7ea7\u6d4f\u89c8\uff0c\u4fbf\u4e8e\u5b9a\u4f4d\uff09' : 'Show weak files by directory');
+                set('btnCovNear', zh ? '\u4ec5\u770b\u8fd1\u9608\u503c / Show Near' : 'Show Near', zh ? '\u663e\u793a\u8ddd\u79bb\u9608\u503c\u5f88\u8fd1\uff08\u9ed8\u8ba4≤3%\uff09\u4f46\u5c1a\u672a\u8dcc\u7834\u7684\u6587\u4ef6\uff08\u5feb\u901f\u8865\u9f50\uff09' : 'Show near-threshold files (≤3%)');
+                set('btnCovExport', zh ? '\u5bfc\u51fa\u8986\u76d6\u7387\u62a5\u8868 / Export Coverage' : 'Export Coverage', zh ? '\u5bfc\u51fa CSV/JSON \u62a5\u8868\u5230 .mcp/dashboard\uff08\u4f9b\u5ba1\u9605\u4e0e\u5f52\u6863\uff09' : 'Export reports to .mcp/dashboard');
+                set('btnPrepareEnvDry', zh ? '\u51c6\u5907\u73af\u5883(\u9884\u89c8) / Prepare Env (dry-run)' : 'Prepare Env (dry-run)', zh ? '\u9884\u89c8\u5c06\u8981\u521b\u5efa\u7684\u865a\u62df\u73af\u5883\u4e0e\u5b89\u88c5\u7684\u5de5\u5177\u94fe\uff08\u4e0d\u505a\u4efb\u4f55\u6539\u52a8\uff09' : 'Preview env setup (no changes)');
+                set('btnPrepareEnvInstall', zh ? '\u51c6\u5907\u5e76\u5b89\u88c5\u73af\u5883 / Prepare & Install' : 'Prepare & Install', zh ? '\u521b\u5efa .mcp/venv \u5e76\u5b89\u88c5 ruff/black/mypy/pytest \u7b49\u57fa\u7840\u5de5\u5177' : 'Create .mcp/venv and install tools');
+                set('btnOpenUserGuide', zh ? '\u6253\u5f00\u7528\u6237\u4e0a\u624b / Open User Guide' : 'Open User Guide', zh ? '\u6253\u5f00\u4e0a\u624b\u6587\u6863\uff08\u53ea\u8bfb\uff09\uff0c\u5305\u542b\u5e38\u89c1\u6d41\u7a0b\u4e0e\u622a\u56fe\u793a\u4f8b' : 'Open getting started guide');
+                set('btnOpenIdeSupport', zh ? '\u6253\u5f00 IDE \u652f\u6301 / Open IDE Support' : 'Open IDE Support', zh ? '\u6253\u5f00 IDE \u96c6\u6210\u8bf4\u660e\uff08\u53ea\u8bfb\uff09\uff0c\u5305\u542b VS Code/Cursor/JetBrains \u7684\u6700\u5c0f\u914d\u7f6e' : 'Open IDE integration guide');
+                set('btnCiSave', zh ? '\u4fdd\u5b58 CI \u914d\u7f6e' : 'Save CI config', zh ? '\u4fdd\u5b58 CI \u914d\u7f6e\u5230\u9879\u76ee\uff08\u5199\u5165 .github/workflows \u6216\u914d\u7f6e\u6587\u4ef6\uff09' : 'Save CI config to project');
+                set('btnCiPreview', zh ? '\u9884\u89c8 CI' : 'Preview CI', zh ? '\u5728\u9762\u677f\u5185\u9884\u89c8 CI \u5185\u5bb9\uff08\u53ea\u8bfb\uff09' : 'Preview CI content in panel');
+                set('btnCiOpen', zh ? '\u6253\u5f00 CI \u6587\u4ef6' : 'Open CI file', zh ? '\u6253\u5f00 CI \u5de5\u4f5c\u6d41\u6587\u4ef6\uff08\u53ea\u8bfb\uff09' : 'Open CI workflow file');
+                set('btnInsertRules', zh ? '\u63d2\u5165\u793a\u4f8b\u89c4\u5219' : 'Insert sample rules', zh ? '\u63d2\u5165 .semgrep.yml / .hadolint.yaml \u793a\u4f8b\u89c4\u5219\uff08\u4fbf\u4e8e\u5feb\u901f\u542f\u7528\u57fa\u7840\u68c0\u67e5\uff09' : 'Insert example rules for quick start');
+                // Checkbox labels in CI section
+                try { const cb1 = document.getElementById('ciHadolint'); if (cb1 && cb1.parentElement && cb1.parentElement.tagName === 'LABEL') { const lbl = cb1.parentElement; const txt = lbl.childNodes[1]; if (txt && txt.nodeType === 3) txt.textContent = zh ? ' \u542f\u7528 hadolint' : ' Enable hadolint'; } } catch {}
+                // Placeholders for input fields
+                try { const inp = document.getElementById('nlInput'); if (inp) (inp as HTMLInputElement).placeholder = zh ? '\u81ea\u7136\u8bed\u8a00\u6307\u4ee4\uff1a\u5982 \u6444\u53d6\u89c4\u5219 README.md, docs/ / \u52a0\u8f7d\u8986\u76d6\u7387 / \u5f00\u542f\u6eda\u52a8\u8bb0\u5fc6' : 'NL command: e.g. Ingest README.md, docs/ / Load Coverage / Enable memory'; } catch {}
+                try { const f = document.getElementById('covFilter'); if (f) (f as HTMLInputElement).placeholder = zh ? '\u8fc7\u6ee4\u6587\u4ef6\u540d\u5173\u952e\u8bcd...' : 'Filter filename keyword...'; } catch {}
+                try { const h1 = document.getElementById('ciHadolintImage'); if (h1) (h1 as HTMLInputElement).placeholder = zh ? 'hadolint/hadolint:latest' : 'hadolint/hadolint:latest'; } catch {}
+                try { const h2 = document.getElementById('ciHadolintArgs'); if (h2) (h2 as HTMLInputElement).placeholder = zh ? '--ignore DL3008' : '--ignore DL3008'; } catch {}
+                try { const s1 = document.getElementById('ciSemgrepConfig'); if (s1) (s1 as HTMLInputElement).placeholder = zh ? 'auto / p/ci' : 'auto / p/ci'; } catch {}
+                // Pre element placeholder texts
+                try { const m = document.getElementById('memory'); if (m && m.textContent && m.textContent.includes('\u70b9\u51fb')) m.textContent = zh ? '(\u70b9\u51fb\u201c\u52a0\u8f7d\u8bb0\u5fc6 / \u52a0\u8f7d\u8ba1\u5212 / \u4e8b\u4ef6\u5386\u53f2\u201d\u83b7\u53d6)' : '(Click "Load Memory / Load Plan / Events" to fetch)'; } catch {}
+                try { const ob = document.getElementById('onboardSummary'); if (ob && ob.textContent && ob.textContent.includes('\u70b9\u51fb')) ob.textContent = zh ? '(\u70b9\u51fb\u201c\u9884\u89c8\u63a8\u8350\u201d\u67e5\u770b\u5c06\u542f\u7528\u7684\u89c4\u5219\u6458\u8981)' : '(Click "Preview" to see the rules to be enabled)'; } catch {}
+                try { const cp = document.getElementById('chatPreview'); if (cp && cp.textContent && cp.textContent.includes('\u9ed8\u8ba4')) cp.textContent = zh ? '(\u9ed8\u8ba4\u5173\u95ed\uff1b\u542f\u7528\u540e\uff0c\u6bcf\u8f6e\u5bf9\u8bdd\u53ef\u8ffd\u52a0\u201c\u4e0a\u4e00\u8f6e\u95ee\u7b54\u6458\u8981\u201d\u81f3\u8bb0\u5fc6\u3002\u65e0\u9065\u6d4b\uff0c\u4e0d\u51fa\u7f51\u3002)' : '(Off by default; when enabled, each turn can append the previous Q&A summary to memory. No telemetry, offline.)'; } catch {}
+                // Select options
+                try { const sel = document.getElementById('csvSelect'); if (sel) { const opts = sel.querySelectorAll('option'); if (opts[0]) opts[0].textContent = 'weak_top.csv'; if (opts[1]) opts[1].textContent = 'near_top.csv'; if (opts[2]) opts[2].textContent = 'groups.csv'; } } catch {}
+                // NL example buttons in nlExamplesBox
+                try { const box = document.getElementById('nlExamplesBox'); if (box) { const btns = box.querySelectorAll('button[data-nl]'); if (btns[0]) btns[0].textContent = zh ? '\u6444\u53d6\u89c4\u5219' : 'Ingest Rules'; if (btns[1]) btns[1].textContent = zh ? '\u52a0\u8f7d\u8986\u76d6\u7387' : 'Load Coverage'; if (btns[2]) btns[2].textContent = zh ? '\u4ec5\u770b\u8fd1\u9608\u503c' : 'Show Near'; if (btns[3]) btns[3].textContent = zh ? '\u5f00\u542f\u8bb0\u5fc6' : 'Enable Memory'; if (btns[4]) btns[4].textContent = zh ? '\u751f\u6210 CI' : 'Generate CI'; if (btns[5]) btns[5].textContent = zh ? '\u6821\u9a8c CI' : 'Validate CI'; if (btns[6]) btns[6].textContent = zh ? '\u89c4\u5219\u6458\u8981' : 'Rules Summary'; } } catch {}
               };
               apply(mode);
               const btnS = document.getElementById('btnModeSimple');
@@ -2104,6 +2191,7 @@ export function activate(context: vscode.ExtensionContext) {
       try { __panelInFlight = new Promise<void>((res)=>{ __panelInFlightResolve = res; }); } catch {}
       try {
         __testWebviewHandler = async (m:any) => { await handleOpenMessage(m); };
+        __testPanelHandler = __panelDispatch;
         if (msg.t === 'retryConnect') {
           try { client.start(context); } catch {}
           vscode.window.setStatusBarMessage('\u6b63\u5728\u5c1d\u8bd5\u91cd\u65b0\u8fde\u63a5 MCP\u2026', 2000);
@@ -2692,7 +2780,7 @@ export function activate(context: vscode.ExtensionContext) {
         } else if (msg.t === 'ciGen') {
           const out = await client.request('tools/call', { name: 'ci.generate', arguments: {} });
           vscode.window.showInformationMessage('\u5df2\u751f\u6210 CI: ' + (out.path || ''));        
-          vscode.commands.executeCommand('workbench.action.files.refresh');
+          try { await vscode.commands.executeCommand('workbench.action.files.refresh'); } catch {}
           panel.webview.postMessage({ t: 'ciCheck' });
           try { await client.request('tools/call', { name: 'memory.append_turn', arguments: { role: 'assistant', content: 'CI generated', meta: { source: 'vscode', action: 'ci.generate', path: out && out.path } } }); } catch {}
         } else if (msg.t === 'ciValidate') {

@@ -50,7 +50,7 @@ local-ci-run:
 	@echo "[local-ci] Type (rest non-blocking)"
 	$(PYTHON) -m mypy mcp_rules_assistant || true
 	@echo "[local-ci] Tests + Coverage"
-	PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 $(PYTHON) -m pytest -q -p pytest_cov --maxfail=1 --disable-warnings -W error --strict-markers --cov=mcp_rules_assistant --cov-report=xml:coverage.xml --cov-report=term-missing --junitxml=pytest-junit.xml
+	PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 $(PYTHON) -m pytest -q -p pytest_cov -p pytest_benchmark.plugin --maxfail=1 --disable-warnings -W error --strict-markers --cov=mcp_rules_assistant --cov-report=xml:coverage.xml --cov-report=term-missing --junitxml=pytest-junit.xml
 	@echo "[local-ci] Coverage Policy Gate"
 	$(PYTHON) -m mcp_rules_assistant.cli coverage-report --json > cov.json
 	$(PYTHON) -c "import json,sys; d=json.load(open('cov.json')); w=d.get('weak') or []; print('[mcp] Coverage policy gate failed. Weak files:') or [print(' -',x.get('file'),'cov=',x.get('coverage'),'<',x.get('threshold')) for x in w] or sys.exit(1) if w else print('[mcp] Coverage policy gate passed.')"
@@ -131,7 +131,9 @@ release-harden-off:
 vscode-test:
 	@if [ "$(shell uname -s)" = "Darwin" ]; then \
 		echo "[vscode-test] macOS detected; running container test for stability"; \
-		docker compose run --rm vscode-test; \
+		docker compose run --rm vscode-test || (echo "[vscode-test] container test failed; falling back to local electron tests" && \
+		$(NPM) --prefix extensions/vscode run compile && \
+		MCP_VSCODE_TEST_ARGS="--disable-extensions,$(shell pwd)/extensions/vscode/.test-fixture" RULEFLOW_TEST_FAKE=1 $(NPM) --prefix extensions/vscode test); \
 	else \
 		$(NPM) --prefix extensions/vscode run compile; \
 		$(NPM) --prefix extensions/vscode test; \

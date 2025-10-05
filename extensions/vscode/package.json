@@ -18,7 +18,30 @@
     "Other"
   ],
   "activationEvents": [
-    "*"
+    "onCommand:mcpRulesAssistant.openPanel",
+    "onCommand:mcpRulesAssistant.oneClickSetup",
+    "onCommand:mcpRulesAssistant.newbieGuide",
+    "onCommand:mcpRulesAssistant.ask",
+    "onCommand:mcpRulesAssistant.quickActions",
+    "onCommand:mcpRulesAssistant.loadCoverage",
+    "onCommand:mcpRulesAssistant.statusUpdate",
+    "onCommand:mcpRulesAssistant.ingestQuick",
+    "onCommand:mcpRulesAssistant.openStatus",
+    "onCommand:mcpRulesAssistant.planSet",
+    "onCommand:mcpRulesAssistant.memoryAppendSelection",
+    "onCommand:mcpRulesAssistant.fsApplyPatch",
+    "onCommand:mcpRulesAssistant.openPlan",
+    "onCommand:mcpRulesAssistant.openMemory",
+    "onCommand:mcpRulesAssistant.commit",
+    "onCommand:mcpRulesAssistant.push",
+    "onCommand:mcpRulesAssistant.nlCommand",
+    "onCommand:mcpRulesAssistant.licenseStatus",
+    "onCommand:mcpRulesAssistant.licenseActivate",
+    "onCommand:mcpRulesAssistant.licenseVerify",
+    "onCommand:mcpRulesAssistant.envPrepareInstall",
+    "onCommand:mcpRulesAssistant.panelDiag",
+    "onCommand:mcpRulesAssistant.backendDoctor",
+    "onCommand:mcpRulesAssistant.installRemote"
   ],
   "main": "out/extension.js",
   "capabilities": {
