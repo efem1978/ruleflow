@@ -123,14 +123,21 @@ class FSGuard:
 
     # ---- Atomic helpers ----
     def write_text_atomic(
-        self, path: Path, content: str, encoding: str = "utf-8",
+        self,
+        path: Path,
+        content: str,
+        encoding: str = "utf-8",
     ) -> None:
         """原子方式写入文本：委托共用实现，降低重复与风险。"""
         full = self.project_root / path
         _atomic_write_text_impl(full, content, encoding=encoding)
 
     def write_json_atomic(
-        self, path: Path, data: Any, *, indent: int | None = None,
+        self,
+        path: Path,
+        data: Any,
+        *,
+        indent: int | None = None,
     ) -> None:
         """原子方式写入 JSON（UTF-8，不转义），indent 可选。"""
         _atomic_write_json_impl(self.project_root / path, data, indent=indent)

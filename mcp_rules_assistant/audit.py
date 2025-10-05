@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -11,7 +11,9 @@ def _now_iso() -> str:
 
 
 def log_security_event(
-    project_root: Path, event: str, details: dict[str, Any] | None = None,
+    project_root: Path,
+    event: str,
+    details: dict[str, Any] | None = None,
 ) -> None:
     """Append a structured security audit entry under .mcp/dashboard/security_audit.jsonl.
 

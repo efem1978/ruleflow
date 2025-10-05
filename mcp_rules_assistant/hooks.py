@@ -491,7 +491,9 @@ if __name__ == "__main__":
             pass
         try:
             run_cmd(
-                ["git", "config", "commit.template", str(tmpl)], cwd=root, check=False,
+                ["git", "config", "commit.template", str(tmpl)],
+                cwd=root,
+                check=False,
             )
             out["commit_template"] = str(tmpl)
         except Exception:

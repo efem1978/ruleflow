@@ -87,7 +87,9 @@ def license_generate(
     machine: str = typer.Option("", "--machine", help="机器指纹（可留空）"),
     alg: str = typer.Option("hs256", "--alg", help="hs256/rs256/ed25519"),
     private_key: Optional[str] = typer.Option(
-        None, "--private-key", help="rs256/ed25519 私钥 PEM 路径",
+        None,
+        "--private-key",
+        help="rs256/ed25519 私钥 PEM 路径",
     ),
     out: Optional[str] = typer.Option(None, "--out", help="输出路径（默认打印）"),
 ) -> None:
@@ -158,7 +160,8 @@ def precommit_migrate_stages() -> None:
                             changed = True
     if changed:
         cfg.write_text(
-            yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding="utf-8",
+            yaml.safe_dump(data, sort_keys=False, allow_unicode=True),
+            encoding="utf-8",
         )
     rprint({"ok": True, "changed": changed, "path": str(cfg)})
 
@@ -190,7 +193,9 @@ def version() -> None:
 @app.command("diagnose-bundle")
 def diagnose_bundle(
     out: Optional[str] = typer.Option(
-        None, "--out", help="输出路径（默认 diagnostics-<ts>.tar.gz）",
+        None,
+        "--out",
+        help="输出路径（默认 diagnostics-<ts>.tar.gz）",
     ),
 ) -> None:
     """打包常用诊断工件为 tar.gz（coverage/pytest/near/.mcp 状态与规则/计划）。
@@ -298,7 +303,9 @@ def rules_validate() -> None:
 def rules_explain(
     json_out: bool = typer.Option(False, "--json", help="以 JSON 输出，便于管道处理"),
     with_suggestions: str = typer.Option(
-        "none", "--with-suggestions", help="建议输出：none/short",
+        "none",
+        "--with-suggestions",
+        help="建议输出：none/short",
     ),
 ) -> None:
     """读取 .mcp/rules_compiled.json 并输出关键策略摘要（覆盖率阈值/门禁偏好/安全与容器策略/冲突数/建议数）。"""
@@ -407,7 +414,9 @@ def rules_explain(
 @app.command("rules-onboard")
 def rules_onboard(
     scenario: str = typer.Option(
-        "personal", "--scenario", help="personal/pro/enterprise/institution",
+        "personal",
+        "--scenario",
+        help="personal/pro/enterprise/institution",
     ),
     complexity: str = typer.Option("small", "--complexity", help="small/medium/large"),
     dev_mode: str = typer.Option("tdd", "--dev-mode", help="tdd/bdd/doc/spike"),
@@ -447,7 +456,8 @@ def rules_onboard(
         perf["on_push"] = on_push
         data["performance"] = perf
         p.write_text(
-            yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding="utf-8",
+            yaml.safe_dump(data, sort_keys=False, allow_unicode=True),
+            encoding="utf-8",
         )
         rprint(
             {
@@ -476,7 +486,9 @@ def rules_onboard(
 @app.command("env-autotune")
 def env_autotune(
     apply: bool = typer.Option(
-        False, "--apply/--dry-run", help="写入配置或仅显示 diff",
+        False,
+        "--apply/--dry-run",
+        help="写入配置或仅显示 diff",
     ),
     verbose: bool = typer.Option(False, "--verbose", help="打印更多诊断信息"),
 ):
@@ -652,7 +664,9 @@ def ide_scaffold(
 @app.command("compliance-commitment")
 def compliance_commitment(
     out: Optional[str] = typer.Option(
-        None, "--out", help="写入到指定路径（默认写入 .mcp/compliance.md）",
+        None,
+        "--out",
+        help="写入到指定路径（默认写入 .mcp/compliance.md）",
     ),
     dry: bool = typer.Option(False, "--dry-run", help="仅打印，不写入"),
 ) -> None:
@@ -679,7 +693,9 @@ def compliance_commitment(
 @app.command("cleanup")
 def cleanup(
     artifacts: bool = typer.Option(
-        True, "--artifacts/--no-artifacts", help="清理测试与覆盖率工件",
+        True,
+        "--artifacts/--no-artifacts",
+        help="清理测试与覆盖率工件",
     ),
 ) -> None:
     """清理常见工件（coverage.xml/.coverage/.pytest_cache/cov*.json 等）。"""
@@ -743,7 +759,8 @@ def coverage() -> None:
     for it in weak:
         delta = float(
             it.get(
-                "delta", float(it.get("threshold", 0)) - float(it.get("coverage", 0)),
+                "delta",
+                float(it.get("threshold", 0)) - float(it.get("coverage", 0)),
             ),
         )
         rprint(
@@ -824,10 +841,12 @@ def coverage_tree() -> None:
 @app.command("coverage-near")
 def coverage_near(
     within: Optional[float] = typer.Option(
-        None, help="距阈值百分比（例如 3 = 3%），留空使用配置 coverage.near.within",
+        None,
+        help="距阈值百分比（例如 3 = 3%），留空使用配置 coverage.near.within",
     ),
     top: Optional[int] = typer.Option(
-        None, help="显示前 N 个，留空使用配置 coverage.near.top",
+        None,
+        help="显示前 N 个，留空使用配置 coverage.near.top",
     ),
     policy_prefix: str = typer.Option("", help="仅显示以该前缀开头的文件（可为空）"),
     format: str = typer.Option("text", help="输出格式：text/json/csv"),
@@ -860,7 +879,10 @@ def coverage_near(
     # clamp 1–10%
     within_pct = max(1.0, min(10.0, within_pct))
     res = cov_near(
-        policy=policy, min_module=min_module, within=within_pct / 100.0, top=top_n,
+        policy=policy,
+        min_module=min_module,
+        within=within_pct / 100.0,
+        top=top_n,
     )
     if not res.get("ok"):
         rprint(f"[yellow]{res.get('message', 'coverage.xml 不存在')}[/]")
@@ -939,10 +961,13 @@ def coverage_clean_cache() -> None:
 @app.command("coverage-report")
 def coverage_report(
     json_out: bool = typer.Option(
-        True, "--json/--text", help="以 JSON 输出（默认）或文本",
+        True,
+        "--json/--text",
+        help="以 JSON 输出（默认）或文本",
     ),
     within: Optional[float] = typer.Option(
-        None, help="近阈值窗口（百分比），留空用配置",
+        None,
+        help="近阈值窗口（百分比），留空用配置",
     ),
     top: Optional[int] = typer.Option(None, help="近阈值 Top，留空用配置"),
 ) -> None:
@@ -978,7 +1003,10 @@ def coverage_report(
         raise typer.Exit(1)
     res_grp = cov_groups(policy=policy, min_module=min_module)
     res_near = cov_near(
-        policy=policy, min_module=min_module, within=within_pct / 100.0, top=top_n,
+        policy=policy,
+        min_module=min_module,
+        within=within_pct / 100.0,
+        top=top_n,
     )
 
     if json_out:
@@ -1005,7 +1033,8 @@ def coverage_report(
     for it in weak_list[:20]:
         delta = float(
             it.get(
-                "delta", float(it.get("threshold", 0)) - float(it.get("coverage", 0)),
+                "delta",
+                float(it.get("threshold", 0)) - float(it.get("coverage", 0)),
             ),
         )
         rprint(
@@ -1031,14 +1060,17 @@ def coverage_report(
 @app.command("coverage-export")
 def coverage_export(
     out_dir: str = typer.Option(
-        ".mcp/dashboard", help="输出目录（默认 .mcp/dashboard）",
+        ".mcp/dashboard",
+        help="输出目录（默认 .mcp/dashboard）",
     ),
     weak_top: int = typer.Option(20, help="导出弱项 Top N（默认 20）"),
     near_top: int = typer.Option(
-        50, help="导出近阈值 Top N（默认 50，受 within 限制）",
+        50,
+        help="导出近阈值 Top N（默认 50，受 within 限制）",
     ),
     within: Optional[float] = typer.Option(
-        None, help="近阈值窗口（百分比），留空使用配置 coverage.near.within",
+        None,
+        help="近阈值窗口（百分比），留空使用配置 coverage.near.within",
     ),
 ) -> None:
     """导出覆盖率汇总与 CSV：weak_top.csv / near_top.csv / groups.csv / coverage_summary.json。
@@ -1081,7 +1113,10 @@ def coverage_export(
         raise typer.Exit(1)
     res_grp = cov_groups(policy=policy, min_module=min_module)
     res_near = cov_near(
-        policy=policy, min_module=min_module, within=within_pct / 100.0, top=near_top,
+        policy=policy,
+        min_module=min_module,
+        within=within_pct / 100.0,
+        top=near_top,
     )
 
     # JSON summary
@@ -1094,7 +1129,8 @@ def coverage_export(
         "min_module": min_module,
     }
     (outp / "coverage_summary.json").write_text(
-        _json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8",
+        _json.dumps(payload, ensure_ascii=False, indent=2),
+        encoding="utf-8",
     )
 
     # weak_top.csv
@@ -1178,7 +1214,9 @@ def coverage_export(
 @app.command("diagnose")
 def diagnose(
     json_out: bool = typer.Option(
-        True, "--json/--text", help="以 JSON 输出（默认）或文本",
+        True,
+        "--json/--text",
+        help="以 JSON 输出（默认）或文本",
     ),
 ) -> None:
     """诊断环境/工具/配置与关键文件存在性（便于排障）。"""
@@ -1354,7 +1392,8 @@ def doctor(
             if rc.returncode != 0 and fix:
                 _log("[doctor] installing workspace package (editable) …")
                 subprocess.run(
-                    [str(vpy), "-m", "pip", "install", "-e", str(root)], check=True,
+                    [str(vpy), "-m", "pip", "install", "-e", str(root)],
+                    check=True,
                 )
                 actions.append("pip_install_editable")
         else:
@@ -1450,7 +1489,9 @@ def _scan_plan_tasks(text: str) -> tuple[list[str], list[str]]:
 
 @app.command("plan-tasks")
 def plan_tasks(
-    json_out: bool = typer.Option(True, "--json/--text", help="输出 JSON（默认）或文本"),
+    json_out: bool = typer.Option(
+        True, "--json/--text", help="输出 JSON（默认）或文本"
+    ),
 ) -> None:
     """仅从 .mcp/plan.md 提取任务清单（权威）。"""
     p = ensure_plan()
@@ -1609,7 +1650,8 @@ def license_require_on() -> None:
     lic["required"] = True
     data["license"] = lic
     p.write_text(
-        _yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding="utf-8",
+        _yaml.safe_dump(data, sort_keys=False, allow_unicode=True),
+        encoding="utf-8",
     )
     rprint("[green]✔ license.required 已启用（发布模式）[/]")
 
@@ -1629,7 +1671,8 @@ def license_require_off() -> None:
     lic["required"] = False
     data["license"] = lic
     p.write_text(
-        _yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding="utf-8",
+        _yaml.safe_dump(data, sort_keys=False, allow_unicode=True),
+        encoding="utf-8",
     )
     rprint("[green]✔ license.required 已关闭（开发模式）[/]")
 
@@ -1638,12 +1681,14 @@ def license_require_off() -> None:
 def ci_set(
     hadolint: Optional[bool] = typer.Option(None, help="是否在 CI 中启用 hadolint"),
     semgrep_config: Optional[str] = typer.Option(
-        None, help="semgrep 规则集（如 auto/p/ci 等）",
+        None,
+        help="semgrep 规则集（如 auto/p/ci 等）",
     ),
     hadolint_image: Optional[str] = typer.Option(None, help="hadolint 容器镜像"),
     hadolint_args: Optional[str] = typer.Option(None, help="hadolint 额外参数"),
     vscode_required: Optional[bool] = typer.Option(
-        None, help="是否强制在 CI 中运行 VS Code 扩展测试（不再按文件存在性判断）",
+        None,
+        help="是否强制在 CI 中运行 VS Code 扩展测试（不再按文件存在性判断）",
     ),
 ) -> None:
     """更新项目配置文件 `.mcp/assistant.yaml` 中的 CI 相关字段。未传的字段保持不变。"""
@@ -1676,7 +1721,8 @@ def ci_set(
         raise typer.Exit(0)
     data["ci"] = ci
     p.write_text(
-        yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding="utf-8",
+        yaml.safe_dump(data, sort_keys=False, allow_unicode=True),
+        encoding="utf-8",
     )
     rprint("[green]✔ CI 配置已更新[/]")
 
@@ -1710,7 +1756,8 @@ def ci_validate() -> None:
             "checks": checks,
         }
         (dash / "release_check.json").write_text(
-            _json.dumps(summary, ensure_ascii=False), encoding="utf-8",
+            _json.dumps(summary, ensure_ascii=False),
+            encoding="utf-8",
         )
     except Exception:
         pass
@@ -1804,7 +1851,9 @@ def insert_security_samples() -> None:
 @app.command("rules-export")
 def rules_export(
     out_dir: Optional[str] = typer.Option(
-        None, "--out-dir", help="输出目录（为空时打印到标准输出）",
+        None,
+        "--out-dir",
+        help="输出目录（为空时打印到标准输出）",
     ),
     format: str = typer.Option("all", "--format", help="md/json/all（默认 all）"),
 ) -> None:
@@ -1822,15 +1871,18 @@ def rules_export(
         if want_md:
             if compiled_md.exists():
                 (outp / "rules_compiled.md").write_text(
-                    compiled_md.read_text(encoding="utf-8"), encoding="utf-8",
+                    compiled_md.read_text(encoding="utf-8"),
+                    encoding="utf-8",
                 )
             if sugg_md.exists():
                 (outp / "rules_suggestions.md").write_text(
-                    sugg_md.read_text(encoding="utf-8"), encoding="utf-8",
+                    sugg_md.read_text(encoding="utf-8"),
+                    encoding="utf-8",
                 )
         if want_json and compiled_json.exists():
             (outp / "rules_compiled.json").write_text(
-                compiled_json.read_text(encoding="utf-8"), encoding="utf-8",
+                compiled_json.read_text(encoding="utf-8"),
+                encoding="utf-8",
             )
         rprint({"ok": True, "out_dir": str(outp)})
         return
@@ -1852,10 +1904,12 @@ def prepare_env(
     create: bool = typer.Option(True, help="创建虚拟环境 .mcp/venv"),
     install: bool = typer.Option(False, help="在 venv 中安装工具链"),
     dry_run: bool = typer.Option(
-        False, help="仅输出计划，不执行（等效于 --no-create --install False）",
+        False,
+        help="仅输出计划，不执行（等效于 --no-create --install False）",
     ),
     packages: Optional[str] = typer.Option(
-        None, help="自定义安装包列表，逗号分隔（在 --install 时生效）",
+        None,
+        help="自定义安装包列表，逗号分隔（在 --install 时生效）",
     ),
 ) -> None:
     """准备本地开发环境（创建 venv 并安装工具）。
@@ -1888,7 +1942,8 @@ def prepare_env(
 @app.command("coverage-near-set")
 def coverage_near_set(
     within: float = typer.Option(
-        3.0, help="距阈值百分比（例如 3 = 3%），范围建议 1–10",
+        3.0,
+        help="距阈值百分比（例如 3 = 3%），范围建议 1–10",
     ),
     top: int = typer.Option(50, help="显示前 N 个（默认 50）"),
 ) -> None:
@@ -1903,7 +1958,8 @@ def coverage_near_set(
     cov["near"] = {"within": float(within) / 100.0, "top": int(top)}
     data["coverage"] = cov
     p.write_text(
-        yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding="utf-8",
+        yaml.safe_dump(data, sort_keys=False, allow_unicode=True),
+        encoding="utf-8",
     )
     rprint({"coverage": {"near": cov.get("near")}})
 
@@ -1964,12 +2020,13 @@ def project_list(
         else:
             rprint("[yellow]未找到项目配置（~/.mcp/projects.yaml）[/]")
         return
-    
+
     import yaml
+
     try:
         data = yaml.safe_load(projects_file.read_text(encoding="utf-8"))
         projects = data.get("projects", [])
-        
+
         if json_out:
             print(_json.dumps({"projects": projects}, ensure_ascii=False))
         else:
@@ -1987,45 +2044,49 @@ def project_list(
 @app.command("project-add")
 def project_add(
     path: str = typer.Argument(..., help="项目路径"),
-    name: Optional[str] = typer.Option(None, "--name", help="项目名称（默认使用路径最后一段）"),
+    name: Optional[str] = typer.Option(
+        None, "--name", help="项目名称（默认使用路径最后一段）"
+    ),
 ) -> None:
     """添加新项目到项目列表。"""
     import yaml
-    
+
     proj_path = Path(path).resolve()
     if not proj_path.exists():
         rprint(f"[red]路径不存在：{proj_path}[/]")
         raise typer.Exit(1)
-    
+
     if not proj_path.is_dir():
         rprint(f"[red]路径不是目录：{proj_path}[/]")
         raise typer.Exit(1)
-    
+
     proj_name = name or proj_path.name
-    
+
     projects_file = Path.home() / ".mcp" / "projects.yaml"
     projects_file.parent.mkdir(parents=True, exist_ok=True)
-    
+
     if projects_file.exists():
         data = yaml.safe_load(projects_file.read_text(encoding="utf-8")) or {}
     else:
         data = {}
-    
+
     projects = data.get("projects", [])
-    
+
     # 检查是否已存在
     for p in projects:
         if p.get("path") == str(proj_path):
             rprint(f"[yellow]项目已存在：{proj_name}[/]")
             return
-    
-    projects.append({
-        "name": proj_name,
-        "path": str(proj_path),
-        "active": False,
-        "added_at": int(time.time()),
-    })
-    
+
+    projects.append(
+        {
+            "name": proj_name,
+            "path": str(proj_path),
+            "active": False,
+            "added_at": int(time.time()),
+        }
+    )
+
     data["projects"] = projects
     projects_file.write_text(yaml.safe_dump(data, allow_unicode=True), encoding="utf-8")
     rprint(f"[green]✔ 项目已添加：{proj_name}[/] → {proj_path}")
@@ -2037,16 +2098,16 @@ def project_switch(
 ) -> None:
     """切换到指定项目（标记为active）。"""
     import yaml
-    
+
     projects_file = Path.home() / ".mcp" / "projects.yaml"
     if not projects_file.exists():
         rprint("[red]未找到项目配置（~/.mcp/projects.yaml）[/]")
         rprint("提示：使用 project-add 命令添加项目")
         raise typer.Exit(1)
-    
+
     data = yaml.safe_load(projects_file.read_text(encoding="utf-8")) or {}
     projects = data.get("projects", [])
-    
+
     found = False
     for p in projects:
         if p.get("name") == name:
@@ -2054,14 +2115,14 @@ def project_switch(
             found = True
         else:
             p["active"] = False
-    
+
     if not found:
         rprint(f"[red]项目不存在：{name}[/]")
         rprint("可用项目：")
         for p in projects:
             rprint(f"  - {p.get('name')}")
         raise typer.Exit(1)
-    
+
     data["projects"] = projects
     projects_file.write_text(yaml.safe_dump(data, allow_unicode=True), encoding="utf-8")
     rprint(f"[green]✔ 已切换到项目：{name}[/]")
@@ -2074,31 +2135,31 @@ def project_remove(
 ) -> None:
     """从项目列表中移除项目（不删除实际文件）。"""
     import yaml
-    
+
     projects_file = Path.home() / ".mcp" / "projects.yaml"
     if not projects_file.exists():
         rprint("[red]未找到项目配置[/]")
         raise typer.Exit(1)
-    
+
     data = yaml.safe_load(projects_file.read_text(encoding="utf-8")) or {}
     projects = data.get("projects", [])
-    
+
     found = None
     for i, p in enumerate(projects):
         if p.get("name") == name:
             found = i
             break
-    
+
     if found is None:
         rprint(f"[red]项目不存在：{name}[/]")
         raise typer.Exit(1)
-    
+
     if not force:
         confirm = typer.confirm(f"确认移除项目 '{name}' ?")
         if not confirm:
             rprint("[yellow]已取消[/]")
             return
-    
+
     removed = projects.pop(found)
     data["projects"] = projects
     projects_file.write_text(yaml.safe_dump(data, allow_unicode=True), encoding="utf-8")
@@ -2112,7 +2173,7 @@ def project_current(
 ) -> None:
     """显示当前活动项目。"""
     import yaml
-    
+
     projects_file = Path.home() / ".mcp" / "projects.yaml"
     if not projects_file.exists():
         if json_out:
@@ -2120,16 +2181,16 @@ def project_current(
         else:
             rprint("[yellow]未找到项目配置[/]")
         return
-    
+
     data = yaml.safe_load(projects_file.read_text(encoding="utf-8")) or {}
     projects = data.get("projects", [])
-    
+
     current = None
     for p in projects:
         if p.get("active"):
             current = p
             break
-    
+
     if json_out:
         print(_json.dumps({"current": current}, ensure_ascii=False))
     else:

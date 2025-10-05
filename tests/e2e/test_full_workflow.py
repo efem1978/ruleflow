@@ -9,7 +9,6 @@ import tempfile
 from pathlib import Path
 
 
-
 class TestFullWorkflow:
     """Test complete workflow from installation to usage"""
 
@@ -28,7 +27,9 @@ class TestFullWorkflow:
         """Test basic CLI commands work"""
         # Test help command
         result = subprocess.run(
-            ["mcp-rules-assistant", "--help"], capture_output=True, text=True,
+            ["mcp-rules-assistant", "--help"],
+            capture_output=True,
+            text=True,
         )
         assert result.returncode == 0
         assert "MCP Rules & Context Assistant CLI" in result.stdout
@@ -45,14 +46,18 @@ class TestFullWorkflow:
 
         # Initialize MCP
         result = subprocess.run(
-            ["mcp-rules-assistant", "init"], capture_output=True, text=True,
+            ["mcp-rules-assistant", "init"],
+            capture_output=True,
+            text=True,
         )
         assert result.returncode == 0
         assert os.path.exists(".mcp/assistant.yaml")
 
         # Ingest rules
         result = subprocess.run(
-            ["mcp-rules-assistant", "ingest-rules", "."], capture_output=True, text=True,
+            ["mcp-rules-assistant", "ingest-rules", "."],
+            capture_output=True,
+            text=True,
         )
         assert result.returncode == 0
 
@@ -83,14 +88,18 @@ class TestFullWorkflow:
 
         # Test coverage command
         result = subprocess.run(
-            ["mcp-rules-assistant", "coverage"], capture_output=True, text=True,
+            ["mcp-rules-assistant", "coverage"],
+            capture_output=True,
+            text=True,
         )
         assert result.returncode == 0
 
     def test_diagnose_command(self):
         """Test diagnostic functionality"""
         result = subprocess.run(
-            ["mcp-rules-assistant", "diagnose"], capture_output=True, text=True,
+            ["mcp-rules-assistant", "diagnose"],
+            capture_output=True,
+            text=True,
         )
         assert result.returncode == 0
 
@@ -146,7 +155,11 @@ class TestSecurityCompliance:
         import re
 
         for py_file in project_root.rglob("*.py"):
-            if "test" in str(py_file) or ".mcp" in str(py_file):
+            if (
+                "test" in str(py_file)
+                or ".mcp" in str(py_file)
+                or ".venv" in str(py_file)
+            ):
                 continue
 
             content = py_file.read_text()
@@ -183,7 +196,9 @@ class TestPerformance:
 
         start_time = time.time()
         result = subprocess.run(
-            ["mcp-rules-assistant", "--help"], capture_output=True, text=True,
+            ["mcp-rules-assistant", "--help"],
+            capture_output=True,
+            text=True,
         )
         end_time = time.time()
 

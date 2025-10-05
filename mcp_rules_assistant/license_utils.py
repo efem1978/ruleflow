@@ -4,7 +4,7 @@ import base64
 import hashlib
 import json
 import os
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
 
@@ -61,7 +61,10 @@ def _verify_rs256(payload: bytes, signature_b64: str) -> bool:
         sig = _b64url_decode(signature_b64)
         # mypy: pub 是 RSAPublicKey，签名 API 与参数匹配
         cast(RSAPublicKey, pub).verify(
-            sig, payload, padding.PKCS1v15(), hashes.SHA256(),
+            sig,
+            payload,
+            padding.PKCS1v15(),
+            hashes.SHA256(),
         )
         return True
     except Exception:
@@ -152,7 +155,9 @@ def _sign_rs256(payload: bytes, private_key_pem: bytes) -> str:
         if not isinstance(key, RSAPrivateKey):
             raise RuntimeError("rs256 signing requires an RSA private key")
         sig = cast(RSAPrivateKey, key).sign(
-            payload, padding.PKCS1v15(), hashes.SHA256(),
+            payload,
+            padding.PKCS1v15(),
+            hashes.SHA256(),
         )
         return base64.urlsafe_b64encode(sig).rstrip(b"=").decode("ascii")
     except Exception as e:  # pragma: no cover - depends on optional crypto

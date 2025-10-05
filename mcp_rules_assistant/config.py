@@ -195,7 +195,8 @@ def get_min_module(cfg: dict[str, Any], default: float = 0.9) -> float:
     )
     return float(
         ((perf.get("on_push", {}) or {}).get("coverage", {}) or {}).get(
-            "min_module", default,
+            "min_module",
+            default,
         ),
     )
 

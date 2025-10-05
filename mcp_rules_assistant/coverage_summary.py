@@ -97,7 +97,8 @@ def _read_classes_with_cache(project_root: Path, coverage_xml: str) -> list[Clas
                 import logging
 
                 logging.getLogger(__name__).debug(
-                    "[coverage] class item lines conversion skipped: %r", e,
+                    "[coverage] class item lines conversion skipped: %r",
+                    e,
                 )
             items.append(row)
         # write cache
@@ -107,7 +108,8 @@ def _read_classes_with_cache(project_root: Path, coverage_xml: str) -> list[Clas
                 cache["files"][str(path)] = {"sig": sig, "items": items}
                 cpath.parent.mkdir(parents=True, exist_ok=True)
                 cpath.write_text(
-                    json.dumps(cache, ensure_ascii=False, indent=2), encoding="utf-8",
+                    json.dumps(cache, ensure_ascii=False, indent=2),
+                    encoding="utf-8",
                 )
         except Exception as e:  # pragma: no cover (I/O failures ignored)
             _log.debug("[coverage] cache write skipped: %r", e)
@@ -118,7 +120,9 @@ def _read_classes_with_cache(project_root: Path, coverage_xml: str) -> list[Clas
 
 
 def _threshold_for_file(
-    file: str, policy: dict[str, float] | None, default: float,
+    file: str,
+    policy: dict[str, float] | None,
+    default: float,
 ) -> float:
     """Decide threshold with priority: suffix match > prefix match > default.
 
@@ -380,7 +384,8 @@ def summarize_tree(
 
     def get_child(node: dict[str, object], name: str) -> dict[str, object]:
         children = node.setdefault(
-            "children", {},
+            "children",
+            {},
         )  # may be corrupted by external writes
         if not isinstance(children, dict):  # defensive: avoid assert in optimized mode
             children = {}

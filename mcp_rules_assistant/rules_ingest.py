@@ -4,10 +4,10 @@ import json as _json
 import platform
 import re
 import shutil
+from collections.abc import Iterable
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
-from collections.abc import Iterable
 
 RAW_PATH = Path(".mcp/rules_raw.json")
 COMPILED_JSON = Path(".mcp/rules_compiled.json")
@@ -329,7 +329,8 @@ def _extract_percentage(text: str) -> float | None:
     if "覆盖率" in text or "core" in text or "核心" in text or "coverage" in text:
         # 先处理“成”，包括可选的小数位：九成五 -> 95%
         m7b = re.search(
-            r"([一二三四五六七八九十两])\s*成\s*([一二三四五六七八九两])", text,
+            r"([一二三四五六七八九十两])\s*成\s*([一二三四五六七八九两])",
+            text,
         )
         if m7b:
             a = _chinese_numeral_to_int(m7b.group(1))
@@ -342,7 +343,8 @@ def _extract_percentage(text: str) -> float | None:
             if val is not None:
                 return min(100, (val * 10 if val <= 10 else val))
         m5 = re.search(
-            r"(不少于|不低于|至少)\s*([一二三四五六七八九十百零两]{1,6})", text,
+            r"(不少于|不低于|至少)\s*([一二三四五六七八九十百零两]{1,6})",
+            text,
         )
         if m5:
             val = _chinese_numeral_to_int(m5.group(2))
@@ -350,7 +352,8 @@ def _extract_percentage(text: str) -> float | None:
                 return val
         # 兜底：直接跟随中文数字（如“覆盖率 一百零一”）
         m5b = re.search(
-            r"(?:覆盖率|core|核心|coverage)\s*([一二三四五六七八九十百零两]{1,6})", text,
+            r"(?:覆盖率|core|核心|coverage)\s*([一二三四五六七八九十百零两]{1,6})",
+            text,
         )
         if m5b:
             val = _chinese_numeral_to_int(m5b.group(1))
@@ -598,14 +601,16 @@ def ingest(paths: list[str], project_root: Path | None = None) -> dict[str, Any]
     raw = {"items": [asdict(i) for i in items], "files": [str(f) for f in files]}
     (root / RAW_PATH).parent.mkdir(parents=True, exist_ok=True)
     (root / RAW_PATH).write_text(
-        _json.dumps(raw, ensure_ascii=False, indent=2), encoding="utf-8",
+        _json.dumps(raw, ensure_ascii=False, indent=2),
+        encoding="utf-8",
     )
     # 落盘缓存
     try:
         cache_path.parent.mkdir(parents=True, exist_ok=True)
         cache["version"] = 1
         cache_path.write_text(
-            _json.dumps(cache, ensure_ascii=False, indent=2), encoding="utf-8",
+            _json.dumps(cache, ensure_ascii=False, indent=2),
+            encoding="utf-8",
         )
     except Exception:
         pass  # nosec B110 - cache write best-effort
@@ -791,7 +796,8 @@ def compile_rules(project_root: Path | None = None) -> dict[str, Any]:
         },
     }
     (root / COMPILED_JSON).write_text(
-        _json.dumps(compiled, ensure_ascii=False, indent=2), encoding="utf-8",
+        _json.dumps(compiled, ensure_ascii=False, indent=2),
+        encoding="utf-8",
     )
     (root / COMPILED_MD).write_text(_to_markdown(compiled), encoding="utf-8")
     (root / SUGGESTIONS_MD).write_text(_to_suggestions_md(compiled), encoding="utf-8")
@@ -884,7 +890,8 @@ def _to_markdown(compiled: dict[str, Any]) -> str:
 
 
 def _build_suggestions(
-    policy: dict[str, Any], conflicts: list[dict[str, Any]],
+    policy: dict[str, Any],
+    conflicts: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
     sugg: list[dict[str, Any]] = []
     for c in conflicts:

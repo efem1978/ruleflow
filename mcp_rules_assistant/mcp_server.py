@@ -8,6 +8,7 @@ import sys
 import time
 import uuid
 from dataclasses import asdict
+from datetime import UTC
 from pathlib import Path
 from typing import Any
 
@@ -34,7 +35,6 @@ from .policy_keys import (
 from .process import run_cmd
 from .rules import Complexity, DevMode, Scenario, choose_thresholds, explain_thresholds
 from .tools import registry, setup_default_tools
-from datetime import UTC
 
 # MIME constants
 MIME_JSON = "application/json"
@@ -125,9 +125,7 @@ class JsonRpcServer:
         # Only check environment variable if not in strict isolation
         try:
             env = (
-                str(os.environ.get("RULEFLOW_ALLOW_MEMORY_APPEND", "0"))
-                .strip()
-                .lower()
+                str(os.environ.get("RULEFLOW_ALLOW_MEMORY_APPEND", "0")).strip().lower()
             )
             if env in {"1", "true", "on", "yes", "y"}:
                 return True
@@ -200,7 +198,8 @@ class JsonRpcServer:
                 import logging  # pragma: no cover
 
                 logging.getLogger(__name__).debug(
-                    "[mcp] license.required parse failed: %r", e,
+                    "[mcp] license.required parse failed: %r",
+                    e,
                 )  # pragma: no cover
             except Exception:  # pragma: no cover
                 pass
@@ -249,7 +248,8 @@ class JsonRpcServer:
             info_list.append(entry)
             data["info"] = info_list[-50:]
             p.write_text(
-                json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8",
+                json.dumps(data, ensure_ascii=False, indent=2),
+                encoding="utf-8",
             )
         except Exception:
             pass
@@ -266,7 +266,8 @@ class JsonRpcServer:
                 import logging  # pragma: no cover
 
                 logging.getLogger(__name__).debug(
-                    "[mcp] license verify exception: %r", e,
+                    "[mcp] license verify exception: %r",
+                    e,
                 )  # pragma: no cover
             except Exception:  # pragma: no cover
                 pass
@@ -296,7 +297,8 @@ class JsonRpcServer:
                     import logging  # pragma: no cover
 
                     logging.getLogger(__name__).debug(
-                        "[mcp] exec.max_request_bytes parse: %r", e,
+                        "[mcp] exec.max_request_bytes parse: %r",
+                        e,
                     )  # pragma: no cover
                 except Exception:  # pragma: no cover
                     pass
@@ -312,7 +314,8 @@ class JsonRpcServer:
                     import logging  # pragma: no cover
 
                     logging.getLogger(__name__).debug(
-                        "[mcp] request size calc failed: %r", e,
+                        "[mcp] request size calc failed: %r",
+                        e,
                     )  # pragma: no cover
                 except Exception:  # pragma: no cover
                     pass
@@ -669,7 +672,8 @@ class JsonRpcServer:
                     import logging
 
                     logging.getLogger(__name__).debug(
-                        "[mcp] add_link switched_to failed: %r", e,
+                        "[mcp] add_link switched_to failed: %r",
+                        e,
                     )
                 # 切换项目根
                 self.project_root = p
@@ -693,7 +697,8 @@ class JsonRpcServer:
                         import logging
 
                         logging.getLogger(__name__).debug(
-                            "[mcp] add_link switched_from failed: %r", e,
+                            "[mcp] add_link switched_from failed: %r",
+                            e,
                         )
             return {"ok": True, "root": str(self.project_root)}
         if name == "project.link":
@@ -732,7 +737,9 @@ class JsonRpcServer:
                 self.mm.append_turn(role, content, meta)
                 try:
                     _audit(
-                        self.project_root, "memory.append", {"role": role, "meta": meta},
+                        self.project_root,
+                        "memory.append",
+                        {"role": role, "meta": meta},
                     )
                 except Exception:
                     pass
@@ -870,7 +877,8 @@ class JsonRpcServer:
                                 try:
                                     hard_gate = bool(
                                         self._get_exec_flag(
-                                            "disallow_patterns_hard", False,
+                                            "disallow_patterns_hard",
+                                            False,
                                         ),
                                     )
                                 except Exception:
@@ -884,7 +892,8 @@ class JsonRpcServer:
                         import logging
 
                         logging.getLogger(__name__).debug(
-                            "[mcp] disallow_patterns parse skipped: %r", e,
+                            "[mcp] disallow_patterns parse skipped: %r",
+                            e,
                         )
                 # 路径安全：禁止绝对路径与越权（必须在项目根内）
                 if "path" not in f:
@@ -933,7 +942,8 @@ class JsonRpcServer:
                         import logging
 
                         logging.getLogger(__name__).debug(
-                            "[mcp] exec_cfg strict flag parse: %r", e,
+                            "[mcp] exec_cfg strict flag parse: %r",
+                            e,
                         )
                         strict_on = False
                     if strict_on:
@@ -1122,10 +1132,14 @@ class JsonRpcServer:
         within = float(args.get("within", near_cfg.get("within", 0.03)))
         top = int(args.get("top", near_cfg.get("top", 50)))
         res_sum = covsum.summarize(
-            project_root=self.project_root, policy=policy, min_module=min_module,
+            project_root=self.project_root,
+            policy=policy,
+            min_module=min_module,
         )
         res_grp = covsum.summarize_groups(
-            project_root=self.project_root, policy=policy, min_module=min_module,
+            project_root=self.project_root,
+            policy=policy,
+            min_module=min_module,
         )
         res_near = covsum.summarize_near(
             project_root=self.project_root,
@@ -1175,7 +1189,9 @@ class JsonRpcServer:
 
         min_module, policy = self._coverage_config_basics()
         res_sum = covsum.summarize(
-            project_root=self.project_root, policy=policy, min_module=min_module,
+            project_root=self.project_root,
+            policy=policy,
+            min_module=min_module,
         )
         if not res_sum.get("ok"):
             return {
@@ -1183,7 +1199,9 @@ class JsonRpcServer:
                 "message": res_sum.get("message", "coverage.xml missing"),
             }
         res_grp = covsum.summarize_groups(
-            project_root=self.project_root, policy=policy, min_module=min_module,
+            project_root=self.project_root,
+            policy=policy,
+            min_module=min_module,
         )
         res_near = covsum.summarize_near(
             project_root=self.project_root,
@@ -1200,7 +1218,8 @@ class JsonRpcServer:
             "min_module": min_module,
         }
         (outp / "coverage_summary.json").write_text(
-            _json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8",
+            _json.dumps(payload, ensure_ascii=False, indent=2),
+            encoding="utf-8",
         )
         weak_list = list(payload["weak"]) if isinstance(payload["weak"], list) else []
         for it in weak_list:
@@ -1211,7 +1230,9 @@ class JsonRpcServer:
             except Exception:
                 it["delta"] = 0.0
         weak_sorted = sorted(
-            weak_list, key=lambda x: x.get("delta", 0.0), reverse=True,
+            weak_list,
+            key=lambda x: x.get("delta", 0.0),
+            reverse=True,
         )[:weak_top]
         with (outp / "weak_top.csv").open("w", newline="", encoding="utf-8") as f:
             w = _csv.writer(f)
@@ -1304,7 +1325,10 @@ class JsonRpcServer:
             if v is not None and not isinstance(v, str):
                 raise ValueError(f"{k} must be string when provided")
         progress_mod.update_plan_fields(
-            self.project_root, status=status, current=current, nxt=nxt,
+            self.project_root,
+            status=status,
+            current=current,
+            nxt=nxt,
         )
         return {"ok": True}
 
@@ -1519,7 +1543,8 @@ class JsonRpcServer:
         # 写回配置
         if changed:
             atomic_write_text(
-                cfg_path, yaml.safe_dump(data, sort_keys=False, allow_unicode=True),
+                cfg_path,
+                yaml.safe_dump(data, sort_keys=False, allow_unicode=True),
             )
             self.cfg = load_config(self.project_root)
         # 生成门禁摘要
@@ -1595,7 +1620,8 @@ class JsonRpcServer:
             import logging
 
             logging.getLogger(__name__).debug(
-                "[mcp] project size heuristic failed: %r", e,
+                "[mcp] project size heuristic failed: %r",
+                e,
             )
         from .rules import Complexity, Scenario, choose_thresholds, explain_thresholds
 
@@ -1742,7 +1768,8 @@ class JsonRpcServer:
             import json as _json
 
             (base / "settings.sample.json").write_text(
-                _json.dumps(sample, ensure_ascii=False, indent=2), encoding="utf-8",
+                _json.dumps(sample, ensure_ascii=False, indent=2),
+                encoding="utf-8",
             )
             (base / "README.md").write_text(
                 "VS Code/Cursor: 将 settings.sample.json 合并至工作区 .vscode/settings.json；在命令面板执行 ‘RuleFlow: Open Panel’ 或 Copilot MCP 面板中选择 ruleflow。\n",
@@ -2075,7 +2102,8 @@ English summary:
             data["execution"] = ex
         cfg_path.parent.mkdir(parents=True, exist_ok=True)
         atomic_write_text(
-            cfg_path, yaml.safe_dump(data, sort_keys=False, allow_unicode=True),
+            cfg_path,
+            yaml.safe_dump(data, sort_keys=False, allow_unicode=True),
         )
         self.cfg = load_config(self.project_root)
         return {"ok": True, "ci": ci}
@@ -2085,7 +2113,9 @@ English summary:
         min_module, policy = self._coverage_config_basics()
         if uri.endswith("/groups"):
             summary = covsum.summarize_groups(
-                project_root=self.project_root, policy=policy, min_module=min_module,
+                project_root=self.project_root,
+                policy=policy,
+                min_module=min_module,
             )
             return {
                 "mimeType": MIME_JSON,
@@ -2093,7 +2123,9 @@ English summary:
             }
         if uri.endswith("/tree"):
             summary = covsum.summarize_tree(
-                project_root=self.project_root, policy=policy, min_module=min_module,
+                project_root=self.project_root,
+                policy=policy,
+                min_module=min_module,
             )
             return {
                 "mimeType": MIME_JSON,
@@ -2115,10 +2147,14 @@ English summary:
         if uri.endswith("/report"):
             within, top = self._coverage_near_defaults()
             res_sum = covsum.summarize(
-                project_root=self.project_root, policy=policy, min_module=min_module,
+                project_root=self.project_root,
+                policy=policy,
+                min_module=min_module,
             )
             res_grp = covsum.summarize_groups(
-                project_root=self.project_root, policy=policy, min_module=min_module,
+                project_root=self.project_root,
+                policy=policy,
+                min_module=min_module,
             )
             res_near = covsum.summarize_near(
                 project_root=self.project_root,
@@ -2143,7 +2179,9 @@ English summary:
                 "text": json.dumps(payload, ensure_ascii=False),
             }
         summary = covsum.summarize(
-            project_root=self.project_root, policy=policy, min_module=min_module,
+            project_root=self.project_root,
+            policy=policy,
+            min_module=min_module,
         )
         return {"mimeType": MIME_JSON, "text": json.dumps(summary, ensure_ascii=False)}
 

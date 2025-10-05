@@ -53,7 +53,9 @@ def _use_process_runner(project_root: Path | None) -> bool:
 
 
 def _run(
-    cmd: list[str], cwd: Path | None = None, env: dict[str, str] | None = None,
+    cmd: list[str],
+    cwd: Path | None = None,
+    env: dict[str, str] | None = None,
 ) -> dict[str, object]:
     """运行外部命令：默认直接使用 subprocess.run；当开启委托开关时，使用统一的 process.run_cmd。
 
@@ -88,7 +90,8 @@ def _run(
             import logging
 
             logging.getLogger(__name__).debug(
-                "[checks] delegate run_cmd fallback: %r", e,
+                "[checks] delegate run_cmd fallback: %r",
+                e,
             )
     # 兼容旧实现：直接 subprocess.run，并从原生 subprocess 模块获取 PIPE
     try:
@@ -228,7 +231,8 @@ def _write_index_meta(project_root: Path, sig: str) -> None:
     meta_path.parent.mkdir(parents=True, exist_ok=True)
     try:
         meta_path.write_text(
-            json.dumps({"sig": sig}, ensure_ascii=False, indent=2), encoding="utf-8",
+            json.dumps({"sig": sig}, ensure_ascii=False, indent=2),
+            encoding="utf-8",
         )
     except Exception:
         pass  # nosec B110 - cache write errors are non-fatal
@@ -275,7 +279,8 @@ def build_test_index(project_root: Path) -> dict[str, list[str]]:
     # 写入缓存
     (project_root / TEST_INDEX_FILE).parent.mkdir(parents=True, exist_ok=True)
     (project_root / TEST_INDEX_FILE).write_text(
-        json.dumps(index, ensure_ascii=False, indent=2), encoding="utf-8",
+        json.dumps(index, ensure_ascii=False, indent=2),
+        encoding="utf-8",
     )
     _write_index_meta(project_root, _compute_tests_signature(project_root))
     return index
@@ -335,7 +340,8 @@ def run_quick_tests(files: list[Path], cwd: Path | None = None) -> dict[str, obj
                     test_paths.add(str(p))
             # 导入关系匹配
             imps = _module_import_candidates(
-                project_root, (project_root / f).resolve() if not f.is_absolute() else f,
+                project_root,
+                (project_root / f).resolve() if not f.is_absolute() else f,
             )
             # 1) 使用索引命中
             for mod in imps:
@@ -356,7 +362,9 @@ def run_quick_tests(files: list[Path], cwd: Path | None = None) -> dict[str, obj
     # 优先级排序：按历史失败次数降序，未知为0
     # 基于失败次数与近期失败的加权排序（近3天+2，近7天+1）
     def sort_by_count(
-        items: list[str], counts: dict[str, int], recent_bonus: dict[str, int],
+        items: list[str],
+        counts: dict[str, int],
+        recent_bonus: dict[str, int],
     ) -> list[str]:
         return sorted(
             items,
@@ -403,20 +411,24 @@ def run_quick_tests(files: list[Path], cwd: Path | None = None) -> dict[str, obj
         if age <= float(decay_cfg["high_days"]) * 24 * 3600:
             if file_str:
                 bonus_tests[file_str] = max(
-                    bonus_tests.get(file_str, 0), int(decay_cfg["high_bonus"]),
+                    bonus_tests.get(file_str, 0),
+                    int(decay_cfg["high_bonus"]),
                 )
             if nid:
                 bonus_nodes[nid] = max(
-                    bonus_nodes.get(nid, 0), int(decay_cfg["high_bonus"]),
+                    bonus_nodes.get(nid, 0),
+                    int(decay_cfg["high_bonus"]),
                 )
         elif age <= float(decay_cfg["mid_days"]) * 24 * 3600:
             if file_str:
                 bonus_tests[file_str] = max(
-                    bonus_tests.get(file_str, 0), int(decay_cfg["mid_bonus"]),
+                    bonus_tests.get(file_str, 0),
+                    int(decay_cfg["mid_bonus"]),
                 )
             if nid:
                 bonus_nodes[nid] = max(
-                    bonus_nodes.get(nid, 0), int(decay_cfg["mid_bonus"]),
+                    bonus_nodes.get(nid, 0),
+                    int(decay_cfg["mid_bonus"]),
                 )
 
     ordered_tests = sort_by_count(sorted(test_paths), test_counts, bonus_tests)
@@ -477,7 +489,12 @@ def run_quick_tests(files: list[Path], cwd: Path | None = None) -> dict[str, obj
             node_counts[node] = node_counts.get(node, 0) + 1
             new_events.append({"nodeid": node, "file": fpath, "ts": str(now)})
     _write_last_fail(
-        project_root, failed_files, failed_nodes, test_counts, node_counts, new_events,
+        project_root,
+        failed_files,
+        failed_nodes,
+        test_counts,
+        node_counts,
+        new_events,
     )
     return res
 

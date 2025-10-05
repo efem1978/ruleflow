@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import builtins
+from dataclasses import dataclass
 
 
 @dataclass
@@ -39,7 +39,8 @@ def setup_default_tools() -> None:
     registry.register(Tool("rules.enforce", "Set enforcement level"))
     registry.register(
         Tool(
-            "rules.onboard", "Interactive onboarding to choose and apply rules profile",
+            "rules.onboard",
+            "Interactive onboarding to choose and apply rules profile",
         ),
     )
     registry.register(Tool("env.prepare", "Prepare language environment"))
@@ -60,7 +61,8 @@ def setup_default_tools() -> None:
     )
     registry.register(
         Tool(
-            "rules.maxima", "Return coverage upper-bounds (maxima) from compiled rules",
+            "rules.maxima",
+            "Return coverage upper-bounds (maxima) from compiled rules",
         ),
     )
     registry.register(

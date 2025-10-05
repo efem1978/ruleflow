@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -54,10 +54,14 @@ def _coverage_snapshot(project_root: Path | None = None) -> dict[str, Any]:
         else None
     )
     res_w: dict[str, Any] = cov.summarize(
-        project_root=root, policy=policy, min_module=min_module,
+        project_root=root,
+        policy=policy,
+        min_module=min_module,
     )
     res_g: dict[str, Any] = cov.summarize_groups(
-        project_root=root, policy=policy, min_module=min_module,
+        project_root=root,
+        policy=policy,
+        min_module=min_module,
     )
     near_cfg = (
         (cfg.get("coverage", {}) or {}).get("near", {})
@@ -67,7 +71,11 @@ def _coverage_snapshot(project_root: Path | None = None) -> dict[str, Any]:
     within = float(near_cfg.get("within", 0.03))
     top = int(near_cfg.get("top", 50))
     res_n = cov.summarize_near(
-        project_root=root, policy=policy, min_module=min_module, within=within, top=top,
+        project_root=root,
+        policy=policy,
+        min_module=min_module,
+        within=within,
+        top=top,
     )
     weak_obj = res_w.get("weak", [])
     weak: list[dict[str, Any]] = weak_obj if isinstance(weak_obj, list) else []
@@ -225,7 +233,8 @@ def generate_status(project_root: Path | None = None) -> dict[str, Any]:
     dash = root / ".mcp/dashboard"
     dash.mkdir(parents=True, exist_ok=True)
     (dash / "status.json").write_text(
-        json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8",
+        json.dumps(payload, ensure_ascii=False, indent=2),
+        encoding="utf-8",
     )
     # history (append, keep last 50)
     hist_p = dash / "history.json"
@@ -246,7 +255,8 @@ def generate_status(project_root: Path | None = None) -> dict[str, Any]:
         )
         hist = hist[-50:]
         hist_p.write_text(
-            json.dumps(hist, ensure_ascii=False, indent=2), encoding="utf-8",
+            json.dumps(hist, ensure_ascii=False, indent=2),
+            encoding="utf-8",
         )
     except Exception as e:
         import logging

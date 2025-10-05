@@ -4,9 +4,9 @@ import logging
 import os
 import subprocess
 import time
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
-from collections.abc import Callable
 
 DEFAULT_TIMEOUT: float = 300.0
 

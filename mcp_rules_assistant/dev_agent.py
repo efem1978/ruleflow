@@ -7,10 +7,10 @@ import os
 import shutil
 import sys
 import time
+from collections.abc import Callable
 from enum import Enum
 from pathlib import Path
 from typing import Any, TypedDict, cast
-from collections.abc import Callable
 
 from . import __version__ as PKG_VERSION
 from . import checks
@@ -87,7 +87,9 @@ class DevAgent:
         return logging.getLogger(__name__)
 
     def _run_tests_with_coverage(
-        self, *, on_event: Callable[[dict[str, Any]], None] | None = None,
+        self,
+        *,
+        on_event: Callable[[dict[str, Any]], None] | None = None,
     ) -> dict[str, object]:
         env = os.environ.copy()
         env.setdefault("PYTEST_DISABLE_PLUGIN_AUTOLOAD", "1")
@@ -143,7 +145,9 @@ class DevAgent:
             return {"ok": False, "code": 127, "error": "python/pytest not found"}
 
     def _git_changed_files(
-        self, *, on_event: Callable[[dict[str, Any]], None] | None = None,
+        self,
+        *,
+        on_event: Callable[[dict[str, Any]], None] | None = None,
     ) -> list[Path]:
         try:
             try:
@@ -226,27 +230,39 @@ class DevAgent:
         min_module = get_min_module(self.config, default=0.9)
         policy = get_coverage_policy(self.config)
         cov_summary = summarize(
-            project_root=self.project_root, policy=policy, min_module=min_module,
+            project_root=self.project_root,
+            policy=policy,
+            min_module=min_module,
         )
         cov_groups = summarize_groups(
-            project_root=self.project_root, policy=policy, min_module=min_module,
+            project_root=self.project_root,
+            policy=policy,
+            min_module=min_module,
         )
         cov_near = summarize_near(
-            project_root=self.project_root, policy=policy, min_module=min_module,
+            project_root=self.project_root,
+            policy=policy,
+            min_module=min_module,
         )
 
         weak, groups, near, total_files = _coverage_with_fallback(
-            self.project_root, cov_summary, cov_groups, cov_near,
+            self.project_root,
+            cov_summary,
+            cov_groups,
+            cov_near,
         )
 
         cov_progress = 0.0
         if total_files > 0:
             cov_progress = max(
-                0.0, min(1.0, (total_files - len(weak)) / float(total_files)),
+                0.0,
+                min(1.0, (total_files - len(weak)) / float(total_files)),
             )
 
         done_count, pending_count, pending_tasks, done_tasks = _collect_tasks_counts(
-            self.project_root, plan_text, include_docs=False,
+            self.project_root,
+            plan_text,
+            include_docs=False,
         )
 
         if plan_obj["status"] in ("planned", "") and pending_tasks:
@@ -254,7 +270,10 @@ class DevAgent:
             plan_obj["current"] = pending_tasks[0]
 
         plan_progress, overall = _compute_plan_overall(
-            done_count, pending_count, cov_progress, len(pending_tasks),
+            done_count,
+            pending_count,
+            cov_progress,
+            len(pending_tasks),
         )
 
         prod_checks = {
@@ -380,11 +399,14 @@ class DevAgent:
             return "skipped"
 
     def _run_cycle_checks(
-        self, *, on_event: Callable[[dict[str, Any]], None] | None = None,
+        self,
+        *,
+        on_event: Callable[[dict[str, Any]], None] | None = None,
     ) -> dict[str, str]:
         """Run periodic checks like lint, type, and TDD gates."""
         lint_stat = self._run_quick_status_check(
-            ["ruff", "check", "--quiet", "mcp_rules_assistant"], on_event=on_event,
+            ["ruff", "check", "--quiet", "mcp_rules_assistant"],
+            on_event=on_event,
         )
         type_stat = self._run_quick_status_check(
             [
@@ -432,7 +454,9 @@ class DevAgent:
                 tests["ok"] = True
 
     def _update_bypass_status(
-        self, tests: dict[str, object], run_config: dict[str, object],
+        self,
+        tests: dict[str, object],
+        run_config: dict[str, object],
     ) -> tuple[dict[str, object], dict[str, object]]:
         """Update the test bypass status based on repeated failures."""
         bypass_state_file = run_config.get("bypass_state_file")
@@ -506,7 +530,8 @@ class DevAgent:
                         },
                     )
                     status.setdefault(
-                        "error", f"status compute failed (fallback used): {e}",
+                        "error",
+                        f"status compute failed (fallback used): {e}",
                     )  # pragma: no cover
                 else:
                     status["error"] = f"status compute failed: {e}"  # pragma: no cover
@@ -523,7 +548,9 @@ class DevAgent:
         return status
 
     def _update_failure_and_freeze_status(
-        self, status: dict[str, object], dash: Path,
+        self,
+        status: dict[str, object],
+        dash: Path,
     ) -> None:
         """Update failure counters and freeze status based on current checks."""
 
@@ -572,7 +599,8 @@ class DevAgent:
                 last["severe"] = now_str
 
         def _maybe_activate_freeze(
-            cnt: FailCounters, freeze: FreezeState,
+            cnt: FailCounters,
+            freeze: FreezeState,
         ) -> FreezeState:
             thr = {
                 "lint": int(os.environ.get("DEV_AGENT_THR_LINT", "15") or 15),
@@ -596,15 +624,18 @@ class DevAgent:
             try:
                 coverage_status = status.get("coverage", {})
                 return len(
-                    coverage_status.get("weak", [])
-                    if isinstance(coverage_status, dict)
-                    else [],
+                    (
+                        coverage_status.get("weak", [])
+                        if isinstance(coverage_status, dict)
+                        else []
+                    ),
                 )
             except Exception:
                 return 0
 
         def _maybe_recover_freeze(
-            freeze: FreezeState, cnt: FailCounters,
+            freeze: FreezeState,
+            cnt: FailCounters,
         ) -> tuple[FreezeState, FailCounters]:
             checks_state = status.get("checks", {})
             tests_state = status.get("tests", {})
@@ -632,7 +663,10 @@ class DevAgent:
             return freeze, cnt
 
         def _persist_fail_state(
-            fp: Path, cnt: FailCounters, last: LastTrigger, freeze: FreezeState,
+            fp: Path,
+            cnt: FailCounters,
+            last: LastTrigger,
+            freeze: FreezeState,
         ) -> None:
             try:
                 atomic_write_text(
@@ -658,7 +692,8 @@ class DevAgent:
                     status["coverage"] = prev.get("coverage")
             except Exception as e:
                 self._log.debug(
-                    "[agent] load previous coverage for freeze failed: %r", e,
+                    "[agent] load previous coverage for freeze failed: %r",
+                    e,
                 )
 
         status["freeze"] = freeze
@@ -698,13 +733,17 @@ class DevAgent:
                 ts = 0.0
             brief = {"overall": prog_overall, "weak_count": weak_len, "timestamp": ts}
             atomic_write_text(
-                dash / "status_brief.json", json.dumps(brief, ensure_ascii=False),
+                dash / "status_brief.json",
+                json.dumps(brief, ensure_ascii=False),
             )
         except Exception as e:  # pragma: no cover
             self._log.debug("[agent] write status_brief.json skipped: %r", e)
 
     def _persist_status_and_history(
-        self, status: dict[str, object], dash: Path, t0: float,
+        self,
+        status: dict[str, object],
+        dash: Path,
+        t0: float,
     ) -> None:
         """Write the main status file and update the history log."""
         try:
@@ -757,7 +796,8 @@ class DevAgent:
             atomic_write_text(hist_p, json.dumps(arr, ensure_ascii=False))
         except Exception as e:  # pragma: no cover
             self._log.debug(
-                "[agent] write history skipped: %r", e,
+                "[agent] write history skipped: %r",
+                e,
             )  # nosec B110 non-fatal
 
     def _auto_append_memory(self, status: dict[str, object], dash: Path) -> bool:
@@ -855,7 +895,9 @@ class DevAgent:
                 return False
             mm = MemoryManager(self.project_root, window=window)
             mm.append_turn(
-                "assistant", content, {"source": "dev-agent", "type": "auto"},
+                "assistant",
+                content,
+                {"source": "dev-agent", "type": "auto"},
             )
             # update state
             atomic_write_text(st_file, json.dumps({"last_ts": now}, ensure_ascii=False))
@@ -959,7 +1001,8 @@ class DevAgent:
                         return time.time()
             except Exception as e:
                 self._log.debug(
-                    "[agent] auto-commit skipped: %r", e,
+                    "[agent] auto-commit skipped: %r",
+                    e,
                 )  # nosec B110 best-effort
         return last_commit_ts
 
@@ -1079,7 +1122,8 @@ class DevAgent:
                     # 保持无副作用：仅记录调试日志，不中断循环
                     try:
                         self._log.debug(
-                            "[agent] on_event append skipped: %r", e,
+                            "[agent] on_event append skipped: %r",
+                            e,
                         )  # pragma: no cover
                     except Exception:  # pragma: no cover
                         # 极端情况下 logger 也不可用时静默
@@ -1087,7 +1131,9 @@ class DevAgent:
 
             # 1. Run tests and checks
             tests = self._run_impacted_or_full(
-                cycle_idx=cycle, full_every=5, on_event=_on_evt,
+                cycle_idx=cycle,
+                full_every=5,
+                on_event=_on_evt,
             )
             try:
                 checks = self._run_cycle_checks(on_event=_on_evt)
@@ -1100,7 +1146,11 @@ class DevAgent:
             # 3. Build status object
             err_count = sum(1 for e in cmd_events if e.get("phase") == "error")
             status = self._build_current_status(
-                tests, bypass, checks, interval, cmd_error_count=err_count,
+                tests,
+                bypass,
+                checks,
+                interval,
+                cmd_error_count=err_count,
             )
 
             # 4. Update failure counters and freeze status
@@ -1116,10 +1166,18 @@ class DevAgent:
 
             # 6. Handle auto-commit and auto-tag
             last_commit_ts = self._handle_auto_commit(
-                tests, bypass, run_config, last_commit_ts, on_event=_on_evt,
+                tests,
+                bypass,
+                run_config,
+                last_commit_ts,
+                on_event=_on_evt,
             )
             last_tag_date = self._handle_auto_tag(
-                tests, status, run_config, last_tag_date, on_event=_on_evt,
+                tests,
+                status,
+                run_config,
+                last_tag_date,
+                on_event=_on_evt,
             )
 
             # 6.1 Persist command events (best-effort, cap to last 200) + JSONL append
@@ -1140,12 +1198,14 @@ class DevAgent:
                     )
                     if jlines:
                         with (dash / "cmd_events.jsonl").open(
-                            "a", encoding="utf-8",
+                            "a",
+                            encoding="utf-8",
                         ) as jf:
                             jf.write(jlines)
                 except OSError as e:
                     self._log.debug(
-                        "[agent] persist cmd_events.jsonl skipped: %r", e,
+                        "[agent] persist cmd_events.jsonl skipped: %r",
+                        e,
                     )  # pragma: no cover
             except (OSError, ValueError, TypeError) as e:
                 self._log.debug("[agent] persist cmd_events skipped: %r", e)
@@ -1179,7 +1239,9 @@ def main(argv: list[str] | None = None) -> None:
 
 
 def _run_tests_with_coverage(
-    project_root: Path, *, on_event: Callable[[dict[str, Any]], None] | None = None,
+    project_root: Path,
+    *,
+    on_event: Callable[[dict[str, Any]], None] | None = None,
 ) -> dict[str, object]:
     env = os.environ.copy()
     env.setdefault("PYTEST_DISABLE_PLUGIN_AUTOLOAD", "1")
@@ -1227,7 +1289,9 @@ def _run_tests_with_coverage(
 
 
 def _git_changed_files(
-    project_root: Path, *, on_event: Callable[[dict[str, Any]], None] | None = None,
+    project_root: Path,
+    *,
+    on_event: Callable[[dict[str, Any]], None] | None = None,
 ) -> list[Path]:
     try:
         p = run_cmd(
@@ -1274,7 +1338,10 @@ ORIG_RUN_IMPACTED_OR_FULL = _run_impacted_or_full
 
 
 def run_impacted_or_full(
-    project_root: Path, *, cycle_idx: int, full_every: int = 5,
+    project_root: Path,
+    *,
+    cycle_idx: int,
+    full_every: int = 5,
 ) -> dict[str, object]:
     """Public wrapper for running impacted or full test cycles.
 
@@ -1282,7 +1349,9 @@ def run_impacted_or_full(
     providing a stable public API for tests and external callers.
     """
     return _run_impacted_or_full(
-        project_root, cycle_idx=cycle_idx, full_every=full_every,
+        project_root,
+        cycle_idx=cycle_idx,
+        full_every=full_every,
     )
 
 
@@ -1370,7 +1439,10 @@ def _coverage_with_fallback(
     cov_groups: dict[str, object],
     cov_near: dict[str, object],
 ) -> tuple[
-    list[dict[str, object]], list[dict[str, object]], list[dict[str, object]], int,
+    list[dict[str, object]],
+    list[dict[str, object]],
+    list[dict[str, object]],
+    int,
 ]:
     """Extract coverage arrays with a fallback to last dashboard status when count==0.
 
@@ -1434,7 +1506,10 @@ def _coverage_with_fallback(
 
 
 def _collect_tasks_counts(
-    project_root: Path, plan_text: str, *, include_docs: bool = True,
+    project_root: Path,
+    plan_text: str,
+    *,
+    include_docs: bool = True,
 ) -> tuple[int, int, list[str], list[str]]:
     """Collect done/pending tasks counts and lists by scanning markdown and fallback plan sections.
 
@@ -1491,7 +1566,10 @@ def _collect_tasks_counts(
 
 
 def _compute_plan_overall(
-    done_count: int, pending_count: int, cov_progress: float, pending_len: int,
+    done_count: int,
+    pending_count: int,
+    cov_progress: float,
+    pending_len: int,
 ) -> tuple[float | None, float]:
     """Compute plan_progress and overall score from counts and coverage progress.
 
@@ -1554,27 +1632,39 @@ def compute_status(project_root: Path) -> dict[str, object]:
     policy = get_coverage_policy(cfg)
 
     cov_summary = summarize(
-        project_root=project_root, policy=policy, min_module=min_module,
+        project_root=project_root,
+        policy=policy,
+        min_module=min_module,
     )
     cov_groups = summarize_groups(
-        project_root=project_root, policy=policy, min_module=min_module,
+        project_root=project_root,
+        policy=policy,
+        min_module=min_module,
     )
     cov_near = summarize_near(
-        project_root=project_root, policy=policy, min_module=min_module,
+        project_root=project_root,
+        policy=policy,
+        min_module=min_module,
     )
 
     weak, groups, near, total_files = _coverage_with_fallback(
-        project_root, cov_summary, cov_groups, cov_near,
+        project_root,
+        cov_summary,
+        cov_groups,
+        cov_near,
     )
 
     cov_progress = 0.0
     if total_files > 0:
         cov_progress = max(
-            0.0, min(1.0, (total_files - len(weak)) / float(total_files)),
+            0.0,
+            min(1.0, (total_files - len(weak)) / float(total_files)),
         )
 
     done_count, pending_count, pending_tasks, done_tasks = _collect_tasks_counts(
-        project_root, plan_text, include_docs=False,
+        project_root,
+        plan_text,
+        include_docs=False,
     )
 
     if plan_obj["status"] in ("planned", "") and pending_tasks:
@@ -1582,7 +1672,10 @@ def compute_status(project_root: Path) -> dict[str, object]:
         plan_obj["current"] = pending_tasks[0]
 
     plan_progress, overall = _compute_plan_overall(
-        done_count, pending_count, cov_progress, len(pending_tasks),
+        done_count,
+        pending_count,
+        cov_progress,
+        len(pending_tasks),
     )
 
     prod_checks = {

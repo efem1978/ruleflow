@@ -161,7 +161,10 @@ class MemoryManager:
             return
 
     def append_turn(
-        self, role: str, content: str, meta: dict[str, Any] | None = None,
+        self,
+        role: str,
+        content: str,
+        meta: dict[str, Any] | None = None,
     ) -> None:
         masked = content
         if self._mask_re:
