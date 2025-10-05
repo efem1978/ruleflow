@@ -16,8 +16,8 @@
 
 任务清单（概要）
 1) M0 内测（当前阶段）
-- [x] 构建 Python 包（dist/*.whl, *.tar.gz）
-- [x] 构建 VS Code 扩展（extensions/vscode/*.vsix）
+- [x] 构建 Python 包（`dist/*.whl`, `*.tar.gz`）
+- [x] 构建 VS Code 扩展（`extensions/vscode/*.vsix`）
 - [x] 本机安装验证（CLI + 面板）
   - 步骤（参考）：
     1) 安装：`pip install -e .`
