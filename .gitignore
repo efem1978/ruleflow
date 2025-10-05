@@ -69,3 +69,48 @@ extensions/jetbrains/.gradle/
 
 # pytest cache
 .pytest_cache/
+
+# ========================================
+# Repository Cleanup Rules (2025-10-05)
+# ========================================
+
+# Disabled/deprecated directories and files
+extensions/**/*.disabled/
+extensions/**/disabled/
+*.disabled/
+**/deprecated/
+**/.deprecated/
+
+# Verification and analysis reports (temporary)
+*_VERIFICATION.md
+*_REPORT.md
+*_ANALYSIS.md
+*_SUMMARY.md
+VERIFICATION_*.md
+REPORT_*.md
+ANALYSIS_*.md
+SUMMARY_*.md
+CLEANUP_*.md
+
+# Test fixtures at root level
+/.test-fixture/
+
+# Temporary working documents
+TODO_*.md
+NOTES_*.md
+DRAFT_*.md
+WIP_*.md
+
+# Generated compatibility and diagnostic files
+extensions/**/compat_*.json
+extensions/**/diag_*.json
+**/install_report.md
+**/install_report.json
+
+# Old/backup files (explicit pattern)
+*.old
+*.bak
+*.backup
+*-old.*
+*-backup.*
+*-deprecated.*
