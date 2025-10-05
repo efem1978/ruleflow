@@ -43,6 +43,10 @@ tmp_dbg_dir/
 # Test reports (do not commit)
 pytest-junit.xml
 
+# Working documents (keep local only)
+上下文衔接和编程规则助手 mcp 工具初步需求.txt
+docs/项目全面审查清单.md
+
 # VS Code test artifacts
 extensions/vscode/.vscode-test/
 extensions/vscode/coverage/

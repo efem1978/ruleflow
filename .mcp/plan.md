@@ -1,2 +1,2 @@
 - 状态: in_progress
-- 当前步骤: restore-audit-checklist
+- 当前步骤: exclude-working-docs-from-git
