@@ -1,2 +1,2 @@
 - 状态: in_progress
- - 当前步骤: push-initial-remote
+ - 当前步骤: governance-finalize
