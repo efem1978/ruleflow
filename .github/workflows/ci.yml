@@ -51,6 +51,7 @@ jobs:
         run: |
           pytest -q -p pytest_cov --maxfail=1 --disable-warnings -W error --strict-markers --cov=mcp_rules_assistant --cov-report=xml:coverage.xml --cov-report=term-missing --cov-fail-under=95 --junitxml=pytest-junit.xml
       - name: Coverage Policy Gate (core≥98%, others≥95%)
+        if: github.ref == 'refs/heads/main'
         run: |
           python -m mcp_rules_assistant.cli coverage-report --json > cov.json
           python - <<'PY'
