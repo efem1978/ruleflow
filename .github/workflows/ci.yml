@@ -118,6 +118,70 @@ jobs:
         run: |
           python -m pip install pip-audit
           pip-audit || true
+      - name: License whitelist gate (pip-licenses)
+        run: |
+          python -m pip install pip-licenses
+          # Export licenses to file for auditing
+          pip-licenses --format=json --output-file licenses.json || true
+          python - <<'PY'
+          import json, subprocess, sys
+          # Collect licenses (from file if exists, else fresh call)
+          try:
+              data = json.load(open('licenses.json', 'r', encoding='utf-8'))
+          except Exception:
+              import subprocess
+              out = subprocess.check_output(['pip-licenses', '--format=json'], text=True)
+              data = json.loads(out)
+          # Allowed licenses (OSI-friendly + common)
+          allowed = {
+              'MIT', 'BSD', 'BSD License', 'BSD-2-Clause', 'BSD-3-Clause',
+              'Apache 2.0', 'Apache-2.0', 'Apache Software License',
+              'ISC', 'MPL-2.0', 'Mozilla Public License 2.0 (MPL 2.0)',
+              'Python Software Foundation License', 'PSF',
+              # Allow LGPL for dev tools like semgrep
+              'LGPL', 'LGPL-2.1', 'LGPL-2.1-only', 'LGPL-2.1-or-later', 'LGPLv2.1+', 'LGPL-3.0', 'LGPL-3.0-only', 'LGPL-3.0-or-later'
+          }
+          soft_allowed = {'UNKNOWN'}  # warn only
+          violations = []
+          warnings = []
+          for pkg in data:
+              name = pkg.get('Name') or pkg.get('name')
+              ver = pkg.get('Version') or pkg.get('version')
+              lic = (pkg.get('License') or pkg.get('license') or '').strip()
+              tokens = [t.strip() for t in lic.replace(' OR ', ',').split(',') if t.strip()] or ['UNKNOWN']
+              if any(t in allowed for t in tokens):
+                  continue
+              if any(t in soft_allowed for t in tokens):
+                  warnings.append((name, ver, lic))
+                  continue
+              violations.append((name, ver, lic))
+          if warnings:
+              print('[license] Soft-allowed (UNKNOWN) licenses:')
+              for n, v, l in warnings:
+                  print(f' ~ {n} {v}: {l}')
+          if violations:
+              print('[license] Disallowed or unknown licenses:')
+              for n, v, l in violations:
+                  print(f' - {n} {v}: {l}')
+              sys.exit(1)
+          print('[license] All packages comply with whitelist')
+          PY
+      - name: Upload Licenses Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: licenses-report
+          path: licenses.json
+      - name: Generate SBOM (CycloneDX via pip-audit)
+        run: |
+          python -m pip install pip-audit
+          pip-audit -f cyclonedx -o sbom-cyclonedx.json || true
+      - name: Upload SBOM (CycloneDX)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-cyclonedx
+          path: sbom-cyclonedx.json
   prepare:
     runs-on: ubuntu-latest
     steps:
