@@ -18,7 +18,6 @@ extensions/vscode/node_modules/
 .mcp/
 !/.mcp/assistant.yaml
 !/.mcp/plan.md
-!/.mcp/rules_compiled.json
 .DS_Store
 coverage.xml
 .coverage
