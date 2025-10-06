@@ -3,6 +3,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
+# Skip all tests in this module if cryptography is not available
+pytest.importorskip("cryptography")
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
