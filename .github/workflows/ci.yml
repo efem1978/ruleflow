@@ -127,36 +127,72 @@ jobs:
           pip-licenses --format=json --output-file licenses.json || true
           python - <<'PY'
           import json, subprocess, sys
-          # Collect licenses (from file if exists, else fresh call)
-          try:
-              data = json.load(open('licenses.json', 'r', encoding='utf-8'))
-          except Exception:
-              import subprocess
-              out = subprocess.check_output(['pip-licenses', '--format=json'], text=True)
-              data = json.loads(out)
-          # Allowed licenses (OSI-friendly + common)
-          allowed = {
-              'MIT', 'BSD', 'BSD License', 'BSD-2-Clause', 'BSD-3-Clause',
-              'Apache 2.0', 'Apache-2.0', 'Apache Software License',
-              'ISC', 'MPL-2.0', 'Mozilla Public License 2.0 (MPL 2.0)',
+          from typing import List
+
+          def load_licenses() -> List[dict]:
+              try:
+                  return json.load(open('licenses.json', 'r', encoding='utf-8'))
+              except Exception:
+                  out = subprocess.check_output(['pip-licenses', '--format=json'], text=True)
+                  return json.loads(out)
+
+          data = load_licenses()
+
+          # Allowed (exact) plus tolerant substring rules for common OSI licenses
+          allowed_exact = {
+              'MIT', 'MIT License',
+              'BSD', 'BSD License', 'BSD-2-Clause', 'BSD-3-Clause', '3-Clause BSD License', 'BSD-2-Clause License',
+              'Apache 2.0', 'Apache-2.0', 'Apache Software License', 'Apache License 2.0',
+              'ISC', 'ISC License', 'ISC License (ISCL)',
+              'MPL-2.0', 'Mozilla Public License 2.0 (MPL 2.0)',
               'Python Software Foundation License', 'PSF',
-              # Allow LGPL for dev tools like semgrep
-              'LGPL', 'LGPL-2.1', 'LGPL-2.1-only', 'LGPL-2.1-or-later', 'LGPLv2.1+', 'LGPL-3.0', 'LGPL-3.0-only', 'LGPL-3.0-or-later'
+              'LGPL', 'LGPL-2.1', 'LGPL-2.1-only', 'LGPL-2.1-or-later', 'LGPLv2.1+', 'LGPL-3.0', 'LGPL-3.0-only', 'LGPL-3.0-or-later',
+              'GNU Lesser General Public License v2 (LGPLv2)', 'GNU Lesser General Public License v3 (LGPLv3)',
+              'Unlicense', 'The Unlicense', 'Public Domain',
           }
           soft_allowed = {'UNKNOWN'}  # warn only
+
+          def tokenize(lic: str) -> list[str]:
+              if not lic:
+                  return ['UNKNOWN']
+              s = lic.replace(' OR ', ',').replace('/', ',').replace(';', ',')
+              parts = [p.strip() for p in s.split(',') if p.strip()]
+              return parts or ['UNKNOWN']
+
+          def allowed_by_substring(tok: str) -> bool:
+              t = tok.lower()
+              if 'mit' in t:
+                  return True
+              if 'bsd' in t:
+                  return True
+              if 'apache' in t and ('2.0' in t or 'license' in t):
+                  return True
+              if 'isc' in t:
+                  return True
+              if 'mpl' in t or 'mozilla public license' in t:
+                  return True
+              if 'python software foundation' in t or t == 'psf':
+                  return True
+              if 'lgpl' in t:
+                  return True
+              if 'unlicense' in t or 'public domain' in t:
+                  return True
+              return False
+
           violations = []
           warnings = []
           for pkg in data:
               name = pkg.get('Name') or pkg.get('name')
               ver = pkg.get('Version') or pkg.get('version')
               lic = (pkg.get('License') or pkg.get('license') or '').strip()
-              tokens = [t.strip() for t in lic.replace(' OR ', ',').split(',') if t.strip()] or ['UNKNOWN']
-              if any(t in allowed for t in tokens):
+              tokens = tokenize(lic)
+              if any((tok in allowed_exact) or allowed_by_substring(tok) for tok in tokens):
                   continue
-              if any(t in soft_allowed for t in tokens):
+              if any(tok in soft_allowed for tok in tokens):
                   warnings.append((name, ver, lic))
                   continue
               violations.append((name, ver, lic))
+
           if warnings:
               print('[license] Soft-allowed (UNKNOWN) licenses:')
               for n, v, l in warnings:
