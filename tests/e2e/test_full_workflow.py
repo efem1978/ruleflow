@@ -119,6 +119,9 @@ class TestIDEIntegration:
         """Test VSCode extension can be packaged"""
         vscode_dir = Path(__file__).parent.parent.parent / "extensions" / "vscode"
         if vscode_dir.exists():
+            # Check if node_modules exists (npm dependencies installed)
+            if not (vscode_dir / "node_modules").exists():
+                pytest.skip("npm dependencies not installed")
             result = subprocess.run(
                 ["npm", "run", "compile"],
                 cwd=vscode_dir,
