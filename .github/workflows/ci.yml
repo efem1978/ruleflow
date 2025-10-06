@@ -18,6 +18,8 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -c constraints-ci.txt ruff black isort mypy bandit pytest pytest-cov types-PyYAML pytest-benchmark
+          # Install project deps for mypy import resolution (typer, rich, pyyaml, etc.)
+          pip install -c constraints-ci.txt -e .
       - name: Pre-commit (all files)
         run: |
           python -m pip install -c constraints-ci.txt pre-commit
@@ -196,10 +198,12 @@ jobs:
           out = srv._call_tool("env.prepare", {"create": True, "install": True})
           print(out)
           PY
-      - name: Ensure pytest-benchmark in env
+      - name: Ensure pytest tools in env
         run: |
           . ./.mcp/venv/bin/activate
-          pip install -q pytest-benchmark
+          pip install -q pytest-benchmark pytest-cov coverage
+          # Ensure package and deps are available in venv for tests
+          pip install -q -e .
       - name: Tests in env (pytest + coverage)
         env:
           PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
