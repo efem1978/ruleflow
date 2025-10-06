@@ -9,6 +9,8 @@ import time
 
 import pytest
 
+pytest.importorskip("pytest_benchmark")
+
 
 class TestPerformanceBenchmarks:
     """Commercial-grade performance benchmarks"""
@@ -19,7 +21,9 @@ class TestPerformanceBenchmarks:
 
         def run_help():
             result = subprocess.run(
-                ["mcp-rules-assistant", "--help"], capture_output=True, text=True,
+                ["mcp-rules-assistant", "--help"],
+                capture_output=True,
+                text=True,
             )
             assert result.returncode == 0
             return result
@@ -123,7 +127,9 @@ class TestPerformanceBenchmarks:
 
             # Initialize MCP in test directory
             subprocess.run(
-                ["mcp-rules-assistant", "init"], capture_output=True, text=True,
+                ["mcp-rules-assistant", "init"],
+                capture_output=True,
+                text=True,
             )
 
             # Monitor memory during heavy operation
