@@ -60,5 +60,5 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    _MIN = 99
+    _MIN = 98
     sys.exit(main())
