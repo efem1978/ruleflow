@@ -17,7 +17,7 @@ jobs:
       - name: Install tools
         run: |
           python -m pip install --upgrade pip
-          pip install -c constraints-ci.txt ruff black isort mypy bandit pytest pytest-cov types-PyYAML
+          pip install -c constraints-ci.txt ruff black isort mypy bandit pytest pytest-cov types-PyYAML pytest-benchmark
       - name: Pre-commit (all files)
         run: |
           python -m pip install -c constraints-ci.txt pre-commit
@@ -126,6 +126,10 @@ jobs:
           out = srv._call_tool("env.prepare", {"create": True, "install": True})
           print(out)
           PY
+      - name: Ensure pytest-benchmark in env
+        run: |
+          . ./.mcp/venv/bin/activate
+          pip install -q pytest-benchmark
       - name: Tests in env (pytest + coverage)
         env:
           PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
