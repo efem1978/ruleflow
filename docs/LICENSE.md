@@ -64,7 +64,7 @@ mcp-rules-assistant license-verify
 
 私钥（演示）
 ```pem
------BEGIN RSA PRIVATE KEY-----
+-----BEGIN RSA PRIVATE KEY-----  # pragma: allowlist secret
 MIIBOgIBAAJBAK0ylF7hTHcC2mWH01hjZva8r4m1qkZPh1wE7RkK2N4u3P8VjKCY
 k0qSIfHqp2qgqU2bYy1b9c7wP7lYfV1Q0/sCAwEAAQJAFg2wz9t0o2z7cSlN1q6q
 z6l8q4xJmT8L3l2mFc5kRt1tq0Q8qm3cO1iYz7hQ7hGqXn6G6eEvmKjzDE6YkN2+
@@ -72,15 +72,15 @@ UQIhAOoP8w5X4T1GmJkM+6pZV8bP9o3u4m8pK0a9lXc2SeiVAiEAu7oFQF6fL8wz
 kAvcPLaMM6g7ctf2zQvBqBzZyicVxV8CIQC19gqYv5r7oZIv4X1jeXxX3cJ1a8p9
 b/YJ4k7cVZfoYwIgH1R7XcJ2sR3pH3TQ6HkqTphJc0mK+QACQ0cI9bV6l2UCIQCK
 3m1rli8O562p1v3a1+3M2T0S9eN1m7eomZ3k7vX7l6mFZw==
------END RSA PRIVATE KEY-----
+-----END RSA PRIVATE KEY-----  # pragma: allowlist secret
 ```
 
 公钥（演示）
 ```pem
------BEGIN PUBLIC KEY-----
+-----BEGIN PUBLIC KEY-----  # pragma: allowlist secret
 MFwwDQYJKoZIhvcNAQEBBQADSwAwSAJBALTKUxu9tTbmq3v1Ecic9kCq1NHWwWQn
 qUF+Z8F2qVvm1m9+9bE1q1zw6j+M0Xz8cESjFf7QdF4KfWcQqZzq4wECAwEAAQ==
------END PUBLIC KEY-----
+-----END PUBLIC KEY-----  # pragma: allowlist secret
 ```
 
 > 以上密钥仅为示例，不能用于生产。实际使用时请替换为你自己的密钥对。

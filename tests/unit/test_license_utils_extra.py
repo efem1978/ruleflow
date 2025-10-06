@@ -39,14 +39,14 @@ def test_generate_license_ed25519_requires_private_key() -> None:
 def test_verify_ed25519_wrong_key_type_env(tmp_path: Path, monkeypatch) -> None:
     # Set ED25519 pubkey env to an RSA public key → type mismatch → signature_ok=False
     rsa_pub_pem = (
-        "-----BEGIN PUBLIC KEY-----\n"
-        "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwF1kqF5D/8v0Hn10OQwT\n"
-        "u1nq7r1sQqZp4mB0p3V0wW4u9H3W6Q9Q+0D9R2kP5Q+3r9F7qjC6zYl8T5l3xwA9\n"
-        "s5r6O2c3b5bVwM1N1Hc5aJmJ7L1b1bXv2m1k5B1FQH8W3F2q2r6sZ6WcV3Q9Fh1K\n"
-        "2h5JQy6c9w7r1x2y3z4A5B6C7D8E9F0G1H2I3J4K5L6M7N8O9P0Q1R2S3T4U5V6W\n"
-        "X7Y8Z9aAbBcCdDeEfFgGhHiIjJkKlLmMnNoOpPqQrRsStTuUvVwWxXyYzZ0\n"
-        "IDAQAB\n"
-        "-----END PUBLIC KEY-----\n"
+        "-----BEGIN PUBLIC KEY-----\n"  # pragma: allowlist secret
+        "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwF1kqF5D/8v0Hn10OQwT\n"  # pragma: allowlist secret
+        "u1nq7r1sQqZp4mB0p3V0wW4u9H3W6Q9Q+0D9R2kP5Q+3r9F7qjC6zYl8T5l3xwA9\n"  # pragma: allowlist secret
+        "s5r6O2c3b5bVwM1N1Hc5aJmJ7L1b1bXv2m1k5B1FQH8W3F2q2r6sZ6WcV3Q9Fh1K\n"  # pragma: allowlist secret
+        "2h5JQy6c9w7r1x2y3z4A5B6C7D8E9F0G1H2I3J4K5L6M7N8O9P0Q1R2S3T4U5V6W\n"  # pragma: allowlist secret
+        "X7Y8Z9aAbBcCdDeEfFgGhHiIjJkKlLmMnNoOpPqQrRsStTuUvVwWxXyYzZ0\n"  # pragma: allowlist secret
+        "IDAQAB\n"  # pragma: allowlist secret
+        "-----END PUBLIC KEY-----\n"  # pragma: allowlist secret
     )
     monkeypatch.setenv("MCP_LICENSE_ED25519_PUBKEY", rsa_pub_pem)
 
