@@ -198,10 +198,10 @@ jobs:
           out = srv._call_tool("env.prepare", {"create": True, "install": True})
           print(out)
           PY
-      - name: Ensure pytest-benchmark in env
+      - name: Ensure pytest tools in env
         run: |
           . ./.mcp/venv/bin/activate
-          pip install -q pytest-benchmark
+          pip install -q pytest-benchmark pytest-cov coverage
       - name: Tests in env (pytest + coverage)
         env:
           PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
