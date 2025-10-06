@@ -208,7 +208,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: licenses-report
+          name: licenses-report-${{ matrix.python-version }}
           path: licenses.json
       - name: Generate SBOM (CycloneDX via pip-audit)
         run: |
@@ -218,7 +218,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sbom-cyclonedx
+          name: sbom-cyclonedx-${{ matrix.python-version }}
           path: sbom-cyclonedx.json
   prepare:
     runs-on: ubuntu-latest
