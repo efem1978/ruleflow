@@ -8,6 +8,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+import pytest
+
 
 class TestFullWorkflow:
     """Test complete workflow from installation to usage"""
