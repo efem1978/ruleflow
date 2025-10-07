@@ -26,8 +26,8 @@ jobs:
       - name: Install Python deps (editable)
         run: |
           python3 -m pip install -U pip
-          python3 -m pip install -e .
-          python3 -m pip install -U pytest pytest-cov ruff black isort mypy bandit pre-commit types-PyYAML build twine
+          python3 -m pip install -c constraints-ci.txt -e .
+          python3 -m pip install -U -c constraints-ci.txt pytest pytest-cov ruff black isort mypy bandit pre-commit types-PyYAML build twine cryptography
 
       - name: VS Code deps (ci)
         run: |
