@@ -4,7 +4,14 @@ import base64
 import hashlib
 import json
 import os
-from datetime import UTC, datetime
+from datetime import datetime
+
+try:  # py311+
+    from datetime import UTC  # type: ignore[attr-defined]
+except Exception:  # py310 fallback
+    from datetime import timezone as _timezone
+
+    UTC = _timezone.utc  # type: ignore[assignment]
 from pathlib import Path
 from typing import Any, cast
 

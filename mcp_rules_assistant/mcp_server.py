@@ -8,7 +8,13 @@ import sys
 import time
 import uuid
 from dataclasses import asdict
-from datetime import UTC
+
+try:  # py311+
+    from datetime import UTC  # type: ignore[attr-defined]
+except Exception:  # py310 fallback
+    from datetime import timezone as _timezone
+
+    UTC = _timezone.utc  # type: ignore[assignment]
 from pathlib import Path
 from typing import Any
 

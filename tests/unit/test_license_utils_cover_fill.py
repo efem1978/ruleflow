@@ -6,6 +6,9 @@ from typing import Any
 
 import pytest
 
+# Skip all tests in this module if cryptography is not available
+pytest.importorskip("cryptography")
+
 from mcp_rules_assistant.license_utils import generate_license, verify_license
 
 
@@ -24,7 +27,8 @@ def test_generate_invalid_expires_format() -> None:
 
 
 def test_verify_hs256_sha256_exception(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     # Prepare a valid hs256 payload then monkeypatch hashlib.sha256 to raise
     lic = generate_license(issued_to="B", expires="2099-01-01", machine="m")
@@ -46,7 +50,8 @@ def test_verify_hs256_sha256_exception(
 
 
 def test_verify_rs256_malformed_pubkey_triggers_internal_except(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     # Create an rs256 license, then feed a malformed public key to trigger _verify_rs256 except path
     from cryptography.hazmat.primitives import serialization

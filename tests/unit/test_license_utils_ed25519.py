@@ -3,6 +3,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
+# Skip all tests in this module if cryptography is not available
+pytest.importorskip("cryptography")
+
 from mcp_rules_assistant.license_utils import generate_license, verify_license
 
 

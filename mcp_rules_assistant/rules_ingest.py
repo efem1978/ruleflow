@@ -529,7 +529,9 @@ def _flatten_kv(d: Any, prefix: str = "") -> dict[str, Any]:
 def ingest(paths: list[str], project_root: Path | None = None) -> dict[str, Any]:
     root = (project_root or Path.cwd()).resolve()
     pths = [Path(p) if Path(p).is_absolute() else (root / p) for p in paths]
-    files = list(_iter_files(pths))
+    # Deterministic ordering: ensure stable, lexicographic processing so that
+    # first-seen values are consistent across runs (e.g., prefer 'a.yaml' over 'b.yaml').
+    files = sorted(_iter_files(pths), key=lambda f: str(f).lower())
     # 轻量缓存：.mcp/rules_ingest_cache.json 基于 mtime/size
     cache_path = root / ".mcp/rules_ingest_cache.json"
     cache: dict[str, Any] = {}

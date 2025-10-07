@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 import mcp_rules_assistant.cli as cli
@@ -11,11 +12,17 @@ from mcp_rules_assistant.cli import app
 
 def test_cli_ide_scaffold_unsupported_editor(tmp_path: Path) -> None:
     r = CliRunner().invoke(
-        app, ["ide-scaffold", "--editor", "unknown"], env={"PYTHONPATH": str(tmp_path)},
+        app,
+        ["ide-scaffold", "--editor", "unknown"],
+        env={"PYTHONPATH": str(tmp_path)},
     )
     assert r.exit_code != 0 and "unsupported editor" in (r.stdout or "")
 
 
+@pytest.mark.skipif(
+    not pytest.importorskip("cryptography", reason="cryptography not installed"),
+    reason="cryptography not installed",
+)
 def test_cli_license_generate_rs256_happy(tmp_path: Path) -> None:
     from cryptography.hazmat.primitives import serialization
     from cryptography.hazmat.primitives.asymmetric import rsa
