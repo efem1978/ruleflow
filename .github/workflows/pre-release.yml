@@ -41,8 +41,8 @@ jobs:
           bash scripts/release-simulate.sh || true
 
       - name: Compose release body
-        run: |
-          bash scripts/release-compose-body.sh
+        shell: bash
+        run: bash scripts/release-compose-body.sh
 
       - name: Pre-release checklist
         env:

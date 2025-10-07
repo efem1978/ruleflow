@@ -20,10 +20,10 @@ echo "[pre-release] Status refresh"
 python3 -m mcp_rules_assistant.cli status-update --json > "$OUT_DIR/status.json" || true
 
 echo "[pre-release] Release simulation (tests/coverage/vscode/license/package)"
-sh scripts/release-simulate.sh >/dev/null 2>&1 || true
+bash scripts/release-simulate.sh >/dev/null 2>&1 || true
 
 echo "[pre-release] Compose release body"
-BODY_PATH=$(sh scripts/release-compose-body.sh)
+BODY_PATH=$(bash scripts/release-compose-body.sh)
 
 DOCKER_OK="SKIPPED"
 if [ "$WITH_DOCKER_VERIFY" = "1" ]; then
@@ -60,11 +60,22 @@ STATUS_JSON="$OUT_DIR/status.json"
 STATUS_SUMMARY=""
 if [ -f "$STATUS_JSON" ]; then
   STATUS_SUMMARY=$(python3 - <<'PY'
-import json,sys
-d=json.load(open('.mcp/dashboard/status.json'))
-weak=d.get('coverage',{}).get('weak') or []
-near=d.get('coverage',{}).get('near') or []
-print(f"weak={len(weak)} near={len(near)} min_module={d.get('coverage',{}).get('min_module')}")
+import json
+from pathlib import Path
+
+status_path = Path('.mcp/dashboard/status.json')
+try:
+    raw = status_path.read_text(encoding='utf-8')
+    if not raw.strip():
+        raise ValueError('empty status.json')
+    data = json.loads(raw)
+except Exception:
+    print('unavailable')
+else:
+    cov = data.get('coverage') or {}
+    weak = cov.get('weak') or []
+    near = cov.get('near') or []
+    print(f"weak={len(weak)} near={len(near)} min_module={cov.get('min_module')}")
 PY
   )
 fi
