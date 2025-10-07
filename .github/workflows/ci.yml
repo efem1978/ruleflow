@@ -228,6 +228,9 @@ jobs:
         with:
           python-version: '3.11'
           cache: 'pip'
+      - name: Install project dependencies (for env.prepare tool)
+        run: |
+          pip install -q -e .
       - name: Prepare env (mcp_rules_assistant env.prepare)
         run: |
           python - <<'PY'
