@@ -242,9 +242,9 @@ jobs:
       - name: Ensure pytest tools in env
         run: |
           . ./.mcp/venv/bin/activate
-          pip install -q -c ../../constraints-ci.txt pytest-benchmark pytest-cov coverage psutil cryptography
+          pip install -q -c constraints-ci.txt pytest-benchmark pytest-cov coverage psutil cryptography
           # Ensure package and deps are available in venv for tests
-          pip install -q -c ../../constraints-ci.txt -e .
+          pip install -q -c constraints-ci.txt -e .
       - name: Tests in env (pytest + coverage)
         env:
           PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
