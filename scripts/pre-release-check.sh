@@ -20,10 +20,10 @@ echo "[pre-release] Status refresh"
 python3 -m mcp_rules_assistant.cli status-update --json > "$OUT_DIR/status.json" || true
 
 echo "[pre-release] Release simulation (tests/coverage/vscode/license/package)"
-sh scripts/release-simulate.sh >/dev/null 2>&1 || true
+bash scripts/release-simulate.sh >/dev/null 2>&1 || true
 
 echo "[pre-release] Compose release body"
-BODY_PATH=$(sh scripts/release-compose-body.sh)
+BODY_PATH=$(bash scripts/release-compose-body.sh)
 
 DOCKER_OK="SKIPPED"
 if [ "$WITH_DOCKER_VERIFY" = "1" ]; then

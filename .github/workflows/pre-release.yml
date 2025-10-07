@@ -42,7 +42,7 @@ jobs:
 
       - name: Compose release body
         shell: bash
-        run: scripts/release-compose-body.sh
+        run: bash scripts/release-compose-body.sh
 
       - name: Pre-release checklist
         env:
