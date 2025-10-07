@@ -60,11 +60,22 @@ STATUS_JSON="$OUT_DIR/status.json"
 STATUS_SUMMARY=""
 if [ -f "$STATUS_JSON" ]; then
   STATUS_SUMMARY=$(python3 - <<'PY'
-import json,sys
-d=json.load(open('.mcp/dashboard/status.json'))
-weak=d.get('coverage',{}).get('weak') or []
-near=d.get('coverage',{}).get('near') or []
-print(f"weak={len(weak)} near={len(near)} min_module={d.get('coverage',{}).get('min_module')}")
+import json
+from pathlib import Path
+
+status_path = Path('.mcp/dashboard/status.json')
+try:
+    raw = status_path.read_text(encoding='utf-8')
+    if not raw.strip():
+        raise ValueError('empty status.json')
+    data = json.loads(raw)
+except Exception:
+    print('unavailable')
+else:
+    cov = data.get('coverage') or {}
+    weak = cov.get('weak') or []
+    near = cov.get('near') or []
+    print(f"weak={len(weak)} near={len(near)} min_module={cov.get('min_module')}")
 PY
   )
 fi
