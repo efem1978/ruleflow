@@ -59,11 +59,12 @@ fi
 STATUS_JSON="$OUT_DIR/status.json"
 STATUS_SUMMARY=""
 if [ -f "$STATUS_JSON" ]; then
-  STATUS_SUMMARY=$(python3 - <<'PY'
+  STATUS_SUMMARY=$(python3 - "$STATUS_JSON" <<'PY'
 import json
+import sys
 from pathlib import Path
 
-status_path = Path('.mcp/dashboard/status.json')
+status_path = Path(sys.argv[1])
 try:
     raw = status_path.read_text(encoding='utf-8')
     if not raw.strip():
