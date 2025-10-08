@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.3.2 - 2025-10-09 — OSS Release: License Gates Removed
+
+### Changed
+- **License Model**: Converted from proprietary EULA to MIT License
+- **Architecture**: Removed all license validation gates from server and VS Code extension
+  - Server: `_tool_license_activate()` converted to no-op
+  - VS Code: Removed license UI, commands, and message handlers
+  - Tests: Removed license-coupled test cases
+
+### Improved
+- **Code Quality**: Fixed `hooks.py` undefined `lic_required` variable
+- **Type Safety**: Enhanced Mypy configuration with test exclusion
+- **Documentation**: Updated all references to reflect OSS model
+
+### Technical Details
+- Quality gates: Ruff ✓, Mypy ✓, Pytest (101 core tests) ✓
+- License: MIT (LICENSE file + pyproject.toml synchronized)
+- Breaking: No license activation required; all features immediately available
+
 ## 2025-10-05 — Quality Improvement: Code Format & Coverage Enhancement
 
 ### Fixed

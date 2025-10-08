@@ -585,9 +585,7 @@ def render_github_ci_yaml(project_root: Path | None = None) -> str:
         )
 
     require_vscode = bool((cfg.get("ci", {}) or {}).get("vscode_required", False))
-
-    lic_required = bool((cfg.get("license", {}) or {}).get("required", False))
-    crypto_line = "          pip install cryptography\n" if lic_required else ""
+    crypto_line = ""  # OSS版本无需cryptography许可库
 
     # Detect multi-language signals
     has_node = (root / "package.json").exists()

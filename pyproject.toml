@@ -4,12 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mcp-rules-assistant"
-version = "0.2.6"
+version = "0.3.2"
 description = "MCP rules & context assistant (Python server + VS Code extension)"
 readme = { file = "README.md", content-type = "text/markdown" }
 requires-python = ">=3.10"
 authors = [{name = "RuleFlow Team", email = "support@ruleflow.app"}]
-license = "LicenseRef-Proprietary"
+license = "MIT"
 license-files = ["LICENSE"]
 keywords = ["mcp", "rules", "coverage", "cli", "vscode"]
 classifiers = [
@@ -67,3 +67,11 @@ ignore = ["E702"]
 profile = "black"
 line_length = 88
 known_first_party = ["mcp_rules_assistant"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = false
+warn_unused_configs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
+exclude = ["^tests/", "^scripts/"]

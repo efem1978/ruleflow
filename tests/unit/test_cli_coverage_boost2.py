@@ -6,7 +6,8 @@ import pytest
 
 
 def test_cli_coverage_export_no_coverage(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
     # 确保在临时目录中执行，且不存在 coverage.xml
     monkeypatch.chdir(tmp_path)
@@ -25,7 +26,8 @@ def test_cli_coverage_export_no_coverage(
 
 
 def test_cli_coverage_export_writes_csv(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
     # 在当前仓库根下执行，避免依赖 .mcp 配置
     # monkeypatch 覆盖 cov_summary/cov_groups/cov_near 以提供最小数据，覆盖 CSV 写入路径
@@ -53,25 +55,10 @@ def test_cli_coverage_export_writes_csv(
     assert (outd / "weak_top.csv").exists()
 
 
-def test_cli_license_require_on_off_with_invalid_yaml(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
-) -> None:
-    # 使用临时项目根，准备损坏的 YAML 以覆盖 except 分支
-    monkeypatch.chdir(tmp_path)
-    p = tmp_path / ".mcp"
-    p.mkdir(parents=True, exist_ok=True)
-    (p / "assistant.yaml").write_text(":: not yaml ::", encoding="utf-8")
-    from mcp_rules_assistant.cli import license_require_off, license_require_on
-
-    # off/on 均应能吞掉 YAML 解析异常并写回新内容
-    license_require_off()
-    license_require_on()
-    text = (p / "assistant.yaml").read_text(encoding="utf-8")
-    assert "license" in text and "required" in text
-
-
 def test_cli_health_status_exception(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     # 让 auto_status.generate_status 抛异常，覆盖 health 中的 fallback 分支
     import mcp_rules_assistant.auto_status as auto_status
