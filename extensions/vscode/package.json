@@ -2,11 +2,11 @@
   "name": "mcp-rules-assistant",
   "displayName": "RuleFlow: Rules & Memory (MCP)",
   "publisher": "ruleflow",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Rules enforcement + rolling context memory across IDEs (VS Code + MCP server). No telemetry.",
   "repository": {
     "type": "git",
-    "url": "https://github.com/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool.git"
+    "url": "https://github.com/efem1978/ruleflow.git"
   },
   "engines": {
     "vscode": "^1.84.0"
@@ -35,9 +35,6 @@
     "onCommand:mcpRulesAssistant.commit",
     "onCommand:mcpRulesAssistant.push",
     "onCommand:mcpRulesAssistant.nlCommand",
-    "onCommand:mcpRulesAssistant.licenseStatus",
-    "onCommand:mcpRulesAssistant.licenseActivate",
-    "onCommand:mcpRulesAssistant.licenseVerify",
     "onCommand:mcpRulesAssistant.envPrepareInstall",
     "onCommand:mcpRulesAssistant.panelDiag",
     "onCommand:mcpRulesAssistant.backendDoctor",
@@ -153,18 +150,6 @@
       {
         "command": "mcpRulesAssistant.nlCommand",
         "title": "RuleFlow: Natural Command"
-      },
-      {
-        "command": "mcpRulesAssistant.licenseStatus",
-        "title": "RuleFlow: License Status"
-      },
-      {
-        "command": "mcpRulesAssistant.licenseActivate",
-        "title": "RuleFlow: License Activate"
-      },
-      {
-        "command": "mcpRulesAssistant.licenseVerify",
-        "title": "RuleFlow: License Verify"
       },
       {
         "command": "mcpRulesAssistant.envPrepareInstall",

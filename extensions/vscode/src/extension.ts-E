@@ -3132,6 +3132,7 @@ export function activate(context: vscode.ExtensionContext) {
             ], { title: '\u9009\u62e9\u5f00\u53d1\u6a21\u5f0f / Dev Mode' });
             if (!pickM) return;
             const out = await client.request('tools/call', { name: 'rules.onboard', arguments: { scenario: pick.val, complexity: pickC.val, devMode: pickM.val, apply: true } });
+            vscode.window.showInformationMessage('\u5df2\u5e94\u7528\u89c4\u5219\u6863\uff1a' + JSON.stringify(out));
           };
           const runPrepareEnv = async () => { const out = await client.request('tools/call', { name: 'env.prepare', arguments: { create: false, install: false } }); vscode.window.showInformationMessage('env.prepare \u8ba1\u5212: ' + JSON.stringify(out.plan || out)); };
 
@@ -3198,8 +3199,14 @@ export function activate(context: vscode.ExtensionContext) {
   });
   // \u6ce8\uff1aquickActions \u547d\u4ee4\u5df2\u5728\u4e0a\u6587\u6ce8\u518c\uff1b\u6b64\u5904\u91cd\u590d\u6ce8\u518c\u5df2\u79fb\u9664\u4ee5\u907f\u514d\u6d4b\u8bd5\u4e2d\u91cd\u590d\u6fc0\u6d3b\u5bfc\u81f4\u51b2\u7a81
 
-  // licenseStatus command removed in OSS build
-
+  context.subscriptions.push(vscode.commands.registerCommand('mcpRulesAssistant.licenseStatus', async () => {
+    try { client.start(context); } catch {}
+    try {
+      vscode.window.showInformationMessage('License: ' + JSON.stringify(out));
+    } catch (e:any) {
+      vscode.window.showErrorMessage('License verify failed: ' + String(e));
+    }
+  }));
 
   context.subscriptions.push(disposable);
 

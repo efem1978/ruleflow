@@ -104,7 +104,6 @@
 - 本地钩子：`mcp-rules-assistant install-hooks`（含 commit-msg/pre-push），推送前运行全量门禁
 - 覆盖率门槛：由 `.mcp/assistant.yaml` 的 `performance.on_push.coverage.min_module` 与 `coverage.policy` 同步控制
 
-- CI 许可门禁（确定性）：当 `license.required=true` 时，`ci.validate` 仅读取项目级许可证 `.mcp/license.json`；若未激活，将写入 `.mcp/dashboard/release_check.md` 并阻断（忽略全局 `~/.mcp/license.json` 以保证 CI/测试可复现）
 
 ## 无人值守（AI 自主运行）/ Unattended AI Autopilot
 - 容器侧（默认安全）：`DEV_AGENT_AUTOCOMMIT=0`、`DEV_AGENT_AUTOPUSH=0`、`DEV_AGENT_AUTOTAG=0`、`DEV_AGENT_BYPASS_COMMIT=0`
@@ -183,7 +182,6 @@
 
 ## 审计快照（当前） / Audit Snapshot (Current)
 - 以工具输出为准：请通过 `mcp-rules-assistant coverage-report --json` 查看实时 weak/near 与分组；避免文档与实现漂移。
-- 策略阈值（.mcp/assistant.yaml）：min_module=0.96；核心≥0.98；dev_agent ≥0.95；license_utils ≥0.95（核心上限按需抛光）
  - 近阈值窗口覆盖：本仓库将 `coverage.near.within` 设为 0.8%（0.008），在保证 Gate 通过的前提下用于清空 near 列表、聚焦真正弱项；可用 `mcp-rules-assistant coverage-near-set --within 3 --top 20` 调整。
  - CI 已包含 JetBrains Storyboard 产物与最小 smoke 校验（读取 `.mcp/dashboard/status.json` 关键字段）。
 

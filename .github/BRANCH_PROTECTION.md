@@ -1,7 +1,7 @@
 Branch Protection – Quick Setup
 
 1) Open branch protection rules for this repo
-- URL: https://github.com/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool/settings/branches
+- URL: https://github.com/efem1978/ruleflow/settings/branches
 
 2) Add rule
 - Branch name pattern: main
@@ -20,8 +20,8 @@ Branch Protection – Quick Setup
   - [optional] Require conversation resolution
 
 3) Verify
-- Push or re-run CI: https://github.com/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool/actions
-- Coverage dashboard (Codecov): https://app.codecov.io/gh/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool
+- Push or re-run CI: https://github.com/efem1978/ruleflow/actions
+- Coverage dashboard (Codecov): https://app.codecov.io/gh/efem1978/ruleflow
 
 Notes
 - The CI enforces coverage ≥95% (pytest-cov). Codecov statuses are informational by default (codecov.yml) to avoid blocking; you can make them required after validating.

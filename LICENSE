@@ -1,26 +1,21 @@
-RuleFlow End User License Agreement (EULA)
+MIT License
 
-IMPORTANT: PLEASE READ THIS LICENSE CAREFULLY BEFORE USING THE SOFTWARE.
+Copyright (c) 2025 RuleFlow Team
 
-1. License Grant. Subject to payment (after any free trial) and compliance with this EULA, you are granted a non-exclusive, non-transferable, revocable license to install and use the Software for your internal purposes. Seat-based plans require one license per individual user.
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-2. Trial. A 7-day free trial is provided with full features. After the trial, a valid license is required. Offline activation via license file is supported.
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
-3. Restrictions. You shall not: (a) sublicense, resell, rent, or lease; (b) reverse engineer or circumvent technical protection measures; (c) remove or obscure notices; (d) use the Software to build a competing product.
-
-4. Ownership. The Software is licensed, not sold. All rights not expressly granted are reserved by the licensor.
-
-5. Updates & Support. Subscription plans include updates and standard support during the subscription term. Perpetual licenses include 12 months of updates from the purchase date; continued updates require active maintenance.
-
-6. Data & Privacy. The Software operates without telemetry by default. Any optional integrations are subject to their respective terms.
-
-7. Disclaimer. THE SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTIES OF ANY KIND. TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE LICENSOR DISCLAIMS ALL IMPLIED WARRANTIES AND LIMITS LIABILITY.
-
-8. Termination. This EULA terminates upon breach. Upon termination, you must cease use and remove all copies.
-
-9. Governing Law. As specified by the licensor in ordering terms; otherwise, local consumer protections may apply.
-
-10. Seat & Enterprise Terms. Team/enterprise features may include additional administrative controls, SLAs, and private delivery options as agreed.
-
-If you do not agree to these terms, do not install or use the Software.
-
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

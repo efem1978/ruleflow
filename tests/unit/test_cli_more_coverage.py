@@ -34,40 +34,6 @@ repos:
     assert "pre-commit" in text and "pre-push" in text
 
 
-def test_license_hs256_roundtrip(tmp_path: Path, monkeypatch):
-    # Redirect HOME for license path
-    monkeypatch.setenv("HOME", str(tmp_path))
-    monkeypatch.setenv("MCP_LICENSE_SALT", "test-salt")
-
-    # Generate a license (hs256)
-    res_gen = runner.invoke(
-        app,
-        [
-            "license-generate",
-            "--issued-to",
-            "tester",
-            "--expires",
-            "2099-01-01",
-            "--out",
-            str(tmp_path / "lic.json"),
-        ],
-    )
-    assert res_gen.exit_code == 0
-    assert (tmp_path / "lic.json").exists()
-
-    # Activate
-    res_act = runner.invoke(
-        app, ["license-activate", "--file", str(tmp_path / "lic.json")],
-    )
-    assert res_act.exit_code == 0
-
-    # Verify
-    res_ver = runner.invoke(app, ["license-verify"])
-    assert res_ver.exit_code == 0
-    data = json.loads(res_ver.stdout.strip())
-    assert data.get("activated") is True
-
-
 def test_rules_explain_json(tmp_path: Path, monkeypatch):
     # Provide a minimal compiled rules artifact
     dot = tmp_path / ".mcp"

@@ -182,15 +182,6 @@ class TestSecurityCompliance:
                     not real_matches
                 ), f"Potential secret found in {py_file}: {real_matches}"
 
-    def test_license_headers(self):
-        """Ensure proper license headers"""
-        project_root = Path(__file__).parent.parent.parent
-        assert (project_root / "LICENSE").exists()
-
-        # Check main Python files have appropriate headers
-        main_files = list((project_root / "mcp_rules_assistant").rglob("*.py"))
-        assert len(main_files) > 0, "No Python files found in main package"
-
 
 class TestPerformance:
     """Performance benchmarks for commercial release"""

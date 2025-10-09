@@ -30,7 +30,6 @@ from . import rules_ingest as ri
 from .audit import log_security_event as _audit
 from .config import DEFAULT_PROJECT_CONFIG_PATH, ensure_project_config, load_config
 from .fs_wrapper import FSGuard, atomic_write_text
-from .license_utils import verify_license as _verify_license
 from .memory import MemoryManager
 from .policy_keys import (
     POLICY_KEY_CONTAINER_BASELINE,
@@ -175,42 +174,6 @@ class JsonRpcServer:
         except Exception:
             return default
 
-    def _license_required(self) -> bool:
-        try:
-            # 若项目根变化，重新加载；否则优先尊重内存中的显式注入（测试用）
-            # 1) 优先使用当前内存配置（允许测试注入 cfg）
-            cfg_src = self.cfg if isinstance(self.cfg, dict) else {}
-            lic_cfg = (
-                cfg_src.get("license", {})
-                if isinstance(cfg_src.get("license", {}), dict)
-                else {}
-            )
-            required = bool(lic_cfg.get("required", False))
-            # 2) 若内存未开启，再从磁盘读取最新配置（允许外部更新 assistant.yaml 生效）
-            if not required:
-                fresh = load_config(self.project_root)
-                self.cfg = fresh
-                self._cfg_root = self.project_root
-                lic_cfg = (
-                    fresh.get("license", {})
-                    if isinstance(fresh.get("license", {}), dict)
-                    else {}
-                )
-                required = bool(lic_cfg.get("required", False))
-            return required
-        except Exception as e:
-            # 保持默认回退为 False，仅记录调试信息
-            try:
-                import logging  # pragma: no cover
-
-                logging.getLogger(__name__).debug(
-                    "[mcp] license.required parse failed: %r",
-                    e,
-                )  # pragma: no cover
-            except Exception:  # pragma: no cover
-                pass
-            return False
-
     def _dashboard_append_info(self, text: str, action: str | None = None) -> None:
         """Append a brief info entry to .mcp/dashboard/status.json['info'] (best-effort).
 
@@ -259,27 +222,6 @@ class JsonRpcServer:
             )
         except Exception:
             pass
-
-    def _ensure_license(self) -> None:
-        if not self._license_required():
-            return
-        res = {}
-        try:
-            res = _verify_license()
-        except Exception as e:
-            # 许可校验失败路径：仅记录调试信息，不泄露具体异常
-            try:
-                import logging  # pragma: no cover
-
-                logging.getLogger(__name__).debug(
-                    "[mcp] license verify exception: %r",
-                    e,
-                )  # pragma: no cover
-            except Exception:  # pragma: no cover
-                pass
-            res = {"ok": False}
-        if not bool(res.get("ok")):
-            raise ValueError("license required or invalid")
 
     # ---- MCP-like methods ----
     def handle(self, request: dict[str, Any]) -> dict[str, Any]:
@@ -576,65 +518,7 @@ class JsonRpcServer:
                     pass
         except Exception:
             pass
-        # 许可门禁：对敏感工具启用软硬门禁（受配置 license.required 控制）
-        gated = {
-            "rules.enforce",
-            "rules.onboard",
-            "ci.generate",
-            "ci.validate",
-            "ci.autofix",
-            "git.install_hooks",
-        }
-        try:
-            if name in gated:
-                # 对 ci.validate 提供更友好的摘要输出（优先项目级许可证）
-                if name == "ci.validate":
-                    if self._license_required():
-                        ok = False
-                        try:
-                            # Prefer project-scoped license for CI validation to avoid
-                            # interference from any user-level global license.
-                            proj_lic = self.project_root / ".mcp" / "license.json"
-                            if proj_lic.exists():
-                                res = _verify_license(proj_lic)
-                            else:
-                                # No project license present → treat as not ok
-                                res = {"ok": False}
-                            ok = bool(res.get("ok"))
-                        except Exception:
-                            ok = False
-                        if not ok:
-                            # 写出摘要（Markdown + JSON），供 CI/人工审阅/机器消费
-                            dash = self.project_root / ".mcp" / "dashboard"
-                            dash.mkdir(parents=True, exist_ok=True)
-                            (dash / "release_check.md").write_text(
-                                "License required or invalid — ci.validate gated\n",
-                                encoding="utf-8",
-                            )
-                            try:
-                                (dash / "release_check.json").write_text(
-                                    json.dumps(
-                                        {
-                                            "ok": False,
-                                            "code": "LICENSE_REQUIRED",
-                                            "message": "license required or invalid",
-                                            "timestamp": int(time.time()),
-                                        },
-                                        ensure_ascii=False,
-                                    ),
-                                    encoding="utf-8",
-                                )
-                            except Exception:
-                                pass
-                            # 仍按硬门禁阻断
-                            raise ValueError("license required or invalid")
-                    # 若项目级许可证已验证通过，则不再调用全局 _ensure_license（避免双重门禁导致容器内误判）
-                else:
-                    # 其他 gated 正常校验（尊重全局/项目配置）
-                    self._ensure_license()
-        except Exception:
-            # 保守：直接抛出以阻断敏感调用
-            raise
+
         if name == "project.detect":
             return self._tool_project_detect()
         if name == "project.switch":
@@ -997,10 +881,7 @@ class JsonRpcServer:
             return self._tool_git_install_hooks()
         if name == "nl.command":
             return self._tool_nl_command(args)
-        if name == "license.activate":
-            return self._tool_license_activate(args)
-        if name == "license.verify":
-            return self._tool_license_verify()
+
         if name == "plan.update":
             return self._tool_plan_update(args)
         if name == "plan.set":
@@ -1445,23 +1326,11 @@ class JsonRpcServer:
         }
 
     def _tool_license_activate(self, args: dict[str, Any]) -> dict[str, Any]:
-        """Copy provided license JSON file to ~/.mcp/license.json (best-effort)."""
-        src = Path(str(args.get("path", "")).strip()).expanduser().resolve()
-        if not src.exists():
-            raise ValueError("license file not found")
-        dst = Path.home() / ".mcp" / "license.json"
-        dst.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(str(src), str(dst))
-        # refresh config not needed; diagnose reads from disk
-        return {"ok": True, "path": str(dst)}
+        """No-op in OSS build (license functionality removed)."""
+        return {"ok": False, "message": "license functionality removed in OSS build"}
 
     def _tool_license_verify(self) -> dict[str, Any]:
-        """Verify local license (if present) and return status JSON."""
-        try:
-            lic = _verify_license()
-        except Exception as e:
-            return {"ok": False, "message": str(e)}
-        return {"ok": True, "license": lic}
+        return {"ok": True, "license": {"ok": True, "activated": False}}
 
     # ---- rules tool helpers ----
     def _tool_rules_ingest(self, args: dict[str, Any]) -> dict[str, Any]:
@@ -1642,7 +1511,6 @@ class JsonRpcServer:
         )
         cont_baseline = complexity in ("medium", "large")
         cont_required = False
-        lic_required = scenario.lower() in ("enterprise", "org", "enterprise_org")
         prof: dict[str, Any] = {
             "coverage": {"min_module": th.coverage_min_module, "min_core": 0.95},
             "test": {
@@ -1655,7 +1523,6 @@ class JsonRpcServer:
                 "baseline": bool(cont_baseline),
                 "required": bool(cont_required),
             },
-            "license": {"required": bool(lic_required)},
         }
         # CI helpers derived from profile
         ci_hadolint: bool = bool(
@@ -1676,8 +1543,7 @@ class JsonRpcServer:
         summary = (
             f"Coverage min_module={th.coverage_min_module:.2f}, mutation_test={_yn(th.mutation_required)}\n"
             f"Security: secrets_scan={_yn(True)}, sast_strict={_yn(prof['security']['sast_strict'])}\n"
-            f"Container: baseline={_yn(prof['container']['baseline'])}, required={_yn(prof['container']['required'])}\n"
-            f"License: required={_yn(prof['license']['required'])}"
+            f"Container: baseline={_yn(prof['container']['baseline'])}, required={_yn(prof['container']['required'])}"
         )
 
         apply = bool(args.get("apply", True))
@@ -1714,14 +1580,6 @@ class JsonRpcServer:
             on_push["mutation_test"] = bool(th.mutation_required)
             perf["on_push"] = on_push
             data["performance"] = perf
-            # license
-            lic = (
-                data.get("license", {})
-                if isinstance(data.get("license", {}), dict)
-                else {}
-            )
-            lic["required"] = bool(lic_required)
-            data["license"] = lic
             # CI suggestions
             ci = data.get("ci", {}) if isinstance(data.get("ci", {}), dict) else {}
             if ci_hadolint:
@@ -1914,13 +1772,6 @@ English summary:
             "hadolint": shutil.which("hadolint") or "",
             "docker": shutil.which("docker") or "",
         }
-        # 许可校验：存在性 + 签名/有效期检查（hs256/rs256/ed25519）
-        try:
-            from .license_utils import verify_license as _verify_license
-
-            lic = _verify_license()
-        except Exception:
-            lic = {"ok": False, "activated": False}
         return {
             "ok": True,
             "python_version": platform.python_version(),
@@ -1930,7 +1781,6 @@ English summary:
             "coverage": {"exists": coverage_exists},
             "rules": {"compiled_exists": compiled_exists},
             "maxima": maxima,
-            "license": lic,
         }
 
     def _res_read_progress(self) -> dict[str, Any]:
@@ -2039,36 +1889,6 @@ English summary:
             payload = dict(args)
         if not isinstance(payload, dict):
             raise ValueError("data must be object or provide flattened keys")
-        # 许可硬门禁：当修改 CI 关键项且 license.required=true 时，需先通过许可校验
-        try:
-            touched: set[str] = set()
-            pf = payload
-            for k in (
-                "hadolint",
-                "hadolint_image",
-                "hadolint_args",
-                "semgrep_config",
-                "mutation_gate_strict",
-                "vscode_required",
-            ):
-                if k in pf:
-                    touched.add(k)
-            if isinstance(pf.get("ci"), dict):
-                for k in pf["ci"].keys():
-                    if k in {
-                        "hadolint",
-                        "hadolint_image",
-                        "hadolint_args",
-                        "semgrep_config",
-                        "mutation_gate_strict",
-                        "vscode_required",
-                    }:
-                        touched.add(k)
-            if touched and self._license_required():
-                self._ensure_license()
-        except Exception:
-            # 容错：解析失败不阻断（具体 CI 工具调用仍受门禁保护）
-            pass
         cfg_path = self.project_root / DEFAULT_PROJECT_CONFIG_PATH
         ensure_project_config(cfg_path)
         try:

@@ -69,14 +69,7 @@ def setup_default_tools() -> None:
         Tool("env.diagnose", "Diagnose environment/tools/config presence"),
     )
     registry.register(
-        Tool(
-            "license.activate",
-            "Activate license by copying JSON to ~/.mcp/license.json",
-        ),
-    )
-    registry.register(Tool("license.verify", "Verify local license and return status"))
-    registry.register(
-        Tool("rules.resolve", "Resolve compiled rules into config (apply)"),
+        Tool("rules.resolve", "Resolve compiled rules into config (apply)")
     )
     registry.register(Tool("ide.scaffold", "Generate per-IDE integration scaffold"))
     registry.register(

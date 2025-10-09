@@ -176,9 +176,9 @@ initialize_mcp() {
     log_success "MCP configuration initialized"
 }
 
-# Run comprehensive test suite for commercial release
+# Run comprehensive quality test suite
 run_tests() {
-    log_info "Running comprehensive test suite for commercial release..."
+    log_info "Running comprehensive quality test suite..."
     source .mcp/venv/bin/activate
     
     # 1. Code quality checks
@@ -233,7 +233,7 @@ run_tests() {
         log_warn "tests/docs/ not found, skipping documentation tests"
     fi
     
-    log_success "All commercial-grade tests passed successfully"
+    log_success "All quality gates passed successfully"
 }
 
 # Detect available IDEs
@@ -689,26 +689,12 @@ validate_installation() {
     
     if $validation_passed; then
         log_success "🎉 Installation completed successfully!"
-        log_info "Running commercial release validation..."
-        if bash scripts/commercial-release-validation.sh; then
-            log_success "🎉 Commercial release validation PASSED"
-            log_info "Next steps:"
-            log_info "1. Open your IDE and look for MCP Rules Assistant commands"
-            log_info "2. VSCode/Cursor/Windsurf: Command Palette -> 'RuleFlow: Open Panel'"
-            log_info "3. Neovim: :MCPStatus, :MCPCoverage, etc."
-            log_info "4. Sublime: Tools -> MCP Rules Assistant"
-            log_info "5. JetBrains: Tools -> External Tools -> MCP Rules Assistant"
-            log_info "6. Review commercial release report: .mcp/commercial-release-report.md"
-        else
-            if [[ "${STRICT_TESTS:-1}" == "0" ]]; then
-                log_warn "Commercial release validation FAILED (non-blocking: STRICT_TESTS=0)."
-                log_warn "Review validation reports in .mcp/ directory when convenient."
-            else
-                log_error "Commercial release validation FAILED"
-                log_error "Review validation reports in .mcp/ directory"
-                exit 1
-            fi
-        fi
+        log_info "Next steps:"
+        log_info "1. Open your IDE and look for MCP Rules Assistant commands"
+        log_info "2. VSCode/Cursor/Windsurf: Command Palette -> 'RuleFlow: Open Panel'"
+        log_info "3. Neovim: :MCPStatus, :MCPCoverage, etc."
+        log_info "4. Sublime: Tools -> MCP Rules Assistant"
+        log_info "5. JetBrains: Tools -> External Tools -> MCP Rules Assistant"
     else
         log_error "❌ Installation validation failed"
         exit 1

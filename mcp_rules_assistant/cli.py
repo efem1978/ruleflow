@@ -29,7 +29,6 @@ from .coverage_summary import summarize as cov_summary
 from .coverage_summary import summarize_groups as cov_groups
 from .coverage_summary import summarize_near as cov_near
 from .coverage_summary import summarize_tree as cov_tree
-from .license_utils import generate_license, verify_license
 from .mcp_server import JsonRpcServer
 from .progress import ensure_plan, read_plan, update_plan_fields, write_plan
 
@@ -43,87 +42,6 @@ def init() -> None:
     rprint(
         "[green]✔ Created[/] .mcp/assistant.yaml with performance defaults (Fast mode)",
     )
-
-
-@app.command("license-status")
-def license_status() -> None:
-    """显示许可状态（读取 ~/.mcp/license.json 是否存在并校验）。"""
-    lic = (Path.home() / ".mcp" / "license.json").resolve()
-    if lic.exists():
-        rprint({"ok": True, "activated": True, "path": str(lic)})
-    else:
-        rprint({"ok": True, "activated": False})
-
-
-@app.command("license-activate")
-def license_activate(
-    file: str = typer.Option(..., "--file", help="许可文件路径（JSON）"),
-) -> None:
-    """激活许可（复制到 ~/.mcp/license.json）。"""
-    src = Path(file).expanduser().resolve()
-    if not src.exists():
-        rprint({"ok": False, "message": f"license file not found: {src}"})
-        raise typer.Exit(1)
-    dst = (Path.home() / ".mcp" / "license.json").resolve()
-    dst.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(str(src), str(dst))
-    rprint({"ok": True, "activated": True, "path": str(dst)})
-
-
-@app.command("license-verify")
-def license_verify() -> None:
-    """校验许可文件（演示版：有效期与签名一致性）。"""
-    res = verify_license()
-    # 为便于测试与管道处理，这里输出标准 JSON 文本（其它命令保持原样）
-    import json as _json
-
-    print(_json.dumps(res, ensure_ascii=False))
-
-
-@app.command("license-generate")
-def license_generate(
-    issued_to: str = typer.Option(..., "--issued-to", help="被授权人/组织"),
-    expires: str = typer.Option(..., "--expires", help="到期日 YYYY-MM-DD"),
-    machine: str = typer.Option("", "--machine", help="机器指纹（可留空）"),
-    alg: str = typer.Option("hs256", "--alg", help="hs256/rs256/ed25519"),
-    private_key: Optional[str] = typer.Option(
-        None,
-        "--private-key",
-        help="rs256/ed25519 私钥 PEM 路径",
-    ),
-    out: Optional[str] = typer.Option(None, "--out", help="输出路径（默认打印）"),
-) -> None:
-    """离线生成 license（演示版）：支持 hs256/rs256/ed25519。
-
-    - hs256：使用环境变量 MCP_LICENSE_SALT（可选）计算签名；便于本地试用/演示。
-    - rs256：需要 --private-key 指定 PEM 格式 RSA 私钥；验证通过 MCP_LICENSE_PUBKEY 公钥。
-    - ed25519：需要 --private-key 指定 PEM 格式 Ed25519 私钥；验证通过 MCP_LICENSE_ED25519_PUBKEY 公钥。
-    """
-    pk_bytes = None
-    if alg.lower() in {"rs256", "ed25519"}:
-        if not private_key:
-            rprint({"ok": False, "message": "--private-key required for rs256/ed25519"})
-            raise typer.Exit(2)
-        p = Path(private_key).expanduser().resolve()
-        if not p.exists():
-            rprint({"ok": False, "message": f"private key not found: {p}"})
-            raise typer.Exit(2)
-        pk_bytes = p.read_bytes()
-    lic = generate_license(
-        issued_to=issued_to,
-        expires=expires,
-        machine=machine,
-        alg=alg,
-        private_key_pem=pk_bytes,
-    )
-    text = _json.dumps(lic, ensure_ascii=False, indent=2)
-    if out:
-        op = Path(out).expanduser().resolve()
-        op.parent.mkdir(parents=True, exist_ok=True)
-        op.write_text(text, encoding="utf-8")
-        rprint({"ok": True, "path": str(op)})
-    else:
-        rprint(text)
 
 
 @app.command("precommit-migrate-stages")
@@ -1633,48 +1551,6 @@ def plan_next(text: str = typer.Argument(..., help="设置下一步（覆盖原�
 def plan_done() -> None:
     update_plan_fields(status="done")
     rprint("[green]✔ 计划状态已设置为 done[/]")
-
-
-@app.command("license-require-on")
-def license_require_on() -> None:
-    """在项目配置中启用 license.required: true（发布硬门禁，开发默认仍可关闭）。"""
-    ensure_project_config()
-    p = DEFAULT_PROJECT_CONFIG_PATH
-    import yaml as _yaml
-
-    try:
-        data = _yaml.safe_load(p.read_text(encoding="utf-8")) or {}
-    except Exception:
-        data = {}
-    lic = data.get("license", {}) if isinstance(data.get("license", {}), dict) else {}
-    lic["required"] = True
-    data["license"] = lic
-    p.write_text(
-        _yaml.safe_dump(data, sort_keys=False, allow_unicode=True),
-        encoding="utf-8",
-    )
-    rprint("[green]✔ license.required 已启用（发布模式）[/]")
-
-
-@app.command("license-require-off")
-def license_require_off() -> None:
-    """在项目配置中关闭 license.required（开发/本地模式）。"""
-    ensure_project_config()
-    p = DEFAULT_PROJECT_CONFIG_PATH
-    import yaml as _yaml
-
-    try:
-        data = _yaml.safe_load(p.read_text(encoding="utf-8")) or {}
-    except Exception:
-        data = {}
-    lic = data.get("license", {}) if isinstance(data.get("license", {}), dict) else {}
-    lic["required"] = False
-    data["license"] = lic
-    p.write_text(
-        _yaml.safe_dump(data, sort_keys=False, allow_unicode=True),
-        encoding="utf-8",
-    )
-    rprint("[green]✔ license.required 已关闭（开发模式）[/]")
 
 
 @app.command("ci-set")
