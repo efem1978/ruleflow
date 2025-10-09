@@ -2,10 +2,13 @@
 
 <div align="center">
 
-![CI](https://img.shields.io/github/actions/workflow/status/efem1978/ruleflow/ci.yml?branch=main&label=CI)
-![Coverage](https://codecov.io/gh/efem1978/ruleflow/branch/main/graph/badge.svg)
+[![CI](https://img.shields.io/github/actions/workflow/status/efem1978/ruleflow/ci.yml?branch=main&label=CI)](https://github.com/efem1978/ruleflow/actions/workflows/ci.yml)
+[![Coverage](https://codecov.io/gh/efem1978/ruleflow/branch/main/graph/badge.svg)](https://app.codecov.io/gh/efem1978/ruleflow)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.10+-blue.svg)
+[![GitHub stars](https://img.shields.io/github/stars/efem1978/ruleflow?style=social)](https://github.com/efem1978/ruleflow/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/efem1978/ruleflow?style=social)](https://github.com/efem1978/ruleflow/network/members)
+[![Open issues](https://img.shields.io/github/issues/efem1978/ruleflow)](https://github.com/efem1978/ruleflow/issues)
 
 ## Bilingual AI-Assisted Development Toolchain
 
@@ -16,6 +19,12 @@
 </div>
 
 ---
+
+> ⭐ **Star** the repo to支持项目发展 · 🍴 **Fork** 探索自定义 · 💬 [**提 Issue/Discussions**](https://github.com/efem1978/ruleflow/discussions) 加入 RuleFlow 社区
+
+<p align="center">
+  <img src="docs/assets/social_preview_ruleflow.png" alt="RuleFlow Overview" width="720" />
+</p>
 
 ## 中文
 
