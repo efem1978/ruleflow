@@ -1,4 +1,3 @@
-# License Generation & Verification (Demo)
 
 > 注：本项目的法律许可文本请参见仓库根部的 `LICENSE` 文件；本页为“许可证生成与校验（演示）”说明，不构成法律文本。
 
@@ -96,7 +95,6 @@ qUF+Z8F2qVvm1m9+9bE1q1zw6j+M0Xz8cESjFf7QdF4KfWcQqZzq4wECAwEAAQ==
       ```bash
       pip install cryptography || true
       ```
-    - 生成的 CI（`mcp-rules-assistant generate-ci`）会在 `license.required: true` 时自动包含 `pip install cryptography`。
 
 ---
 

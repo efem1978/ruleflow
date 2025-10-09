@@ -29,7 +29,8 @@ def test_rules_onboard_profile_and_apply(tmp_path: Path) -> None:
         isinstance(prof, dict)
         and "coverage" in prof
         and "security" in prof
-        and "license" in prof
+        and "container" in prof
+        and "ci" in prof
     )
     assert isinstance(out.get("summary", ""), str) and out["summary"].strip() != ""
     assert out.get("applied") is False
@@ -47,8 +48,8 @@ def test_rules_onboard_profile_and_apply(tmp_path: Path) -> None:
     assert out2.get("ok") is True and out2.get("applied") is True
     cfg = tmp_path / ".mcp/assistant.yaml"
     txt = _read_yaml_text(cfg)
-    # license required should be enabled for enterprise
-    assert "license:" in txt and "required: true" in txt
+    # license section removed in OSS build; ensure no license gate present
+    assert "license:" not in txt
     # coverage.min_module should reflect thresholds recommended
     assert "coverage:" in txt and "min_module:" in txt
     # CI toggles should be present for enterprise+large (strict/security)

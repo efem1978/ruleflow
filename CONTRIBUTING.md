@@ -106,7 +106,7 @@ Report security vulnerabilities to **support@ruleflow.app**. See [SECURITY.md](S
 
 By contributing, you agree that your contributions will be licensed under the MIT License.
 
-## Thank You!
+## Thank You
 
 Your contributions make this project better for everyone!
 

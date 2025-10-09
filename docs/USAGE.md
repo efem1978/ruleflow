@@ -43,18 +43,6 @@
 
 - `mcp-rules-assistant diagnose --json > diagnose.json`
 
-### 许可与试用（License & Trial）
-
-- 查看状态：`mcp-rules-assistant license-status`
-- 离线激活：`mcp-rules-assistant license-activate --file path/to/license.json`
-- 校验签名：`mcp-rules-assistant license-verify`
-- VS Code：命令面板 “RuleFlow: License Activate/Verify/Status”
-- 发布前硬门禁演练（可选）：
-  - `make release-harden-on` 启用
-  - `make release-harden-off` 关闭
-- 一键校验脚本：
-  - `sh scripts/release-harden-verify.sh`（开启门禁→验证 MCP 端口令→关闭）
-
 ### VS Code 使用
 
 - 面板：命令面板运行 `RuleFlow: Open Panel`（或点击状态栏左侧“RuleFlow”）
