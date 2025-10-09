@@ -10,44 +10,76 @@ jobs:
         python-version: ['3.10', '3.11', '3.12']
     steps:
       - uses: actions/checkout@v4
+      - name: Detect docs-only changes
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            docs_only:
+              - 'docs/**'
+              - '**/*.md'
+              - '!**/.github/**'
+              - '!extensions/**'
+              - '!mcp_rules_assistant/**'
+              - '!scripts/**'
+              - '!tests/**'
+              - '!Makefile'
+              - '!Dockerfile'
+      - name: Export DOCS_ONLY
+        run: echo "DOCS_ONLY=${{ steps.filter.outputs.docs_only }}" >> $GITHUB_ENV
+      - name: Short-circuit (docs-only PR)
+        if: ${{ github.event_name == 'pull_request' && env.DOCS_ONLY == 'true' }}
+        run: |
+          echo "[ci] docs-only PR; skipping heavy CI steps."
       - uses: actions/setup-python@v5
+        if: ${{ !(github.event_name == 'pull_request' && env.DOCS_ONLY == 'true') }}
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
       - name: Install tools
+        if: ${{ !(github.event_name == 'pull_request' && env.DOCS_ONLY == 'true') }}
         run: |
           python -m pip install --upgrade pip
           pip install -c constraints-ci.txt ruff black isort mypy bandit pytest pytest-cov types-PyYAML pytest-benchmark psutil cryptography
           # Install project deps for mypy import resolution (typer, rich, pyyaml, etc.)
           pip install -c constraints-ci.txt -e .
       - name: Pre-commit (all files)
+        if: ${{ !(github.event_name == 'pull_request' && env.DOCS_ONLY == 'true') }}
         run: |
           python -m pip install -c constraints-ci.txt pre-commit
           pre-commit run --all-files || true
       - name: Check Dockerfile existence
+        if: ${{ !(github.event_name == 'pull_request' && env.DOCS_ONLY == 'true') }}
         run: |
           test -f Dockerfile || (echo 'Dockerfile missing' && exit 1)
       - name: Dockerfile Lint (hadolint)
+        if: ${{ !(github.event_name == 'pull_request' && env.DOCS_ONLY == 'true') }}
         run: |
           test -f Dockerfile && docker run --rm -v "$PWD":/work -w /work hadolint/hadolint:2.12.0 hadolint  Dockerfile || echo 'skip hadolint'
       - name: Lint (ruff/black/isort)
+        if: ${{ !(github.event_name == 'pull_request' && env.DOCS_ONLY == 'true') }}
         run: |
           ruff check --output-format=github mcp_rules_assistant
           black --check mcp_rules_assistant
           isort --check-only mcp_rules_assistant
       - name: Docs Snapshot Gate (preflight subset)
+        if: ${{ !(github.event_name == 'pull_request' && env.DOCS_ONLY == 'true') }}
         run: |
           PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -q tests/docs/test_docs_anchors.py
       - name: Preflight
+        if: ${{ !(github.event_name == 'pull_request' && env.DOCS_ONLY == 'true') }}
         run: |
           sh scripts/preflight.sh
       - name: Type Check (core, blocking)
+        if: ${{ !(github.event_name == 'pull_request' && env.DOCS_ONLY == 'true') }}
         run: |
           mypy             mcp_rules_assistant/config.py             mcp_rules_assistant/progress.py             mcp_rules_assistant/tools.py             mcp_rules_assistant/memory.py             mcp_rules_assistant/mcp_server.py             mcp_rules_assistant/cli.py             mcp_rules_assistant/server.py
       - name: Type Check (rest, non-blocking)
+        if: ${{ !(github.event_name == 'pull_request' && env.DOCS_ONLY == 'true') }}
         run: |
           mypy mcp_rules_assistant || true
       - name: Tests + Coverage
+        if: ${{ !(github.event_name == 'pull_request' && env.DOCS_ONLY == 'true') }}
         env:
           PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
         run: |
@@ -69,6 +101,7 @@ jobs:
           print('[mcp] Coverage policy gate passed.')
           PY
       - name: Coverage Near Summary
+        if: ${{ !(github.event_name == 'pull_request' && env.DOCS_ONLY == 'true') }}
         run: |
           python -m mcp_rules_assistant.cli coverage-near --within 3 --top 10 > near.txt || true
           python -m mcp_rules_assistant.cli coverage-near --within 3 --top 10 --format csv --output near.csv || true
@@ -95,15 +128,18 @@ jobs:
           flags: python
           fail_ci_if_error: false
       - name: Security (bandit — high only)
+        if: ${{ !(github.event_name == 'pull_request' && env.DOCS_ONLY == 'true') }}
         run: |
           bandit -q -lll -x tests -r .
       - name: SAST (semgrep)
+        if: ${{ !(github.event_name == 'pull_request' && env.DOCS_ONLY == 'true') }}
         run: |
           # 固定 semgrep 版本以提升可重复性
           python -m pip install 'semgrep==1.91.0'
           # 仅扫描产品代码目录，减少测试/扩展示例的噪声，保持阻断
           semgrep --error --config p/ci mcp_rules_assistant
       - name: Mutation testing
+        if: ${{ !(github.event_name == 'pull_request' && env.DOCS_ONLY == 'true') }}
         run: |
           python -m pip install mutmut
           if grep -Eq '(^|[^#])\bmode:\s*strict\b' .mcp/assistant.yaml || grep -Eq '(^|[^#])\bmutation_gate_strict:\s*true\b' .mcp/assistant.yaml; then
@@ -112,15 +148,18 @@ jobs:
             mutmut run -q || true
           fi
       - name: Build & Verify (sdist/wheel)
+        if: ${{ !(github.event_name == 'pull_request' && env.DOCS_ONLY == 'true') }}
         run: |
           python -m pip install build twine
           python -m build
           twine check dist/*
       - name: Dependency audit (pip-audit)
+        if: ${{ !(github.event_name == 'pull_request' && env.DOCS_ONLY == 'true') }}
         run: |
           python -m pip install pip-audit
           pip-audit || true
       - name: License whitelist gate (pip-licenses)
+        if: ${{ !(github.event_name == 'pull_request' && env.DOCS_ONLY == 'true') }}
         run: |
           python -m pip install pip-licenses
           # Export licenses to file for auditing
@@ -211,6 +250,7 @@ jobs:
           name: licenses-report-${{ matrix.python-version }}
           path: licenses.json
       - name: Generate SBOM (CycloneDX via pip-audit)
+        if: ${{ !(github.event_name == 'pull_request' && env.DOCS_ONLY == 'true') }}
         run: |
           python -m pip install pip-audit
           pip-audit -f cyclonedx -o sbom-cyclonedx.json || true
