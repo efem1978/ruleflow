@@ -13,8 +13,8 @@ Thank you for using MCP Rules & Context Assistant! Here are the best ways to get
 
 ### 💬 Community Support
 
-- **GitHub Discussions**: [Ask questions and discuss features](https://github.com/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool/discussions)
-- **GitHub Issues**: [Report bugs or request features](https://github.com/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool/issues)
+- **GitHub Discussions**: [Ask questions and discuss features](https://github.com/efem1978/ruleflow/discussions)
+- **GitHub Issues**: [Report bugs or request features](https://github.com/efem1978/ruleflow/issues)
 
 ### 🐛 Reporting Bugs
 
@@ -63,4 +63,4 @@ A: See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ---
 
-**Don't see your question?** Open a [Discussion](https://github.com/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool/discussions) or [Issue](https://github.com/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool/issues)!
+**Don't see your question?** Open a [Discussion](https://github.com/efem1978/ruleflow/discussions) or [Issue](https://github.com/efem1978/ruleflow/issues)!

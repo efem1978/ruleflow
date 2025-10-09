@@ -8,8 +8,8 @@ Thank you for your interest in contributing! This project is **open source (MIT 
 
 ```bash
 # Clone repository
-git clone https://github.com/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool.git
-cd Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool
+git clone https://github.com/efem1978/ruleflow.git
+cd ruleflow
 
 # One-click setup
 bash install.sh

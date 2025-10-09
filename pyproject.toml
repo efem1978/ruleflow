@@ -29,11 +29,11 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool"
-Repository = "https://github.com/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool.git"
-Documentation = "https://github.com/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool#readme"
-Support = "https://github.com/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool/issues"
-Privacy = "https://github.com/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool/blob/main/docs/PRIVACY.md"
+Homepage = "https://github.com/efem1978/ruleflow"
+Repository = "https://github.com/efem1978/ruleflow.git"
+Documentation = "https://github.com/efem1978/ruleflow#readme"
+Support = "https://github.com/efem1978/ruleflow/issues"
+Privacy = "https://github.com/efem1978/ruleflow/blob/main/docs/PRIVACY.md"
  
 
 [project.scripts]

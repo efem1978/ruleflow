@@ -2,11 +2,10 @@
 
 <div align="center">
 
-![CI](https://img.shields.io/github/actions/workflow/status/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool/ci.yml?branch=main&label=CI)
-![Coverage](https://codecov.io/gh/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool/branch/main/graph/badge.svg)
+![CI](https://img.shields.io/github/actions/workflow/status/efem1978/ruleflow/ci.yml?branch=main&label=CI)
+![Coverage](https://codecov.io/gh/efem1978/ruleflow/branch/main/graph/badge.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.10+-blue.svg)
-![PyPI](https://img.shields.io/pypi/v/mcp-rules-assistant?label=pypi)
 
 ## Bilingual AI-Assisted Development Toolchain
 
@@ -39,26 +38,19 @@ MCP Rules & Context Assistant 是一款**完全开源（MIT License）**的 AI �
 
 ```bash
 # Linux / macOS
-git clone https://github.com/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool.git
-cd Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool
+git clone https://github.com/efem1978/ruleflow.git
+cd ruleflow
 bash install.sh
 ```
 
 ```bat
 REM Windows
-git clone https://github.com/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool.git
-cd Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool
+git clone https://github.com/efem1978/ruleflow.git
+cd ruleflow
 install.bat
 ```
 
-#### 方式2：PyPI 安装
-
-```bash
-pip install mcp-rules-assistant
-mcp-rules-assistant init
-```
-
-#### 方式3：从源码安装
+#### 方式2：从源码安装
 
 ```bash
 python3 -m venv .venv
@@ -117,7 +109,7 @@ mcp-rules-assistant diagnose
 
 - **GitHub Issues** - 报告 Bug 或提出功能请求
 - **GitHub Discussions** - 提问与讨论
-- **参与贡献** - 查看 [待办事项](https://github.com/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool/issues)
+- **参与贡献** - 查看 [待办事项](https://github.com/efem1978/ruleflow/issues)
 
 ---
 
@@ -142,26 +134,19 @@ MCP Rules & Context Assistant is a **fully open-source (MIT License)** AI-assist
 
 ```bash
 # Linux / macOS
-git clone https://github.com/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool.git
-cd Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool
+git clone https://github.com/efem1978/ruleflow.git
+cd ruleflow
 bash install.sh
 ```
 
 ```bat
 REM Windows
-git clone https://github.com/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool.git
-cd Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool
+git clone https://github.com/efem1978/ruleflow.git
+cd ruleflow
 install.bat
 ```
 
-#### Option 2: PyPI Install
-
-```bash
-pip install mcp-rules-assistant
-mcp-rules-assistant init
-```
-
-#### Option 3: From Source
+#### Option 2: From Source
 
 ```bash
 python3 -m venv .venv
@@ -220,7 +205,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
 - **GitHub Issues** - Report bugs or request features
 - **GitHub Discussions** - Ask questions & discuss
-- **Contribute** - Check [open issues](https://github.com/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool/issues)
+- **Contribute** - Check [open issues](https://github.com/efem1978/ruleflow/issues)
 
 ---
 
@@ -261,7 +246,7 @@ make ci
 
 - **Versioning**: Semantic Versioning (SemVer)
 - **Changelog**: See [CHANGELOG.md](CHANGELOG.md)
-- **Releases**: See [GitHub Releases](https://github.com/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool/releases)
+- **Releases**: See [GitHub Releases](https://github.com/efem1978/ruleflow/releases)
 
 Current Version: **0.3.2** (OSS Edition)
 
@@ -277,9 +262,9 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 
 ## 📞 Contact
 
-- **Project Homepage**: [GitHub Repository](https://github.com/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool)
-- **Issues**: [GitHub Issues](https://github.com/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool/discussions)
+- **Project Homepage**: [GitHub Repository](https://github.com/efem1978/ruleflow)
+- **Issues**: [GitHub Issues](https://github.com/efem1978/ruleflow/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/efem1978/ruleflow/discussions)
 
 ---
 

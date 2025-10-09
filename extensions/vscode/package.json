@@ -6,7 +6,7 @@
   "description": "Rules enforcement + rolling context memory across IDEs (VS Code + MCP server). No telemetry.",
   "repository": {
     "type": "git",
-    "url": "https://github.com/efem1978/Contextual-Cohesion-and-Programming-Rules-Assistant-MCP-Tool.git"
+    "url": "https://github.com/efem1978/ruleflow.git"
   },
   "engines": {
     "vscode": "^1.84.0"

@@ -71,6 +71,41 @@ if not exist ".mcp\assistant.yaml" (
     mcp-rules-assistant init
 )
 
+REM Install VS Code extension (works for VS Code, Cursor, Windsurf)
+echo [INFO] Installing VS Code extension...
+set "VSIX_FILE=%PROJECT_DIR%extensions\vscode\mcp-rules-assistant-0.3.2.vsix"
+if exist "%VSIX_FILE%" (
+    where code >nul 2>&1
+    if %errorlevel% equ 0 (
+        code --install-extension "%VSIX_FILE%" >nul 2>&1
+        if %errorlevel% equ 0 (
+            echo [OK] Installed for VS Code
+        ) else (
+            echo [WARN] VS Code install failed
+        )
+    )
+    
+    where cursor >nul 2>&1
+    if %errorlevel% equ 0 (
+        cursor --install-extension "%VSIX_FILE%" >nul 2>&1
+        if %errorlevel% equ 0 (
+            echo [OK] Installed for Cursor
+        )
+    )
+    
+    REM Manual hint if no CLI found
+    where code >nul 2>&1
+    if %errorlevel% neq 0 (
+        where cursor >nul 2>&1
+        if %errorlevel% neq 0 (
+            echo [WARN] No IDE CLI found
+            echo Manual: code --install-extension %VSIX_FILE%
+        )
+    )
+) else (
+    echo [WARN] VS Code extension .vsix file not found
+)
+
 echo.
 echo ===============================================
 echo   Installation Complete!

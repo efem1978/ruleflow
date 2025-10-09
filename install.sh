@@ -130,6 +130,41 @@ if [ "${INSTALL_HOOKS:-1}" = "1" ]; then
     success "Git hooks installed"
 fi
 
+# Install VS Code extension (works for VS Code, Cursor, Windsurf)
+if [ "${INSTALL_VSCODE_EXT:-1}" = "1" ]; then
+    VSIX_FILE="$PROJECT_DIR/extensions/vscode/mcp-rules-assistant-0.3.2.vsix"
+    
+    if [ ! -f "$VSIX_FILE" ]; then
+        warn "VS Code extension .vsix file not found, skipping"
+    else
+        info "Installing VS Code extension (compatible with VS Code/Cursor/Windsurf)..."
+        
+        # Try VS Code
+        if command -v code &> /dev/null; then
+            code --install-extension "$VSIX_FILE" 2>/dev/null && success "Installed for VS Code" || warn "VS Code install failed"
+        fi
+        
+        # Try Cursor
+        if command -v cursor &> /dev/null; then
+            cursor --install-extension "$VSIX_FILE" 2>/dev/null && success "Installed for Cursor" || warn "Cursor install failed"
+        fi
+        
+        # Try Windsurf (if it has CLI)
+        if command -v windsurf &> /dev/null; then
+            windsurf --install-extension "$VSIX_FILE" 2>/dev/null && success "Installed for Windsurf" || warn "Windsurf install failed"
+        fi
+        
+        # Manual installation hint
+        if ! command -v code &> /dev/null && ! command -v cursor &> /dev/null && ! command -v windsurf &> /dev/null; then
+            warn "No compatible IDE CLI found"
+            info "Manual installation:"
+            info "  VS Code: code --install-extension $VSIX_FILE"
+            info "  Cursor: cursor --install-extension $VSIX_FILE"
+            info "  Or install via IDE: Extensions → Install from VSIX..."
+        fi
+    fi
+fi
+
 # Summary
 echo ""
 echo -e "${GREEN}╔═══════════════════════════════════════════╗${NC}"
