@@ -20,17 +20,30 @@
 
 ---
 
-> ⭐ **Star** the repo to支持项目发展 · 🍴 **Fork** 探索自定义 · 💬 [**提 Issue/Discussions**](https://github.com/efem1978/ruleflow/discussions) 加入 RuleFlow 社区
-
 <p align="center">
   <img src="docs/assets/social_preview_ruleflow.png" alt="RuleFlow Overview" width="720" />
 </p>
 
+> 💡 让 AI 辅助开发记住规则、保持一致 | Making AI-assisted development remember rules and stay consistent
+
+<div align="center">
+
+⭐ [**Star**](https://github.com/efem1978/ruleflow/stargazers) 支持项目 · 🍴 [**Fork**](https://github.com/efem1978/ruleflow/fork) 定制你的版本 · 💬 [**Discussions**](https://github.com/efem1978/ruleflow/discussions) 加入社区
+
+</div>
+
+---
+
 ## 中文
 
-### 项目简介
+### 🎯 RuleFlow 是什么？
 
-MCP Rules & Context Assistant 是一款**完全开源（MIT License）**的 AI 辅助开发工具，专为大型项目设计。它通过**规则治理 + 上下文记忆**，帮助团队在多轮 AI 协作中保持代码一致性与高质量交付。
+在多轮 AI 协作中，你是否遇到过这些困扰：
+- 🤔 AI 总是忘记项目的编码规范和质量标准
+- 😓 每次对话都要重新解释上下文和约束
+- 🔄 团队成员使用不同 AI 工具，规则难以统一
+
+**RuleFlow**（MCP Rules & Context Assistant）正是为解决这些问题而生。它是一款**完全开源（MIT License）**的 AI 辅助开发工具，通过**规则治理 + 上下文记忆**，让 AI 助手在多轮对话中始终遵守你的项目规范，保持代码一致性与高质量交付。
 
 ### 核心特性
 
@@ -124,9 +137,14 @@ mcp-rules-assistant diagnose
 
 ## English
 
-### Overview
+### 🎯 What is RuleFlow?
 
-MCP Rules & Context Assistant is a **fully open-source (MIT License)** AI-assisted development tool designed for large-scale projects. It maintains code consistency and high-quality delivery through **rule governance + context memory**.
+Ever faced these challenges in multi-turn AI collaboration?
+- 🤔 AI forgets your project's coding standards and quality requirements
+- 😓 You have to re-explain context and constraints in every conversation
+- 🔄 Team members use different AI tools, making it hard to maintain unified rules
+
+**RuleFlow** (MCP Rules & Context Assistant) is built to solve exactly these problems. It's a **fully open-source (MIT License)** AI-assisted development tool that uses **rule governance + context memory** to keep AI assistants aligned with your project standards across multiple conversation rounds, ensuring code consistency and high-quality delivery.
 
 ### Key Features
 
