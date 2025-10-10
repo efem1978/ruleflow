@@ -9,10 +9,10 @@ jobs:
       matrix:
         python-version: ['3.10', '3.11', '3.12']
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955
       - name: Detect docs-only changes
         id: filter
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36
         with:
           filters: |
             docs_only:
@@ -31,7 +31,7 @@ jobs:
         if: ${{ github.event_name == 'pull_request' && env.DOCS_ONLY == 'true' }}
         run: |
           echo "[ci] docs-only PR; skipping heavy CI steps."
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         if: ${{ !(github.event_name == 'pull_request' && env.DOCS_ONLY == 'true') }}
         with:
           python-version: ${{ matrix.python-version }}
@@ -109,7 +109,7 @@ jobs:
           tar czf tests-artifacts.tar.gz coverage.xml pytest-junit.xml near.txt near.csv near.json || true
       - name: Upload coverage & JUnit
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: python-tests-${{ matrix.python-version }}
           path: |
@@ -121,7 +121,7 @@ jobs:
             tests-artifacts.tar.gz
       - name: Upload Python coverage to Codecov (build)
         if: always()
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage.xml
@@ -245,7 +245,7 @@ jobs:
           PY
       - name: Upload Licenses Report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: licenses-report-${{ matrix.python-version }}
           path: licenses.json
@@ -256,15 +256,15 @@ jobs:
           pip-audit -f cyclonedx -o sbom-cyclonedx.json || true
       - name: Upload SBOM (CycloneDX)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: sbom-cyclonedx-${{ matrix.python-version }}
           path: sbom-cyclonedx.json
   prepare:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: '3.11'
           cache: 'pip'
@@ -293,7 +293,7 @@ jobs:
           pytest -q -p pytest_cov -p benchmark --maxfail=1 --disable-warnings -W error --strict-markers --cov=mcp_rules_assistant --cov-report=xml:coverage.xml --cov-report=term-missing --junitxml=pytest-junit.xml
       - name: Upload artifacts (env tests)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: python-tests-prepare
           path: |
@@ -301,7 +301,7 @@ jobs:
             pytest-junit.xml
       - name: Upload Python coverage to Codecov (prepare)
         if: always()
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage.xml
@@ -311,8 +311,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '20'
           cache: 'npm'
@@ -335,7 +335,7 @@ jobs:
           sh scripts/check-lcov.sh extensions/vscode/coverage/lcov.info 95 gate
       - name: Upload VS Code coverage to Codecov (conditional)
         if: always()
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: extensions/vscode/coverage/lcov.info
@@ -343,13 +343,13 @@ jobs:
           fail_ci_if_error: false
       - name: Upload IDE compat report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: ide-compat
           path: extensions/compat_report.json
       - name: Upload VS Code test log
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: vscode-tests
           path: extensions/vscode/vscode-test.log
