@@ -1,62 +1,66 @@
 name: Admin - Merge PR
+
 on:
-workflow_dispatch:
-inputs:
-pr_number:
-description: 'Pull request number to merge'
-required: true
-method:
-description: 'Merge method: squash | merge | rebase'
-default: 'squash'
-required: false
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'Pull request number to merge'
+        required: true
+      method:
+        description: 'Merge method: squash | merge | rebase'
+        default: 'squash'
+        required: false
+
 permissions:
-contents: write
-pull-requests: write
+  contents: write
+  pull-requests: write
+
 jobs:
-merge:
-runs-on: ubuntu-latest
-steps:
-- name: Merge via REST (requires GH_ADMIN_TOKEN with repo scope)
-uses: actions/github-script@v7
-with:
-github-token: ${{ secrets.GH_ADMIN_TOKEN }}
-script: |
-const prNumber = Number('${{ inputs.pr_number }}');
-let methodRaw = ('${{ inputs.method }}' || '').trim().toLowerCase();
-const method = ['squash','merge','rebase'].includes(methodRaw) ? methodRaw : 'squash';
-if (!Number.isFinite(prNumber)) { core.setFailed('Invalid pr_number'); return; }
+  merge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Merge via REST (requires GH_ADMIN_TOKEN with repo scope)
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b
+        with:
+          github-token: ${{ secrets.GH_ADMIN_TOKEN }}
+          script: |
+            const prNumber = Number('${{ inputs.pr_number }}');
+            let methodRaw = ('${{ inputs.method }}' || '').trim().toLowerCase();
+            const method = ['squash','merge','rebase'].includes(methodRaw) ? methodRaw : 'squash';
+            if (!Number.isFinite(prNumber)) { core.setFailed('Invalid pr_number'); return; }
 
-        const repoFull = process.env.GITHUB_REPOSITORY || '';
-        const [owner, repo] = repoFull.split('/');
-        if (!owner || !repo) { core.setFailed('Cannot parse GITHUB_REPOSITORY'); return; }
+            const repoFull = process.env.GITHUB_REPOSITORY || '';
+            const [owner, repo] = repoFull.split('/');
+            if (!owner || !repo) { core.setFailed('Cannot parse GITHUB_REPOSITORY'); return; }
 
-        let pr;
-        try {
-          pr = (await github.rest.pulls.get({ owner, repo, pull_number: prNumber })).data;
-        } catch (e) {
-          core.setFailed('PR not found or no access: ' + String(e)); return;
-        }
+            let pr;
+            try {
+              pr = (await github.rest.pulls.get({ owner, repo, pull_number: prNumber })).data;
+            } catch (e) {
+              core.setFailed('PR not found or no access: ' + String(e)); return;
+            }
 
-        const headSha = pr.head.sha;
-        const combined = await github.rest.repos.getCombinedStatusForRef({ owner, repo, ref: headSha });
-        const state = combined.data.state;
+            const headSha = pr.head.sha;
+            const combined = await github.rest.repos.getCombinedStatusForRef({ owner, repo, ref: headSha });
+            const state = combined.data.state;
 
-        await core.summary
-          .addHeading('Admin Merge PR (REST)')
-          .addRaw(`PR: #${prNumber} → ${owner}/${repo}\n`)
-          .addRaw(`Combined status: ${state}\n`)
-          .write();
+            await core.summary
+              .addHeading('Admin Merge PR (REST)')
+              .addRaw(`PR: #${prNumber} → ${owner}/${repo}\n`)
+              .addRaw(`Combined status: ${state}\n`)
+              .write();
 
-        if (state !== 'success') {
-          core.setFailed('Checks are not successful. Please re-run CI or update branch on the PR, then run this workflow again.');
-          return;
-        }
+            if (state !== 'success') {
+              core.setFailed('Checks are not successful. Please re-run CI or update branch on the PR, then run this workflow again.');
+              return;
+            }
 
-        try {
-          const res = await github.rest.pulls.merge({
-            owner, repo, pull_number: prNumber, merge_method: method
-          });
-          await core.summary.addRaw(`Merged: ${res.data.merged} (${res.data.message})\n`).write();
-          console.log(res.data);
-        } catch (e) {
-          core.setFailed('Merge failed (possibly unresolved review conversations or branch protection): ' + String(e));
+            try {
+              const res = await github.rest.pulls.merge({
+                owner, repo, pull_number: prNumber, merge_method: method
+              });
+              await core.summary.addRaw(`Merged: ${res.data.merged} (${res.data.message})\n`).write();
+              console.log(res.data);
+            } catch (e) {
+              core.setFailed('Merge failed (possibly unresolved review conversations or branch protection): ' + String(e));
+            }
