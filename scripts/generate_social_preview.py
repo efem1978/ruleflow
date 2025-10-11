@@ -28,10 +28,10 @@ from typing import Optional, Tuple
 
 try:
     from PIL import Image, ImageDraw, ImageFont
-except Exception:
+except Exception as e:
     raise SystemExit(
         "[error] Pillow (PIL) is required. Install: python3 -m pip install pillow"
-    )
+    ) from e
 
 
 TEAL_TOP = (17, 73, 82)  # #114952
