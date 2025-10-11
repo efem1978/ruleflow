@@ -54,10 +54,7 @@ def resolve_font_path(user_font: Optional[str] = None) -> Optional[str]:
         "/usr/share/fonts/truetype/dejavu/DejaVuSansCondensed.ttf",
         "assets/fonts/Inter-Regular.ttf",
     ]
-    for p in candidates:
-        if Path(p).exists():
-            return p
-    return None
+    return next((p for p in candidates if Path(p).exists()), None)
 
 
 def load_font(path: Optional[str], size: int) -> ImageFont.ImageFont:
