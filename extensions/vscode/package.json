@@ -209,7 +209,7 @@
     "@types/vscode": "^1.84.0",
     "@vscode/test-electron": "^2.3.4",
     "c8": "^9.1.0",
-    "mocha": "^10.2.0",
+    "mocha": "^11.7.4",
     "sharp": "^0.33.5",
     "typescript": "^5.4.0",
     "@vscode/vsce": "^3.0.0"
